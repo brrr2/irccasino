@@ -116,7 +116,7 @@ public class Player {
     
     /* Formatted string representations */
     public String getCardStr(int numHidden){
-    	String hiddenBlock = Colors.DARK_BLUE+",00\uFFFD"+Colors.NORMAL;
+    	String hiddenBlock = Colors.DARK_BLUE+",00\uFFFD";
         String outStr="";
         for (int ctr=0; ctr<numHidden; ctr++){
             outStr += hiddenBlock+" ";

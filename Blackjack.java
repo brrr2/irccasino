@@ -57,16 +57,18 @@ public class Blackjack extends CardGame {
             if (msg.equals(".join") || msg.equals(".j")){
                 if (playerJoined(user)){
                     bot.sendNotice(user,"You have already joined!");
-                } else if (isInProgress()){
-                    bot.sendNotice(user,"A round is already in progress. Please join the next round.");
                 } else if (isBlacklisted(user)){
                     bot.sendNotice(user, "You have gone bankrupt. Please wait for a loan to join again.");
+                } else if (isInProgress()){
+                    addWaitingPlayer(user);
                 } else {
                     addPlayer(user);
                 }
             } else if (msg.equals(".leave") || msg.equals(".quit")){
-                if (!playerJoined(user)){
-                    bot.sendNotice(user,"You are not currently joined!");
+                if (!playerJoined(user) && !playerWaiting(user)){
+                    bot.sendNotice(user,"You are not currently joined or waiting!");
+                } else if (playerWaiting(user)){
+                	removeWaiting(user);
                 } else {
                     leaveGame(user);
                 }
@@ -253,6 +255,8 @@ public class Blackjack extends CardGame {
             	}
             } else if (msg.equals(".players")){
                 showPlayers();
+            } else if (msg.equals(".waiting")){
+            	showWaiting();
             } else if (msg.equals(".gamerules") || msg.equals(".grules")){
                 infoGameRules(user);
             } else if (msg.equals(".gamehelp") || msg.equals(".ghelp")){
@@ -375,6 +379,7 @@ public class Blackjack extends CardGame {
         }
         resetGame();
         showEndRound();
+        addWaitingPlayers();
     }
     @Override
     public void endGame(){
@@ -383,7 +388,12 @@ public class Blackjack extends CardGame {
             p = getPlayer(ctr);
             savePlayerData(p);
         }
+        for (int ctr=0; ctr<getNumberWaiting(); ctr++){
+            p = getWaiting(ctr);
+            savePlayerData(p);
+        }
         players.clear();
+        waitlist.clear();
         shoe = null;
         dealer = null;
         currentPlayer = null;
@@ -405,15 +415,22 @@ public class Blackjack extends CardGame {
             p.setSurrender(false);
             p.setHit(false);
         }
-    } 
+    }
     
     /* Player management methods */
     @Override
-    public void addPlayer(User u){
-        Player p = new BlackjackPlayer(u,false);
+    public void addPlayer(User user){
+        Player p = new BlackjackPlayer(user,false);
         players.add(0,p);
         loadPlayerData(p);
         showPlayerJoin(p);
+    }
+    @Override
+    public void addWaitingPlayer(User user){
+    	Player p = new BlackjackPlayer(user,false);
+    	waitlist.add(p);
+    	loadPlayerData(p);
+    	showPlayerWaiting(p);
     }
     
     /* Calculations for blackjack */
@@ -903,7 +920,7 @@ public class Blackjack extends CardGame {
     @Override
     public String getGameCommandStr(){
     	return "start (go), join (j), leave (quit), bet (b), hit (h), stay (stand), doubledown (dd), surrender, " +
-    			"insure, table, turn, sum, cash, hand, mybet, simple, players, gamehelp (ghelp), " +
+    			"insure, table, turn, sum, cash, hand, mybet, simple, players, waiting, gamehelp (ghelp), " +
     			"gamerules (grules), gamecommands (gcommands)";
     }
 }

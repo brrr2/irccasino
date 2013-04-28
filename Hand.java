@@ -19,34 +19,41 @@
 
 package irccasino;
 
+import java.util.*;
 import org.pircbotx.*;
 
-public class Card {
-    private String suit, face;
-    
-    public Card(String s, String f){
-        suit = s;
-        face = f;
-    }
-    
-    /* Accessor methods */
-    public String getFace(){
-        return face;
-    }
-    public String getSuit(){
-        return suit;
-    }
-    
-    /* String representation of the card with IRC color formatting */
-    @Override
-    public String toString(){
-        String color;
-        if (suit.equals(CardDeck.suits[0]) || suit.equals(CardDeck.suits[1])){
-            color = Colors.RED;
-        } else {
-            color = Colors.BLACK;
+public class Hand {
+	protected ArrayList<Card> cards;
+	
+	public Hand(){
+		cards = new ArrayList<Card>();
+	}
+	
+	public void add(Card card){
+		cards.add(card);
+	}
+	public void remove(int index){
+		cards.remove(index);
+	}
+	public Card get(int index){
+		return cards.get(index);
+	}
+	public void clear(){
+		cards.clear();
+	}
+	public int getSize(){
+		return cards.size();
+	}
+	
+	public String toString(int numHidden){
+    	String hiddenBlock = Colors.DARK_BLUE+",00\uFFFD";
+        String outStr="";
+        for (int ctr=0; ctr<numHidden; ctr++){
+            outStr += hiddenBlock+" ";
         }
-        
-        return color+",00"+face+suit;
+        for (int ctr=numHidden; ctr<cards.size(); ctr++){
+            outStr += cards.get(ctr)+" ";
+        }
+        return outStr.substring(0, outStr.length()-1)+Colors.NORMAL;
     }
 }

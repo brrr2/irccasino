@@ -69,7 +69,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     protected PircBotX bot; //bot handling the game
     protected Channel channel; //channel where game is being played
     protected String gameName;
-    protected ArrayList<Player> players, blacklist;
+    protected ArrayList<Player> players, blacklist, waitlist;
     protected CardDeck shoe;
     protected Player currentPlayer;
     protected boolean inProgress, betting;
@@ -80,6 +80,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         channel = gameChannel;
         players = new ArrayList<Player>();
         blacklist = new ArrayList<Player>();
+        waitlist = new ArrayList<Player>();
         inProgress = false;
         betting = false;
         checkPlayerFile();
@@ -92,6 +93,15 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     abstract public void resetGame();
     abstract public void leaveGame(User u);
     abstract public void resetPlayers();
+    public void addWaitingPlayers(){
+    	Player p;
+    	while(!waitlist.isEmpty()){
+    		p = waitlist.get(0);
+    		players.add(0,p);
+    		waitlist.remove(p);
+    		showPlayerJoin(p);
+    	}
+    }
     public void setInProgress(boolean b){
         inProgress = b;
     }
@@ -119,9 +129,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     }
 
     /* Player management methods */
-    public abstract void addPlayer(User u);
-    public boolean playerJoined(User u){
-        Player p = findPlayer(u);
+    public abstract void addPlayer(User user);
+    public abstract void addWaitingPlayer(User user);
+    public boolean playerJoined(User user){
+        Player p = findPlayer(user);
         if (p != null){
             return true;
         }
@@ -135,12 +146,24 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         }
         return false;
     }
-    public void removePlayer(User u){
-        Player p = findPlayer(u);
+    public boolean playerWaiting(User user){
+    	Player p = findWaiting(user);
+        if (p != null){
+            return true;
+        }
+        return false;
+    }
+    public void removePlayer(User user){
+        Player p = findPlayer(user);
         discardPlayerHand(p);
         players.remove(p);
         savePlayerData(p);
         showPlayerLeave(p);
+    }
+    public void removeWaiting(User user){
+    	Player p = findWaiting(user);
+    	waitlist.remove(p);
+        showPlayerLeaveWaiting(p);
     }
     public Player getNextPlayer(){
         int index = players.indexOf(currentPlayer);
@@ -153,6 +176,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     public Player getPlayer(int num){
         return players.get(num);
     }
+    public Player getWaiting(int num){
+    	return waitlist.get(num);
+    }
     public Player findPlayer(User u){
         for (int ctr=0; ctr<players.size(); ctr++){
             if (players.get(ctr).getNick().equals(u.getNick())){
@@ -162,15 +188,26 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         return null;
     }
     public Player findPlayer(String nick){
-        for (int ctr=0; ctr<players.size(); ctr++){
+        for (int ctr=0; ctr<getNumberPlayers(); ctr++){
             if (players.get(ctr).getNick().toLowerCase().equals(nick.toLowerCase())){
                 return players.get(ctr);
             }  
         }
         return null;
     }
+    public Player findWaiting(User user){
+    	for (int ctr=0; ctr< getNumberWaiting(); ctr++){
+            if (waitlist.get(ctr).getNick().equals(user.getNick())){
+                return waitlist.get(ctr);
+            }  
+        }
+        return null;
+    }
     public int getNumberPlayers(){
         return players.size();
+    }
+    public int getNumberWaiting(){
+    	return waitlist.size();
     }
     public Player getCurrentPlayer(){
         return currentPlayer;
@@ -336,8 +373,14 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     public void showPlayerJoin(Player p){
         bot.sendMessage(channel, p.getNickStr()+" has joined the game.");
     }
+    public void showPlayerWaiting(Player p){
+    	bot.sendMessage(channel, p.getNickStr()+" has joined the waitlist. S/He will be automatically added next round.");
+    }
     public void showPlayerLeave(Player p){
         bot.sendMessage(channel, p.getNickStr()+" has left the game.");
+    }
+    public void showPlayerLeaveWaiting(Player p){
+    	bot.sendMessage(channel, p.getNickStr()+" has left the waitlist. S/He will not be automatically added next round.");
     }
     public void showNoPlayers(){
         bot.sendMessage(channel, "Not enough players.");
@@ -364,8 +407,22 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
             outStr = "0 players joined!";
         } else {
             outStr = getNumberPlayers()+ " player(s): ";
-            for (int ctr=0; ctr<players.size(); ctr++){
-                p = players.get(ctr);
+            for (int ctr=0; ctr<getNumberPlayers(); ctr++){
+                p = getPlayer(ctr);
+                outStr += p.getNick()+" "; 
+            }
+        }
+        bot.sendMessage(channel, outStr);
+    }
+    public void showWaiting(){
+    	String outStr;
+        Player p;
+        if (getNumberWaiting()==0){
+            outStr = "0 players waiting!";
+        } else {
+            outStr = getNumberWaiting()+ " player(s) waiting: ";
+            for (int ctr=0; ctr < getNumberWaiting(); ctr++){
+                p = getWaiting(ctr);
                 outStr += p.getNick()+" "; 
             }
         }
