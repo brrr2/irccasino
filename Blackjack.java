@@ -1,3 +1,22 @@
+/*
+	Copyright (C) 2013 Yizhe Shen <brrr@live.ca>
+	
+	This file is part of irccasino.
+
+    irccasino is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    irccasino is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with irccasino.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 package irccasino;
 
 import java.util.*;
@@ -13,8 +32,8 @@ public class Blackjack extends CardGame {
         super(parent,gameChannel);
         gameName = "Blackjack";
         dealer = new Player(bot.getUserBot(),true);
-        deck = new CardDeck(4);
-        deck.shuffleCards();
+        shoe = new CardDeck(4);
+        shoe.shuffleCards();
         insuranceBets = false;
     }
     
@@ -66,7 +85,8 @@ public class Blackjack extends CardGame {
                 } else {
                     showNoPlayers();
                 }
-            } else if (msg.startsWith(".bet ") || msg.startsWith(".b ")){
+            } else if (msg.startsWith(".bet ") || msg.startsWith(".b ") ||
+            			msg.equals(".bet") || msg.equals(".b")){
             	if (!playerJoined(user)){
             		bot.sendNotice(user,"You are not currently joined!");
             	} else if (!isInProgress()){
@@ -77,13 +97,17 @@ public class Blackjack extends CardGame {
                 	bot.sendNotice(user,"It's not your turn!");                    
                 } else {
                 	try{
-                        int amount = parseNumberParam(msg);
-                        bet(amount);
-                    } catch (NumberFormatException e){
-                        showImproperBet();
-                    }
+	                	try{
+	                        int amount = parseNumberParam(msg);
+	                        bet(amount);
+	                    } catch (NumberFormatException e){
+	                        showImproperBet();
+	                    }
+                	} catch (NoSuchElementException e){
+                		showNoParameter();
+                	}
                 }
-            } else if (msg.equals(".hit")){
+            } else if (msg.equals(".hit") || msg.equals(".h")){
             	if (!playerJoined(user)){
             		bot.sendNotice(user,"You are not currently joined!");
             	} else if (!isInProgress()){
@@ -131,7 +155,7 @@ public class Blackjack extends CardGame {
                 } else {
                 	surrender();
                 }
-            } else if (msg.startsWith(".insure ")){
+            } else if (msg.startsWith(".insure ") || msg.startsWith(".insure")){
             	if (!playerJoined(user)){
             		bot.sendNotice(user,"You are not currently joined!");
             	} else if (!isInProgress()){
@@ -142,11 +166,15 @@ public class Blackjack extends CardGame {
                 	bot.sendNotice(user,"It's not your turn!");
                 } else {
                 	try {
-                        int amount = parseNumberParam(msg);
-                        insure(amount);
-                    } catch (NumberFormatException e){
-                        showImproperBet();
-                    }
+	                	try {
+	                        int amount = parseNumberParam(msg);
+	                        insure(amount);
+	                    } catch (NumberFormatException e){
+	                        showImproperBet();
+	                    }
+                	} catch (NoSuchElementException e){
+                		showNoParameter();
+                	}
                 }
             } else if (msg.equals(".split")){
             	if (!playerJoined(user)){
@@ -208,24 +236,27 @@ public class Blackjack extends CardGame {
             	} else {
                     showPlayerTurn(currentPlayer);
                 }
-            } else if (msg.equals(".cash")){
-            	if (!playerJoined(user)){
-            		bot.sendNotice(user,"You are not currently joined!");
-            	} else {
-            		infoPlayerCash(user);
-            	}
             } else if (msg.equals(".simple")){
                 if (!playerJoined(user)){
                 	bot.sendNotice(user,"You are not currently joined!");
                 } else {
                     togglePlayerSimple(user);
                 }
+            } else if (msg.equals(".top3")){
+            	showTopPlayers(3);
+            } else if (msg.startsWith(".cash ") || msg.equals(".cash")){
+            	try {
+	                String nick = parseStringParam(msg);
+	                showPlayerCash(nick);
+            	} catch (NoSuchElementException e){
+            		showNoParameter();
+            	}
             } else if (msg.equals(".players")){
                 showPlayers();
             } else if (msg.equals(".gamerules") || msg.equals(".grules")){
-                bot.sendNotice(user, "Not yet implemented. Good luck!");
+                infoGameRules(user);
             } else if (msg.equals(".gamehelp") || msg.equals(".ghelp")){
-                bot.sendNotice(user, "Not yet implemented. Good luck!");
+                infoGameHelp(user);
             } else if (msg.equals(".gamecommands") || msg.equals(".gcommands")){
                 infoGameCommands(user);
             } else if (msg.equals(".currentgame") || msg.equals(".game")){
@@ -244,20 +275,25 @@ public class Blackjack extends CardGame {
                 } else {
                     bot.sendNotice(user,"Debugging commands may only be used by ops.");
                 }
-            } else if (msg.startsWith(".cards ") || msg.startsWith(".discards ")){
+            } else if (msg.startsWith(".cards") || msg.startsWith(".discards") ||
+            			msg.equals(".cards") || msg.equals(".discards")){
                 if (channel.isOp(user)){
                 	try{
-                		int num = parseNumberParam(msg);
-                		if (msg.startsWith(".cards ") && deck.getNumberCards() > 0){
-                    		infoDeckCards(user,'c', num);
-                    	} else if (msg.startsWith(".discards ") && deck.getNumberDiscards() > 0){
-                    		infoDeckCards(user,'d', num);
-                    	} else {
-                    		bot.sendNotice(user,"Empty!");
-                    	}
-                    } catch (NumberFormatException e){
-                    	bot.sendNotice(user,"Bad parameter!");
-                    }
+	                	try{
+	                		int num = parseNumberParam(msg);
+	                		if (msg.startsWith(".cards ") && shoe.getNumberCards() > 0){
+	                    		infoDeckCards(user,'c', num);
+	                    	} else if (msg.startsWith(".discards ") && shoe.getNumberDiscards() > 0){
+	                    		infoDeckCards(user,'d', num);
+	                    	} else {
+	                    		bot.sendNotice(user,"Empty!");
+	                    	}
+	                    } catch (NumberFormatException e){
+	                    	bot.sendNotice(user,"Bad parameter!");
+	                    }
+                	} catch (NoSuchElementException e){
+                		bot.sendNotice(user,"Parameter missing!");
+                	}
                 } else {
                     bot.sendNotice(user,"Debugging commands may only be used by ops.");
                 }
@@ -348,7 +384,7 @@ public class Blackjack extends CardGame {
             savePlayerData(p);
         }
         players.clear();
-        deck = null;
+        shoe = null;
         dealer = null;
         currentPlayer = null;
     }
@@ -420,18 +456,18 @@ public class Blackjack extends CardGame {
     
     /* Card dealing for Blackjack */
     public void dealOne(Player p){
-    	p.addCard(deck.takeCard());
-    	if (deck.getNumberCards() == 0){
+    	p.addCard(shoe.takeCard());
+    	if (shoe.getNumberCards() == 0){
     		showDeckEmpty();
-    		deck.refillDeck();
+    		shoe.refillDeck();
     	}
     }
     public void dealHand(Player p){
     	for (int ctr2=0; ctr2<2; ctr2++){
-        	p.addCard(deck.takeCard());
-        	if (deck.getNumberCards() == 0){
+        	p.addCard(shoe.takeCard());
+        	if (shoe.getNumberCards() == 0){
         		showDeckEmpty();
-        		deck.refillDeck();
+        		shoe.refillDeck();
         	}
         }
     }
@@ -669,10 +705,17 @@ public class Blackjack extends CardGame {
     }
     @Override
     public void showPlayerHand(Player p){
-        bot.sendMessage(channel, p.getNickStr()+": "+p.getCardStr(1));
+    	if (p.isDealer() || shoe.getNumberDecks() == 1){
+    		bot.sendMessage(channel, p.getNickStr()+": "+p.getCardStr(1));
+    	} else {
+    		bot.sendMessage(channel, p.getNickStr()+": "+p.getCardStr(0));
+    	}
     }
     public void showDeckEmpty(){
-    	bot.sendMessage(channel,"The deck is now empty. Refilling the deck.");
+    	bot.sendMessage(channel,"The deck is now empty. Refilling the dealer's shoe...");
+    }
+    public void showNoParameter(){
+    	bot.sendMessage(channel, "Parameter missing!");
     }
     public void showProperBet(Player p){
         bot.sendMessage(channel,p.getNickStr()+" bets $"+p.getBet()+". Stack: $"+p.getCash());
@@ -705,7 +748,7 @@ public class Blackjack extends CardGame {
         bot.sendMessage(channel, p.getNickStr()+" has surrendered! Half the bet is returned and the rest forfeited. Stack: $"+p.getCash());
     }
     public void showNotInsure(){
-    	bot.sendMessage(channel, "The dealer's upcard is not an A. You cannot make an insurance bet.");
+    	bot.sendMessage(channel, "The dealer's upcard is not an ace. You cannot make an insurance bet.");
     }
     public void showAlreadyInsured(){
     	bot.sendMessage(channel, "You have already made an insurance bet.");
@@ -734,7 +777,7 @@ public class Blackjack extends CardGame {
     public void showInsuranceResults(){
     	BlackjackPlayer p;
     	bot.sendMessage(channel, Colors.BOLD+Colors.DARK_GREEN+"Insurance Results:"+Colors.NORMAL);
-    	if (getCardSum(dealer) == 21){
+    	if (isHandBlackjack(dealer)){
     		bot.sendMessage(channel,dealer.getNickStr()+" had blackjack.");
     	} else {
     		bot.sendMessage(channel,dealer.getNickStr()+" did not have blackjack.");
@@ -798,7 +841,7 @@ public class Blackjack extends CardGame {
         bot.sendMessage(channel, outStr);
     }
     
-    /* Private messages */
+    /* Player/User output methods to reduce clutter */
     public void infoPlayerSum(User user){
         Player p = findPlayer(user);
         if (p.isSimple()){
@@ -821,6 +864,36 @@ public class Blackjack extends CardGame {
             bot.sendMessage(user, outStr);
         }
     }
+    @Override
+    public void infoGameRules(User user){
+    	if (playerJoined(user)){
+			Player p = findPlayer(user);
+		    if (p.isSimple()){
+		    	bot.sendNotice(user, "Dealer stands on soft 17. The dealer's shoe has "+shoe.getNumberDecks()+" decks of cards. Cards are shuffled when the shoe is depleted.");
+		    	bot.sendNotice(user, "Regular wins are paid out at 1:1 and blackjacks are paid out at 3:2. Insurance wins are paid out at 2:1");
+		    } else {
+		    	bot.sendMessage(user, "Dealer stands on soft 17. The dealer's shoe has "+shoe.getNumberDecks()+" decks of cards. Cards are reshuffled when the shoe is depleted.");
+		    	bot.sendMessage(user, "Regular wins are paid out at 1:1 and blackjacks are paid out at 3:2. Insurance wins are paid out at 2:1");
+		    }
+    	} else {
+    		bot.sendMessage(user, "Dealer stands on soft 17. The dealer's shoe has "+shoe.getNumberDecks()+" decks of cards. Cards are shuffled when the shoe is depleted.");
+	    	bot.sendMessage(user, "Regular wins are paid out at 1:1 and blackjacks are paid out at 3:2. Insurance wins are paid out at 2:1. Early surrender is offered.");
+    	}
+    }
+    @Override
+    public void infoGameHelp(User user){
+    	if (playerJoined(user)){
+			Player p = findPlayer(user);
+		    if (p.isSimple()){
+		    	bot.sendNotice(user, "For help on how to play "+getGameNameStr()+", please visit an online resource. For game commands, type .gcommands.");
+		    } else {
+		    	bot.sendMessage(user, "For help on how to play "+getGameNameStr()+", please visit an online resource. For game commands, type .gcommands.");
+		    }
+    	} else {
+    		bot.sendMessage(user, "For help on how to play "+getGameNameStr()+", please visit an online resource. For game commands, type .gcommands. For house rules, type .grules.");
+    	}
+    }
+    
     
     /* Formatted strings */
     @Override
@@ -829,7 +902,7 @@ public class Blackjack extends CardGame {
     }
     @Override
     public String getGameCommandStr(){
-    	return "start (go), join (j), leave (quit), bet (b), hit, stay (stand), doubledown (dd), surrender, " +
+    	return "start (go), join (j), leave (quit), bet (b), hit (h), stay (stand), doubledown (dd), surrender, " +
     			"insure, table, turn, sum, cash, hand, mybet, simple, players, gamehelp (ghelp), " +
     			"gamerules (grules), gamecommands (gcommands)";
     }
