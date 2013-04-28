@@ -24,6 +24,7 @@ import java.util.*;
 import org.pircbotx.*;
 import org.pircbotx.hooks.ListenerAdapter;
 
+
 public abstract class CardGame extends ListenerAdapter<PircBotX>{
 	public static class StartRoundTask extends TimerTask{
 		CardGame game;
@@ -75,6 +76,12 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     protected boolean inProgress, betting;
     protected Timer idleOutTimer;
     
+    /**
+     * Class constructor for generic CardGame
+     * 
+     * @param parent	the bot that creates an instance of this ListenerAdapter
+     * @param gameChannel	the IRC channel in which the game is to be run.
+     */
     public CardGame (PircBotX parent,Channel gameChannel){
         bot = parent;
         channel = gameChannel;
@@ -121,13 +128,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     public void cancelIdleOutTimer(){
         idleOutTimer.cancel();
     }
-    public void discardPlayerHand(Player p){
-        if (p.hasHand()){
-            shoe.addToDiscard(p.getHand());
-            p.resetHand();
-        }
-    }
 
+    /* Card management methods */
+    abstract public void discardPlayerHand(Player p);
+    
     /* Player management methods */
     public abstract void addPlayer(User user);
     public abstract void addWaitingPlayer(User user);
@@ -364,9 +368,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     }
     
     /* Channel output methods to reduce clutter */
-    public void showPlayerHand(Player p) {
-    	bot.sendMessage(channel, p.getNickStr()+": "+p.getCardStr(0));
-    }
     public void showPlayerTurn(Player p) {
     	bot.sendMessage(channel,"It's now "+p.getNickStr()+"'s turn.");
     }
@@ -479,22 +480,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     /* Player/User output methods to reduce clutter */
     abstract public void infoGameRules(User user);
     abstract public void infoGameHelp(User user);
-    public void infoPlayerHand(User user){
-        Player p = findPlayer(user);
-        if (p.isSimple()){
-            bot.sendNotice(user, "Your cards are "+p.getCardStr(0)+".");
-        } else {
-            bot.sendMessage(user, "Your cards are "+p.getCardStr(0)+".");
-        }
-    }
-    public void infoPlayerBet(User user){
-        Player p = findPlayer(user);
-        if (p.isSimple()){
-            bot.sendNotice(user, "You have bet $"+p.getBet()+".");
-        } else {
-            bot.sendMessage(user, "You have bet $"+p.getBet()+".");
-        }
-    }
     public void infoPlayerBankrupt(User user){
         Player p = findPlayer(user);
         if (p.isSimple()){

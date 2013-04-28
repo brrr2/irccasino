@@ -28,11 +28,17 @@ public class CardDeck {
     protected ArrayList<Card> discards;
     protected int numDecks;
     
-    /* Default constructor creates single set */
+    /**
+     * Default constructor creates a CardDeck with a single set of cards (52).
+     */
     public CardDeck(){
         this(1);
     }
-    /* Creates a CardDeck with n sets */
+    /**
+     * Creates a CardDeck with n sets of cards (52n).
+     * 
+     * @param n		number of sets of cards.
+     */
     public CardDeck(int n){
         numDecks = n;
         cards = new ArrayList<Card>();

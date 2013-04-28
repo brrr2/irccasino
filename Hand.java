@@ -24,11 +24,20 @@ import org.pircbotx.*;
 
 public class Hand {
 	protected ArrayList<Card> cards;
+	protected boolean surrender;
+	protected int insureBet, bet;
 	
+	/**
+	 * Class constructor for hand of cards
+	 */
 	public Hand(){
 		cards = new ArrayList<Card>();
+		surrender = false;
+		insureBet = 0;
+		bet = 0;
 	}
 	
+	/* Accessor methods */
 	public void add(Card card){
 		cards.add(card);
 	}
@@ -38,13 +47,49 @@ public class Hand {
 	public Card get(int index){
 		return cards.get(index);
 	}
+	public ArrayList<Card> getAllCards(){
+		return cards;
+	}
 	public void clear(){
 		cards.clear();
 	}
 	public int getSize(){
 		return cards.size();
 	}
+	public boolean hasHit(){
+		return getSize() != 2;
+	}
 	
+    /* Blackjack specific betting, may get moved to a subclass */
+	public void setBet(int amount){
+    	bet = amount;
+    }
+    public void addBet(int amount){
+        bet += amount;
+    }
+    public int getBet(){
+        return bet;
+    }
+    public void clearBet(){
+        bet = 0;
+    }
+    public boolean hasInsured(){
+    	return (insureBet > 0);
+    }
+    public void setInsureBet(int amount){
+    	insureBet = amount;
+    }
+    public int getInsureBet(){
+    	return insureBet;
+    }
+	public void setSurrender(boolean b){
+		surrender = b;
+	}
+	public boolean hasSurrendered(){
+		return surrender;
+	}
+	
+	/* Formatted string repsentation of the hand */
 	public String toString(int numHidden){
     	String hiddenBlock = Colors.DARK_BLUE+",00\uFFFD";
         String outStr="";

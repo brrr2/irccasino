@@ -19,44 +19,81 @@
 
 package irccasino;
 
+import java.util.*;
 import org.pircbotx.*;
 
 public class BlackjackPlayer extends Player{
-	protected boolean surrender, hit;
-	protected int insureBet;
+	protected int currentIndex;
+	protected ArrayList<Hand> hands;
+	protected int initialBet;
 	
-	/* Constructor requires User and player type */
+	/**
+	 * Class constructor for subclass of Player
+	 * 
+	 * @param u		IRC user object
+	 * @param d		Whether or not player is dealer
+	 */
     public BlackjackPlayer(User u, boolean d){
         super(u,d);
-        surrender = false;
-        hit = false;
-        insureBet = 0;
+        hands = new ArrayList<Hand>();
+        currentIndex = 0;
+        initialBet = 0;
+    }
+
+    /* Blackjack-specific card/hand manipulation methods */
+    public void addHand(){
+    	hands.add(new Hand());
+    }
+    public Hand getHand(int num){
+    	return hands.get(num);
+    }
+    public int getCurrentIndex(){
+    	return currentIndex;
+    }
+    public void resetCurrentIndex(){
+    	currentIndex = 0;
+    }
+    public Hand getCurrentHand(){
+    	return hands.get(currentIndex);
+    }
+    public Hand getNextHand(){
+    	return getHand(++currentIndex);
+    }
+    public int getNumberHands(){
+    	return hands.size();
+    }
+    public boolean hasHands(){
+        return hands.size() > 0;
+    }
+    public void resetHands(){
+    	hands.clear();
     }
     
-    /* Blackjack specific methods */
-    public void setSurrender(boolean b){
-        surrender = b;
+    /* Betting methods */
+    public void setInitialBet(int b){
+    	initialBet = b;
     }
-    public boolean hasSurrendered(){
-        return surrender;
+    public int getInitialBet(){
+    	return initialBet;
     }
-    public void setHit(boolean b){
-        hit = b;
+    public boolean hasInitialBet(){
+    	return initialBet > 0;
     }
-    public boolean hasHit(){
-        return hit;
+    public void clearInitialBet(){
+    	initialBet = 0;
     }
-    public boolean hasInsured(){
-    	return (insureBet > 0);
+    
+    /* Methods related to splitting hands */
+    public boolean hasSplit(){
+    	return hands.size() > 1;
     }
-    public void setInsureBet(int amount){
-    	insureBet = amount;
-    	cash -= amount;
+    public void splitHand(){
+    	Hand tHand = new Hand();
+    	Hand cHand = getCurrentHand();
+    	tHand.add(cHand.get(1));
+    	cHand.remove(1);
+    	
+    	hands.add(currentIndex+1, tHand);
     }
-    public int getInsureBet(){
-    	return insureBet;
-    }
-    public void clearInsureBet(){
-    	insureBet = 0;
-    }
+    
 }
