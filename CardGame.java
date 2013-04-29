@@ -51,21 +51,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
             game.savePlayerData(player);
         }
     }
-    public static class IdleOutTask extends TimerTask{
-        Player player;
-        CardGame game;
-        public IdleOutTask(Player p, CardGame g){
-            player = p;
-            game = g;
-        }
-        @Override
-        public void run(){
-            if (player == game.getCurrentPlayer()){
-                game.bot.sendMessage(game.channel, player.getNickStr()+" has wasted precious time and idled out." );
-                game.leaveGame(player.getUser());
-            }
-        }
-    }
     
     protected PircBotX bot; //bot handling the game
     protected Channel channel; //channel where game is being played
@@ -100,6 +85,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     abstract public void resetGame();
     abstract public void leaveGame(User u);
     abstract public void resetPlayers();
+    abstract public void setIdleOutTimer();
+    abstract public void cancelIdleOutTimer();
     public void addWaitingPlayers(){
     	Player p;
     	while(!waitlist.isEmpty()){
@@ -120,13 +107,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     }
     public boolean isBetting(){
         return betting;
-    }
-    public void setIdleOutTimer(){
-        idleOutTimer = new Timer();
-        idleOutTimer.schedule(new IdleOutTask(currentPlayer, this), 60000);
-    }
-    public void cancelIdleOutTimer(){
-        idleOutTimer.cancel();
     }
 
     /* Card management methods */
@@ -167,7 +147,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     public void removeWaiting(User user){
     	Player p = findWaiting(user);
     	waitlist.remove(p);
-        showPlayerLeaveWaiting(p);
+        infoPlayerLeaveWaiting(p);
     }
     public Player getNextPlayer(){
         int index = players.indexOf(currentPlayer);
@@ -182,6 +162,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     }
     public Player getWaiting(int num){
     	return waitlist.get(num);
+    }
+    public Player getBankrupt(int num){
+    	return blacklist.get(num);
     }
     public Player findPlayer(User u){
         for (int ctr=0; ctr<players.size(); ctr++){
@@ -212,6 +195,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     }
     public int getNumberWaiting(){
     	return waitlist.size();
+    }
+    public int getNumberBankrupt(){
+    	return blacklist.size();
     }
     public Player getCurrentPlayer(){
         return currentPlayer;
@@ -272,7 +258,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
                 amount = Integer.parseInt(st.nextToken());
                 simple = st.nextToken();
                 if (p.getNick().toLowerCase().equals(nick)){
-                    p.setCash(amount);
+                    if (amount == 0){
+                    	p.setCash(1000);
+                    } else {
+                    	p.setCash(amount);
+                    }
                     if (simple.equals("simple")){
                         p.setSimple(true);
                     } else {
@@ -355,6 +345,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
 	        }
     	} catch (IOException e){}
     }
+    public boolean isPlayerIdledOut(Player p){
+    	return p.getIdledOut();
+    }
     public boolean isPlayerBankrupt(Player p){
         return (p.getCash() == 0);
     }
@@ -374,14 +367,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     public void showPlayerJoin(Player p){
         bot.sendMessage(channel, p.getNickStr()+" has joined the game.");
     }
-    public void showPlayerWaiting(Player p){
-    	bot.sendMessage(channel, p.getNickStr()+" has joined the waitlist. S/He will be automatically added next round.");
-    }
     public void showPlayerLeave(Player p){
         bot.sendMessage(channel, p.getNickStr()+" has left the game.");
-    }
-    public void showPlayerLeaveWaiting(Player p){
-    	bot.sendMessage(channel, p.getNickStr()+" has left the waitlist. S/He will not be automatically added next round.");
     }
     public void showNoPlayers(){
         bot.sendMessage(channel, "Not enough players.");
@@ -429,6 +416,20 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         }
         bot.sendMessage(channel, outStr);
     }
+    public void showBankrupt(){
+    	String outStr;
+        Player p;
+        if (getNumberBankrupt()==0){
+            outStr = "0 players bankrupt!";
+        } else {
+            outStr = getNumberBankrupt()+ " player(s) bankrupt: ";
+            for (int ctr=0; ctr < getNumberBankrupt(); ctr++){
+                p = getBankrupt(ctr);
+                outStr += p.getNick()+" "; 
+            }
+        }
+        bot.sendMessage(channel, outStr);
+    }
     public void showPlayerCash(String nick){
     	int cash = getPlayerCash(nick);
     	if (cash > -1){
@@ -448,7 +449,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         	BufferedReader f = new BufferedReader(new FileReader("players.txt"));
             StringTokenizer st;
             ArrayList<String> fnick = new ArrayList<String>();
-            String fsimple;
+            String fsimple, list="";
             ArrayList<Integer> famount = new ArrayList<Integer>();
             while (f.ready()){
                 st = new StringTokenizer(f.readLine());
@@ -457,21 +458,21 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
                 fsimple = st.nextToken();
             }
             f.close();
-            bot.sendMessage(channel, Colors.DARK_GREEN+Colors.BOLD+"Top "+n+" Players:"+Colors.NORMAL);
-            for (int ctr=1; ctr<=3; ctr++){
+            for (int ctr=1; ctr<=n; ctr++){
             	highIndex = 0;
             	for (int ctr2=0; ctr2<fnick.size(); ctr2++){
             		if (famount.get(ctr2) > famount.get(highIndex)){
             			highIndex = ctr2;
             		}
             	}
-            	bot.sendMessage(channel, ctr+". "+fnick.get(highIndex)+": $"+famount.get(highIndex));
+            	list += " #"+ctr+": "+Colors.WHITE+",04 "+fnick.get(highIndex)+" $"+famount.get(highIndex)+" "+Colors.BLACK+",08";
             	fnick.remove(highIndex);
             	famount.remove(highIndex);
             	if (fnick.isEmpty()){
             		break;
             	}
             }
+            bot.sendMessage(channel, Colors.BLACK+",08Top "+n+" Players:"+list);
         } catch (IOException e){
         	System.out.println("Error reading players.txt");
         }
@@ -483,9 +484,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     public void infoPlayerBankrupt(User user){
         Player p = findPlayer(user);
         if (p.isSimple()){
-            bot.sendNotice(p.getUser(), "You've lost all your money. Please wait 3 minutes for a loan.");
+            bot.sendNotice(p.getUser(), "You've lost all your money. Please wait 15 minutes for a loan.");
         } else {
-            bot.sendMessage(p.getUser(), "You've lost all your money. Please wait 3 minutes for a loan.");
+            bot.sendMessage(p.getUser(), "You've lost all your money. Please wait 15 minutes for a loan.");
         }
     }
     public void infoGameCommands(User user){
@@ -517,6 +518,20 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     }
     public void infoNewPlayer(Player p){
     	bot.sendNotice(p.getUser(), "Welcome to "+getGameNameStr()+"! Here's $1000 to get you started!");
+    }
+    public void infoPlayerWaiting(Player p){
+    	if (p.isSimple()){
+    		bot.sendNotice(p.getUser(), "You have joined the waitlist and will be automatically added next round.");
+    	} else {
+    		bot.sendMessage(p.getUser(), "You have joined the waitlist and will be be automatically added next round.");
+    	}
+	}
+    public void infoPlayerLeaveWaiting(Player p){
+    	if (p.isSimple()){
+    		bot.sendNotice(p.getUser(), "You have left the waitlist and will not be automatically added next round.");
+    	} else {
+    		bot.sendMessage(p.getUser(), "You have left the waitlist and will not be automatically added next round.");
+    	}
     }
     
     /* Debugging methods for ops */

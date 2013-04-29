@@ -25,6 +25,7 @@ public class Player {
     protected User user;
     protected boolean simple, dealer;
     protected int cash, bet;
+    protected boolean idledOut;
     
     /**
      * Class constructor
@@ -38,6 +39,7 @@ public class Player {
         cash = 0;
         bet = 0;
         simple = true;
+        idledOut = false;
     }
     
     /* Player info methods */
@@ -59,6 +61,12 @@ public class Player {
     }
     public boolean isDealer(){
         return dealer;
+    }
+    public void setIdledOut(boolean b){
+    	idledOut = b;
+    }
+    public boolean getIdledOut(){
+    	return idledOut;
     }
     
     /* Send user information via notice or message */
