@@ -87,6 +87,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     abstract public void resetPlayers();
     abstract public void setIdleOutTimer();
     abstract public void cancelIdleOutTimer();
+    abstract public void loadSettings();
     public void addWaitingPlayers(){
     	Player p;
     	while(!waitlist.isEmpty()){
@@ -505,16 +506,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     	}
     }
     public void infoNumDecks(User user){
-    	if (playerJoined(user)){
-			Player p = findPlayer(user);
-		    if (p.isSimple()){
-		    	bot.sendNotice(user, "This game of "+getGameNameStr()+" is using "+shoe.getNumberDecks()+" deck(s) of cards.");
-		    } else {
-		    	bot.sendMessage(user, "This game of "+getGameNameStr()+" is using "+shoe.getNumberDecks()+" deck(s) of cards.");
-		    }
-    	} else {
-    		bot.sendMessage(user, "This game of "+getGameNameStr()+" is using "+shoe.getNumberDecks()+" deck(s) of cards.");
-    	}
+		bot.sendNotice(user, "This game of "+getGameNameStr()+" is using "+shoe.getNumberDecks()+" deck(s) of cards.");
+    }
+    public void infoNumCards(User user){
+        bot.sendNotice(user, shoe.getNumberCards()+" cards left in the dealer's shoe.");
+    }
+    public void infoNumDiscards(User user){
+        bot.sendNotice(user, shoe.getNumberDiscards()+" cards in the discard pile.");
     }
     public void infoNewPlayer(Player p){
     	bot.sendNotice(p.getUser(), "Welcome to "+getGameNameStr()+"! Here's $1000 to get you started!");
@@ -571,12 +569,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         	cardIndex+=numOut;
         	bot.sendNotice(user, cardStr.substring(0, cardStr.length()-1)+Colors.NORMAL);
         }
-    }
-    public void infoNumCards(User user){
-        bot.sendNotice(user, shoe.getNumberCards()+" cards left in the dealer's shoe.");
-    }
-    public void infoNumDiscards(User user){
-        bot.sendNotice(user, shoe.getNumberDiscards()+" cards in the discard pile.");
     }
     
     /* IRC parameter handling integers */   
