@@ -228,11 +228,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
 	            if (found){
 	            	return famount;
 	            } else {
-	            	return -1;
+	            	return Integer.MIN_VALUE;
 	            }
 	        } catch (IOException e){
 	        	System.out.println("Error reading players.txt");
-	        	return -1;
+	        	return Integer.MIN_VALUE;
 	        }
     	}
     }
@@ -259,7 +259,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
                 amount = Integer.parseInt(st.nextToken());
                 simple = st.nextToken();
                 if (p.getNick().toLowerCase().equals(nick)){
-                    if (amount == 0){
+                    if (amount <= 0){
                     	p.setCash(1000);
                     } else {
                     	p.setCash(amount);
@@ -433,7 +433,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     }
     public void showPlayerCash(String nick){
     	int cash = getPlayerCash(nick);
-    	if (cash > -1){
+    	if (cash != Integer.MIN_VALUE){
         	bot.sendMessage(channel, nick+" has $"+cash+".");
         } else {
         	bot.sendMessage(channel, "No data found for "+nick+".");

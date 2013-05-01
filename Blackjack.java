@@ -46,10 +46,21 @@ public class Blackjack extends CardGame {
             }
         }
     }
+    public static class IdleShuffleTask extends TimerTask{
+    	Blackjack game;
+    	public IdleShuffleTask(Blackjack g){
+    		game = g;
+    	}
+    	@Override
+    	public void run(){
+    		game.shuffleShoe();
+    	}
+    }
 
     private BlackjackPlayer dealer;
     private boolean insuranceBets;
-    private int idleOutTime, shoeDecks, respawnTime, newcash;
+    private int idleOutTime, shoeDecks, respawnTime, newcash, idleShuffleTime;
+    private Timer idleShuffleTimer;
     
     /**
      * Class constructor for Blackjack, a subclass of CardGame.
@@ -111,6 +122,9 @@ public class Blackjack extends CardGame {
                 } else if (isInProgress()){
                 	bot.sendNotice(user,"A round is already in progress!");
                 } else if (getNumberPlayers()>0){
+                	if (idleShuffleTimer != null){
+                		cancelIdleShuffleTimer();
+                	}
                 	showStartRound();
                     showPlayers();
                     setInProgress(true);
@@ -255,7 +269,7 @@ public class Blackjack extends CardGame {
             		BlackjackPlayer p = (BlackjackPlayer) findPlayer(user);
             		infoPlayerHand(p, p.getCurrentHand());
             	}
-            } else if (msg.equals(".allhands") || msg.equals("ahands")){
+            } else if (msg.equals(".allhands")){
             	bot.sendNotice(user, "This command has not been implemented yet.");
             } else if (msg.equals(".turn")){
 	        	if (!playerJoined(user)){
@@ -271,8 +285,6 @@ public class Blackjack extends CardGame {
                 } else {
                     togglePlayerSimple(user);
                 }
-            } else if (msg.equals(".top5")){
-            	showTopPlayers(5);
             } else if (msg.startsWith(".cash ") || msg.equals(".cash")){
             	try {
 	                String nick = parseStringParam(msg);
@@ -280,6 +292,8 @@ public class Blackjack extends CardGame {
             	} catch (NoSuchElementException e){
             		showPlayerCash(user.getNick());
             	}
+            } else if (msg.equals(".top5")){
+            	showTopPlayers(5);
             } else if (msg.equals(".players")){
                 showPlayers();
             } else if (msg.equals(".waitlist")){
@@ -324,17 +338,22 @@ public class Blackjack extends CardGame {
                 }
             } else if (msg.equals(".shuffle")){
             	if (isInProgress()){
-            		bot.sendNotice(user,"A round is already in progress!");
+            		bot.sendNotice(user,"A round is already in progress! Wait for the round to end.");
             	} else if (channel.isOp(user)){
-            		shoe.refillDeck();
-            		showShuffleShoe();
+            		if (idleShuffleTimer != null){
+                		cancelIdleShuffleTimer();
+                	}
+            		shuffleShoe();
             	} else {
                     bot.sendNotice(user,"Debugging commands may only be used by ops.");
                 }
             } else if (msg.equals(".reload")){
             	if (isInProgress()){
-            		bot.sendNotice(user,"A round is already in progress!");
+            		bot.sendNotice(user,"A round is already in progress! Wait for the round to end.");
             	} else if (channel.isOp(user)){
+            		if (idleShuffleTimer != null){
+                		cancelIdleShuffleTimer();
+                	}
             		loadSettings();
             		showReloadSettings();
             	} else {
@@ -363,6 +382,8 @@ public class Blackjack extends CardGame {
     				shoeDecks = Integer.parseInt(value);
     			} else if (name.equals("idle")){
     				idleOutTime = Integer.parseInt(value)*1000;
+    			} else if (name.equals("idleshuffle")){
+    				idleShuffleTime = Integer.parseInt(value)*1000;
     			} else if (name.equals("cash")){
     				newcash = Integer.parseInt(value);
     			} else if (name.equals("respawn")){
@@ -377,6 +398,7 @@ public class Blackjack extends CardGame {
     		newcash = 1000;
 	        idleOutTime = 60000;
 	        respawnTime = 900000;
+	        idleShuffleTime = 1800000;
     	}
     	shoe = new CardDeck(shoeDecks);
         shoe.shuffleCards();
@@ -428,7 +450,7 @@ public class Blackjack extends CardGame {
             showPlayerTurn(dealer);
             dHand = dealer.getCurrentHand();
             showPlayerHand(dealer, dHand, true);
-            if (!hasPlayersLost()){
+            if (needDealerHit()){
 	            while(getCardSum(dHand)<17){
 	            	dealOne(dHand);
 	                showPlayerHand(dealer, dHand, true);
@@ -463,6 +485,7 @@ public class Blackjack extends CardGame {
         showEndRound();
         showSeparator();
         addWaitingPlayers();
+        setIdleShuffleTimer();
     }
     @Override
     public void endGame(){
@@ -511,6 +534,14 @@ public class Blackjack extends CardGame {
     public void cancelIdleOutTimer(){
         idleOutTimer.cancel();
     }
+    public void setIdleShuffleTimer(){
+    	idleShuffleTimer = new Timer();
+    	idleShuffleTimer.schedule(new IdleShuffleTask(this), idleShuffleTime);
+    }
+    public void cancelIdleShuffleTimer(){
+        idleOutTimer.cancel();
+    }
+    
     public void removeIdlers(){
     	Player p;
     	for (int ctr=0; ctr<getNumberPlayers(); ctr++){
@@ -576,6 +607,10 @@ public class Blackjack extends CardGame {
     }
     
     /* Card management methods for Blackjack */
+    public void shuffleShoe(){
+    	shoe.refillDeck();
+    	showShuffleShoe();
+    }
     public void dealOne(Hand h){
     	h.add(shoe.takeCard());
     	if (shoe.getNumberCards() == 0){
@@ -762,18 +797,18 @@ public class Blackjack extends CardGame {
 			infoAlreadyInsured(p);
 		} else if (!dealerUpcardAce()){
     		infoNotInsure(p);
-    	} else {
-    		if (amount > calcHalf(cHand.getBet())){
-    			infoInsureBetTooHigh(p);
-    		} else if (amount <= 0){
-    			infoBetTooLow(p);
-    		} else {
-    			setInsuranceBets(true);
-    			cHand.setInsureBet(amount);
-    			p.addCash(-1*amount);
-    			showInsure(p, cHand);
-    		}
-    	}
+    	} else if (p.getCash() == 0){
+            infoInsufficientFunds(p);
+        } else if (amount > calcHalf(cHand.getBet())){
+			infoInsureBetTooHigh(p);
+		} else if (amount <= 0){
+			infoBetTooLow(p);
+		} else {
+			setInsuranceBets(true);
+			cHand.setInsureBet(amount);
+			p.addCash(-1*amount);
+			showInsure(p, cHand);
+		}
     	setIdleOutTimer();
     }
     public void split(){
@@ -793,7 +828,7 @@ public class Blackjack extends CardGame {
     		nHand = p.getHand(p.getCurrentIndex()+1);
     		dealOne(nHand);
     		nHand.setBet(cHand.getBet());
-    		showSplitHands(p,cHand,nHand);
+    		showSplitHands(p);
     		showSeparator();
     		showPlayerHand(p,cHand,p.getCurrentIndex()+1);
     		quickEval();
@@ -906,19 +941,17 @@ public class Blackjack extends CardGame {
     public void setInsuranceBets(boolean b){
     	insuranceBets = b;
     }
-    public boolean hasPlayersLost(){
+    public boolean needDealerHit(){
     	for (int ctr=0; ctr<getNumberPlayers(); ctr++){
     		BlackjackPlayer p = (BlackjackPlayer) getPlayer(ctr);
     		for (int ctr2=0; ctr2<p.getNumberHands(); ctr2++){
     			Hand h = p.getHand(ctr2);
-    			if (h.hasInsured()){
-    				return false;
-    			} else if (!isHandBusted(h) && !h.hasSurrendered()){
-    				return false;
+    			if (!isHandBusted(h) && !h.hasSurrendered() && !isHandBlackjack(h)){
+    				return true;
     			}
     		}
     	}
-    	return true;
+    	return false;
     }
     
     /* Channel output methods for Blackjack */
@@ -960,6 +993,13 @@ public class Blackjack extends CardGame {
     		bot.sendMessage(channel, p.getNickStr()+"-"+handIndex+": "+h.toString(0));
     	}
     }
+    public void showPlayerHandWithBet(BlackjackPlayer p, Hand h, int handIndex){
+    	if (p.isDealer() || shoe.getNumberDecks() == 1){
+    		bot.sendMessage(channel, p.getNickStr()+"-"+handIndex+": "+h.toString(1)+", bet: $"+h.getBet());
+    	} else {
+    		bot.sendMessage(channel, p.getNickStr()+"-"+handIndex+": "+h.toString(0)+", bet: $"+h.getBet());
+    	}
+    }
     public void showDeckEmpty(){
     	bot.sendMessage(channel,"The dealer's shoe is empty. Refilling the dealer's shoe...");
     }    
@@ -967,7 +1007,7 @@ public class Blackjack extends CardGame {
         bot.sendMessage(channel,p.getNickStr()+" bets $"+p.getInitialBet()+". Stack: $"+p.getCash());
     }
     public void showDoubleDown(BlackjackPlayer p, Hand h){
-        bot.sendMessage(channel, p.getNickStr()+" has doubled down! Total bet now $"+h.getBet()+". Stack: $"+p.getCash());
+        bot.sendMessage(channel, p.getNickStr()+" has doubled down! The bet is now $"+h.getBet()+". Stack: $"+p.getCash());
     }
     public void showSurrender(BlackjackPlayer p){
         bot.sendMessage(channel, p.getNickStr()+" has surrendered! Half the bet is returned and the rest forfeited. Stack: $"+p.getCash());
@@ -975,10 +1015,14 @@ public class Blackjack extends CardGame {
     public void showInsure(BlackjackPlayer p, Hand h){
     	bot.sendMessage(channel, p.getNickStr()+" has made an insurance bet of $"+h.getInsureBet()+". Stack: $"+p.getCash());
     }
-    public void showSplitHands(BlackjackPlayer p, Hand h1, Hand h2){
-    	bot.sendMessage(channel, p.getNickStr()+" has split his/hand. The new hands are:");
-    	showPlayerHand(p, h1);
-    	showPlayerHand(p, h2);
+    public void showSplitHands(BlackjackPlayer p){
+    	Hand h;
+    	bot.sendMessage(channel, p.getNickStr()+" has split the hand! "+p.getNickStr()+"'s hands are now:");
+    	for (int ctr=0; ctr<p.getNumberHands(); ctr++){
+    		h = p.getHand(ctr);
+    		showPlayerHandWithBet(p, h, ctr+1);
+    	}
+    	bot.sendMessage(channel, p.getNickStr()+"'s stack: $"+p.getCash());
     }
     public void showShuffleShoe(){
     	bot.sendMessage(channel, "The dealer's shoe has been shuffled.");
@@ -1137,31 +1181,31 @@ public class Blackjack extends CardGame {
     	bot.sendNotice(p.getUser(), "Your hand cannot be split. The cards do not have matching faces.");
     }
     public void infoImproperBet(User user){
-        bot.sendMessage(user,"Improper bet. Try again.");
+        bot.sendNotice(user,"Improper bet. Try again.");
     }
     public void infoBetTooLow(BlackjackPlayer p){
-        bot.sendMessage(p.getUser(), "Minimum bet is $1. Try again.");
+        bot.sendNotice(p.getUser(), "Minimum bet is $1. Try again.");
     }
     public void infoBetTooHigh(BlackjackPlayer p){
-        bot.sendMessage(p.getUser(), "Maximum bet is $"+p.getCash()+". Try again.");
+        bot.sendNotice(p.getUser(), "Maximum bet is $"+p.getCash()+". Try again.");
     }
     public void infoInsureBetTooHigh(BlackjackPlayer p){
-    	bot.sendMessage(p.getUser(), "Maximum insurance bet is $"+calcHalf(p.getInitialBet())+". Try again.");
+    	bot.sendNotice(p.getUser(), "Maximum insurance bet is $"+calcHalf(p.getInitialBet())+". Try again.");
     }
     public void infoInsufficientFunds(BlackjackPlayer p){
-    	bot.sendMessage(p.getUser(), "Insufficient funds. Try again.");
+    	bot.sendNotice(p.getUser(), "Insufficient funds. Try again.");
     } 
     public void infoNotDoubleDown(BlackjackPlayer p){
-        bot.sendMessage(p.getUser(), "You can only double down before hitting!");
+        bot.sendNotice(p.getUser(), "You can only double down before hitting!");
     }
     public void infoNotSurrender(BlackjackPlayer p){
-        bot.sendMessage(p.getUser(), "You can only surrender before hitting!");
+        bot.sendNotice(p.getUser(), "You can only surrender before hitting!");
     }
     public void infoNotInsure(BlackjackPlayer p){
-    	bot.sendMessage(p.getUser(), "The dealer's upcard is not an ace. You cannot make an insurance bet.");
+    	bot.sendNotice(p.getUser(), "The dealer's upcard is not an ace. You cannot make an insurance bet.");
     }
     public void infoAlreadyInsured(BlackjackPlayer p){
-    	bot.sendMessage(p.getUser(), "You have already made an insurance bet.");
+    	bot.sendNotice(p.getUser(), "You have already made an insurance bet.");
     }
     public void infoPlayerHand(BlackjackPlayer p, Hand h){
         if (p.isSimple()){
@@ -1228,7 +1272,7 @@ public class Blackjack extends CardGame {
     @Override
     public String getGameCommandStr(){
     	return "start (go), join (j), leave (quit, l, q), bet (b), hit (h), stay (stand), doubledown (dd), surrender, " +
-    			"insure, split, table, turn, sum, cash, hand, allhands (ahands), simple, players, waitlist, " +
+    			"insure, split, table, turn, sum, cash, hand, allhands, simple, players, waitlist, " +
     			"gamehelp (ghelp), gamerules (grules), gamecommands (gcommands)";
     }
 }
