@@ -59,7 +59,7 @@ public class Blackjack extends CardGame {
 
     private BlackjackPlayer dealer;
     private boolean insuranceBets;
-    private int idleOutTime, shoeDecks, respawnTime, newcash, idleShuffleTime;
+    private int shoeDecks, idleShuffleTime;
     private Timer idleShuffleTimer;
     
     /**
@@ -150,7 +150,7 @@ public class Blackjack extends CardGame {
 	                        int amount = parseNumberParam(msg);
 	                        bet(amount);
 	                    } catch (NumberFormatException e){
-	                        infoImproperBet(user);
+	                    	infoImproperIntParameter(user);
 	                    }
                 	} catch (NoSuchElementException e){
                 		infoNoParameter(user);
@@ -219,7 +219,7 @@ public class Blackjack extends CardGame {
 	                        int amount = parseNumberParam(msg);
 	                        insure(amount);
 	                    } catch (NumberFormatException e){
-	                        infoImproperBet(user);
+	                    	infoImproperIntParameter(user);
 	                    }
                 	} catch (NoSuchElementException e){
                 		infoNoParameter(user);
@@ -292,6 +292,44 @@ public class Blackjack extends CardGame {
             	} catch (NoSuchElementException e){
             		showPlayerCash(user.getNick());
             	}
+            } else if (msg.startsWith(".netcash ") || msg.equals(".netcash")){
+            	try {
+	                String nick = parseStringParam(msg);
+	                showPlayerNetCash(nick);
+            	} catch (NoSuchElementException e){
+            		showPlayerNetCash(user.getNick());
+            	}
+            } else if (msg.startsWith(".debt ") || msg.equals(".debt")){
+            	try {
+	                String nick = parseStringParam(msg);
+	                showPlayerDebt(nick);
+            	} catch (NoSuchElementException e){
+            		showPlayerDebt(user.getNick());
+            	}
+            } else if (msg.startsWith(".paydebt ")){
+            	if (!playerJoined(user)){
+            		bot.sendNotice(user,"You are not currently joined!");
+            	} else if (isInProgress()){
+                	bot.sendNotice(user,"A round is in progress! Wait until the round is over.");
+                } else {
+	            	try {
+	                	try {
+	                        int amount = parseNumberParam(msg);
+	                        payPlayerDebt(user, amount);
+	                    } catch (NumberFormatException e){
+	                        infoImproperIntParameter(user);
+	                    }
+	            	} catch (NoSuchElementException e){
+	            		infoNoParameter(user);
+	            	}
+            	}
+            } else if (msg.startsWith(".bankrupts ") || msg.equals(".bankrupts")){
+            	try {
+	                String nick = parseStringParam(msg);
+	                showPlayerBankrupts(nick);
+            	} catch (NoSuchElementException e){
+            		showPlayerBankrupts(user.getNick());
+            	}
             } else if (msg.equals(".top5")){
             	showTopPlayers(5);
             } else if (msg.equals(".players")){
@@ -361,6 +399,14 @@ public class Blackjack extends CardGame {
                 }
             }
         }
+    }
+    
+    /* Accessor methods */
+    public int getShoeDecks(){
+    	return shoeDecks;
+    }
+    public int getShuffleTime(){
+    	return idleShuffleTime;
     }
     
     /* Game management methods */
@@ -472,6 +518,7 @@ public class Blackjack extends CardGame {
             for (int ctr=0; ctr<getNumberPlayers(); ctr++){
                 p = getPlayer(ctr);
                 if(isPlayerBankrupt(p)){
+                	p.incrementBankrupts();
                     blacklist.add(p);
                     infoPlayerBankrupt(p.getUser());
                     bot.sendMessage(channel, p.getNickStr()+" has gone bankrupt. S/He has been kicked to the curb.");
@@ -1180,27 +1227,13 @@ public class Blackjack extends CardGame {
     }
     
     /* Player/User output methods to simplify messaging/noticing */
-    public void infoNoParameter(User user){
-    	bot.sendNotice(user, "Parameter missing!");
-    }
+    
     public void infoNotPair(BlackjackPlayer p){
     	bot.sendNotice(p.getUser(), "Your hand cannot be split. The cards do not have matching faces.");
-    }
-    public void infoImproperBet(User user){
-        bot.sendNotice(user,"Improper bet. Try again.");
-    }
-    public void infoBetTooLow(BlackjackPlayer p){
-        bot.sendNotice(p.getUser(), "Minimum bet is $1. Try again.");
-    }
-    public void infoBetTooHigh(BlackjackPlayer p){
-        bot.sendNotice(p.getUser(), "Maximum bet is $"+p.getCash()+". Try again.");
     }
     public void infoInsureBetTooHigh(BlackjackPlayer p){
     	bot.sendNotice(p.getUser(), "Maximum insurance bet is $"+calcHalf(p.getInitialBet())+". Try again.");
     }
-    public void infoInsufficientFunds(BlackjackPlayer p){
-    	bot.sendNotice(p.getUser(), "Insufficient funds. Try again.");
-    } 
     public void infoNotDoubleDown(BlackjackPlayer p){
         bot.sendNotice(p.getUser(), "You can only double down before hitting!");
     }

@@ -24,7 +24,7 @@ import org.pircbotx.*;
 public class Player {
     protected User user;
     protected boolean simple, dealer;
-    protected int cash, bet;
+    protected int cash, bet, debt, bankrupts;
     protected boolean idledOut;
     
     /**
@@ -38,6 +38,8 @@ public class Player {
         dealer = d;
         cash = 0;
         bet = 0;
+        debt = 0;
+        bankrupts = 0;
         simple = true;
         idledOut = false;
     }
@@ -68,6 +70,15 @@ public class Player {
     public boolean getIdledOut(){
     	return idledOut;
     }
+    public void setBankrupts(int c){
+    	bankrupts = c;
+    }
+    public int getBankrupts(){
+    	return bankrupts;
+    }
+    public void incrementBankrupts(){
+    	bankrupts++;
+    }
     
     /* Send user information via notice or message */
     public boolean isSimple(){
@@ -86,6 +97,19 @@ public class Player {
     }
     public int getCash(){
         return cash;
+    }
+    public void setDebt(int amount){
+    	debt = amount;
+    }
+    public void addDebt(int amount){
+    	debt += amount;
+    }
+    public int getDebt(){
+    	return debt;
+    }
+    public void payDebt(int amount){
+    	debt -= amount;
+    	cash -= amount;
     }
     
     /* Formatted string representations */

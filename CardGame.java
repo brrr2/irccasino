@@ -36,22 +36,23 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
 			game.startRound();
 		}
 	}
-    public static class RespawnTask extends TimerTask{
+	public static class RespawnTask extends TimerTask{
         Player player;
-        CardGame game;
-        public RespawnTask(Player p, CardGame g){
+        Blackjack game;
+        public RespawnTask(Player p, Blackjack g){
             player = p;
             game = g;
         }
         @Override
         public void run(){
-            player.setCash(1000);
-            game.bot.sendMessage(game.channel, player.getNickStr()+" has been loaned $1000. Please bet responsibly." );
+            player.setCash(game.getNewCash());
+            player.addDebt(game.getNewCash());
+            game.bot.sendMessage(game.channel, player.getNickStr()+" has been loaned $"+game.getNewCash()+". Please bet responsibly.");
             game.blacklist.remove(player);
             game.savePlayerData(player);
         }
     }
-    
+
     protected PircBotX bot; //bot handling the game
     protected Channel channel; //channel where game is being played
     protected String gameName;
@@ -60,6 +61,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     protected Player currentPlayer;
     protected boolean inProgress, betting;
     protected Timer idleOutTimer;
+    protected int idleOutTime, respawnTime, newcash;
     
     /**
      * Class constructor for generic CardGame
@@ -76,6 +78,17 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         inProgress = false;
         betting = false;
         checkPlayerFile();
+    }
+    
+    /* Accessor methods */
+    public int getIdleOutTime(){
+    	return idleOutTime;
+    }
+    public int getRespawnTime(){
+    	return respawnTime;
+    }
+    public int getNewCash(){
+    	return newcash;
     }
     
     /* Game management methods */
@@ -207,31 +220,70 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     	if (playerJoined(nick)){
     		return findPlayer(nick).getCash();
     	} else {
-	    	boolean found = false;
 	        try {
-	        	BufferedReader f = new BufferedReader(new FileReader("players.txt"));
-	            StringTokenizer st;
-	            String fnick;
-	            String fsimple;
-	            int famount=0;
-	            while (f.ready()){
-	                st = new StringTokenizer(f.readLine());
-	                fnick = st.nextToken().toLowerCase();
-	                famount = Integer.parseInt(st.nextToken());
-	                fsimple = st.nextToken();
-	                if (nick.toLowerCase().equals(fnick.toLowerCase())){
-	                    found = true;
-	                    break;
+	        	ArrayList<String> nicks = new ArrayList<String>();
+	            ArrayList<String> simples = new ArrayList<String>();
+	            ArrayList<Integer> stacks = new ArrayList<Integer>();
+	            ArrayList<Integer> bankrupts = new ArrayList<Integer>();
+	            ArrayList<Integer> debts = new ArrayList<Integer>();
+	        	loadPlayerFile(nicks, stacks, debts, bankrupts, simples);
+	        	int numLines = nicks.size();
+	        	for (int ctr = 0; ctr < numLines; ctr++){
+	        		if (nick.toLowerCase().equals(nicks.get(ctr))){
+	                    return stacks.get(ctr);
 	                }
-	            }
-	            f.close();
-	            if (found){
-	            	return famount;
-	            } else {
-	            	return Integer.MIN_VALUE;
-	            }
+	        	}
+	            return Integer.MIN_VALUE;
 	        } catch (IOException e){
-	        	System.out.println("Error reading players.txt");
+	        	System.out.println("Error reading players.txt!");
+	        	return Integer.MIN_VALUE;
+	        }
+    	}
+    }
+    public int getPlayerDebt(String nick){
+    	if (playerJoined(nick)){
+    		return findPlayer(nick).getDebt();
+    	} else {
+	    	try{
+	            ArrayList<String> nicks = new ArrayList<String>();
+	            ArrayList<String> simples = new ArrayList<String>();
+	            ArrayList<Integer> stacks = new ArrayList<Integer>();
+	            ArrayList<Integer> bankrupts = new ArrayList<Integer>();
+	            ArrayList<Integer> debts = new ArrayList<Integer>();
+	        	loadPlayerFile(nicks, stacks, debts, bankrupts, simples);
+	        	int numLines = nicks.size();
+	        	for (int ctr = 0; ctr < numLines; ctr++){
+	        		if (nick.toLowerCase().equals(nicks.get(ctr))){
+	                    return debts.get(ctr);
+	                }
+	        	}
+	            return Integer.MIN_VALUE;
+	        } catch (IOException e){
+	        	System.out.println("Error reading players.txt!");
+	        	return Integer.MIN_VALUE;
+	        }
+    	}
+    }
+    public int getPlayerBankrupts(String nick){
+    	if (playerJoined(nick)){
+    		return findPlayer(nick).getBankrupts();
+    	} else {
+	    	try{
+	            ArrayList<String> nicks = new ArrayList<String>();
+	            ArrayList<String> simples = new ArrayList<String>();
+	            ArrayList<Integer> stacks = new ArrayList<Integer>();
+	            ArrayList<Integer> bankrupts = new ArrayList<Integer>();
+	            ArrayList<Integer> debts = new ArrayList<Integer>();
+	        	loadPlayerFile(nicks, stacks, debts, bankrupts, simples);
+	        	int numLines = nicks.size();
+	        	for (int ctr = 0; ctr < numLines; ctr++){
+	        		if (nick.toLowerCase().equals(nicks.get(ctr))){
+	                    return bankrupts.get(ctr);
+	                }
+	        	}
+	            return Integer.MIN_VALUE;
+	        } catch (IOException e){
+	        	System.out.println("Error reading players.txt!");
 	        	return Integer.MIN_VALUE;
 	        }
     	}
@@ -245,26 +297,52 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
             bot.sendMessage(p.getUser(), "Info will now be messaged to you.");
         }
     }
+    public void loadPlayerFile(ArrayList<String> nicks, ArrayList<Integer> stacks,
+    							ArrayList<Integer> debts, ArrayList<Integer> bankrupts, 
+    							ArrayList<String> simples) throws IOException {
+    	BufferedReader f = new BufferedReader(new FileReader("players.txt"));
+        StringTokenizer st;
+        while (f.ready()){
+            st = new StringTokenizer(f.readLine());
+            nicks.add(st.nextToken().toLowerCase());
+            stacks.add(Integer.parseInt(st.nextToken()));
+            debts.add(Integer.parseInt(st.nextToken()));
+            bankrupts.add(Integer.parseInt(st.nextToken()));
+            simples.add(st.nextToken());
+        }
+        f.close();
+    }
+    public void savePlayerFile(ArrayList<String> nicks, ArrayList<Integer> stacks,
+			ArrayList<Integer> debts, ArrayList<Integer> bankrupts, 
+			ArrayList<String> simples) throws IOException {
+    	int numLines = nicks.size();
+    	PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("players.txt")));
+        for (int ctr = 0; ctr<numLines; ctr++){
+            out.println(nicks.get(ctr)+" "+stacks.get(ctr)+" "+debts.get(ctr)+
+            			" "+bankrupts.get(ctr)+" "+simples.get(ctr));
+        }
+        out.close();
+    }
     public void loadPlayerData(Player p){
-        boolean found = false;
-        try {
-        	BufferedReader f = new BufferedReader(new FileReader("players.txt"));
-            StringTokenizer st;
-            String nick;
-            String simple;
-            int amount;
-            while (f.ready()){
-                st = new StringTokenizer(f.readLine());
-                nick = st.nextToken().toLowerCase();
-                amount = Integer.parseInt(st.nextToken());
-                simple = st.nextToken();
-                if (p.getNick().toLowerCase().equals(nick)){
-                    if (amount <= 0){
+        try{
+        	boolean found = false;
+            ArrayList<String> nicks = new ArrayList<String>();
+            ArrayList<String> simples = new ArrayList<String>();
+            ArrayList<Integer> stacks = new ArrayList<Integer>();
+            ArrayList<Integer> bankrupts = new ArrayList<Integer>();
+            ArrayList<Integer> debts = new ArrayList<Integer>();
+        	loadPlayerFile(nicks, stacks, debts, bankrupts, simples);
+        	int numLines = nicks.size();
+        	for (int ctr = 0; ctr < numLines; ctr++){
+        		if (p.getNick().toLowerCase().equals(nicks.get(ctr))){
+                    if (stacks.get(ctr) <= 0){
                     	p.setCash(1000);
                     } else {
-                    	p.setCash(amount);
+                    	p.setCash(stacks.get(ctr));
                     }
-                    if (simple.equals("simple")){
+                    p.setBankrupts(bankrupts.get(ctr));
+                    p.setDebt(debts.get(ctr));
+                    if (simples.get(ctr).equals("simple")){
                         p.setSimple(true);
                     } else {
                         p.setSimple(false);
@@ -272,67 +350,62 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
                     found = true;
                     break;
                 }
-            }
-            f.close();
-            if (!found){
+        	}
+        	if (!found){
                 p.setCash(1000);
                 p.setSimple(true);
+                p.setBankrupts(0);
+                p.setDebt(0);
                 infoNewPlayer(p);
             }
         } catch (IOException e){
-        	System.out.println("Error reading players.txt");
+        	System.out.println("Error reading players.txt!");
         }
     }
+    
     public void savePlayerData(Player p){
         boolean found = false;
-        try {
-            ArrayList<String> nicks;
-            ArrayList<Integer> amounts;
-            ArrayList<String> simples;
-        	BufferedReader f = new BufferedReader(new FileReader("players.txt"));
-            StringTokenizer st;
-            nicks = new ArrayList<String>();
-            amounts = new ArrayList<Integer>();
-            simples = new ArrayList<String>();
-            String nick;
-            int amount;
-            String simple;
-            while (f.ready()){
-                st = new StringTokenizer(f.readLine());
-                nick = st.nextToken().toLowerCase();
-                amount = Integer.parseInt(st.nextToken());
-                simple = st.nextToken();
-                nicks.add(nick);
-                if (p.getNick().toLowerCase().equals(nick)){
-                    amounts.add(p.getCash());
+        ArrayList<String> nicks = new ArrayList<String>();
+        ArrayList<String> simples = new ArrayList<String>();
+        ArrayList<Integer> stacks = new ArrayList<Integer>();
+        ArrayList<Integer> bankrupts = new ArrayList<Integer>();
+        ArrayList<Integer> debts = new ArrayList<Integer>();
+        int numLines;
+        try{
+        	loadPlayerFile(nicks, stacks, debts, bankrupts, simples);
+        	numLines = nicks.size();
+        	for (int ctr = 0; ctr < numLines; ctr++){
+        		if (p.getNick().toLowerCase().equals(nicks.get(ctr))){
+                    stacks.set(ctr, p.getCash());
+                    debts.set(ctr, p.getDebt());
+                    bankrupts.set(ctr, p.getBankrupts());
                     if (p.isSimple()){
-                        simples.add("simple");
+                        simples.set(ctr,"simple");
                     } else {
-                        simples.add("nosimple");
+                        simples.set(ctr,"nosimple");
                     }
                     found = true;
-                } else {
-                    amounts.add(amount);
-                    simples.add(simple);
                 }
-            }
-            f.close();
-            if (!found){
+        	}
+        	if (!found){
                 nicks.add(p.getNick());
-                amounts.add(p.getCash());
+                stacks.add(p.getCash());
+                debts.add(p.getDebt());
+                bankrupts.add(p.getBankrupts());
                 if (p.isSimple()){
                     simples.add("simple");
                 } else {
                     simples.add("nosimple");
                 }
             }
-            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("players.txt")));
-            for (int ctr = 0; ctr<nicks.size(); ctr++){
-                out.println(nicks.get(ctr)+" "+amounts.get(ctr)+" "+simples.get(ctr));
-            }
-            out.close();
         } catch (IOException e){
-        	System.out.println("Error reading/writing players.txt");
+        	System.out.println("Error reading players.txt!");
+        }
+        
+        try {
+            savePlayerFile(nicks, stacks, debts, bankrupts, simples);
+        } catch (IOException e){
+        	System.out.println("Error writing players.txt!");
         }
     }
     public void checkPlayerFile(){
@@ -344,7 +417,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
 	            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("players.txt")));
 	            out.close();
 	        }
-    	} catch (IOException e){}
+    	} catch (IOException e){
+    		System.out.println("Error creating players.txt");
+    	}
     }
     public boolean isPlayerIdledOut(Player p){
     	return p.getIdledOut();
@@ -352,13 +427,28 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     public boolean isPlayerBankrupt(Player p){
         return (p.getCash() == 0);
     }
-    public boolean isBlacklisted(User u){
+    public boolean isBlacklisted(User user){
         for (int ctr=0; ctr<blacklist.size(); ctr++){
-            if (blacklist.get(ctr).getNick().equals(u.getNick())){
+            if (blacklist.get(ctr).getNick().equals(user.getNick())){
                 return true;
             }
         }
         return false;
+    }
+    public void payPlayerDebt(User user, int amount){
+    	Player p = findPlayer(user);
+    	if (amount <= 0){
+    		infoPaymentTooLow(p);
+    	} else if (amount > p.getDebt()){
+    		infoPaymentTooHigh(p);
+    	} else if (amount > p.getCash()){
+    		infoInsufficientFunds(p);
+    	} else if (amount == p.getCash()){
+    		infoPaymentWillBankrupt(p);
+    	} else {
+    		p.payDebt(amount);
+    		showPlayerDebtPayment(p, amount);
+    	}
     }
     
     /* Channel output methods to reduce clutter */
@@ -439,6 +529,33 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         	bot.sendMessage(channel, "No data found for "+nick+".");
         }
     }
+    public void showPlayerNetCash(String nick){
+    	int netcash = getPlayerCash(nick)-getPlayerDebt(nick);
+    	if (netcash != Integer.MIN_VALUE){
+        	bot.sendMessage(channel, nick+" has $"+netcash+".");
+        } else {
+        	bot.sendMessage(channel, "No data found for "+nick+".");
+        }
+    }
+    public void showPlayerDebt(String nick){
+    	int debt = getPlayerDebt(nick);
+    	if (debt != Integer.MIN_VALUE){
+        	bot.sendMessage(channel, nick+" has $"+debt+" in debt.");
+        } else {
+        	bot.sendMessage(channel, "No data found for "+nick+".");
+        }
+    }
+    public void showPlayerBankrupts(String nick){
+    	int bankrupts = getPlayerBankrupts(nick);
+    	if (bankrupts != Integer.MIN_VALUE){
+        	bot.sendMessage(channel, nick+" has gone bankrupt "+bankrupts+" time(s).");
+        } else {
+        	bot.sendMessage(channel, "No data found for "+nick+".");
+        }
+    }
+    public void showPlayerDebtPayment(Player p, int amount){
+    	bot.sendMessage(channel, p.getNickStr()+" has made a debt payment of $"+amount+". "+p.getNickStr()+"'s debt is now $"+p.getDebt()+".");
+    }
     public void showTopPlayers(int n){
     	Player p;
     	int highIndex;
@@ -446,36 +563,32 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
             p = getPlayer(ctr);
             savePlayerData(p);
         }
-        try {
-        	BufferedReader f = new BufferedReader(new FileReader("players.txt"));
-            StringTokenizer st;
-            ArrayList<String> fnick = new ArrayList<String>();
-            String fsimple, list="";
-            ArrayList<Integer> famount = new ArrayList<Integer>();
-            while (f.ready()){
-                st = new StringTokenizer(f.readLine());
-                fnick.add(st.nextToken());
-                famount.add(Integer.parseInt(st.nextToken()));
-                fsimple = st.nextToken();
-            }
-            f.close();
-            for (int ctr=1; ctr<=n; ctr++){
+        try{
+            ArrayList<String> nicks = new ArrayList<String>();
+            ArrayList<String> simples = new ArrayList<String>();
+            ArrayList<Integer> stacks = new ArrayList<Integer>();
+            ArrayList<Integer> bankrupts = new ArrayList<Integer>();
+            ArrayList<Integer> debts = new ArrayList<Integer>();
+        	loadPlayerFile(nicks, stacks, debts, bankrupts, simples);
+        	int numLines = nicks.size();
+        	String list="";
+        	for (int ctr=1; ctr<=n; ctr++){
             	highIndex = 0;
-            	for (int ctr2=0; ctr2<fnick.size(); ctr2++){
-            		if (famount.get(ctr2) > famount.get(highIndex)){
+            	for (int ctr2=0; ctr2<numLines; ctr2++){
+            		if (stacks.get(ctr2) > stacks.get(highIndex)){
             			highIndex = ctr2;
             		}
             	}
-            	list += " #"+ctr+": "+Colors.WHITE+",04 "+fnick.get(highIndex)+" $"+famount.get(highIndex)+" "+Colors.BLACK+",08";
-            	fnick.remove(highIndex);
-            	famount.remove(highIndex);
-            	if (fnick.isEmpty()){
+            	list += " #"+ctr+": "+Colors.WHITE+",04 "+nicks.get(highIndex)+" $"+stacks.get(highIndex)+" "+Colors.BLACK+",08";
+            	nicks.remove(highIndex);
+            	stacks.remove(highIndex);
+            	if (nicks.isEmpty()){
             		break;
             	}
             }
             bot.sendMessage(channel, Colors.BLACK+",08Top "+n+" Players:"+list);
         } catch (IOException e){
-        	System.out.println("Error reading players.txt");
+        	System.out.println("Error reading players.txt!");
         }
     }
     
@@ -522,6 +635,30 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     	} else {
     		bot.sendMessage(p.getUser(), "You have left the waitlist and will not be automatically added next round.");
     	}
+    }
+    public void infoPaymentTooLow(Player p){
+    	bot.sendNotice(p.getUser(), "Minimum payment is $1. Try again.");
+    }
+    public void infoPaymentTooHigh(Player p){
+    	bot.sendNotice(p.getUser(), "Your outstanding debt is only $"+p.getDebt()+". Try again.");
+    }
+    public void infoPaymentWillBankrupt(Player p){
+    	bot.sendNotice(p.getUser(), "You cannot go bankrupt trying to pay off your debt. Try again.");
+    }
+    public void infoInsufficientFunds(Player p){
+    	bot.sendNotice(p.getUser(), "Insufficient funds. Try again.");
+    }
+    public void infoNoParameter(User user){
+    	bot.sendNotice(user, "Parameter missing!");
+    }
+    public void infoImproperIntParameter(User user){
+        bot.sendNotice(user,"Improper integer parameter. Try again.");
+    }
+    public void infoBetTooLow(Player p){
+        bot.sendNotice(p.getUser(), "Minimum bet is $1. Try again.");
+    }
+    public void infoBetTooHigh(Player p){
+        bot.sendNotice(p.getUser(), "Maximum bet is $"+p.getCash()+". Try again.");
     }
     
     /* Debugging methods for ops */
