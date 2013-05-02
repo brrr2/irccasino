@@ -482,14 +482,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     /* Player/User output methods to reduce clutter */
     abstract public void infoGameRules(User user);
     abstract public void infoGameHelp(User user);
-    public void infoPlayerBankrupt(User user){
-        Player p = findPlayer(user);
-        if (p.isSimple()){
-            bot.sendNotice(p.getUser(), "You've lost all your money. Please wait 15 minutes for a loan.");
-        } else {
-            bot.sendMessage(p.getUser(), "You've lost all your money. Please wait 15 minutes for a loan.");
-        }
-    }
     public void infoGameCommands(User user){
     	if (playerJoined(user)){
 			Player p = findPlayer(user);

@@ -397,8 +397,8 @@ public class Blackjack extends CardGame {
     		shoeDecks = 1;
     		newcash = 1000;
 	        idleOutTime = 60000;
-	        respawnTime = 900000;
-	        idleShuffleTime = 1800000;
+	        respawnTime = 600000;
+	        idleShuffleTime = 300000;
     	}
     	shoe = new CardDeck(shoeDecks);
         shoe.shuffleCards();
@@ -437,9 +437,13 @@ public class Blackjack extends CardGame {
     }
     @Override
     public void startRound(){
-        currentPlayer = players.get(0);
-        showPlayerTurn(currentPlayer);
-        setIdleOutTimer();
+    	if (getNumberPlayers() > 0){
+	        currentPlayer = players.get(0);
+	        showPlayerTurn(currentPlayer);
+	        setIdleOutTimer();
+    	} else {
+    		endRound();
+    	}
     }
     @Override
     public void endRound(){
@@ -485,7 +489,9 @@ public class Blackjack extends CardGame {
         showEndRound();
         showSeparator();
         addWaitingPlayers();
-        setIdleShuffleTimer();
+        if (shoe.getNumberDiscards() > 0){
+        	setIdleShuffleTimer();
+        }
     }
     @Override
     public void endGame(){
@@ -539,7 +545,7 @@ public class Blackjack extends CardGame {
     	idleShuffleTimer.schedule(new IdleShuffleTask(this), idleShuffleTime);
     }
     public void cancelIdleShuffleTimer(){
-        idleOutTimer.cancel();
+    	idleShuffleTimer.cancel();
     }
     
     public void removeIdlers(){
@@ -1231,6 +1237,14 @@ public class Blackjack extends CardGame {
             bot.sendNotice(p.getUser(), outStr);
         } else {
             bot.sendMessage(p.getUser(), outStr);
+        }
+    }
+    public void infoPlayerBankrupt(User user){
+        Player p = findPlayer(user);
+        if (p.isSimple()){
+            bot.sendNotice(p.getUser(), "You've lost all your money. Please wait "+respawnTime/60000+" minutes for a loan.");
+        } else {
+            bot.sendMessage(p.getUser(), "You've lost all your money. Please wait "+respawnTime/60000+" minutes for a loan.");
         }
     }
     @Override
