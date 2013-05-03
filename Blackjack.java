@@ -26,6 +26,24 @@ import org.pircbotx.*;
 import org.pircbotx.hooks.events.*;
 
 public class Blackjack extends CardGame {
+	public static class RespawnTask extends TimerTask{
+        Player player;
+        Blackjack game;
+        public RespawnTask(Player p, Blackjack g){
+            player = p;
+            game = g;
+        }
+        @Override
+        public void run(){
+        	ArrayList<Timer> timers = game.getRespawnTimers();
+            player.setCash(game.getNewCash());
+            player.addDebt(game.getNewCash());
+            game.bot.sendMessage(game.channel, player.getNickStr()+" has been loaned $"+game.getNewCash()+". Please bet responsibly.");
+            game.blacklist.remove(player);
+            game.savePlayerData(player);
+            timers.remove(this);
+        }
+    }
     public static class IdleOutTask extends TimerTask{
         BlackjackPlayer player;
         Blackjack game;
@@ -56,11 +74,43 @@ public class Blackjack extends CardGame {
     		game.shuffleShoe();
     	}
     }
+    public static class HouseStat{
+    	int numDecks, numRounds, cash;
+    	public HouseStat(){
+    		this(0,0,0);
+    	}
+    	public HouseStat(int a, int b, int c){
+    		numDecks = a;
+    		numRounds = b;
+    		cash = c;
+    	}
+    	public int getNumDecks(){
+    		return numDecks;
+    	}
+    	public int getNumRounds(){
+    		return numRounds;
+    	}
+    	public int getCash(){
+    		return cash;
+    	}
+    	public void addCash(int amount){
+    		cash += amount;
+    	}
+    	public void incrementNumRounds(){
+    		numRounds++;
+    	}
+    	public String toString(){
+    		return numRounds+" round(s) have been played using "+numDecks+" deck shoes. The house has won $"+cash+" during those round(s).";
+    	}
+    }
 
     private BlackjackPlayer dealer;
     private boolean insuranceBets;
     private int shoeDecks, idleShuffleTime;
     private Timer idleShuffleTimer;
+    private ArrayList<Timer> respawnTimers;
+    private ArrayList<HouseStat> stats;
+    private HouseStat house;
     
     /**
      * Class constructor for Blackjack, a subclass of CardGame.
@@ -72,6 +122,9 @@ public class Blackjack extends CardGame {
         super(parent,gameChannel);
         gameName = "Blackjack";
         dealer = new BlackjackPlayer(bot.getUserBot(),true);
+        stats = new ArrayList<HouseStat>();
+        respawnTimers = new ArrayList<Timer>();
+        loadHouseStats();
         loadSettings();
         insuranceBets = false;
     }
@@ -122,15 +175,12 @@ public class Blackjack extends CardGame {
                 } else if (isInProgress()){
                 	bot.sendNotice(user,"A round is already in progress!");
                 } else if (getNumberPlayers()>0){
-                	if (idleShuffleTimer != null){
-                		cancelIdleShuffleTimer();
-                	}
+                	cancelIdleShuffleTimer();
                 	showStartRound();
                     showPlayers();
                     setInProgress(true);
                     setBetting(true);
-                    Timer t = new Timer();
-                    t.schedule(new StartRoundTask(this), 5000);
+                    setStartRoundTimer();
                 } else {
                     showNoPlayers();
                 }
@@ -306,6 +356,13 @@ public class Blackjack extends CardGame {
             	} catch (NoSuchElementException e){
             		showPlayerDebt(user.getNick());
             	}
+            } else if (msg.startsWith(".bankrupts ") || msg.equals(".bankrupts")){
+            	try {
+	                String nick = parseStringParam(msg);
+	                showPlayerBankrupts(nick);
+            	} catch (NoSuchElementException e){
+            		showPlayerBankrupts(user.getNick());
+            	}
             } else if (msg.startsWith(".paydebt ")){
             	if (!playerJoined(user)){
             		bot.sendNotice(user,"You are not currently joined!");
@@ -323,21 +380,33 @@ public class Blackjack extends CardGame {
 	            		infoNoParameter(user);
 	            	}
             	}
-            } else if (msg.startsWith(".bankrupts ") || msg.equals(".bankrupts")){
-            	try {
-	                String nick = parseStringParam(msg);
-	                showPlayerBankrupts(nick);
-            	} catch (NoSuchElementException e){
-            		showPlayerBankrupts(user.getNick());
-            	}
-            } else if (msg.equals(".top5")){
-            	showTopPlayers(5);
+            } else if (msg.startsWith(".house ") || msg.equals(".house")){
+            	if (isInProgress()){
+                	bot.sendNotice(user,"A round is in progress! Wait until the round is over.");
+                } else {
+	            	try {
+	                	try {
+	                        int ndecks = parseNumberParam(msg);
+	                        showHouseStat(ndecks);
+	                    } catch (NumberFormatException e){
+	                        infoImproperIntParameter(user);
+	                    }
+	            	} catch (NoSuchElementException e){
+	            		showHouseStat(shoeDecks);
+	            	}
+                }
             } else if (msg.equals(".players")){
                 showPlayers();
             } else if (msg.equals(".waitlist")){
             	showWaiting();
-            } else if (msg.equals(".bankrupt")){
+            } else if (msg.equals(".blacklist")){
             	showBankrupt();
+            } else if (msg.equals(".top5")){
+            	if (isInProgress()){
+                	bot.sendNotice(user,"A round is in progress! Wait until the round is over.");
+                } else {
+                	showTopPlayers(5);
+                }
             } else if (msg.equals(".gamerules") || msg.equals(".grules")){
                 infoGameRules(user);
             } else if (msg.equals(".gamehelp") || msg.equals(".ghelp")){
@@ -378,9 +447,7 @@ public class Blackjack extends CardGame {
             	if (isInProgress()){
             		bot.sendNotice(user,"A round is already in progress! Wait for the round to end.");
             	} else if (channel.isOp(user)){
-            		if (idleShuffleTimer != null){
-                		cancelIdleShuffleTimer();
-                	}
+                	cancelIdleShuffleTimer();
             		shuffleShoe();
             	} else {
                     bot.sendNotice(user,"Debugging commands may only be used by ops.");
@@ -389,9 +456,7 @@ public class Blackjack extends CardGame {
             	if (isInProgress()){
             		bot.sendNotice(user,"A round is already in progress! Wait for the round to end.");
             	} else if (channel.isOp(user)){
-            		if (idleShuffleTimer != null){
-                		cancelIdleShuffleTimer();
-                	}
+                	cancelIdleShuffleTimer();
             		loadSettings();
             		showReloadSettings();
             	} else {
@@ -439,15 +504,126 @@ public class Blackjack extends CardGame {
     		f.close();
     	} catch (IOException e){
     		/* load defaults if blackjack.ini is not found */
-    		System.out.println("Error reading blackjack.ini");
+    		System.out.println("Error reading blackjack.ini!");
     		shoeDecks = 1;
     		newcash = 1000;
 	        idleOutTime = 60000;
 	        respawnTime = 600000;
 	        idleShuffleTime = 300000;
+	        try {
+	            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("blackjack.ini")));
+	            out.println("#Settings");
+	            out.println("#Number of decks in the dealer's shoe");
+	            out.println("decks="+shoeDecks);
+	            out.println("#Number of seconds before a player idles out");
+	            out.println("idle="+idleOutTime/1000);
+	            out.println("#Number of seconds of idleness after a round ends before the deck is shuffled");
+	            out.println("idleshuffle="+idleShuffleTime/1000);
+	            out.println("#Initial amount given to new and bankrupt players");
+	            out.println("cash="+newcash);
+	            out.println("#Number of seconds before a bankrupt player is allowed to join again");
+	            out.println("idleshuffle="+respawnTime/1000);
+	            out.close();
+    		} catch (IOException f){
+        		System.out.println("Error creating blackjack.ini!");
+        	}
     	}
     	shoe = new CardDeck(shoeDecks);
         shoe.shuffleCards();
+        house = getHouseStat(shoeDecks);
+        if (house == null){
+        	house = new HouseStat(shoeDecks,0,0);
+        	stats.add(house);
+        }
+    }
+    public void loadHouseStats(){
+    	try {
+    		BufferedReader f = new BufferedReader(new FileReader("housestats.txt"));
+    		String str;
+    		int ndecks,nrounds,winnings;
+    		StringTokenizer st;
+    		while(f.ready()){
+    			str = f.readLine();
+    			if (str.startsWith("#")){
+    				if (str.contains("blackjack")){
+    					while(f.ready()){
+    						str = f.readLine();
+    						if (str.startsWith("#")){
+	    						break;
+	    					}
+	    					st = new StringTokenizer(str);
+	    					ndecks = Integer.parseInt(st.nextToken());
+	    					nrounds = Integer.parseInt(st.nextToken());
+	    					winnings = Integer.parseInt(st.nextToken());
+	    					stats.add(new HouseStat(ndecks,nrounds,winnings));
+    					}
+    					break;
+    				}
+    			}
+    		}
+    		f.close();
+    	} catch (IOException e){
+    		try {
+	            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("housestats.txt")));
+	            out.close();
+    		} catch (IOException f){
+        		System.out.println("Error creating housestats.txt!");
+        	}
+    	}
+    }
+    public void saveHouseStats(){
+    	boolean found = false;
+    	int index=0;
+		ArrayList<String> lines = new ArrayList<String>();
+    	try {
+    		BufferedReader f = new BufferedReader(new FileReader("housestats.txt"));
+    		String str;
+    		while(f.ready()){
+    			str = f.readLine();
+    			lines.add(str);
+    			if (str.startsWith("#blackjack")){
+    				found = true;
+    				index = lines.size();
+    				while(f.ready()){
+    					str = f.readLine();
+    					if (str.startsWith("#")){
+    						lines.add(str);
+    						break;
+    					}
+    				}
+    			}
+    		}
+    		f.close();
+    	} catch (IOException e){
+    		/* housestats.txt is not found */
+    		System.out.println("Error reading housestats.txt!");
+    	}
+    	if (!found){
+			lines.add("#blackjack");
+			index = lines.size();
+		}
+    	for (int ctr = 0; ctr < stats.size(); ctr++){
+			lines.add(index, stats.get(ctr).getNumDecks()+" "+stats.get(ctr).getNumRounds()+" "+stats.get(ctr).getCash());
+		}
+    	try {
+            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("housestats.txt")));
+            for (int ctr = 0; ctr < lines.size(); ctr++){
+            	out.println(lines.get(ctr));
+            }
+            out.close();
+		} catch (IOException f){
+    		System.out.println("Error writing to housestats.txt!");
+    	}
+    }
+    public HouseStat getHouseStat(int numDecks){
+    	HouseStat hs;
+    	for (int ctr = 0; ctr < stats.size(); ctr++){
+    		hs = stats.get(ctr);
+    		if (hs.getNumDecks() == numDecks){
+    			return hs;
+    		}
+    	}
+    	return null;
     }
     @Override
     public void leaveGame(User u){
@@ -497,6 +673,7 @@ public class Blackjack extends CardGame {
         Hand dHand;
         setInProgress(false);
         if (getNumberPlayers()>0){
+        	house.incrementNumRounds();
             showPlayerTurn(dealer);
             dHand = dealer.getCurrentHand();
             showPlayerHand(dealer, dHand, true);
@@ -523,8 +700,7 @@ public class Blackjack extends CardGame {
                     infoPlayerBankrupt(p.getUser());
                     bot.sendMessage(channel, p.getNickStr()+" has gone bankrupt. S/He has been kicked to the curb.");
                     removePlayer(p.getUser());
-                    Timer t = new Timer();
-                    t.schedule(new RespawnTask(p,this), respawnTime);
+                    setRespawnTimer(p);
                     ctr--;
                 }
             }
@@ -542,19 +718,12 @@ public class Blackjack extends CardGame {
     }
     @Override
     public void endGame(){
-        Player p;
-        for (int ctr=0; ctr<getNumberPlayers(); ctr++){
-            p = getPlayer(ctr);
-            savePlayerData(p);
-        }
-        for (int ctr=0; ctr<getNumberWaiting(); ctr++){
-            p = getWaiting(ctr);
-            savePlayerData(p);
-        }
-        for (int ctr=0; ctr<getNumberBankrupt(); ctr++){
-            p = getBankrupt(ctr);
-            savePlayerData(p);
-        }
+        cancelStartRoundTimer();
+        cancelIdleOutTimer();
+        cancelIdleShuffleTimer();
+        cancelRespawnTimers();
+        saveAllPlayers();
+        saveHouseStats();
         players.clear();
         waitlist.clear();
         blacklist.clear();
@@ -585,14 +754,36 @@ public class Blackjack extends CardGame {
     }
     @Override
     public void cancelIdleOutTimer(){
-        idleOutTimer.cancel();
+    	if (idleOutTimer != null){
+	        idleOutTimer.cancel();
+	        idleOutTimer = null;
+    	}
     }
     public void setIdleShuffleTimer(){
     	idleShuffleTimer = new Timer();
     	idleShuffleTimer.schedule(new IdleShuffleTask(this), idleShuffleTime);
     }
     public void cancelIdleShuffleTimer(){
-    	idleShuffleTimer.cancel();
+    	if (idleShuffleTimer != null){
+	    	idleShuffleTimer.cancel();
+	    	idleShuffleTimer = null;
+    	}
+    }
+    public void setRespawnTimer(Player p){
+    	Timer t = new Timer();
+    	t.schedule(new RespawnTask(p, this), respawnTime);
+    	respawnTimers.add(t);
+    }
+    public void cancelRespawnTimers(){
+    	if (respawnTimers.size() != 0){
+	    	for (int ctr = 0; ctr < respawnTimers.size(); ctr++){
+	    		respawnTimers.get(0).cancel();
+	    		respawnTimers.remove(0);
+	    	}
+    	}
+    }
+    public ArrayList<Timer> getRespawnTimers(){
+    	return respawnTimers;
     }
     
     public void removeIdlers(){
@@ -721,6 +912,7 @@ public class Blackjack extends CardGame {
         } else {
             p.setInitialBet(amount);
             p.addCash(-1*amount);
+            house.addCash(amount);
             showProperBet(p);
             currentPlayer = getNextPlayer();
             if (currentPlayer == null){
@@ -792,6 +984,7 @@ public class Blackjack extends CardGame {
             setIdleOutTimer();
         } else {
             p.addCash(-1*cHand.getBet());
+            house.addCash(cHand.getBet());
             cHand.addBet(cHand.getBet());
             dealOne(cHand);
             showDoubleDown(p, cHand);
@@ -826,6 +1019,7 @@ public class Blackjack extends CardGame {
             setIdleOutTimer();
         } else {
             p.addCash(calcHalf(cHand.getBet()));
+            house.addCash(-1*calcHalf(cHand.getBet()));
             cHand.setSurrender(true);
             showSurrender(p);
             if (p.getNumberHands() > 1 && p.getCurrentIndex() < p.getNumberHands()-1){
@@ -860,6 +1054,7 @@ public class Blackjack extends CardGame {
 			setInsuranceBets(true);
 			cHand.setInsureBet(amount);
 			p.addCash(-1*amount);
+			house.addCash(amount);
 			showInsure(p, cHand);
 		}
     	setIdleOutTimer();
@@ -876,6 +1071,7 @@ public class Blackjack extends CardGame {
     		setIdleOutTimer();
     	} else {
     		p.addCash(-1*cHand.getBet());
+    		house.addCash(cHand.getBet());
     		p.splitHand();
     		dealOne(cHand);
     		nHand = p.getHand(p.getCurrentIndex()+1);
@@ -1083,6 +1279,14 @@ public class Blackjack extends CardGame {
     public void showReloadSettings(){
     	bot.sendMessage(channel, "blackjack.ini has been reloaded.");
     }
+    public void showHouseStat(int n){
+    	HouseStat hs = getHouseStat(n);
+    	if (hs != null){
+    		bot.sendMessage(channel, hs.toString());
+    	} else {
+    		bot.sendMessage(channel, "No statistics found for "+n+" deck(s).");
+    	}
+    }
     public void showSeparator(){
     	bot.sendMessage(channel, Colors.BOLD+"------------------------------------------------------------------");
     }
@@ -1168,12 +1372,15 @@ public class Blackjack extends CardGame {
             outStr += " surrendered. (";
         } else if (result == 2){
         	p.addCash(2*h.getBet()+calcHalf(h.getBet()));
+        	house.addCash(-1*(2*h.getBet()+calcHalf(h.getBet())));
         	outStr += " wins $"+(2*h.getBet()+calcHalf(h.getBet()))+". (";
         } else if (result == 1){
         	p.addCash(2*h.getBet());
+        	house.addCash(-2*h.getBet());
             outStr += " wins $"+(2*h.getBet())+". (";
         } else if (result == 0){
         	p.addCash(h.getBet());
+        	house.addCash(-1*h.getBet());
             outStr += " pushes and his/her $"+h.getBet()+" bet is returned. (";
         } else {
             outStr += " loses. (";    
@@ -1188,12 +1395,15 @@ public class Blackjack extends CardGame {
             outStr += " surrendered. (";
         } else if (result == 2){
         	p.addCash(2*h.getBet()+calcHalf(h.getBet()));
+        	house.addCash(-1*(2*h.getBet()+calcHalf(h.getBet())));
         	outStr += " wins $"+(2*h.getBet()+calcHalf(h.getBet()))+". (";
         } else if (result == 1){
         	p.addCash(2*h.getBet());
+        	house.addCash(-2*h.getBet());
             outStr += " wins $"+(2*h.getBet())+". (";
         } else if (result == 0){
         	p.addCash(h.getBet());
+        	house.addCash(-1*h.getBet());
             outStr += " pushes and his/her $"+h.getBet()+" bet is returned. (";
         } else {
             outStr += " loses. (";    
@@ -1206,6 +1416,7 @@ public class Blackjack extends CardGame {
         int result = evaluateInsurance();
         if (result == 1){
         	p.addCash(3*h.getInsureBet());
+        	house.addCash(-3*h.getInsureBet());
             outStr = p.getNickStr()+" wins $"+3*h.getInsureBet()+".";
         } else {
             outStr = p.getNickStr()+" loses.";
@@ -1218,6 +1429,7 @@ public class Blackjack extends CardGame {
         int result = evaluateInsurance();
         if (result == 1){
         	p.addCash(3*h.getInsureBet());
+        	house.addCash(-3*h.getInsureBet());
             outStr = p.getNickStr()+"-"+index+" wins $"+3*h.getInsureBet()+".";
         } else {
             outStr = p.getNickStr()+"-"+index+" loses.";
@@ -1275,9 +1487,9 @@ public class Blackjack extends CardGame {
     public void infoPlayerBankrupt(User user){
         Player p = findPlayer(user);
         if (p.isSimple()){
-            bot.sendNotice(p.getUser(), "You've lost all your money. Please wait "+respawnTime/60000+" minutes for a loan.");
+            bot.sendNotice(p.getUser(), "You've lost all your money. Please wait "+respawnTime/60000+" minute(s) for a loan.");
         } else {
-            bot.sendMessage(p.getUser(), "You've lost all your money. Please wait "+respawnTime/60000+" minutes for a loan.");
+            bot.sendMessage(p.getUser(), "You've lost all your money. Please wait "+respawnTime/60000+" minute(s) for a loan.");
         }
     }
     @Override
@@ -1318,8 +1530,9 @@ public class Blackjack extends CardGame {
     }
     @Override
     public String getGameCommandStr(){
-    	return "start (go), join (j), leave (quit, l, q), bet (b), hit (h), stay (stand), doubledown (dd), surrender, " +
-    			"insure, split, table, turn, sum, cash, hand, allhands, simple, players, waitlist, " +
+    	return "start (go), join (j), leave (quit, l, q), bet (b), hit (h), stay (stand), doubledown (dd), " +
+    			"surrender, insure, split, table, turn, sum, hand, allhands, cash, netcash, " +
+    			"debt, bankrupts, simple, players, waitlist, blacklist, top5, " +
     			"gamehelp (ghelp), gamerules (grules), gamecommands (gcommands)";
     }
 }

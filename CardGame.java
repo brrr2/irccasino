@@ -36,22 +36,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
 			game.startRound();
 		}
 	}
-	public static class RespawnTask extends TimerTask{
-        Player player;
-        Blackjack game;
-        public RespawnTask(Player p, Blackjack g){
-            player = p;
-            game = g;
-        }
-        @Override
-        public void run(){
-            player.setCash(game.getNewCash());
-            player.addDebt(game.getNewCash());
-            game.bot.sendMessage(game.channel, player.getNickStr()+" has been loaned $"+game.getNewCash()+". Please bet responsibly.");
-            game.blacklist.remove(player);
-            game.savePlayerData(player);
-        }
-    }
 
     protected PircBotX bot; //bot handling the game
     protected Channel channel; //channel where game is being played
@@ -60,7 +44,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     protected CardDeck shoe;
     protected Player currentPlayer;
     protected boolean inProgress, betting;
-    protected Timer idleOutTimer;
+    protected Timer idleOutTimer, startRoundTimer;
     protected int idleOutTime, respawnTime, newcash;
     
     /**
@@ -125,6 +109,16 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
 
     /* Card management methods */
     abstract public void discardPlayerHand(Player p);
+    public void setStartRoundTimer(){
+    	startRoundTimer = new Timer();
+    	startRoundTimer.schedule(new StartRoundTask(this), 5000);
+    }
+    public void cancelStartRoundTimer(){
+    	if (startRoundTimer != null){
+	    	startRoundTimer.cancel();
+	    	startRoundTimer = null;
+    	}
+    }
     
     /* Player management methods */
     public abstract void addPlayer(User user);
@@ -362,7 +356,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         	System.out.println("Error reading players.txt!");
         }
     }
-    
     public void savePlayerData(Player p){
         boolean found = false;
         ArrayList<String> nicks = new ArrayList<String>();
@@ -405,21 +398,36 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         try {
             savePlayerFile(nicks, stacks, debts, bankrupts, simples);
         } catch (IOException e){
-        	System.out.println("Error writing players.txt!");
+        	System.out.println("Error writing to players.txt!");
+        }
+    }
+    public void saveAllPlayers(){
+    	Player p;
+        for (int ctr=0; ctr<getNumberPlayers(); ctr++){
+            p = getPlayer(ctr);
+            savePlayerData(p);
+        }
+        for (int ctr=0; ctr<getNumberWaiting(); ctr++){
+            p = getWaiting(ctr);
+            savePlayerData(p);
+        }
+        for (int ctr=0; ctr<getNumberBankrupt(); ctr++){
+            p = getBankrupt(ctr);
+            savePlayerData(p);
         }
     }
     public void checkPlayerFile(){
     	try {
-	    	try {
-	    		BufferedReader f = new BufferedReader(new FileReader("players.txt"));
-	    		f.close();
-	    	} catch (FileNotFoundException e){
+    		BufferedReader f = new BufferedReader(new FileReader("players.txt"));
+    		f.close();
+    	} catch (IOException e){
+    		try {
 	            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("players.txt")));
 	            out.close();
-	        }
-    	} catch (IOException e){
-    		System.out.println("Error creating players.txt");
-    	}
+    		} catch (IOException f){
+        		System.out.println("Error creating players.txt");
+        	}
+        }
     }
     public boolean isPlayerIdledOut(Player p){
     	return p.getIdledOut();
@@ -532,7 +540,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     public void showPlayerNetCash(String nick){
     	int netcash = getPlayerCash(nick)-getPlayerDebt(nick);
     	if (netcash != Integer.MIN_VALUE){
-        	bot.sendMessage(channel, nick+" has $"+netcash+".");
+        	bot.sendMessage(channel, nick+" has $"+netcash+" in net cash.");
         } else {
         	bot.sendMessage(channel, "No data found for "+nick+".");
         }
@@ -570,11 +578,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
             ArrayList<Integer> bankrupts = new ArrayList<Integer>();
             ArrayList<Integer> debts = new ArrayList<Integer>();
         	loadPlayerFile(nicks, stacks, debts, bankrupts, simples);
-        	int numLines = nicks.size();
         	String list="";
         	for (int ctr=1; ctr<=n; ctr++){
             	highIndex = 0;
-            	for (int ctr2=0; ctr2<numLines; ctr2++){
+            	for (int ctr2=0; ctr2<nicks.size(); ctr2++){
             		if (stacks.get(ctr2) > stacks.get(highIndex)){
             			highIndex = ctr2;
             		}
