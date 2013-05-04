@@ -504,7 +504,7 @@ public class Blackjack extends CardGame {
     		f.close();
     	} catch (IOException e){
     		/* load defaults if blackjack.ini is not found */
-    		System.out.println("Error reading blackjack.ini!");
+    		System.out.println("blackjack.ini not found! Creating new blackjack.ini...");
     		shoeDecks = 1;
     		newcash = 1000;
 	        idleOutTime = 60000;
@@ -563,6 +563,7 @@ public class Blackjack extends CardGame {
     		}
     		f.close();
     	} catch (IOException e){
+    		System.out.println("housestats.txt not found! Creating new housestats.txt...");
     		try {
 	            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("housestats.txt")));
 	            out.close();

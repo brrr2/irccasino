@@ -421,6 +421,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     		BufferedReader f = new BufferedReader(new FileReader("players.txt"));
     		f.close();
     	} catch (IOException e){
+    		System.out.println("players.txt not found! Creating new players.txt...");
     		try {
 	            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("players.txt")));
 	            out.close();
