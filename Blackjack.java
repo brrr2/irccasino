@@ -127,7 +127,7 @@ public class Blackjack extends CardGame {
 	}
 
 	private BlackjackPlayer dealer;
-	private boolean insuranceBets;
+	private boolean insuranceBets, countEnabled;
 	private int shoeDecks, idleShuffleTime;
 	private Timer idleShuffleTimer;
 	private ArrayList<Timer> respawnTimers;
@@ -165,158 +165,6 @@ public class Blackjack extends CardGame {
 		leaveGame(user);
 	}
 
-	private int getZenCount() {
-		int zenCount = 0;
-		List<Card> discards = new ArrayList<Card>();
-		discards = shoe.getDiscards();
-		for (int i = 0; i < shoe.getNumberDiscards(); i++) {
-			String face = discards.get(i).getFace();
-			switch (face) {
-			case "2":
-				zenCount = zenCount + 1;
-				break;
-			case "3":
-				zenCount = zenCount + 1;
-				break;
-			case "4":
-				zenCount = zenCount + 2;
-				break;
-			case "5":
-				zenCount = zenCount + 2;
-				break;
-			case "6":
-				zenCount = zenCount + 2;
-				break;
-			case "7":
-				zenCount = zenCount + 1;
-				break;
-			case "8":
-				zenCount = zenCount + 0;
-				break;
-			case "9":
-				zenCount = zenCount + 0;
-				break;
-			case "T":
-				zenCount = zenCount - 2;
-				break;
-			case "J":
-				zenCount = zenCount - 2;
-				break;
-			case "Q":
-				zenCount = zenCount - 2;
-				break;
-			case "K":
-				zenCount = zenCount - 2;
-				break;
-			case "A":
-				zenCount = zenCount - 1;
-				break;
-			}
-		}
-		return zenCount;
-	}
-
-	private int getHiLo() {
-		int hiLo = 0;
-		List<Card> discards = new ArrayList<Card>();
-		discards = shoe.getDiscards();
-		for (int i = 0; i < shoe.getNumberDiscards(); i++) {
-			String face = discards.get(i).getFace();
-			switch (face) {
-			case "2":
-				hiLo = hiLo + 1;
-				break;
-			case "3":
-				hiLo = hiLo + 1;
-				break;
-			case "4":
-				hiLo = hiLo + 1;
-				break;
-			case "5":
-				hiLo = hiLo + 1;
-				break;
-			case "6":
-				hiLo = hiLo + 1;
-				break;
-			case "7":
-				hiLo = hiLo + 0;
-				break;
-			case "8":
-				hiLo = hiLo + 0;
-				break;
-			case "9":
-				hiLo = hiLo + 0;
-				break;
-			case "T":
-				hiLo = hiLo - 1;
-				break;
-			case "J":
-				hiLo = hiLo - 1;
-				break;
-			case "Q":
-				hiLo = hiLo - 1;
-				break;
-			case "K":
-				hiLo = hiLo - 1;
-				break;
-			case "A":
-				hiLo = hiLo - 1;
-				break;
-			}
-		}
-		return hiLo;
-	}
-	private double getRed7() {
-		double red7 = 0;
-		List<Card> discards = new ArrayList<Card>();
-		discards = shoe.getDiscards();
-		for (int i = 0; i < shoe.getNumberDiscards(); i++) {
-			String face = discards.get(i).getFace();
-			switch (face) {
-			case "2":
-				red7 = red7 + 1;
-				break;
-			case "3":
-				red7 = red7 + 1;
-				break;
-			case "4":
-				red7 = red7 + 1;
-				break;
-			case "5":
-				red7 = red7 + 1;
-				break;
-			case "6":
-				red7 = red7 + 1;
-				break;
-			case "7":
-				red7 = red7 + 0.5;
-				break;
-			case "8":
-				red7 = red7 + 0;
-				break;
-			case "9":
-				red7 = red7 + 0;
-				break;
-			case "T":
-				red7 = red7 - 1;
-				break;
-			case "J":
-				red7 = red7 - 1;
-				break;
-			case "Q":
-				red7 = red7 - 1;
-				break;
-			case "K":
-				red7 = red7 - 1;
-				break;
-			case "A":
-				red7 = red7 - 1;
-				break;
-			}
-		}
-		return red7;
-	}
-
 	@Override
 	public void onMessage(MessageEvent event) {
 		String msg = event.getMessage().toLowerCase();
@@ -333,45 +181,17 @@ public class Blackjack extends CardGame {
 							"You have gone bankrupt. Please wait for a loan to join again.");
 				} else if (isInProgress()) {
 					if (playerWaiting(user)) {
-						bot.sendNotice(user,
-								"You have already joined the waitlist!");
+						bot.sendNotice(user, "You have already joined the waitlist!");
 					} else {
 						addWaitingPlayer(user);
 					}
 				} else {
 					addPlayer(user);
 				}
-			} else if (msg.equals(".zc") || (msg.equals(".zen"))) {
-				if (isInProgress()) {
-					bot.sendNotice(user,
-							"A round is in progress! Wait until the round is over.");
-				} else {
-					bot.sendNotice(user,
-							"Zen Count = " + Integer.toString(getZenCount()));
-				}
-			} else if (msg.equals(".hc") || (msg.equals(".hilo"))) {
-				if (isInProgress()) {
-					bot.sendNotice(user,
-							"A round is in progress! Wait until the round is over.");
-				} else {
-					bot.sendNotice(user,
-							"HiLo Count = " + Integer.toString(getHiLo()));
-				}
-
-			} else if (msg.equals(".rc") || (msg.equals(".red7"))) {
-				if (isInProgress()) {
-					bot.sendNotice(user,
-							"A round is in progress! Wait until the round is over.");
-				} else {
-					bot.sendNotice(user,
-							"Red7 Count = " + Double.toString(getRed7()));
-				}
-
 			} else if (msg.equals(".leave") || msg.equals(".quit")
 					|| msg.equals(".l") || msg.equals(".q")) {
 				if (!playerJoined(user) && !playerWaiting(user)) {
-					bot.sendNotice(user,
-							"You are not currently joined or waiting!");
+					bot.sendNotice(user, "You are not currently joined or waiting!");
 				} else if (playerWaiting(user)) {
 					removeWaiting(user);
 				} else {
@@ -516,6 +336,39 @@ public class Blackjack extends CardGame {
 				} else {
 					BlackjackPlayer p = (BlackjackPlayer) findPlayer(user);
 					infoPlayerSum(p, p.getCurrentHand());
+				}
+				/* Contributed by Yky */
+			} else if (msg.equals(".zc") || (msg.equals(".zen"))) {
+				if (!playerJoined(user)) {
+					bot.sendNotice(user, "You are not currently joined!");
+				} else if (isInProgress()) {
+					bot.sendNotice(user, "A round is in progress! Wait until the round is over.");
+				} else if (!isCountEnabled()) {
+					bot.sendNotice(user, "Counting functions are disabled.");
+				} else {
+					bot.sendNotice(user, "Zen Count = " + getZenCount());
+				}
+				/* Contributed by Yky */
+			} else if (msg.equals(".hc") || (msg.equals(".hilo"))) {
+				if (!playerJoined(user)) {
+					bot.sendNotice(user, "You are not currently joined!");
+				} else if (isInProgress()) {
+					bot.sendNotice(user, "A round is in progress! Wait until the round is over.");
+				} else if (!isCountEnabled()) {
+					bot.sendNotice(user, "Counting functions are disabled.");
+				} else {
+					bot.sendNotice(user, "HiLo Count = " + getHiLo());
+				}
+				/* Contributed by Yky */
+			} else if (msg.equals(".rc") || (msg.equals(".red7"))) {
+				if (!playerJoined(user)) {
+					bot.sendNotice(user, "You are not currently joined!");
+				} else if (isInProgress()) {
+					bot.sendNotice(user, "A round is in progress! Wait until the round is over.");
+				} else if (!isCountEnabled()) {
+					bot.sendNotice(user, "Counting functions are disabled.");
+				} else {
+					bot.sendNotice(user, "Red7 Count = " + getRed7());
 				}
 			} else if (msg.equals(".hand")) {
 				if (!playerJoined(user)) {
@@ -691,6 +544,10 @@ public class Blackjack extends CardGame {
 	public int getShoeDecks() {
 		return shoeDecks;
 	}
+	
+	public boolean isCountEnabled(){
+    	return countEnabled;
+    }
 
 	public int getShuffleTime() {
 		return idleShuffleTime;
@@ -700,8 +557,7 @@ public class Blackjack extends CardGame {
 	@Override
 	public void loadSettings() {
 		try {
-			BufferedReader f = new BufferedReader(new FileReader(
-					"blackjack.ini"));
+			BufferedReader f = new BufferedReader(new FileReader("blackjack.ini"));
 			String str, name, value;
 			StringTokenizer st;
 			while (f.ready()) {
@@ -722,6 +578,8 @@ public class Blackjack extends CardGame {
 					newcash = Integer.parseInt(value);
 				} else if (name.equals("respawn")) {
 					respawnTime = Integer.parseInt(value) * 1000;
+				} else if (name.equals("count")){
+					countEnabled = Boolean.parseBoolean(value);
 				}
 			}
 			f.close();
@@ -734,9 +592,9 @@ public class Blackjack extends CardGame {
 			idleOutTime = 60000;
 			respawnTime = 600000;
 			idleShuffleTime = 300000;
+			countEnabled = true;
 			try {
-				PrintWriter out = new PrintWriter(new BufferedWriter(
-						new FileWriter("blackjack.ini")));
+				PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("blackjack.ini")));
 				out.println("#Settings");
 				out.println("#Number of decks in the dealer's shoe");
 				out.println("decks=" + shoeDecks);
@@ -748,6 +606,8 @@ public class Blackjack extends CardGame {
 				out.println("cash=" + newcash);
 				out.println("#Number of seconds before a bankrupt player is allowed to join again");
 				out.println("idleshuffle=" + respawnTime / 1000);
+				out.println("#Whether card counting functions are enabled");
+				out.println("count=" + countEnabled);
 				out.close();
 			} catch (IOException f) {
 				System.out.println("Error creating blackjack.ini!");
@@ -1104,6 +964,59 @@ public class Blackjack extends CardGame {
 
 	public int calcHalf(int amount) {
 		return (int) (Math.ceil((double) (amount) / 2.));
+	}
+	/* contributed by Yky */
+	private int getZenCount() {
+		int zenCount = 0;
+		String face;
+		ArrayList<Card> discards = shoe.getDiscards();
+		for (int i = 0; i < shoe.getNumberDiscards(); i++) {
+			face = discards.get(i).getFace();
+			if (face.equals("2") || face.equals("3")){
+				zenCount++;
+			} else if (face.equals("4") || face.equals("5") || face.equals("6")){
+				zenCount += 2;
+			} else if (face.equals("7")) {
+				zenCount += 1;
+			} else if (face.equals("T") || face.equals("J") || face.equals("Q") || face.equals("K")){
+				zenCount -= 2;
+			} else if (face.equals("A")){
+				zenCount -= 1;
+			}
+		}
+		return zenCount;
+	}
+	/* contributed by Yky */
+	private int getHiLo() {
+		int hiLo = 0;
+		String face;
+		ArrayList<Card> discards = shoe.getDiscards();
+		for (int i = 0; i < shoe.getNumberDiscards(); i++) {
+			face = discards.get(i).getFace();
+			if (face.equals("2") || face.equals("3") || face.equals("4") || face.equals("5") || face.equals("6")){
+				hiLo++;
+			} else if (face.equals("T") || face.equals("J") || face.equals("Q") || face.equals("K") || face.equals("A")){
+				hiLo--;
+			}
+		}
+		return hiLo;
+	}
+	/* contributed by Yky */
+	private double getRed7() {
+		double red7 = -2*getShoeDecks();
+		String face;
+		ArrayList<Card> discards = shoe.getDiscards();
+		for (int i = 0; i < shoe.getNumberDiscards(); i++) {
+			face = discards.get(i).getFace();
+			if (face.equals("2") || face.equals("3") || face.equals("4") || face.equals("5") || face.equals("6")){
+				red7++;
+			} else if (face.equals("T") || face.equals("J") || face.equals("Q") || face.equals("K") || face.equals("A")){
+				red7--;
+			} else if (face.equals("7")) {
+				red7 += 0.5;
+			}
+		}
+		return red7;
 	}
 
 	/* Card management methods for Blackjack */
