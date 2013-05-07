@@ -175,13 +175,12 @@ public class Blackjack extends CardGame {
 			/* Parsing commands from the channel */
 			if (msg.equals(".join") || msg.equals(".j")) {
 				if (playerJoined(user)) {
-					bot.sendNotice(user, "You have already joined!");
+					infoAlreadyJoined(user);
 				} else if (isBlacklisted(user)) {
-					bot.sendNotice(user,
-							"You have gone bankrupt. Please wait for a loan to join again.");
+					infoBlacklisted(user);
 				} else if (isInProgress()) {
 					if (playerWaiting(user)) {
-						bot.sendNotice(user, "You have already joined the waitlist!");
+						infoAlreadyWaiting(user);
 					} else {
 						addWaitingPlayer(user);
 					}
@@ -191,7 +190,7 @@ public class Blackjack extends CardGame {
 			} else if (msg.equals(".leave") || msg.equals(".quit")
 					|| msg.equals(".l") || msg.equals(".q")) {
 				if (!playerJoined(user) && !playerWaiting(user)) {
-					bot.sendNotice(user, "You are not currently joined or waiting!");
+					infoNotJoined(user);
 				} else if (playerWaiting(user)) {
 					removeWaiting(user);
 				} else {
@@ -199,9 +198,9 @@ public class Blackjack extends CardGame {
 				}
 			} else if (msg.equals(".start") || msg.equals(".go")) {
 				if (!playerJoined(user)) {
-					bot.sendNotice(user, "You are not currently joined!");
+					infoNotJoined(user);
 				} else if (isInProgress()) {
-					bot.sendNotice(user, "A round is already in progress!");
+					infoRoundStarted(user);
 				} else if (getNumberPlayers() > 0) {
 					cancelIdleShuffleTimer();
 					showStartRound();
@@ -215,9 +214,9 @@ public class Blackjack extends CardGame {
 			} else if (msg.startsWith(".bet ") || msg.startsWith(".b ")
 					|| msg.equals(".bet") || msg.equals(".b")) {
 				if (!playerJoined(user)) {
-					bot.sendNotice(user, "You are not currently joined!");
+					infoNotJoined(user);
 				} else if (!isInProgress()) {
-					bot.sendNotice(user, "No round in progress!");
+					infoNotStarted(user);
 				} else if (!isBetting()) {
 					bot.sendNotice(user, "No betting in progress!");
 				} else if (!(currentPlayer == findPlayer(user))) {
@@ -504,23 +503,23 @@ public class Blackjack extends CardGame {
 			} else if (msg.equals(".numdiscards") || msg.equals(".ndiscards")) {
 				infoNumDiscards(user);
 			/* Op/Debugging commands */
-			} else if (msg.startsWith(".cards") || msg.startsWith(".discards")
+			} else if (msg.startsWith(".cards ") || msg.startsWith(".discards ")
 					|| msg.equals(".cards") || msg.equals(".discards")) {
 				if (channel.isOp(user)) {
 					try {
 						try {
 							int num = parseNumberParam(msg);
 							if (msg.startsWith(".cards ")
-									&& shoe.getNumberCards() > 0) {
+									&& deck.getNumberCards() > 0) {
 								infoDeckCards(user, 'c', num);
 							} else if (msg.startsWith(".discards ")
-									&& shoe.getNumberDiscards() > 0) {
+									&& deck.getNumberDiscards() > 0) {
 								infoDeckCards(user, 'd', num);
 							} else {
 								bot.sendNotice(user, "Empty!");
 							}
 						} catch (NumberFormatException e) {
-							bot.sendNotice(user, "Bad parameter!");
+							infoImproperParameter(user);
 						}
 					} catch (NoSuchElementException e) {
 						infoNoParameter(user);
@@ -596,8 +595,8 @@ public class Blackjack extends CardGame {
 		String value = params[1];
 		if (setting.equals("decks")){
 			setShoeDecks(Integer.parseInt(value));
-			shoe = new CardDeck(shoeDecks);
-			shoe.shuffleCards();
+			deck = new CardDeck(shoeDecks);
+			deck.shuffleCards();
 			house = getHouseStat(shoeDecks);
 			if (house == null) {
 				house = new HouseStat(shoeDecks, 0, 0);
@@ -654,8 +653,7 @@ public class Blackjack extends CardGame {
 			f.close();
 		} catch (IOException e) {
 			/* load defaults if blackjack.ini is not found */
-			System.out
-					.println("blackjack.ini not found! Creating new blackjack.ini...");
+			System.out.println("blackjack.ini not found! Creating new blackjack.ini...");
 			shoeDecks = 1;
 			newcash = 1000;
 			idleOutTime = 60000;
@@ -664,8 +662,8 @@ public class Blackjack extends CardGame {
 			countEnabled = true;
 			saveSettings();			
 		}
-		shoe = new CardDeck(shoeDecks);
-		shoe.shuffleCards();
+		deck = new CardDeck(shoeDecks);
+		deck.shuffleCards();
 		house = getHouseStat(shoeDecks);
 		if (house == null) {
 			house = new HouseStat(shoeDecks, 0, 0);
@@ -878,25 +876,7 @@ public class Blackjack extends CardGame {
     	if (playerJoined(nick)){
     		return findPlayer(nick).getRounds();
     	} else {
-	    	try{
-	            ArrayList<String> nicks = new ArrayList<String>();
-	            ArrayList<Boolean> simples = new ArrayList<Boolean>();
-	            ArrayList<Integer> stacks = new ArrayList<Integer>();
-	            ArrayList<Integer> bankrupts = new ArrayList<Integer>();
-	            ArrayList<Integer> debts = new ArrayList<Integer>();
-	            ArrayList<Integer> bjrounds = new ArrayList<Integer>();
-	        	loadPlayerFile(nicks, stacks, debts, bankrupts, bjrounds, simples);
-	        	int numLines = nicks.size();
-	        	for (int ctr = 0; ctr < numLines; ctr++){
-	        		if (nick.toLowerCase().equals(nicks.get(ctr))){
-	                    return bjrounds.get(ctr);
-	                }
-	        	}
-	            return Integer.MIN_VALUE;
-	        } catch (IOException e){
-	        	System.out.println("Error reading players.txt!");
-	        	return Integer.MIN_VALUE;
-	        }
+    		return loadPlayerStat(nick, "bjrounds");
     	}
     }
 	
@@ -993,7 +973,7 @@ public class Blackjack extends CardGame {
 		showSeparator();
 		removeIdlers();
 		addWaitingPlayers();
-		if (shoe.getNumberDiscards() > 0) {
+		if (deck.getNumberDiscards() > 0) {
 			setIdleShuffleTimer();
 		}
 	}
@@ -1010,7 +990,7 @@ public class Blackjack extends CardGame {
 		players.clear();
 		waitlist.clear();
 		blacklist.clear();
-		shoe = null;
+		deck = null;
 		dealer = null;
 		currentPlayer = null;
 	}
@@ -1149,8 +1129,8 @@ public class Blackjack extends CardGame {
 	private int getZenCount() {
 		int zenCount = 0;
 		String face;
-		ArrayList<Card> discards = shoe.getDiscards();
-		for (int i = 0; i < shoe.getNumberDiscards(); i++) {
+		ArrayList<Card> discards = deck.getDiscards();
+		for (int i = 0; i < deck.getNumberDiscards(); i++) {
 			face = discards.get(i).getFace();
 			if (face.equals("2") || face.equals("3")){
 				zenCount++;
@@ -1170,8 +1150,8 @@ public class Blackjack extends CardGame {
 	private int getHiLo() {
 		int hiLo = 0;
 		String face;
-		ArrayList<Card> discards = shoe.getDiscards();
-		for (int i = 0; i < shoe.getNumberDiscards(); i++) {
+		ArrayList<Card> discards = deck.getDiscards();
+		for (int i = 0; i < deck.getNumberDiscards(); i++) {
 			face = discards.get(i).getFace();
 			if (face.equals("2") || face.equals("3") || face.equals("4") || face.equals("5") || face.equals("6")){
 				hiLo++;
@@ -1185,8 +1165,8 @@ public class Blackjack extends CardGame {
 	private double getRed7() {
 		double red7 = -2*getShoeDecks();
 		String face;
-		ArrayList<Card> discards = shoe.getDiscards();
-		for (int i = 0; i < shoe.getNumberDiscards(); i++) {
+		ArrayList<Card> discards = deck.getDiscards();
+		for (int i = 0; i < deck.getNumberDiscards(); i++) {
 			face = discards.get(i).getFace();
 			if (face.equals("2") || face.equals("3") || face.equals("4") || face.equals("5") || face.equals("6")){
 				red7++;
@@ -1201,15 +1181,15 @@ public class Blackjack extends CardGame {
 
 	/* Card management methods for Blackjack */
 	public void shuffleShoe() {
-		shoe.refillDeck();
+		deck.refillDeck();
 		showShuffleShoe();
 	}
 
 	public void dealOne(Hand h) {
-		h.add(shoe.takeCard());
-		if (shoe.getNumberCards() == 0) {
+		h.add(deck.takeCard());
+		if (deck.getNumberCards() == 0) {
 			showDeckEmpty();
-			shoe.refillDeck();
+			deck.refillDeck();
 		}
 	}
 
@@ -1217,10 +1197,10 @@ public class Blackjack extends CardGame {
 		p.addHand();
 		Hand h = p.getCurrentHand();
 		for (int ctr2 = 0; ctr2 < 2; ctr2++) {
-			h.add(shoe.takeCard());
-			if (shoe.getNumberCards() == 0) {
+			h.add(deck.takeCard());
+			if (deck.getNumberCards() == 0) {
 				showDeckEmpty();
-				shoe.refillDeck();
+				deck.refillDeck();
 			}
 		}
 	}
@@ -1233,7 +1213,7 @@ public class Blackjack extends CardGame {
 			dealHand(p);
 			h = p.getCurrentHand();
 			h.setBet(p.getInitialBet());
-			if (shoe.getNumberDecks() == 1) {
+			if (deck.getNumberDecks() == 1) {
 				infoPlayerHand(p, h);
 			}
 		}
@@ -1246,7 +1226,7 @@ public class Blackjack extends CardGame {
 		BlackjackPlayer BJp = (BlackjackPlayer) p;
 		if (BJp.hasHands()) {
 			for (int ctr = 0; ctr < BJp.getNumberHands(); ctr++) {
-				shoe.addToDiscard(BJp.getHand(ctr).getAllCards());
+				deck.addToDiscard(BJp.getHand(ctr).getAllCards());
 			}
 			BJp.resetHands();
 		}
@@ -1662,7 +1642,7 @@ public class Blackjack extends CardGame {
 	public void showPlayerHand(BlackjackPlayer p, Hand h, boolean nohole) {
 		if (nohole) {
 			bot.sendMessage(channel, p.getNickStr() + ": " + h.toString(0));
-		} else if (p.isDealer() || shoe.getNumberDecks() == 1) {
+		} else if (p.isDealer() || deck.getNumberDecks() == 1) {
 			bot.sendMessage(channel, p.getNickStr() + ": " + h.toString(1));
 		} else {
 			bot.sendMessage(channel, p.getNickStr() + ": " + h.toString(0));
@@ -1670,7 +1650,7 @@ public class Blackjack extends CardGame {
 	}
 
 	public void showPlayerHand(BlackjackPlayer p, Hand h) {
-		if (p.isDealer() || shoe.getNumberDecks() == 1) {
+		if (p.isDealer() || deck.getNumberDecks() == 1) {
 			bot.sendMessage(channel, p.getNickStr() + ": " + h.toString(1));
 		} else {
 			bot.sendMessage(channel, p.getNickStr() + ": " + h.toString(0));
@@ -1678,7 +1658,7 @@ public class Blackjack extends CardGame {
 	}
 
 	public void showPlayerHand(BlackjackPlayer p, Hand h, int handIndex) {
-		if (p.isDealer() || shoe.getNumberDecks() == 1) {
+		if (p.isDealer() || deck.getNumberDecks() == 1) {
 			bot.sendMessage(channel, p.getNickStr() + "-" + handIndex + ": "
 					+ h.toString(1));
 		} else {
@@ -1688,7 +1668,7 @@ public class Blackjack extends CardGame {
 	}
 
 	public void showPlayerHandWithBet(BlackjackPlayer p, Hand h, int handIndex) {
-		if (p.isDealer() || shoe.getNumberDecks() == 1) {
+		if (p.isDealer() || deck.getNumberDecks() == 1) {
 			bot.sendMessage(channel, p.getNickStr() + "-" + handIndex + ": "
 					+ h.toString(1) + ", bet: $" + String.format("%,d", h.getBet()));
 		} else {
@@ -1696,6 +1676,7 @@ public class Blackjack extends CardGame {
 					+ h.toString(0) + ", bet: $" + String.format("%,d", h.getBet()));
 		}
 	}
+	@Override
 	public void showPlayerRounds(String nick){
     	int rounds = getPlayerRounds(nick);
     	if (rounds != Integer.MIN_VALUE){
@@ -1944,7 +1925,10 @@ public class Blackjack extends CardGame {
 	}
 
 	/* Player/User output methods to simplify messaging/noticing */
-
+	@Override
+	public void infoNumCards(User user){
+        bot.sendNotice(user, deck.getNumberCards()+" cards left in the dealer's shoe.");
+    }
 	public void infoNotPair(BlackjackPlayer p) {
 		bot.sendNotice(p.getUser(),
 				"Your hand cannot be split. The cards do not have matching faces.");
@@ -2018,78 +2002,29 @@ public class Blackjack extends CardGame {
 		}
 	}
 
-	@Override
-	public void infoGameRules(User user) {
-		if (playerJoined(user)) {
-			Player p = findPlayer(user);
-			if (p.isSimple()) {
-				bot.sendNotice(
-						user,
-						"Dealer stands on soft 17. The dealer's shoe has "
-								+ shoe.getNumberDecks()
-								+ " decks of cards. Cards are shuffled when the shoe is depleted.");
-				bot.sendNotice(
-						user,
-						"Regular wins are paid out at 1:1 and blackjacks are paid out at 3:2. Insurance wins are paid out at 2:1");
-			} else {
-				bot.sendMessage(
-						user,
-						"Dealer stands on soft 17. The dealer's shoe has "
-								+ shoe.getNumberDecks()
-								+ " decks of cards. Cards are reshuffled when the shoe is depleted.");
-				bot.sendMessage(
-						user,
-						"Regular wins are paid out at 1:1 and blackjacks are paid out at 3:2. Insurance wins are paid out at 2:1");
-			}
-		} else {
-			bot.sendMessage(
-					user,
-					"Dealer stands on soft 17. The dealer's shoe has "
-							+ shoe.getNumberDecks()
-							+ " decks of cards. Cards are shuffled when the shoe is depleted.");
-			bot.sendMessage(
-					user,
-					"Regular wins are paid out at 1:1 and blackjacks are paid out at 3:2. Insurance wins are paid out at 2:1. Early surrender is offered.");
-		}
-	}
-
-	@Override
-	public void infoGameHelp(User user) {
-		if (playerJoined(user)) {
-			Player p = findPlayer(user);
-			if (p.isSimple()) {
-				bot.sendNotice(
-						user,
-						"For help on how to play "
-								+ getGameNameStr()
-								+ ", please visit an online resource. For game commands, type .gcommands.");
-			} else {
-				bot.sendMessage(
-						user,
-						"For help on how to play "
-								+ getGameNameStr()
-								+ ", please visit an online resource. For game commands, type .gcommands.");
-			}
-		} else {
-			bot.sendMessage(
-					user,
-					"For help on how to play "
-							+ getGameNameStr()
-							+ ", please visit an online resource. For game commands, type .gcommands. For house rules, type .grules.");
-		}
-	}
-
 	/* Formatted strings */
 	@Override
 	public String getGameNameStr() {
 		return Colors.BOLD + gameName + Colors.NORMAL;
 	}
-
+	@Override
+	public String getGameHelpStr(){
+		return "For help on how to play "+ getGameNameStr() + ", please visit an online resource. "
+				+ "For game commands, type .gcommands. For house rules, type .grules.";
+	}
+	@Override
+	public String getGameRulesStr() {
+		return "Dealer stands on soft 17. The dealer's shoe has "+ deck.getNumberDecks()
+				+ " deck(s) of cards. Cards are reshuffled when the shoe is depleted. "
+				+ "Regular wins are paid out at 1:1 and blackjacks are paid out at 3:2. "
+				+ "Insurance wins are paid out at 2:1";
+	}
 	@Override
 	public String getGameCommandStr() {
-		return "start (go), join (j), leave (quit, l, q), bet (b), hit (h), stay (stand), doubledown (dd), "
-				+ "surrender, insure, split, table, turn, sum, hand, allhands, cash, netcash, "
-				+ "debt, bankrupts, simple, players, waitlist, blacklist, top5, "
+		return "start (go), join (j), leave (quit, l, q), bet (b), hit (h), stay (sit, stand), doubledown (dd), "
+				+ "surrender (surr), insure, split, table, turn, sum, hand, allhands, cash, netcash (net), "
+				+ "debt, bankrupts, rounds, numdecks (ndecks), numcards (ncards), numdiscards (ndiscards), "
+				+ "hilo (hc), zen (zc), red7 (rc), simple, players, waitlist, blacklist, top5, "
 				+ "gamehelp (ghelp), gamerules (grules), gamecommands (gcommands)";
 	}
 }
