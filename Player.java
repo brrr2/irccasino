@@ -24,7 +24,7 @@ import org.pircbotx.*;
 public class Player {
     protected User user;
     protected boolean simple, dealer;
-    protected int cash, bet, debt, bankrupts;
+    protected int cash, bet, debt, bankrupts, rounds;
     protected boolean idledOut;
     
     /**
@@ -40,6 +40,7 @@ public class Player {
         bet = 0;
         debt = 0;
         bankrupts = 0;
+        rounds = 0;
         simple = true;
         idledOut = false;
     }
@@ -78,6 +79,17 @@ public class Player {
     }
     public void incrementBankrupts(){
     	bankrupts++;
+    }
+    
+    /* Stats keeping */
+    public int getRounds(){
+    	return rounds;
+    }
+    public void setRounds(int value){
+    	rounds = value;
+    }
+    public void incrementRounds(){
+    	rounds++;
     }
     
     /* Send user information via notice or message */

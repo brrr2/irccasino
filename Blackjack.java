@@ -41,7 +41,7 @@ public class Blackjack extends CardGame {
 			player.setCash(game.getNewCash());
 			player.addDebt(game.getNewCash());
 			game.bot.sendMessage(game.channel, player.getNickStr()
-					+ " has been loaned $" + game.getNewCash()
+					+ " has been loaned $" + String.format("%,d", game.getNewCash())
 					+ ". Please bet responsibly.");
 			game.blacklist.remove(player);
 			game.savePlayerData(player);
@@ -121,7 +121,7 @@ public class Blackjack extends CardGame {
 
 		public String toString() {
 			return numRounds + " round(s) have been played using " + numDecks
-					+ " deck shoes. The house has won $" + cash
+					+ " deck shoes. The house has won $" + String.format("%,d", cash)
 					+ " during those round(s).";
 		}
 	}
@@ -228,7 +228,7 @@ public class Blackjack extends CardGame {
 							int amount = parseNumberParam(msg);
 							bet(amount);
 						} catch (NumberFormatException e) {
-							infoImproperIntParameter(user);
+							infoImproperParameter(user);
 						}
 					} catch (NoSuchElementException e) {
 						infoNoParameter(user);
@@ -298,7 +298,7 @@ public class Blackjack extends CardGame {
 							int amount = parseNumberParam(msg);
 							insure(amount);
 						} catch (NumberFormatException e) {
-							infoImproperIntParameter(user);
+							infoImproperParameter(user);
 						}
 					} catch (NoSuchElementException e) {
 						infoNoParameter(user);
@@ -346,7 +346,7 @@ public class Blackjack extends CardGame {
 				} else if (!isCountEnabled()) {
 					bot.sendNotice(user, "Counting functions are disabled.");
 				} else {
-					bot.sendNotice(user, "Zen Count = " + getZenCount());
+					bot.sendNotice(user, "Zen count = " + getZenCount());
 				}
 				/* Contributed by Yky */
 			} else if (msg.equals(".hc") || (msg.equals(".hilo"))) {
@@ -357,7 +357,7 @@ public class Blackjack extends CardGame {
 				} else if (!isCountEnabled()) {
 					bot.sendNotice(user, "Counting functions are disabled.");
 				} else {
-					bot.sendNotice(user, "HiLo Count = " + getHiLo());
+					bot.sendNotice(user, "Hi-Lo count = " + getHiLo());
 				}
 				/* Contributed by Yky */
 			} else if (msg.equals(".rc") || (msg.equals(".red7"))) {
@@ -368,7 +368,7 @@ public class Blackjack extends CardGame {
 				} else if (!isCountEnabled()) {
 					bot.sendNotice(user, "Counting functions are disabled.");
 				} else {
-					bot.sendNotice(user, "Red7 Count = " + getRed7());
+					bot.sendNotice(user, "Red7 count = " + getRed7());
 				}
 			} else if (msg.equals(".hand")) {
 				if (!playerJoined(user)) {
@@ -405,7 +405,8 @@ public class Blackjack extends CardGame {
 				} catch (NoSuchElementException e) {
 					showPlayerCash(user.getNick());
 				}
-			} else if (msg.startsWith(".netcash ") || msg.equals(".netcash")) {
+			} else if (msg.startsWith(".netcash ") || msg.equals(".netcash") ||
+					msg.startsWith(".net ") || msg.equals(".net")) {
 				try {
 					String nick = parseStringParam(msg);
 					showPlayerNetCash(nick);
@@ -419,13 +420,19 @@ public class Blackjack extends CardGame {
 				} catch (NoSuchElementException e) {
 					showPlayerDebt(user.getNick());
 				}
-			} else if (msg.startsWith(".bankrupts ")
-					|| msg.equals(".bankrupts")) {
+			} else if (msg.startsWith(".bankrupts ") || msg.equals(".bankrupts")) {
 				try {
 					String nick = parseStringParam(msg);
 					showPlayerBankrupts(nick);
 				} catch (NoSuchElementException e) {
 					showPlayerBankrupts(user.getNick());
+				}
+			} else if (msg.startsWith(".rounds ") || msg.equals(".rounds")){
+				try {
+					String nick = parseStringParam(msg);
+					showPlayerRounds(nick);
+				} catch (NoSuchElementException e) {
+					showPlayerRounds(user.getNick());
 				}
 			} else if (msg.startsWith(".paydebt ")) {
 				if (!playerJoined(user)) {
@@ -439,7 +446,7 @@ public class Blackjack extends CardGame {
 							int amount = parseNumberParam(msg);
 							payPlayerDebt(user, amount);
 						} catch (NumberFormatException e) {
-							infoImproperIntParameter(user);
+							infoImproperParameter(user);
 						}
 					} catch (NoSuchElementException e) {
 						infoNoParameter(user);
@@ -455,7 +462,7 @@ public class Blackjack extends CardGame {
 							int ndecks = parseNumberParam(msg);
 							showHouseStat(ndecks);
 						} catch (NumberFormatException e) {
-							infoImproperIntParameter(user);
+							infoImproperParameter(user);
 						}
 					} catch (NoSuchElementException e) {
 						showHouseStat(shoeDecks);
@@ -467,12 +474,20 @@ public class Blackjack extends CardGame {
 				showWaiting();
 			} else if (msg.equals(".blacklist")) {
 				showBankrupt();
-			} else if (msg.equals(".top5")) {
+			} else if (msg.startsWith(".top5 ") || msg.equals(".top5")) {
 				if (isInProgress()) {
-					bot.sendNotice(user,
-							"A round is in progress! Wait until the round is over.");
+					infoWaitRoundEnd(user);
 				} else {
-					showTopPlayers(5);
+					try {
+						try {
+							String param = parseStringParam(msg).toLowerCase();
+							showTopPlayers(param,5);
+						} catch (IllegalArgumentException e) {
+							infoImproperParameter(user);
+						}
+					} catch (NoSuchElementException e) {
+						showTopPlayers("cash",5);
+					}
 				}
 			} else if (msg.equals(".gamerules") || msg.equals(".grules")) {
 				infoGameRules(user);
@@ -488,6 +503,7 @@ public class Blackjack extends CardGame {
 				infoNumCards(user);
 			} else if (msg.equals(".numdiscards") || msg.equals(".ndiscards")) {
 				infoNumDiscards(user);
+			/* Op/Debugging commands */
 			} else if (msg.startsWith(".cards") || msg.startsWith(".discards")
 					|| msg.equals(".cards") || msg.equals(".discards")) {
 				if (channel.isOp(user)) {
@@ -507,53 +523,106 @@ public class Blackjack extends CardGame {
 							bot.sendNotice(user, "Bad parameter!");
 						}
 					} catch (NoSuchElementException e) {
-						bot.sendNotice(user, "Parameter missing!");
+						infoNoParameter(user);
 					}
 				} else {
-					bot.sendNotice(user,
-							"Debugging commands may only be used by ops.");
+					infoOpsOnly(user);
 				}
 			} else if (msg.equals(".shuffle")) {
 				if (isInProgress()) {
-					bot.sendNotice(user,
-							"A round is already in progress! Wait for the round to end.");
+					infoWaitRoundEnd(user);
 				} else if (channel.isOp(user)) {
 					cancelIdleShuffleTimer();
 					shuffleShoe();
 				} else {
-					bot.sendNotice(user,
-							"Debugging commands may only be used by ops.");
+					infoOpsOnly(user);
 				}
 			} else if (msg.equals(".reload")) {
 				if (isInProgress()) {
-					bot.sendNotice(user,
-							"A round is already in progress! Wait for the round to end.");
+					infoWaitRoundEnd(user);
 				} else if (channel.isOp(user)) {
 					cancelIdleShuffleTimer();
 					loadSettings();
 					showReloadSettings();
 				} else {
-					bot.sendNotice(user,
-							"Debugging commands may only be used by ops.");
+					infoOpsOnly(user);
+				}
+			} else if (msg.startsWith(".set ") || msg.equals(".set")){
+				if (isInProgress()) {
+					infoWaitRoundEnd(user);
+				} else if (channel.isOp(user)) {
+					try {
+						try {
+							String[] iniParams = parseIniParams(msg);
+							setSetting(iniParams);
+							showUpdateSetting(iniParams[0]);
+						} catch (IllegalArgumentException e) {
+							infoImproperParameter(user);
+						}
+					} catch (NoSuchElementException e) {
+						infoNoParameter(user);
+					}
+				} else {
+					infoOpsOnly(user);
 				}
 			}
 		}
 	}
 
 	/* Accessor methods */
+	public void setShoeDecks(int value) {
+		shoeDecks = value;
+	}
 	public int getShoeDecks() {
 		return shoeDecks;
 	}
-	
+	public void setCountEnabled(boolean value){
+		countEnabled = value;
+	}
 	public boolean isCountEnabled(){
     	return countEnabled;
     }
-
-	public int getShuffleTime() {
+	public void setIdleShuffleTime(int value){
+		idleShuffleTime = value;
+	}
+	public int getIdleShuffleTime() {
 		return idleShuffleTime;
 	}
 
 	/* Game management methods */
+	@Override
+	public void setSetting(String[] params) throws IllegalArgumentException {
+		String setting = params[0];
+		String value = params[1];
+		if (setting.equals("decks")){
+			setShoeDecks(Integer.parseInt(value));
+			shoe = new CardDeck(shoeDecks);
+			shoe.shuffleCards();
+			house = getHouseStat(shoeDecks);
+			if (house == null) {
+				house = new HouseStat(shoeDecks, 0, 0);
+				stats.add(house);
+			}
+			saveSettings();
+		} else if (setting.equals("idle")){
+			setIdleOutTime(Integer.parseInt(value));
+			saveSettings();
+		} else if (setting.equals("idleshuffle")){
+			setIdleShuffleTime(Integer.parseInt(value));
+			saveSettings();
+		} else if (setting.equals("cash")){
+			setNewCash(Integer.parseInt(value));
+			saveSettings();
+		} else if (setting.equals("respawn")){
+			setRespawnTime(Integer.parseInt(value));
+			saveSettings();
+		} else if (setting.equals("count")){
+			setCountEnabled(Boolean.parseBoolean(value));
+			saveSettings();
+		} else {
+			throw new IllegalArgumentException();
+		}
+	}
 	@Override
 	public void loadSettings() {
 		try {
@@ -593,25 +662,7 @@ public class Blackjack extends CardGame {
 			respawnTime = 600000;
 			idleShuffleTime = 300000;
 			countEnabled = true;
-			try {
-				PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("blackjack.ini")));
-				out.println("#Settings");
-				out.println("#Number of decks in the dealer's shoe");
-				out.println("decks=" + shoeDecks);
-				out.println("#Number of seconds before a player idles out");
-				out.println("idle=" + idleOutTime / 1000);
-				out.println("#Number of seconds of idleness after a round ends before the deck is shuffled");
-				out.println("idleshuffle=" + idleShuffleTime / 1000);
-				out.println("#Initial amount given to new and bankrupt players");
-				out.println("cash=" + newcash);
-				out.println("#Number of seconds before a bankrupt player is allowed to join again");
-				out.println("idleshuffle=" + respawnTime / 1000);
-				out.println("#Whether card counting functions are enabled");
-				out.println("count=" + countEnabled);
-				out.close();
-			} catch (IOException f) {
-				System.out.println("Error creating blackjack.ini!");
-			}
+			saveSettings();			
 		}
 		shoe = new CardDeck(shoeDecks);
 		shoe.shuffleCards();
@@ -619,6 +670,28 @@ public class Blackjack extends CardGame {
 		if (house == null) {
 			house = new HouseStat(shoeDecks, 0, 0);
 			stats.add(house);
+		}
+	}
+	@Override
+	public void saveSettings(){
+		try {
+			PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("blackjack.ini")));
+			out.println("#Settings");
+			out.println("#Number of decks in the dealer's shoe");
+			out.println("decks=" + shoeDecks);
+			out.println("#Number of seconds before a player idles out");
+			out.println("idle=" + idleOutTime / 1000);
+			out.println("#Number of seconds of idleness after a round ends before the deck is shuffled");
+			out.println("idleshuffle=" + idleShuffleTime / 1000);
+			out.println("#Initial amount given to new and bankrupt players");
+			out.println("cash=" + newcash);
+			out.println("#Number of seconds before a bankrupt player is allowed to join again");
+			out.println("respawn=" + respawnTime / 1000);
+			out.println("#Whether card counting functions are enabled");
+			out.println("count=" + countEnabled);
+			out.close();
+		} catch (IOException f) {
+			System.out.println("Error creating blackjack.ini!");
 		}
 	}
 
@@ -721,7 +794,112 @@ public class Blackjack extends CardGame {
 		}
 		return null;
 	}
-
+	@Override
+	public void loadPlayerData(Player p){
+        try{
+        	boolean found = false;
+            ArrayList<String> nicks = new ArrayList<String>();
+            ArrayList<Boolean> simples = new ArrayList<Boolean>();
+            ArrayList<Integer> stacks = new ArrayList<Integer>();
+            ArrayList<Integer> bankrupts = new ArrayList<Integer>();
+            ArrayList<Integer> debts = new ArrayList<Integer>();
+            ArrayList<Integer> bjrounds = new ArrayList<Integer>();
+        	loadPlayerFile(nicks, stacks, debts, bankrupts, bjrounds, simples);
+        	int numLines = nicks.size();
+        	for (int ctr = 0; ctr < numLines; ctr++){
+        		if (p.getNick().toLowerCase().equals(nicks.get(ctr))){
+                    if (stacks.get(ctr) <= 0){
+                    	p.setCash(getNewCash());
+                    } else {
+                    	p.setCash(stacks.get(ctr));
+                    }
+                    p.setDebt(debts.get(ctr));
+                    p.setBankrupts(bankrupts.get(ctr));
+                    p.setRounds(bjrounds.get(ctr));
+                    p.setSimple(simples.get(ctr));
+                    found = true;
+                    break;
+                }
+        	}
+        	if (!found){
+                p.setCash(getNewCash());
+                p.setDebt(0);
+                p.setBankrupts(0);
+                p.setRounds(0);
+                p.setSimple(true);
+                infoNewPlayer(p);
+            }
+        } catch (IOException e){
+        	System.out.println("Error reading players.txt!");
+        }
+    }
+	@Override
+	public void savePlayerData(Player p){
+        boolean found = false;
+        ArrayList<String> nicks = new ArrayList<String>();
+        ArrayList<Integer> stacks = new ArrayList<Integer>();
+        ArrayList<Integer> debts = new ArrayList<Integer>();
+        ArrayList<Integer> bankrupts = new ArrayList<Integer>();
+        ArrayList<Integer> bjrounds = new ArrayList<Integer>();
+        ArrayList<Boolean> simples = new ArrayList<Boolean>();
+        int numLines;
+        try{
+        	loadPlayerFile(nicks, stacks, debts, bankrupts, bjrounds, simples);
+        	numLines = nicks.size();
+        	for (int ctr = 0; ctr < numLines; ctr++){
+        		if (p.getNick().toLowerCase().equals(nicks.get(ctr))){
+                    stacks.set(ctr, p.getCash());
+                    debts.set(ctr, p.getDebt());
+                    bankrupts.set(ctr, p.getBankrupts());
+                    bjrounds.set(ctr, p.getRounds());
+                    simples.set(ctr, p.isSimple());
+                    found = true;
+                }
+        	}
+        	if (!found){
+                nicks.add(p.getNick());
+                stacks.add(p.getCash());
+                debts.add(p.getDebt());
+                bankrupts.add(p.getBankrupts());
+                bjrounds.add(p.getRounds());
+                simples.add(p.isSimple());
+            }
+        } catch (IOException e){
+        	System.out.println("Error reading players.txt!");
+        }
+        
+        try {
+            savePlayerFile(nicks, stacks, debts, bankrupts, bjrounds, simples);
+        } catch (IOException e){
+        	System.out.println("Error writing to players.txt!");
+        }
+    }
+	public int getPlayerRounds(String nick){
+    	if (playerJoined(nick)){
+    		return findPlayer(nick).getRounds();
+    	} else {
+	    	try{
+	            ArrayList<String> nicks = new ArrayList<String>();
+	            ArrayList<Boolean> simples = new ArrayList<Boolean>();
+	            ArrayList<Integer> stacks = new ArrayList<Integer>();
+	            ArrayList<Integer> bankrupts = new ArrayList<Integer>();
+	            ArrayList<Integer> debts = new ArrayList<Integer>();
+	            ArrayList<Integer> bjrounds = new ArrayList<Integer>();
+	        	loadPlayerFile(nicks, stacks, debts, bankrupts, bjrounds, simples);
+	        	int numLines = nicks.size();
+	        	for (int ctr = 0; ctr < numLines; ctr++){
+	        		if (nick.toLowerCase().equals(nicks.get(ctr))){
+	                    return bjrounds.get(ctr);
+	                }
+	        	}
+	            return Integer.MIN_VALUE;
+	        } catch (IOException e){
+	        	System.out.println("Error reading players.txt!");
+	        	return Integer.MIN_VALUE;
+	        }
+    	}
+    }
+	
 	@Override
 	public void leaveGame(User u) {
 		if (playerJoined(u)) {
@@ -768,7 +946,7 @@ public class Blackjack extends CardGame {
 
 	@Override
 	public void endRound() {
-		Player p;
+		BlackjackPlayer p;
 		Hand dHand;
 		setInProgress(false);
 		if (getNumberPlayers() > 0) {
@@ -792,7 +970,8 @@ public class Blackjack extends CardGame {
 				showInsuranceResults();
 			}
 			for (int ctr = 0; ctr < getNumberPlayers(); ctr++) {
-				p = getPlayer(ctr);
+				p = (BlackjackPlayer) getPlayer(ctr);
+				p.incrementRounds();
 				if (isPlayerBankrupt(p)) {
 					p.incrementBankrupts();
 					blacklist.add(p);
@@ -810,9 +989,9 @@ public class Blackjack extends CardGame {
 			showNoPlayers();
 		}
 		resetGame();
-		removeIdlers();
 		showEndRound();
 		showSeparator();
+		removeIdlers();
 		addWaitingPlayers();
 		if (shoe.getNumberDiscards() > 0) {
 			setIdleShuffleTimer();
@@ -827,6 +1006,7 @@ public class Blackjack extends CardGame {
 		cancelRespawnTimers();
 		saveAllPlayers();
 		saveHouseStats();
+		saveSettings();
 		players.clear();
 		waitlist.clear();
 		blacklist.clear();
@@ -1399,11 +1579,69 @@ public class Blackjack extends CardGame {
 
 	/* Channel output methods for Blackjack */
 	@Override
+	public void showTopPlayers(String param, int n){
+    	int highIndex;
+    	saveAllPlayers();
+        try{
+            ArrayList<String> nicks = new ArrayList<String>();
+            ArrayList<Boolean> simples = new ArrayList<Boolean>();
+            ArrayList<Integer> stacks = new ArrayList<Integer>();
+            ArrayList<Integer> bankrupts = new ArrayList<Integer>();
+            ArrayList<Integer> debts = new ArrayList<Integer>();
+            ArrayList<Integer> bjrounds = new ArrayList<Integer>();
+        	loadPlayerFile(nicks, stacks, debts, bankrupts, bjrounds, simples);
+        	ArrayList<Integer> test = new ArrayList<Integer>();
+        	String list = "";
+        	if (param.equals("cash")){
+        		test = stacks;
+        		list += Colors.BLACK+",08Top "+n+" Cash:";
+        	} else if (param.equals("debt")){
+        		test = debts;
+        		list += Colors.BLACK+",08Top "+n+" Debt:";
+        	} else if (param.equals("bankrupts")){
+        		test = bankrupts;
+        		list += Colors.BLACK+",08Top "+n+" Bankrupts:";
+        	} else if (param.equals("net")){
+        		for (int ctr=0; ctr<nicks.size(); ctr++){
+        			test.add(stacks.get(ctr)-debts.get(ctr));
+            	}
+        		list += Colors.BLACK+",08Top "+n+" Net Cash:";
+        	} else if (param.equals("rounds")){
+        		test = bjrounds;
+        		list += Colors.BLACK+",08Top "+n+" Blackjack Rounds:";
+        	} else {
+        		throw new IllegalArgumentException();
+        	}
+        	
+        	for (int ctr=1; ctr<=n; ctr++){
+            	highIndex = 0;
+            	for (int ctr2=0; ctr2<nicks.size(); ctr2++){
+            		if (test.get(ctr2) > test.get(highIndex)){
+            			highIndex = ctr2;
+            		}
+            	}
+            	if (param.equals("rounds") || param.equals("bankrupts")){
+            		list += " #"+ctr+": "+Colors.WHITE+",04 "+nicks.get(highIndex)+" "+test.get(highIndex)+" "+Colors.BLACK+",08";
+            	} else {
+            		list += " #"+ctr+": "+Colors.WHITE+",04 "+nicks.get(highIndex)+" $"+String.format("%,d", test.get(highIndex))+" "+Colors.BLACK+",08";
+            	}
+            	nicks.remove(highIndex);
+            	test.remove(highIndex);
+            	if (nicks.isEmpty()){
+            		break;
+            	}
+            }
+            bot.sendMessage(channel, list);
+        } catch (IOException e){
+        	System.out.println("Error reading players.txt!");
+        }
+	}
+	@Override
 	public void showPlayerTurn(Player p) {
 		if (isBetting()) {
 			bot.sendMessage(channel,
-					p.getNickStr() + "'s turn. Stack: $" + p.getCash()
-							+ ". Enter an initial bet up to $" + p.getCash()
+					p.getNickStr() + "'s turn. Stack: $" + String.format("%,d", p.getCash())
+							+ ". Enter an initial bet up to $" + String.format("%,d", p.getCash())
 							+ ".");
 		} else {
 			bot.sendMessage(channel, "It's now " + p.getNickStr() + "'s turn.");
@@ -1413,8 +1651,8 @@ public class Blackjack extends CardGame {
 	public void showPlayerTurn(Player p, int index) {
 		if (isBetting()) {
 			bot.sendMessage(channel, p.getNickStr() + "-" + index
-					+ "'s turn. Stack: $" + p.getCash()
-					+ ". Enter an initial bet up to $" + p.getCash() + ".");
+					+ "'s turn. Stack: $" + String.format("%,d", p.getCash())
+					+ ". Enter an initial bet up to $" + String.format("%,d", p.getCash()) + ".");
 		} else {
 			bot.sendMessage(channel, "It's now " + p.getNickStr() + "-" + index
 					+ "'s turn.");
@@ -1452,27 +1690,34 @@ public class Blackjack extends CardGame {
 	public void showPlayerHandWithBet(BlackjackPlayer p, Hand h, int handIndex) {
 		if (p.isDealer() || shoe.getNumberDecks() == 1) {
 			bot.sendMessage(channel, p.getNickStr() + "-" + handIndex + ": "
-					+ h.toString(1) + ", bet: $" + h.getBet());
+					+ h.toString(1) + ", bet: $" + String.format("%,d", h.getBet()));
 		} else {
 			bot.sendMessage(channel, p.getNickStr() + "-" + handIndex + ": "
-					+ h.toString(0) + ", bet: $" + h.getBet());
+					+ h.toString(0) + ", bet: $" + String.format("%,d", h.getBet()));
 		}
 	}
-
+	public void showPlayerRounds(String nick){
+    	int rounds = getPlayerRounds(nick);
+    	if (rounds != Integer.MIN_VALUE){
+        	bot.sendMessage(channel, nick+" has played "+rounds+" round(s) of "+getGameNameStr()+".");
+        } else {
+        	bot.sendMessage(channel, "No data found for "+nick+".");
+        }
+    }
 	public void showDeckEmpty() {
 		bot.sendMessage(channel,
 				"The dealer's shoe is empty. Refilling the dealer's shoe...");
 	}
 
 	public void showProperBet(BlackjackPlayer p) {
-		bot.sendMessage(channel, p.getNickStr() + " bets $" + p.getInitialBet()
-				+ ". Stack: $" + p.getCash());
+		bot.sendMessage(channel, p.getNickStr() + " bets $" + String.format("%,d", p.getInitialBet())
+				+ ". Stack: $" + String.format("%,d", p.getCash()));
 	}
 
 	public void showDoubleDown(BlackjackPlayer p, Hand h) {
 		bot.sendMessage(channel, p.getNickStr()
-				+ " has doubled down! The bet is now $" + h.getBet()
-				+ ". Stack: $" + p.getCash());
+				+ " has doubled down! The bet is now $" + String.format("%,d", h.getBet())
+				+ ". Stack: $" + String.format("%,d", p.getCash()));
 	}
 
 	public void showSurrender(BlackjackPlayer p) {
@@ -1480,13 +1725,13 @@ public class Blackjack extends CardGame {
 				channel,
 				p.getNickStr()
 						+ " has surrendered! Half the bet is returned and the rest forfeited. Stack: $"
-						+ p.getCash());
+						+ String.format("%,d", p.getCash()));
 	}
 
 	public void showInsure(BlackjackPlayer p, Hand h) {
 		bot.sendMessage(channel, p.getNickStr()
-				+ " has made an insurance bet of $" + h.getInsureBet()
-				+ ". Stack: $" + p.getCash());
+				+ " has made an insurance bet of $" + String.format("%,d", h.getInsureBet())
+				+ ". Stack: $" + String.format("%,d", p.getCash()));
 	}
 
 	public void showSplitHands(BlackjackPlayer p) {
@@ -1498,7 +1743,7 @@ public class Blackjack extends CardGame {
 			h = p.getHand(ctr);
 			showPlayerHandWithBet(p, h, ctr + 1);
 		}
-		bot.sendMessage(channel, p.getNickStr() + "'s stack: $" + p.getCash());
+		bot.sendMessage(channel, p.getNickStr() + "'s stack: $" + String.format("%,d", p.getCash()));
 	}
 
 	public void showShuffleShoe() {
@@ -1507,6 +1752,10 @@ public class Blackjack extends CardGame {
 
 	public void showReloadSettings() {
 		bot.sendMessage(channel, "blackjack.ini has been reloaded.");
+	}
+	
+	public void showUpdateSetting(String param) {
+		bot.sendMessage(channel, param+" setting has been updated.");
 	}
 
 	public void showHouseStat(int n) {
@@ -1621,21 +1870,21 @@ public class Blackjack extends CardGame {
 		} else if (result == 2) {
 			p.addCash(2 * h.getBet() + calcHalf(h.getBet()));
 			house.addCash(-1 * (2 * h.getBet() + calcHalf(h.getBet())));
-			outStr += " wins $" + (2 * h.getBet() + calcHalf(h.getBet()))
+			outStr += " wins $" + String.format("%,d", (2 * h.getBet() + calcHalf(h.getBet())))
 					+ ". (";
 		} else if (result == 1) {
 			p.addCash(2 * h.getBet());
 			house.addCash(-2 * h.getBet());
-			outStr += " wins $" + (2 * h.getBet()) + ". (";
+			outStr += " wins $" + String.format("%,d", (2 * h.getBet())) + ". (";
 		} else if (result == 0) {
 			p.addCash(h.getBet());
 			house.addCash(-1 * h.getBet());
-			outStr += " pushes and his/her $" + h.getBet()
+			outStr += " pushes and his/her $" + String.format("%,d", h.getBet())
 					+ " bet is returned. (";
 		} else {
 			outStr += " loses. (";
 		}
-		outStr += h.toString(0) + ") Stack: $" + p.getCash();
+		outStr += h.toString(0) + ") Stack: $" + String.format("%,d", p.getCash());
 		bot.sendMessage(channel, outStr);
 	}
 
@@ -1647,21 +1896,21 @@ public class Blackjack extends CardGame {
 		} else if (result == 2) {
 			p.addCash(2 * h.getBet() + calcHalf(h.getBet()));
 			house.addCash(-1 * (2 * h.getBet() + calcHalf(h.getBet())));
-			outStr += " wins $" + (2 * h.getBet() + calcHalf(h.getBet()))
+			outStr += " wins $" + String.format("%,d", (2 * h.getBet() + calcHalf(h.getBet())))
 					+ ". (";
 		} else if (result == 1) {
 			p.addCash(2 * h.getBet());
 			house.addCash(-2 * h.getBet());
-			outStr += " wins $" + (2 * h.getBet()) + ". (";
+			outStr += " wins $" + String.format("%,d", (2 * h.getBet())) + ". (";
 		} else if (result == 0) {
 			p.addCash(h.getBet());
 			house.addCash(-1 * h.getBet());
-			outStr += " pushes and his/her $" + h.getBet()
+			outStr += " pushes and his/her $" + String.format("%,d", h.getBet())
 					+ " bet is returned. (";
 		} else {
 			outStr += " loses. (";
 		}
-		outStr += h.toString(0) + ") Stack: $" + p.getCash();
+		outStr += h.toString(0) + ") Stack: $" + String.format("%,d", p.getCash());
 		bot.sendMessage(channel, outStr);
 	}
 
@@ -1671,11 +1920,11 @@ public class Blackjack extends CardGame {
 		if (result == 1) {
 			p.addCash(3 * h.getInsureBet());
 			house.addCash(-3 * h.getInsureBet());
-			outStr = p.getNickStr() + " wins $" + 3 * h.getInsureBet() + ".";
+			outStr = p.getNickStr() + " wins $" + String.format("%,d", 3 * h.getInsureBet()) + ".";
 		} else {
 			outStr = p.getNickStr() + " loses.";
 		}
-		outStr += " Stack: $" + p.getCash();
+		outStr += " Stack: $" + String.format("%,d", p.getCash());
 		bot.sendMessage(channel, outStr);
 	}
 
@@ -1685,12 +1934,12 @@ public class Blackjack extends CardGame {
 		if (result == 1) {
 			p.addCash(3 * h.getInsureBet());
 			house.addCash(-3 * h.getInsureBet());
-			outStr = p.getNickStr() + "-" + index + " wins $" + 3
-					* h.getInsureBet() + ".";
+			outStr = p.getNickStr() + "-" + index + " wins $" + String.format("%,d", 3
+					* h.getInsureBet()) + ".";
 		} else {
 			outStr = p.getNickStr() + "-" + index + " loses.";
 		}
-		outStr += " Stack: $" + p.getCash();
+		outStr += " Stack: $" + String.format("%,d", p.getCash());
 		bot.sendMessage(channel, outStr);
 	}
 
@@ -1703,7 +1952,7 @@ public class Blackjack extends CardGame {
 
 	public void infoInsureBetTooHigh(BlackjackPlayer p) {
 		bot.sendNotice(p.getUser(),
-				"Maximum insurance bet is $" + calcHalf(p.getInitialBet())
+				"Maximum insurance bet is $" + String.format("%,d", calcHalf(p.getInitialBet()))
 						+ ". Try again.");
 	}
 
@@ -1744,9 +1993,9 @@ public class Blackjack extends CardGame {
 	}
 
 	public void infoPlayerBet(BlackjackPlayer p, Hand h) {
-		String outStr = "This hand has a bet $" + h.getBet();
+		String outStr = "This hand has a bet $" + String.format("%,d", h.getBet());
 		if (h.hasInsured()) {
-			outStr += " with an insurance bet of $" + h.getInsureBet();
+			outStr += " with an insurance bet of $" + String.format("%,d", h.getInsureBet());
 		}
 		outStr += ".";
 		if (p.isSimple()) {

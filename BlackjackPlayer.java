@@ -39,7 +39,7 @@ public class BlackjackPlayer extends Player{
         currentIndex = 0;
         initialBet = 0;
     }
-
+    
     /* Blackjack-specific card/hand manipulation methods */
     public void addHand(){
     	hands.add(new Hand());
