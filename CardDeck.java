@@ -29,13 +29,13 @@ public class CardDeck {
     protected int numDecks;
     
     /**
-     * Default constructor creates a CardDeck with a single set of cards (52).
+     * Default constructor creates a CardDeck with a single set of cards (52 cards).
      */
     public CardDeck(){
         this(1);
     }
     /**
-     * Creates a CardDeck with n sets of cards (52n).
+     * Creates a CardDeck with n sets of cards (52n cards).
      * 
      * @param n		number of sets of cards.
      */

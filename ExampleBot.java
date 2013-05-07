@@ -18,6 +18,9 @@
 */
 package irccasino;
 
+import javax.net.ssl.SSLSocketFactory;
+import org.pircbotx.cap.SASLCapHandler;
+
 import org.pircbotx.*;
 import org.pircbotx.hooks.ListenerAdapter;
 import org.pircbotx.hooks.events.*;
@@ -28,22 +31,38 @@ public class ExampleBot extends ListenerAdapter {
 	public static PircBotX bot;
 	public static ThreadedListenerManager<PircBotX> manager;
 	public static CardGame game;
+	public static String nick, password, network, channel;
 	    
 	public static void main(String[] args) throws Exception {
+		/* Check that there are four arguments */
+        if (args.length < 4){
+        	System.out.println("Required parameters: nick password network channel");
+        	System.exit(0);
+        }
+        
+        nick = args[0];
+    	password = args[1];
+    	network = args[2];
+    	channel = "##"+args[3];
+		
 	    //Create Listener Manager to use
 	    manager = new ThreadedListenerManager<PircBotX>();
 	    manager.addListener(new ExampleBot());
 	    
 	    bot = new PircBotX();
 	    bot.setListenerManager(manager);
-	    bot.setName("ExampleBot");
-	    bot.setLogin("ExampleBot");
+	    bot.setName(nick);
+	    bot.setLogin(nick);
 	    bot.setVerbose(true);
 	    bot.setAutoNickChange(true);
 	    bot.setCapEnabled(true);
-	
-	    bot.connect("chat.freenode.net");
-	    bot.joinChannel("##ExampleChannel");
+
+	    try {
+	    	bot.getCapHandlers().add(new SASLCapHandler(nick, password));
+        	bot.connect(network,7000,SSLSocketFactory.getDefault());
+        } catch (Exception e){
+        	System.out.println("Error connecting to "+network);
+        }
 	}
 	
 	@Override
@@ -80,5 +99,9 @@ public class ExampleBot extends ListenerAdapter {
             }
         }
     }
-    
+	
+	@Override
+    public void onConnect (ConnectEvent event){
+		bot.joinChannel(channel);
+    }
 }

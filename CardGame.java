@@ -36,6 +36,27 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
 			game.startRound();
 		}
 	}
+	public static class RespawnTask extends TimerTask {
+		Player p;
+		CardGame game;
+
+		public RespawnTask(Player p, CardGame g) {
+			this.p = p;
+			game = g;
+		}
+
+		@Override
+		public void run() {
+			ArrayList<Timer> timers = game.getRespawnTimers();
+			p.setCash(game.getNewCash());
+			p.addDebt(game.getNewCash());
+			game.bot.sendMessage(game.channel, p.getNickStr() + " has been loaned $"
+							+ String.format("%,d", game.getNewCash()) + ". Please bet responsibly.");
+			game.blacklist.remove(p);
+			game.savePlayerData(p);
+			timers.remove(this);
+		}
+	}
 
     protected PircBotX bot; //bot handling the game
     protected Channel channel; //channel where game is being played
@@ -46,6 +67,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     protected boolean inProgress, betting;
     protected Timer idleOutTimer, startRoundTimer;
     protected int idleOutTime, respawnTime, newcash;
+    private ArrayList<Timer> respawnTimers;
     
     /**
      * Class constructor for generic CardGame
@@ -59,6 +81,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         players = new ArrayList<Player>();
         blacklist = new ArrayList<Player>();
         waitlist = new ArrayList<Player>();
+        respawnTimers = new ArrayList<Timer>();
         inProgress = false;
         betting = false;
         checkPlayerFile();
@@ -96,7 +119,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     abstract public void setSetting(String[] params);
     abstract public void loadSettings();
     abstract public void saveSettings();
-    public void addWaitingPlayers(){
+    public void mergeWaitlist(){
     	Player p;
     	while(!waitlist.isEmpty()){
     		p = waitlist.get(0);
@@ -117,6 +140,22 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     public boolean isBetting(){
         return betting;
     }
+    public void setRespawnTimer(Player p) {
+		Timer t = new Timer();
+		t.schedule(new RespawnTask(p, this), respawnTime);
+		respawnTimers.add(t);
+	}
+	public void cancelRespawnTimers() {
+		if (respawnTimers.size() != 0) {
+			for (int ctr = 0; ctr < respawnTimers.size(); ctr++) {
+				respawnTimers.get(0).cancel();
+				respawnTimers.remove(0);
+			}
+		}
+	}
+	public ArrayList<Timer> getRespawnTimers() {
+		return respawnTimers;
+	}
 
     /* Card management methods */
     abstract public void discardPlayerHand(Player p);
@@ -272,7 +311,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         	loadPlayerFile(nicks, stacks, debts, bankrupts, bjrounds, simples);
         	int numLines = nicks.size();
         	for (int ctr = 0; ctr < numLines; ctr++){
-        		if (nick.toLowerCase().equals(nicks.get(ctr))){
+        		if (nick.toLowerCase().equals(nicks.get(ctr).toLowerCase())){
         			if (stat.equals("cash")){
         				return stacks.get(ctr);
         			} else if (stat.equals("debt")){
@@ -299,7 +338,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         StringTokenizer st;
         while (f.ready()){
             st = new StringTokenizer(f.readLine());
-            nicks.add(st.nextToken().toLowerCase());
+            nicks.add(st.nextToken());
             stacks.add(Integer.parseInt(st.nextToken()));
             debts.add(Integer.parseInt(st.nextToken()));
             bankrupts.add(Integer.parseInt(st.nextToken()));
@@ -501,13 +540,22 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         bot.sendNotice(user, deck.getNumberDiscards()+" cards in the discard pile.");
     }
     public void infoWaitRoundEnd(User user){
-    	bot.sendNotice(user, "A round is already in progress! Wait for the round to end.");
+    	bot.sendNotice(user, "A round is in progress! Wait for the round to end.");
     }
     public void infoRoundStarted(User user){
-    	bot.sendNotice(user, "A round is already in progress!");
+    	bot.sendNotice(user, "A round is in progress!");
     }
     public void infoNotStarted(User user){
     	bot.sendNotice(user, "No round in progress!");
+    }
+    public void infoNotBetting(User user){
+    	bot.sendNotice(user, "No betting in progress!");
+    }
+    public void infoNotTurn(User user){
+    	bot.sendNotice(user, "It's not your turn!");
+    }
+    public void infoNoCards(User user){
+    	bot.sendNotice(user, "No cards have been dealt yet!");
     }
     public void infoBlacklisted(User user){
     	bot.sendNotice(user, "You have gone bankrupt. Please wait for a loan to join again.");
