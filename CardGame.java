@@ -118,6 +118,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     
     /* Game management methods */
     abstract public void startRound();
+    abstract public void continueRound();
     abstract public void endRound();
     abstract public void endGame();
     abstract public void resetGame();
@@ -182,6 +183,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     
     /* Player management methods */
     abstract public int getPlayerRounds(String nick);
+    abstract public int getTotalPlayers();
     abstract public void loadPlayerData(Player p);
     abstract public void savePlayerData(Player p);
     abstract public void addPlayer(User user);
@@ -430,6 +432,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     }
     
     /* Channel output methods to reduce clutter */
+    abstract public void showGameStats();
     abstract public void showTopPlayers(String param, int n);
     abstract public void showPlayerRounds(String nick);
     public void showSetting(String param, String value){
@@ -687,7 +690,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     public String getLossStr(){
     	return Colors.RED+",01"+" LOSS "+Colors.NORMAL;
     }
-    public String formatNumber(int n){
+    public static String formatNumber(int n){
     	return String.format("%,d", n);
     }
 }
