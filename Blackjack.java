@@ -1221,11 +1221,11 @@ public class Blackjack extends CardGame {
 		} else if (p.getInitialBet() > p.getCash()) {
 			infoInsufficientFunds(p);
 			setIdleOutTimer();
-		} else {
-			showDoubleDown(p, cHand);
+		} else {			
 			p.addCash(-1 * cHand.getBet());
 			house.addCash(cHand.getBet());
 			cHand.addBet(cHand.getBet());
+			showDoubleDown(p, cHand);
 			dealOne(cHand);
 			if (p.hasSplit()) {
 				showPlayerHand(p, cHand, p.getCurrentIndex() + 1);
