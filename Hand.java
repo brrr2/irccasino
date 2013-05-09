@@ -92,7 +92,7 @@ public class Hand {
 	/* Formatted string repsentation of the hand */
 	public String toString(int numHidden){
     	String hiddenBlock = Colors.DARK_BLUE+",00\uFFFD";
-        String outStr="";
+        String outStr= "";
         for (int ctr=0; ctr<numHidden; ctr++){
             outStr += hiddenBlock+" ";
         }

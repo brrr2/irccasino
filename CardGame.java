@@ -22,7 +22,8 @@ import java.io.*;
 import java.util.*;
 
 import org.pircbotx.*;
-import org.pircbotx.hooks.ListenerAdapter;
+import org.pircbotx.hooks.*;
+import org.pircbotx.hooks.events.*;
 
 
 public abstract class CardGame extends ListenerAdapter<PircBotX>{
@@ -87,6 +88,14 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         checkPlayerFile();
     }
     
+    @Override
+    public void onJoin(JoinEvent e){
+    	User user = e.getUser();
+    	if (loadPlayerStat(user.getNick(), "exists") != 1){
+    		infoNewUser(user);
+    	}
+    }
+    
     /* Accessor methods */
     public void setIdleOutTime(int value){
     	idleOutTime = value;
@@ -117,6 +126,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     abstract public void setIdleOutTimer();
     abstract public void cancelIdleOutTimer();
     abstract public void setSetting(String[] params);
+    abstract public String getSetting(String param);
     abstract public void loadSettings();
     abstract public void saveSettings();
     public void mergeWaitlist(){
@@ -142,7 +152,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     }
     public void setRespawnTimer(Player p) {
 		Timer t = new Timer();
-		t.schedule(new RespawnTask(p, this), respawnTime);
+		t.schedule(new RespawnTask(p, this), respawnTime*1000);
 		respawnTimers.add(t);
 	}
 	public void cancelRespawnTimers() {
@@ -322,6 +332,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         				return bjrounds.get(ctr);
         			} else if (stat.equals("netcash")){
         				return stacks.get(ctr)-debts.get(ctr);
+        			} else if (stat.equals("exists")){
+        				return 1;
         			}
                 }
         	}
@@ -420,6 +432,12 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     /* Channel output methods to reduce clutter */
     abstract public void showTopPlayers(String param, int n);
     abstract public void showPlayerRounds(String nick);
+    public void showSetting(String param, String value){
+		bot.sendMessage(channel, param+"="+value);
+	}
+	public void showUpdateSetting(String param) {
+		bot.sendMessage(channel, param + " setting has been updated.");
+	}
     public void showPlayerTurn(Player p) {
     	bot.sendMessage(channel,"It's now "+p.getNickStr()+"'s turn.");
     }
@@ -486,7 +504,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     public void showPlayerCash(String nick){
     	int cash = getPlayerCash(nick);
     	if (cash != Integer.MIN_VALUE){
-        	bot.sendMessage(channel, nick+" has $"+String.format("%,d", cash)+".");
+        	bot.sendMessage(channel, nick+" has $"+formatNumber(cash)+".");
         } else {
         	bot.sendMessage(channel, "No data found for "+nick+".");
         }
@@ -494,7 +512,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     public void showPlayerNetCash(String nick){
     	int netcash = getPlayerNetCash(nick);
     	if (netcash != Integer.MIN_VALUE){
-        	bot.sendMessage(channel, nick+" has $"+String.format("%,d", netcash)+" in net cash.");
+        	bot.sendMessage(channel, nick+" has $"+formatNumber(netcash)+" in net cash.");
         } else {
         	bot.sendMessage(channel, "No data found for "+nick+".");
         }
@@ -502,7 +520,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     public void showPlayerDebt(String nick){
     	int debt = getPlayerDebt(nick);
     	if (debt != Integer.MIN_VALUE){
-        	bot.sendMessage(channel, nick+" has $"+String.format("%,d", debt)+" in debt.");
+        	bot.sendMessage(channel, nick+" has $"+formatNumber(debt)+" in debt.");
         } else {
         	bot.sendMessage(channel, "No data found for "+nick+".");
         }
@@ -516,7 +534,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         }
     }
     public void showPlayerDebtPayment(Player p, int amount){
-    	bot.sendMessage(channel, p.getNickStr()+" has made a debt payment of $"+String.format("%,d", amount)+". "+p.getNickStr()+"'s debt is now $"+String.format("%,d", p.getDebt())+".");
+    	bot.sendMessage(channel, p.getNickStr()+" has made a debt payment of $"+formatNumber(amount)+". "+p.getNickStr()+"'s debt is now $"+formatNumber(p.getDebt())+".");
     }
     
     /* Player/User output methods to reduce clutter */
@@ -573,7 +591,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     	bot.sendNotice(user, "This command may only be used by channel Ops.");
     }
     public void infoNewPlayer(Player p){
-    	bot.sendNotice(p.getUser(), "Welcome to "+getGameNameStr()+"! Here's $"+String.format("%,d", getNewCash())+" to get you started!");
+    	bot.sendNotice(p.getUser(), "Welcome to "+getGameNameStr()+"! Here's $"+formatNumber(getNewCash())+" to get you started!");
+    }
+    public void infoNewUser(User user){
+    	bot.sendNotice(user, "Welcome to "+getGameNameStr()+"! For help, type .ghelp!");
     }
     public void infoPlayerWaiting(Player p){
     	bot.sendNotice(p.getUser(), "You have joined the waitlist and will be automatically added next round.");
@@ -585,7 +606,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     	bot.sendNotice(p.getUser(), "Minimum payment is $1. Try again.");
     }
     public void infoPaymentTooHigh(Player p){
-    	bot.sendNotice(p.getUser(), "Your outstanding debt is only $"+String.format("%,d", p.getDebt())+". Try again.");
+    	bot.sendNotice(p.getUser(), "Your outstanding debt is only $"+formatNumber(p.getDebt())+". Try again.");
     }
     public void infoPaymentWillBankrupt(Player p){
     	bot.sendNotice(p.getUser(), "You cannot go bankrupt trying to pay off your debt. Try again.");
@@ -603,40 +624,25 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         bot.sendNotice(p.getUser(), "Minimum bet is $1. Try again.");
     }
     public void infoBetTooHigh(Player p){
-        bot.sendNotice(p.getUser(), "Maximum bet is $"+String.format("%,d", p.getCash())+". Try again.");
+        bot.sendNotice(p.getUser(), "Maximum bet is $"+formatNumber(p.getCash())+". Try again.");
     }
     
-    /* Ops methods */
+    /* Reveals cards in the deck/discards */
     public void infoDeckCards(User user, char type, int num){
     	int cardIndex=0, numOut, n;
     	String cardStr;
     	ArrayList<Card> tCards;
     	if (type == 'c'){
     		tCards = deck.getCards();
-    		if (num > deck.getNumberCards()){
-        		n = deck.getNumberCards();
-        	} else {
-        		n = num;
-        	}
     	} else {
     		tCards = deck.getDiscards();
-    		if (num > deck.getNumberDiscards()){
-        		n = deck.getNumberDiscards();
-        	} else {
-        		n = num;
-        	}
     	}
+    	n = Math.min(num, tCards.size());
         while(n > 0){
         	cardStr = cardIndex+"";
-        	if (n > 25){
-        		cardStr += "-"+(cardIndex+25-1)+": ";
-        		numOut = 25;
-        		n -= 25;
-        	} else {
-        		cardStr += "-"+(cardIndex+n-1)+": ";
-        		numOut = n;
-        		n -= n;
-        	}
+        	numOut = Math.min(n, 25);
+        	cardStr += "-"+(cardIndex+numOut-1)+": ";
+    		n -= numOut;
         	for (int ctr=cardIndex; ctr < cardIndex+numOut; ctr++){
     			cardStr += tCards.get(ctr)+" ";
     		}
@@ -645,7 +651,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         }
     }
     
-    /* IRC parameter handling integers */   
+    /* Parameter handling */   
     public int parseNumberParam(String str){
         StringTokenizer st = new StringTokenizer(str);
         String a;
@@ -653,7 +659,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         a = st.nextToken();
         return Integer.parseInt(a);
     }
-    /* IRC parameter handling for strings */   
     public String parseStringParam(String str){
         StringTokenizer st = new StringTokenizer(str);
         String a;
@@ -676,4 +681,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     abstract public String getGameHelpStr();
     abstract public String getGameRulesStr();
     abstract public String getGameCommandStr();
+    public String getWinStr(){
+    	return Colors.GREEN+",01"+" WIN "+Colors.NORMAL;
+    }
+    public String getLossStr(){
+    	return Colors.RED+",01"+" LOSS "+Colors.NORMAL;
+    }
+    public String formatNumber(int n){
+    	return String.format("%,d", n);
+    }
 }

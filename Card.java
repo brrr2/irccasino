@@ -44,7 +44,7 @@ public class Card {
         if (suit.equals(CardDeck.suits[0]) || suit.equals(CardDeck.suits[1])){
             color = Colors.RED;
         } else {
-            color = Colors.BLACK;
+        	color = Colors.BLACK;
         }
         
         return color+",00"+face+suit;
