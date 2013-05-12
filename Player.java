@@ -22,10 +22,10 @@ package irccasino;
 import org.pircbotx.*;
 
 public class Player {
-    protected User user;
     protected boolean simple, dealer;
     protected int cash, bet, debt, bankrupts, rounds;
-    protected boolean idledOut;
+    protected boolean quit;
+    protected String nick, hostmask;
     
     /**
      * Class constructor
@@ -33,31 +33,26 @@ public class Player {
      * @param u		IRC user object
      * @param d		Whether or not this player is dealer
      */
-    public Player(User u, boolean d){
-        user = u;
-        dealer = d;
+    public Player(String nick, String hostmask, boolean dealer){
+    	this.nick = nick;
+        this.dealer = dealer;
+        this.hostmask = hostmask;
         cash = 0;
         bet = 0;
         debt = 0;
         bankrupts = 0;
         rounds = 0;
         simple = true;
-        idledOut = false;
+        quit = false;
     }
     
     /* Player info methods */
     public String getNick(){
-        if (isDealer()){
-            return "Dealer";
-        } else {
-            return user.getNick();
-        }
-    }
-    public String getHostMask(){
-        return user.getHostmask();
-    }
-    public User getUser(){
-        return user;
+    	if (dealer){
+    		return "Dealer";
+    	} else {
+    		return nick;
+    	}
     }
     public void setDealer(boolean b){
     	dealer = b;
@@ -65,12 +60,14 @@ public class Player {
     public boolean isDealer(){
         return dealer;
     }
-    public void setIdledOut(boolean b){
-    	idledOut = b;
+    public void setQuit(boolean b){
+    	quit = b;
     }
-    public boolean getIdledOut(){
-    	return idledOut;
+    public boolean hasQuit(){
+    	return quit;
     }
+    
+    /* Stats keeping */
     public void setBankrupts(int c){
     	bankrupts = c;
     }
@@ -80,8 +77,6 @@ public class Player {
     public void incrementBankrupts(){
     	bankrupts++;
     }
-    
-    /* Stats keeping */
     public int getRounds(){
     	return rounds;
     }
@@ -127,5 +122,8 @@ public class Player {
     /* Formatted string representations */
     public String getNickStr(){
     	return Colors.BOLD+getNick()+Colors.NORMAL;
+    }
+    public String toString(){
+    	return getNick();
     }
 }

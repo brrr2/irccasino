@@ -20,20 +20,16 @@
 package irccasino;
 
 import java.util.*;
-import org.pircbotx.*;
 
 public class Hand {
 	protected ArrayList<Card> cards;
-	protected boolean surrender;
-	protected int insureBet, bet;
+	protected int bet;
 	
 	/**
-	 * Class constructor for hand of cards
+	 * Class constructor for a hand of cards
 	 */
 	public Hand(){
 		cards = new ArrayList<Card>();
-		surrender = false;
-		insureBet = 0;
 		bet = 0;
 	}
 	
@@ -73,32 +69,5 @@ public class Hand {
     public void clearBet(){
         bet = 0;
     }
-    public boolean hasInsured(){
-    	return (insureBet > 0);
-    }
-    public void setInsureBet(int amount){
-    	insureBet = amount;
-    }
-    public int getInsureBet(){
-    	return insureBet;
-    }
-	public void setSurrender(boolean b){
-		surrender = b;
-	}
-	public boolean hasSurrendered(){
-		return surrender;
-	}
 	
-	/* Formatted string repsentation of the hand */
-	public String toString(int numHidden){
-    	String hiddenBlock = Colors.DARK_BLUE+",00\uFFFD";
-        String outStr= "";
-        for (int ctr=0; ctr<numHidden; ctr++){
-            outStr += hiddenBlock+" ";
-        }
-        for (int ctr=numHidden; ctr<cards.size(); ctr++){
-            outStr += cards.get(ctr)+" ";
-        }
-        return outStr.substring(0, outStr.length()-1)+Colors.NORMAL;
-    }
 }

@@ -40,20 +40,18 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
 	public static class RespawnTask extends TimerTask {
 		Player p;
 		CardGame game;
-
 		public RespawnTask(Player p, CardGame g) {
 			this.p = p;
 			game = g;
 		}
-
 		@Override
 		public void run() {
 			ArrayList<Timer> timers = game.getRespawnTimers();
 			p.setCash(game.getNewCash());
 			p.addDebt(game.getNewCash());
 			game.bot.sendMessage(game.channel, p.getNickStr() + " has been loaned $"
-							+ String.format("%,d", game.getNewCash()) + ". Please bet responsibly.");
-			game.blacklist.remove(p);
+							+ formatNumber(game.getNewCash()) + ". Please bet responsibly.");
+			game.removeBlacklisted(p);
 			game.savePlayerData(p);
 			timers.remove(this);
 		}
@@ -62,7 +60,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     protected PircBotX bot; //bot handling the game
     protected Channel channel; //channel where game is being played
     protected String gameName;
-    protected ArrayList<Player> players, blacklist, waitlist;
+    protected ArrayList<Player> joined, blacklist, waitlist;
     protected CardDeck deck;
     protected Player currentPlayer;
     protected boolean inProgress, betting;
@@ -79,7 +77,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     public CardGame (PircBotX parent,Channel gameChannel){
         bot = parent;
         channel = gameChannel;
-        players = new ArrayList<Player>();
+        joined = new ArrayList<Player>();
         blacklist = new ArrayList<Player>();
         waitlist = new ArrayList<Player>();
         respawnTimers = new ArrayList<Timer>();
@@ -89,14 +87,17 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     }
     
     @Override
-    public void onJoin(JoinEvent e){
-    	User user = e.getUser();
-    	if (loadPlayerStat(user.getNick(), "exists") != 1){
-    		infoNewUser(user);
+    public void onJoin(JoinEvent<PircBotX> e){
+    	String nick = e.getUser().getNick();
+    	if (loadPlayerStat(nick, "exists") != 1){
+    		infoNewNick(nick);
     	}
     }
     
-    /* Accessor methods */
+    /* 
+     * Accessor methods 
+     * Returns or sets object properties.
+     */
     public void setIdleOutTime(int value){
     	idleOutTime = value;
     }
@@ -116,14 +117,18 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     	return newcash;
     }
     
-    /* Game management methods */
+    /* 
+     * Game management methods
+     * These methods control various aspects of the game. 
+     */
     abstract public void startRound();
     abstract public void continueRound();
     abstract public void endRound();
     abstract public void endGame();
     abstract public void resetGame();
-    abstract public void leaveGame(User u);
-    abstract public void resetPlayers();
+    abstract public void leave(String nick);
+    abstract public void leave(Player p);
+    abstract public void join(String nick, String hostmask);
     abstract public void setIdleOutTimer();
     abstract public void cancelIdleOutTimer();
     abstract public void setSetting(String[] params);
@@ -133,10 +138,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     public void mergeWaitlist(){
     	Player p;
     	while(!waitlist.isEmpty()){
-    		p = waitlist.get(0);
-    		players.add(0,p);
-    		waitlist.remove(p);
-    		showPlayerJoin(p);
+    		p = getWaitlisted(0);
+    		addPlayer(p);
+    		removeWaitlisted(p);
     	}
     }
     public void setInProgress(boolean b){
@@ -181,136 +185,179 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     	}
     }
     
-    /* Player management methods */
+    /* 
+     * Player management methods 
+     * These methods are intended to manage players. They include
+     * stats management and play management.
+     */
     abstract public int getPlayerRounds(String nick);
     abstract public int getTotalPlayers();
     abstract public void loadPlayerData(Player p);
     abstract public void savePlayerData(Player p);
-    abstract public void addPlayer(User user);
-    abstract public void addWaitingPlayer(User user);
-    public boolean playerJoined(User user){
-        Player p = findPlayer(user);
-        if (p != null){
-            return true;
-        }
-        return false;
+    abstract public void addPlayer(String nick, String hostmask);
+    abstract public void addPlayer(Player p);
+    abstract public void addWaitlistPlayer(String nick, String hostmask);
+    public boolean isJoined(String nick){
+        return (findJoined(nick) != null);
     }
-    public boolean playerJoined(String nick){
-    	for (int ctr=0; ctr<players.size(); ctr++){
-            if (players.get(ctr).getNick().toLowerCase().equals(nick.toLowerCase())){
-                return true;
+    public boolean isJoined(Player p){
+        return joined.contains(p);
+    }
+    public boolean isWaitlisted(String nick){
+    	return (findWaitlisted(nick) != null);
+    }
+    public boolean isWaitlisted(Player p){
+    	return waitlist.contains(p);
+    }
+    public boolean isBlacklisted(String nick){
+    	return (findBlacklisted(nick) != null);
+    }
+    public boolean isBlacklisted(Player p){
+    	return blacklist.contains(p);
+    }
+    public void removeJoined(String nick){
+        Player p = findJoined(nick);
+        removeJoined(p);
+    }
+    public void removeJoined(Player p){
+    	joined.remove(p);
+    }
+    public void removeWaitlisted(String nick){
+    	Player p = findWaitlisted(nick);
+    	removeWaitlisted(p);
+    }
+    public void removeWaitlisted(Player p){
+    	waitlist.remove(p);
+    }
+    public void removeBlacklisted(String nick){
+    	Player p = findBlacklisted(nick);
+    	removeBlacklisted(p);
+    }
+    public void removeBlacklisted(Player p){
+    	blacklist.remove(p);
+    }
+    public Player findJoined(String nick){
+    	for (int ctr=0; ctr< getNumberJoined(); ctr++){
+    		Player p = getJoined(ctr);
+            if (p.getNick().toLowerCase().equals(nick.toLowerCase())){
+                return p;
             }  
         }
-        return false;
+    	return null;
     }
-    public boolean playerWaiting(User user){
-    	Player p = findWaiting(user);
-        if (p != null){
-            return true;
+    public Player findWaitlisted(String nick){
+    	for (int ctr=0; ctr< getNumberWaitlisted(); ctr++){
+    		Player p = getWaitlisted(ctr);
+    		if (p.getNick().toLowerCase().equals(nick.toLowerCase())){
+                return p;
+            }  
         }
-        return false;
+    	return null;
     }
-    public void removePlayer(User user){
-        Player p = findPlayer(user);
-        discardPlayerHand(p);
-        players.remove(p);
-        savePlayerData(p);
-        showPlayerLeave(p);
-    }
-    public void removeWaiting(User user){
-    	Player p = findWaiting(user);
-    	waitlist.remove(p);
-        infoPlayerLeaveWaiting(p);
-    }
-    public Player getNextPlayer(){
-        int index = players.indexOf(currentPlayer);
-        if (index + 1 < getNumberPlayers()){
-            return players.get(index+1);
-        } else {
-            return null;
+    public Player findBlacklisted(String nick){
+    	for (int ctr=0; ctr< getNumberBlacklisted(); ctr++){
+    		Player p = getBlacklisted(ctr);
+    		if (p.getNick().toLowerCase().equals(nick.toLowerCase())){
+            	return p;
+            }  
         }
+    	return null;
     }
-    public Player getPlayer(int num){
-        return players.get(num);
+    public Player getJoined(int num){
+        return joined.get(num);
     }
-    public Player getWaiting(int num){
+    public Player getWaitlisted(int num){
     	return waitlist.get(num);
     }
-    public Player getBankrupt(int num){
+    public Player getBlacklisted(int num){
     	return blacklist.get(num);
     }
-    public Player findPlayer(User u){
-        for (int ctr=0; ctr<players.size(); ctr++){
-            if (players.get(ctr).getNick().equals(u.getNick())){
-                return players.get(ctr);
-            }  
-        }
-        return null;
+    public int getNumberJoined(){
+        return joined.size();
     }
-    public Player findPlayer(String nick){
-        for (int ctr=0; ctr<getNumberPlayers(); ctr++){
-            if (players.get(ctr).getNick().toLowerCase().equals(nick.toLowerCase())){
-                return players.get(ctr);
-            }  
-        }
-        return null;
-    }
-    public Player findWaiting(User user){
-    	for (int ctr=0; ctr< getNumberWaiting(); ctr++){
-            if (waitlist.get(ctr).getNick().equals(user.getNick())){
-                return waitlist.get(ctr);
-            }  
-        }
-        return null;
-    }
-    public int getNumberPlayers(){
-        return players.size();
-    }
-    public int getNumberWaiting(){
+    public int getNumberWaitlisted(){
     	return waitlist.size();
     }
-    public int getNumberBankrupt(){
+    public int getNumberBlacklisted(){
     	return blacklist.size();
     }
     public Player getCurrentPlayer(){
         return currentPlayer;
     }
-    public void togglePlayerSimple(User u){
-        Player p = findPlayer(u);
+    public Player getNextPlayer(){
+        int index = joined.indexOf(currentPlayer);
+        if (index + 1 < getNumberJoined()){
+            return joined.get(index+1);
+        } else {
+            return null;
+        }
+    }
+    public void togglePlayerSimple(String nick){
+        Player p = findJoined(nick);
         p.setSimple(!p.isSimple());
         if (p.isSimple()){
-            bot.sendNotice(p.getUser(), "Game info will now be noticed to you.");
+            bot.sendNotice(nick, "Game info will now be noticed to you.");
         } else {
-            bot.sendMessage(p.getUser(), "Game info will now be messaged to you.");
+            bot.sendMessage(nick, "Game info will now be messaged to you.");
         }
     }
     public int getPlayerCash(String nick){
-    	if (playerJoined(nick)){
-    		return findPlayer(nick).getCash();
-    	} else {
-    		return loadPlayerStat(nick, "cash");
-    	}
+    	saveAllPlayers();
+    	return loadPlayerStat(nick, "cash");
     }
     public int getPlayerDebt(String nick){
-    	if (playerJoined(nick)){
-    		return findPlayer(nick).getDebt();
-    	} else {
-    		return loadPlayerStat(nick, "debt");
-    	}
+    	saveAllPlayers();
+    	return loadPlayerStat(nick, "debt");
     }
     public int getPlayerBankrupts(String nick){
-    	if (playerJoined(nick)){
-    		return findPlayer(nick).getBankrupts();
-    	} else {
-    		return loadPlayerStat(nick, "bankrupts");
-    	}
+    	saveAllPlayers();
+    	return loadPlayerStat(nick, "bankrupts");
     }
     public int getPlayerNetCash(String nick){
-    	if (playerJoined(nick)){
-    		return findPlayer(nick).getCash()-findPlayer(nick).getDebt();
-    	} else {
-    		return loadPlayerStat(nick, "netcash");
-    	}
+    	saveAllPlayers();
+    	return loadPlayerStat(nick, "netcash");
+    }
+    public void loadPlayerFile(ArrayList<String> nicks, ArrayList<Integer> stacks,
+    							ArrayList<Integer> debts, ArrayList<Integer> bankrupts, 
+    							ArrayList<Integer> bjrounds, ArrayList<Boolean> simples) throws IOException {
+    	BufferedReader f = new BufferedReader(new FileReader("players.txt"));
+        StringTokenizer st;
+        while (f.ready()){
+            st = new StringTokenizer(f.readLine());
+            nicks.add(st.nextToken());
+            stacks.add(Integer.parseInt(st.nextToken()));
+            debts.add(Integer.parseInt(st.nextToken()));
+            bankrupts.add(Integer.parseInt(st.nextToken()));
+            bjrounds.add(Integer.parseInt(st.nextToken()));
+            simples.add(Boolean.parseBoolean(st.nextToken()));
+        }
+        f.close();
+    }
+    public void savePlayerFile(ArrayList<String> nicks, ArrayList<Integer> stacks,
+			ArrayList<Integer> debts, ArrayList<Integer> bankrupts, ArrayList<Integer> bjrounds, 
+			ArrayList<Boolean> simples) throws IOException {
+    	int numLines = nicks.size();
+    	PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("players.txt")));
+        for (int ctr = 0; ctr<numLines; ctr++){
+            out.println(nicks.get(ctr)+" "+stacks.get(ctr)+" "+debts.get(ctr)+
+            			" "+bankrupts.get(ctr)+" "+bjrounds.get(ctr)+" "+simples.get(ctr));
+        }
+        out.close();
+    }
+    public void saveAllPlayers(){
+    	Player p;
+        for (int ctr=0; ctr<getNumberJoined(); ctr++){
+            p = getJoined(ctr);
+            savePlayerData(p);
+        }
+        for (int ctr=0; ctr<getNumberWaitlisted(); ctr++){
+            p = getWaitlisted(ctr);
+            savePlayerData(p);
+        }
+        for (int ctr=0; ctr<getNumberBlacklisted(); ctr++){
+            p = getBlacklisted(ctr);
+            savePlayerData(p);
+        }
     }
     public int loadPlayerStat(String nick, String stat){
     	try {
@@ -345,48 +392,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         	return Integer.MIN_VALUE;
         }
     }
-    public void loadPlayerFile(ArrayList<String> nicks, ArrayList<Integer> stacks,
-    							ArrayList<Integer> debts, ArrayList<Integer> bankrupts, 
-    							ArrayList<Integer> bjrounds, ArrayList<Boolean> simples) throws IOException {
-    	BufferedReader f = new BufferedReader(new FileReader("players.txt"));
-        StringTokenizer st;
-        while (f.ready()){
-            st = new StringTokenizer(f.readLine());
-            nicks.add(st.nextToken());
-            stacks.add(Integer.parseInt(st.nextToken()));
-            debts.add(Integer.parseInt(st.nextToken()));
-            bankrupts.add(Integer.parseInt(st.nextToken()));
-            bjrounds.add(Integer.parseInt(st.nextToken()));
-            simples.add(Boolean.parseBoolean(st.nextToken()));
-        }
-        f.close();
-    }
-    public void savePlayerFile(ArrayList<String> nicks, ArrayList<Integer> stacks,
-			ArrayList<Integer> debts, ArrayList<Integer> bankrupts, ArrayList<Integer> bjrounds, 
-			ArrayList<Boolean> simples) throws IOException {
-    	int numLines = nicks.size();
-    	PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("players.txt")));
-        for (int ctr = 0; ctr<numLines; ctr++){
-            out.println(nicks.get(ctr)+" "+stacks.get(ctr)+" "+debts.get(ctr)+
-            			" "+bankrupts.get(ctr)+" "+bjrounds.get(ctr)+" "+simples.get(ctr));
-        }
-        out.close();
-    }
-    public void saveAllPlayers(){
-    	Player p;
-        for (int ctr=0; ctr<getNumberPlayers(); ctr++){
-            p = getPlayer(ctr);
-            savePlayerData(p);
-        }
-        for (int ctr=0; ctr<getNumberWaiting(); ctr++){
-            p = getWaiting(ctr);
-            savePlayerData(p);
-        }
-        for (int ctr=0; ctr<getNumberBankrupt(); ctr++){
-            p = getBankrupt(ctr);
-            savePlayerData(p);
-        }
-    }
     public void checkPlayerFile(){
     	try {
     		BufferedReader f = new BufferedReader(new FileReader("players.txt"));
@@ -401,37 +406,28 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         	}
         }
     }
-    public boolean isPlayerIdledOut(Player p){
-    	return p.getIdledOut();
-    }
-    public boolean isPlayerBankrupt(Player p){
-        return (p.getCash() == 0);
-    }
-    public boolean isBlacklisted(User user){
-        for (int ctr=0; ctr<blacklist.size(); ctr++){
-            if (blacklist.get(ctr).getNick().equals(user.getNick())){
-                return true;
-            }
-        }
-        return false;
-    }
-    public void payPlayerDebt(User user, int amount){
-    	Player p = findPlayer(user);
+
+    public void payPlayerDebt(String nick, int amount){
+    	Player p = findJoined(nick);
     	if (amount <= 0){
-    		infoPaymentTooLow(p);
+    		infoPaymentTooLow(nick);
     	} else if (amount > p.getDebt()){
-    		infoPaymentTooHigh(p);
+    		infoPaymentTooHigh(nick, p.getDebt());
     	} else if (amount > p.getCash()){
-    		infoInsufficientFunds(p);
+    		infoInsufficientFunds(nick);
     	} else if (amount == p.getCash()){
-    		infoPaymentWillBankrupt(p);
+    		infoPaymentWillBankrupt(nick);
     	} else {
     		p.payDebt(amount);
     		showPlayerDebtPayment(p, amount);
     	}
     }
     
-    /* Channel output methods to reduce clutter */
+    /* 
+     * Channel output methods to reduce clutter.
+     * These methods will all send a specific message or set of
+     * messages to the main channel.
+     */
     abstract public void showGameStats();
     abstract public void showTopPlayers(String param, int n);
     abstract public void showPlayerRounds(String nick);
@@ -441,13 +437,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
 	public void showUpdateSetting(String param) {
 		bot.sendMessage(channel, param + " setting has been updated.");
 	}
-    public void showPlayerTurn(Player p) {
+    public void showTurn(Player p) {
     	bot.sendMessage(channel,"It's now "+p.getNickStr()+"'s turn.");
     }
-    public void showPlayerJoin(Player p){
+    public void showJoin(Player p){
         bot.sendMessage(channel, p.getNickStr()+" has joined the game.");
     }
-    public void showPlayerLeave(Player p){
+    public void showLeave(Player p){
         bot.sendMessage(channel, p.getNickStr()+" has left the game.");
     }
     public void showNoPlayers(){
@@ -468,38 +464,47 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     public void showEndRound(){
         bot.sendMessage(channel, "End of "+getGameNameStr()+" round. Type .go for a new round.");
     }
+    public void showNumDecks(){
+		bot.sendMessage(channel, "This game of "+getGameNameStr()+" is using "+deck.getNumberDecks()+" deck(s) of cards.");
+    }
+    public void showNumCards(){
+        bot.sendMessage(channel, deck.getNumberCards()+" cards left in the deck.");
+    }
+    public void showNumDiscards(){
+        bot.sendMessage(channel, deck.getNumberDiscards()+" cards in the discard pile.");
+    }
     public void showPlayers(){
         String outStr;
-        if (getNumberPlayers()==0){
+        if (getNumberJoined()==0){
             outStr = "0 players joined!";
         } else {
-            outStr = getNumberPlayers()+ " player(s): ";
-            for (int ctr=0; ctr<getNumberPlayers(); ctr++){
-                outStr += getPlayer(ctr).getNick()+" "; 
+            outStr = getNumberJoined()+ " player(s): ";
+            for (int ctr=0; ctr<getNumberJoined(); ctr++){
+                outStr += getJoined(ctr).getNick()+" "; 
             }
         }
         bot.sendMessage(channel, outStr);
     }
-    public void showWaiting(){
+    public void showWaitlist(){
     	String outStr;
-        if (getNumberWaiting()==0){
+        if (getNumberWaitlisted()==0){
             outStr = "0 players waiting!";
         } else {
-            outStr = getNumberWaiting()+ " player(s) waiting: ";
-            for (int ctr=0; ctr < getNumberWaiting(); ctr++){
-                outStr += getWaiting(ctr).getNick()+" "; 
+            outStr = getNumberWaitlisted()+ " player(s) waiting: ";
+            for (int ctr=0; ctr < getNumberWaitlisted(); ctr++){
+                outStr += getWaitlisted(ctr).getNick()+" "; 
             }
         }
         bot.sendMessage(channel, outStr);
     }
-    public void showBankrupt(){
+    public void showBlacklist(){
     	String outStr;
-        if (getNumberBankrupt()==0){
+        if (getNumberBlacklisted()==0){
             outStr = "0 players bankrupt!";
         } else {
-            outStr = getNumberBankrupt()+ " player(s) bankrupt: ";
-            for (int ctr=0; ctr < getNumberBankrupt(); ctr++){
-                outStr += getBankrupt(ctr).getNick()+" "; 
+            outStr = getNumberBlacklisted()+ " player(s) bankrupt: ";
+            for (int ctr=0; ctr < getNumberBlacklisted(); ctr++){
+                outStr += getBlacklisted(ctr).getNick()+" "; 
             }
         }
         bot.sendMessage(channel, outStr);
@@ -540,98 +545,97 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     	bot.sendMessage(channel, p.getNickStr()+" has made a debt payment of $"+formatNumber(amount)+". "+p.getNickStr()+"'s debt is now $"+formatNumber(p.getDebt())+".");
     }
     
-    /* Player/User output methods to reduce clutter */
-	public void infoGameRules(User user) {
-		bot.sendNotice(user,getGameRulesStr());
+    /* 
+     * Player/nick output methods to reduce clutter elsewhere.
+     * These methods will all send notices to the intended
+     * recipient with a specific message.
+     */
+	public void infoGameRules(String nick) {
+		bot.sendNotice(nick,getGameRulesStr());
 	}
-	public void infoGameHelp(User user) {
-		bot.sendNotice(user,getGameHelpStr());
+	public void infoGameHelp(String nick) {
+		bot.sendNotice(nick,getGameHelpStr());
 	}
-    public void infoGameCommands(User user){
-    	bot.sendNotice(user,getGameNameStr()+" commands:");
-    	bot.sendNotice(user,getGameCommandStr());
+    public void infoGameCommands(String nick){
+    	bot.sendNotice(nick,getGameNameStr()+" commands:");
+    	bot.sendNotice(nick,getGameCommandStr());
     }
-    public void infoNumDecks(User user){
-		bot.sendNotice(user, "This game of "+getGameNameStr()+" is using "+deck.getNumberDecks()+" deck(s) of cards.");
+    public void infoNewPlayer(String nick){
+    	bot.sendNotice(nick, "Welcome to "+getGameNameStr()+"! Here's $"+formatNumber(getNewCash())+" to get you started!");
     }
-    public void infoNumCards(User user){
-        bot.sendNotice(user, deck.getNumberCards()+" cards left in the deck.");
+    public void infoNewNick(String nick){
+    	bot.sendNotice(nick, "Welcome to "+getGameNameStr()+"! For help, type .ghelp!");
     }
-    public void infoNumDiscards(User user){
-        bot.sendNotice(user, deck.getNumberDiscards()+" cards in the discard pile.");
+    public void infoAlreadyJoined(String nick){
+    	bot.sendNotice(nick, "You have already joined!");
     }
-    public void infoWaitRoundEnd(User user){
-    	bot.sendNotice(user, "A round is in progress! Wait for the round to end.");
+    public void infoNotJoined(String nick){
+    	bot.sendNotice(nick, "You are not currently joined!");
     }
-    public void infoRoundStarted(User user){
-    	bot.sendNotice(user, "A round is in progress!");
-    }
-    public void infoNotStarted(User user){
-    	bot.sendNotice(user, "No round in progress!");
-    }
-    public void infoNotBetting(User user){
-    	bot.sendNotice(user, "No betting in progress!");
-    }
-    public void infoNotTurn(User user){
-    	bot.sendNotice(user, "It's not your turn!");
-    }
-    public void infoNoCards(User user){
-    	bot.sendNotice(user, "No cards have been dealt yet!");
-    }
-    public void infoBlacklisted(User user){
-    	bot.sendNotice(user, "You have gone bankrupt. Please wait for a loan to join again.");
-    }
-    public void infoAlreadyJoined(User user){
-    	bot.sendNotice(user, "You have already joined!");
-    }
-    public void infoNotJoined(User user){
-    	bot.sendNotice(user, "You are not currently joined!");
-    }
-    public void infoAlreadyWaiting(User user){
-    	bot.sendNotice(user, "You have already joined the waitlist!");
-    }
-    public void infoOpsOnly(User user){
-    	bot.sendNotice(user, "This command may only be used by channel Ops.");
-    }
-    public void infoNewPlayer(Player p){
-    	bot.sendNotice(p.getUser(), "Welcome to "+getGameNameStr()+"! Here's $"+formatNumber(getNewCash())+" to get you started!");
-    }
-    public void infoNewUser(User user){
-    	bot.sendNotice(user, "Welcome to "+getGameNameStr()+"! For help, type .ghelp!");
-    }
-    public void infoPlayerWaiting(Player p){
-    	bot.sendNotice(p.getUser(), "You have joined the waitlist and will be automatically added next round.");
+    public void infoJoinWaitlist(String nick){
+    	bot.sendNotice(nick, "You have joined the waitlist and will be automatically added next round.");
 	}
-    public void infoPlayerLeaveWaiting(Player p){
-    	bot.sendNotice(p.getUser(), "You have left the waitlist and will not be automatically added next round.");
+    public void infoLeaveWaitlist(String nick){
+    	bot.sendNotice(nick, "You have left the waitlist and will not be automatically added next round.");
     }
-    public void infoPaymentTooLow(Player p){
-    	bot.sendNotice(p.getUser(), "Minimum payment is $1. Try again.");
+    public void infoAlreadyWaitlisted(String nick){
+    	bot.sendNotice(nick, "You have already joined the waitlist!");
     }
-    public void infoPaymentTooHigh(Player p){
-    	bot.sendNotice(p.getUser(), "Your outstanding debt is only $"+formatNumber(p.getDebt())+". Try again.");
+    public void infoBlacklisted(String nick){
+    	bot.sendNotice(nick, "You have gone bankrupt. Please wait for a loan to join again.");
     }
-    public void infoPaymentWillBankrupt(Player p){
-    	bot.sendNotice(p.getUser(), "You cannot go bankrupt trying to pay off your debt. Try again.");
+    public void infoWaitRoundEnd(String nick){
+    	bot.sendNotice(nick, "A round is in progress! Wait for the round to end.");
     }
-    public void infoInsufficientFunds(Player p){
-    	bot.sendNotice(p.getUser(), "Insufficient funds. Try again.");
+    public void infoRoundStarted(String nick){
+    	bot.sendNotice(nick, "A round is in progress!");
     }
-    public void infoNoParameter(User user){
-    	bot.sendNotice(user, "Parameter(s) missing!");
+    public void infoNotStarted(String nick){
+    	bot.sendNotice(nick, "No round in progress!");
     }
-    public void infoImproperParameter(User user){
-        bot.sendNotice(user,"Improper parameter(s). Try again.");
+    public void infoNotBetting(String nick){
+    	bot.sendNotice(nick, "No betting in progress!");
     }
-    public void infoBetTooLow(Player p){
-        bot.sendNotice(p.getUser(), "Minimum bet is $1. Try again.");
+    public void infoNotTurn(String nick){
+    	bot.sendNotice(nick, "It's not your turn!");
     }
-    public void infoBetTooHigh(Player p){
-        bot.sendNotice(p.getUser(), "Maximum bet is $"+formatNumber(p.getCash())+". Try again.");
+    public void infoNoCards(String nick){
+    	bot.sendNotice(nick, "No cards have been dealt yet!");
+    }
+    public void infoOpsOnly(String nick){
+    	bot.sendNotice(nick, "This command may only be used by channel Ops.");
+    }
+    public void infoNickChange(String nick){
+    	bot.sendNotice(nick, "You have changed nicks while joined. Your old nick will be removed " +
+    			"and your new nick will be joined, if possible.");
+    }
+    public void infoPaymentTooLow(String nick){
+    	bot.sendNotice(nick, "Minimum payment is $1. Try again.");
+    }
+    public void infoPaymentTooHigh(String nick, int max){
+    	bot.sendNotice(nick, "Your outstanding debt is only $"+formatNumber(max)+". Try again.");
+    }
+    public void infoPaymentWillBankrupt(String nick){
+    	bot.sendNotice(nick, "You cannot go bankrupt trying to pay off your debt. Try again.");
+    }
+    public void infoInsufficientFunds(String nick){
+    	bot.sendNotice(nick, "Insufficient funds. Try again.");
+    }
+    public void infoNoParameter(String nick){
+    	bot.sendNotice(nick, "Parameter(s) missing!");
+    }
+    public void infoBadParameter(String nick){
+        bot.sendNotice(nick,"Bad parameter(s). Try again.");
+    }
+    public void infoBetTooLow(String nick){
+        bot.sendNotice(nick, "Minimum bet is $1. Try again.");
+    }
+    public void infoBetTooHigh(String nick, int max){
+        bot.sendNotice(nick, "Maximum bet is $"+formatNumber(max)+". Try again.");
     }
     
     /* Reveals cards in the deck/discards */
-    public void infoDeckCards(User user, char type, int num){
+    public void infoDeckCards(String nick, char type, int num){
     	int cardIndex=0, numOut, n;
     	String cardStr;
     	ArrayList<Card> tCards;
@@ -650,7 +654,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     			cardStr += tCards.get(ctr)+" ";
     		}
         	cardIndex+=numOut;
-        	bot.sendNotice(user, cardStr.substring(0, cardStr.length()-1)+Colors.NORMAL);
+        	bot.sendNotice(nick, cardStr.substring(0, cardStr.length()-1)+Colors.NORMAL);
         }
     }
     
