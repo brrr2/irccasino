@@ -98,7 +98,7 @@ public class Blackjack extends CardGame {
 	}
 
 	private BlackjackPlayer dealer;
-	private boolean insuranceBets, countEnabled;
+	private boolean insuranceBets, countEnabled, holeEnabled;
 	private int shoeDecks, idleShuffleTime;
 	private Timer idleShuffleTimer;	
 	private ArrayList<HouseStat> stats;
@@ -331,7 +331,7 @@ public class Blackjack extends CardGame {
 				} catch (NoSuchElementException e) {
 					showPlayerRounds(nick);
 				}
-			} else if (msg.startsWith(".paydebt ")) {
+			} else if (msg.startsWith(".paydebt ") || msg.equals(".paydebt") ) {
 				if (!isJoined(nick)) {
 					infoNotJoined(nick);
 				} else if (isInProgress()) {
@@ -489,6 +489,12 @@ public class Blackjack extends CardGame {
 	public boolean isCountEnabled() {
 		return countEnabled;
 	}
+	public void setHoleEnabled(boolean value){
+		holeEnabled = value;
+	}
+	public boolean isHoleEnabled(){
+		return holeEnabled;
+	}
 	public void setIdleShuffleTime(int value) {
 		idleShuffleTime = value;
 	}
@@ -520,6 +526,8 @@ public class Blackjack extends CardGame {
 			setRespawnTime(Integer.parseInt(value));
 		} else if (setting.equals("count")) {
 			setCountEnabled(Boolean.parseBoolean(value));
+		} else if (setting.equals("hole")) {
+			setHoleEnabled(Boolean.parseBoolean(value));
 		} else {
 			throw new IllegalArgumentException();
 		}
@@ -539,6 +547,8 @@ public class Blackjack extends CardGame {
 			return getRespawnTime()+"";
 		} else if (param.equals("count")) {
 			return isCountEnabled()+"";
+		} else if (param.equals("hole")) {
+			return isHoleEnabled()+"";
 		} else {
 			throw new IllegalArgumentException();
 		}
@@ -569,6 +579,8 @@ public class Blackjack extends CardGame {
 					respawnTime = Integer.parseInt(value);
 				} else if (name.equals("count")) {
 					countEnabled = Boolean.parseBoolean(value);
+				} else if (name.equals("hole")) {
+					holeEnabled = Boolean.parseBoolean(value);
 				}
 			}
 			f.close();
@@ -581,6 +593,7 @@ public class Blackjack extends CardGame {
 			respawnTime = 600;
 			idleShuffleTime = 300;
 			countEnabled = true;
+			holeEnabled = false;
 			saveSettings();
 		}
 		deck = new CardDeck(shoeDecks);
@@ -609,6 +622,8 @@ public class Blackjack extends CardGame {
 			out.println("respawn=" + respawnTime);
 			out.println("#Whether card counting functions are enabled");
 			out.println("count=" + countEnabled);
+			out.println("#Whether player hands are shown with a hole card in the main channel");
+			out.println("hole=" + holeEnabled);
 			out.close();
 		} catch (IOException f) {
 			System.out.println("Error creating blackjack.ini!");
@@ -910,6 +925,8 @@ public class Blackjack extends CardGame {
 		p.resetCurrentIndex();
 		p.clearInitialBet();
 		p.setQuit(false);
+		p.setSurrender(false);
+		p.clearInsureBet();
 	}
 	@Override
 	public void setIdleOutTimer() {
@@ -1151,7 +1168,7 @@ public class Blackjack extends CardGame {
 			dealHand(p);
 			h = p.getCurrentHand();
 			h.setBet(p.getInitialBet());
-			if (deck.getNumberDecks() == 1) {
+			if (isHoleEnabled()) {
 				infoPlayerHand(p, h);
 			}
 		}
@@ -1650,27 +1667,18 @@ public class Blackjack extends CardGame {
 		String nickStr = p.getNickStr() + "-" + index;
 		bot.sendMessage(channel, "It's now " + nickStr + "'s turn.");
 	}
-
-	public void showPlayerHand(BlackjackPlayer p, BlackjackHand h, boolean nohole) {
-		if (nohole) {
+	
+	public void showPlayerHand(BlackjackPlayer p, BlackjackHand h, boolean forceNoHole) {
+		if (forceNoHole){
 			bot.sendMessage(channel, p.getNickStr() + ": " + h.toString(0));
-		} else if (p.isDealer() || deck.getNumberDecks() == 1) {
+		} else if (isHoleEnabled() || p.isDealer()) {
 			bot.sendMessage(channel, p.getNickStr() + ": " + h.toString(1));
 		} else {
 			bot.sendMessage(channel, p.getNickStr() + ": " + h.toString(0));
 		}
 	}
-
-	public void showPlayerHand(BlackjackPlayer p, BlackjackHand h) {
-		if (p.isDealer() || deck.getNumberDecks() == 1) {
-			bot.sendMessage(channel, p.getNickStr() + ": " + h.toString(1));
-		} else {
-			bot.sendMessage(channel, p.getNickStr() + ": " + h.toString(0));
-		}
-	}
-
 	public void showPlayerHand(BlackjackPlayer p, BlackjackHand h, int handIndex) {
-		if (p.isDealer() || deck.getNumberDecks() == 1) {
+		if (isHoleEnabled() || p.isDealer()) {
 			bot.sendMessage(channel, p.getNickStr() + "-" + handIndex + ": "
 					+ h.toString(1));
 		} else {
@@ -1680,7 +1688,7 @@ public class Blackjack extends CardGame {
 	}
 
 	public void showPlayerHandWithBet(BlackjackPlayer p, BlackjackHand h, int handIndex) {
-		if (p.isDealer() || deck.getNumberDecks() == 1) {
+		if (isHoleEnabled() || p.isDealer()) {
 			bot.sendMessage(channel,
 					p.getNickStr() + "-" + handIndex + ": " + h.toString(1)
 							+ ", bet: $" + formatNumber(h.getBet()));
@@ -1784,7 +1792,7 @@ public class Blackjack extends CardGame {
 		if (p.hasSplit()) {
 			showPlayerHand(p, h, p.getCurrentIndex() + 1);
 		} else {
-			showPlayerHand(p, h);
+			showPlayerHand(p, h, false);
 		}
 		if (isHandBusted(h)) {
 			if (p.hasSplit()){
@@ -1821,11 +1829,11 @@ public class Blackjack extends CardGame {
 				if (p.hasSplit()) {
 					showPlayerHand(p, h, ctr2+1);
 				} else {
-					showPlayerHand(p, h);
+					showPlayerHand(p, h, false);
 				}
 			}
 		}
-		showPlayerHand(dealer, dealer.getCurrentHand());
+		showPlayerHand(dealer, dealer.getCurrentHand(), false);
 	}
 
 	public void showResults() {

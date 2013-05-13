@@ -90,6 +90,9 @@ public class BlackjackPlayer extends Player{
     public void setInsureBet(int amount){
     	insureBet = amount;
     }
+    public void clearInsureBet(){
+    	insureBet = 0;
+    }
     public int getInsureBet(){
     	return insureBet;
     }

@@ -161,11 +161,17 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
 		respawnTimers.add(t);
 	}
 	public void cancelRespawnTimers() {
+		Player p;
 		if (respawnTimers.size() != 0) {
 			for (int ctr = 0; ctr < respawnTimers.size(); ctr++) {
 				respawnTimers.get(0).cancel();
 				respawnTimers.remove(0);
 			}
+		}
+		for (int ctr = 0; ctr < getNumberBlacklisted(); ctr++){
+			p = getBlacklisted(ctr);
+			p.setCash(getNewCash());
+			p.addDebt(getNewCash());
 		}
 	}
 	public ArrayList<Timer> getRespawnTimers() {

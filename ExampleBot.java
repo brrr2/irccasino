@@ -125,4 +125,20 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
     public void onConnect (ConnectEvent<PircBotX> event){
 		bot.joinChannel(channel);
     }
+	
+	@Override
+    public void onJoin (JoinEvent<PircBotX> event){
+		Channel channel = event.getChannel();
+		User user = event.getUser();
+		
+		if (user.getNick().toLowerCase().equals(nick.toLowerCase())){
+			if (game == null){
+	        	game = new Blackjack(event.getBot(), channel);
+	        	game.showGameStart();
+	            manager.addListener(game);
+	        } else {
+	            bot.sendMessage(channel,"A game is already running!");
+	        }
+		}
+    }
 }
