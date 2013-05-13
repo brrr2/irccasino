@@ -60,6 +60,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     protected PircBotX bot; //bot handling the game
     protected Channel channel; //channel where game is being played
     protected String gameName;
+    protected char commandChar;
     protected ArrayList<Player> joined, blacklist, waitlist;
     protected CardDeck deck;
     protected Player currentPlayer;
@@ -74,9 +75,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
      * @param parent	the bot that creates an instance of this ListenerAdapter
      * @param gameChannel	the IRC channel in which the game is to be run.
      */
-    public CardGame (PircBotX parent,Channel gameChannel){
+    public CardGame (PircBotX parent,Channel gameChannel, char c){
         bot = parent;
         channel = gameChannel;
+        commandChar = c;
         joined = new ArrayList<Player>();
         blacklist = new ArrayList<Player>();
         waitlist = new ArrayList<Player>();
@@ -115,6 +117,12 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     }
     public int getNewCash(){
     	return newcash;
+    }
+    public char getCommandChar(){
+    	return commandChar;
+    }
+    public void setCommandChar(char c){
+    	commandChar = c;
     }
     
     /* 
@@ -196,7 +204,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
      * These methods are intended to manage players. They include
      * stats management and play management.
      */
-    abstract public int getPlayerRounds(String nick);
     abstract public int getTotalPlayers();
     abstract public void loadPlayerData(Player p);
     abstract public void savePlayerData(Player p);
@@ -307,21 +314,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
             bot.sendMessage(nick, "Game info will now be messaged to you.");
         }
     }
-    public int getPlayerCash(String nick){
+    public int getPlayerStat(String nick, String stat){
     	saveAllPlayers();
-    	return loadPlayerStat(nick, "cash");
-    }
-    public int getPlayerDebt(String nick){
-    	saveAllPlayers();
-    	return loadPlayerStat(nick, "debt");
-    }
-    public int getPlayerBankrupts(String nick){
-    	saveAllPlayers();
-    	return loadPlayerStat(nick, "bankrupts");
-    }
-    public int getPlayerNetCash(String nick){
-    	saveAllPlayers();
-    	return loadPlayerStat(nick, "netcash");
+    	return loadPlayerStat(nick, stat);
     }
     public void loadPlayerFile(ArrayList<String> nicks, ArrayList<Integer> stacks,
     							ArrayList<Integer> debts, ArrayList<Integer> bankrupts, 
@@ -516,7 +511,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         bot.sendMessage(channel, outStr);
     }
     public void showPlayerCash(String nick){
-    	int cash = getPlayerCash(nick);
+    	int cash = getPlayerStat(nick, "cash");
     	if (cash != Integer.MIN_VALUE){
         	bot.sendMessage(channel, nick+" has $"+formatNumber(cash)+".");
         } else {
@@ -524,7 +519,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         }
     }
     public void showPlayerNetCash(String nick){
-    	int netcash = getPlayerNetCash(nick);
+    	int netcash = getPlayerStat(nick, "netcash");
     	if (netcash != Integer.MIN_VALUE){
         	bot.sendMessage(channel, nick+" has $"+formatNumber(netcash)+" in net cash.");
         } else {
@@ -532,7 +527,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         }
     }
     public void showPlayerDebt(String nick){
-    	int debt = getPlayerDebt(nick);
+    	int debt = getPlayerStat(nick, "debt");
     	if (debt != Integer.MIN_VALUE){
         	bot.sendMessage(channel, nick+" has $"+formatNumber(debt)+" in debt.");
         } else {
@@ -540,7 +535,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         }
     }
     public void showPlayerBankrupts(String nick){
-    	int bankrupts = getPlayerBankrupts(nick);
+    	int bankrupts = getPlayerStat(nick, "bankrupts");
     	if (bankrupts != Integer.MIN_VALUE){
         	bot.sendMessage(channel, nick+" has gone bankrupt "+bankrupts+" time(s).");
         } else {

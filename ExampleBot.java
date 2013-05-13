@@ -32,6 +32,7 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
 	public static ThreadedListenerManager<PircBotX> manager;
 	public static CardGame game;
 	public static String nick, password, network, channel;
+	public static final char commandChar = '.';
 	    
 	public static void main(String[] args) throws Exception {
 		/* Check number of arguments */
@@ -48,7 +49,7 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
         			"[nick] [password] network channel.");
         	System.exit(0);
         }
-
+        
 	    //Create Listener Manager to use
 	    manager = new ThreadedListenerManager<PircBotX>();
 	    manager.addListener(new ExampleBot());
@@ -91,16 +92,17 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
         String msg = event.getMessage().toLowerCase();
         Channel channel = event.getChannel();
         User user = event.getUser();
-        if (msg.charAt(0) == '.' && channel.isOp(user)){
-            if (msg.equals(".blackjack") || msg.equals(".bj")) {
+        if (msg.length() > 1 && msg.charAt(0) == commandChar && channel.isOp(user)){
+        	msg = msg.substring(1);
+            if (msg.equals("blackjack") || msg.equals("bj")) {
                 if (game == null){
-                	game = new Blackjack(event.getBot(), channel);
+                	game = new Blackjack(event.getBot(), channel, commandChar);
                 	game.showGameStart();
                     manager.addListener(game);
                 } else {
                     bot.sendMessage(channel,"A game is already running!");
                 }
-            } else if (msg.equals(".endgame")) {
+            } else if (msg.equals("endgame")) {
                 if (game == null){
                     bot.sendMessage(channel, "No game is currently running!");
                 } else {
@@ -109,7 +111,7 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
                     manager.removeListener(game);
                     game = null;
                 }
-            } else if (msg.equals(".shutdown") || msg.equals(".botquit")) {
+            } else if (msg.equals("shutdown") || msg.equals("botquit")) {
                 if (game != null){
                 	game.showGameEnd();
                 	game.endGame();
@@ -133,7 +135,7 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
 		
 		if (user.getNick().toLowerCase().equals(nick.toLowerCase())){
 			if (game == null){
-	        	game = new Blackjack(event.getBot(), channel);
+	        	game = new Blackjack(event.getBot(), channel, commandChar);
 	        	game.showGameStart();
 	            manager.addListener(game);
 	        } else {
