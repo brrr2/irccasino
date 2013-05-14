@@ -38,7 +38,7 @@ public class BlackjackHand extends Hand {
         for (int ctr=0; ctr<numHidden; ctr++){
             outStr += hiddenBlock+" ";
         }
-        for (int ctr=numHidden; ctr<cards.size(); ctr++){
+        for (int ctr=numHidden; ctr<getSize(); ctr++){
             outStr += cards.get(ctr)+" ";
         }
         return outStr.substring(0, outStr.length()-1)+Colors.NORMAL;

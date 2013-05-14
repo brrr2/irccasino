@@ -135,14 +135,30 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     abstract public void endGame();
     abstract public void resetGame();
     abstract public void leave(String nick);
-    abstract public void leave(Player p);
-    abstract public void join(String nick, String hostmask);
     abstract public void setIdleOutTimer();
     abstract public void cancelIdleOutTimer();
     abstract public void setSetting(String[] params);
     abstract public String getSetting(String param);
     abstract public void loadSettings();
     abstract public void saveSettings();
+	public void join(String nick, String hostmask) {
+		if (isJoined(nick)) {
+			infoAlreadyJoined(nick);
+		} else if (isBlacklisted(nick)) {
+			infoBlacklisted(nick);
+		} else if (isInProgress()) {
+			if (isWaitlisted(nick)) {
+				infoAlreadyWaitlisted(nick);
+			} else {
+				addWaitlistPlayer(nick, hostmask);
+			}
+		} else {
+			addPlayer(nick, hostmask);
+		}
+	}
+	public void leave(Player p){
+		leave(p.getNick());
+	}
     public void mergeWaitlist(){
     	Player p;
     	while(!waitlist.isEmpty()){
@@ -185,9 +201,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
 	public ArrayList<Timer> getRespawnTimers() {
 		return respawnTimers;
 	}
-
-    /* Card management methods */
-    abstract public void discardPlayerHand(Player p);
     public void setStartRoundTimer(){
     	startRoundTimer = new Timer();
     	startRoundTimer.schedule(new StartRoundTask(this), 5000);
@@ -208,8 +221,12 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     abstract public void loadPlayerData(Player p);
     abstract public void savePlayerData(Player p);
     abstract public void addPlayer(String nick, String hostmask);
-    abstract public void addPlayer(Player p);
     abstract public void addWaitlistPlayer(String nick, String hostmask);
+	public void addPlayer(Player p){
+		joined.add(p);
+		loadPlayerData(p);
+		showJoin(p);
+	}
     public boolean isJoined(String nick){
         return (findJoined(nick) != null);
     }
@@ -320,7 +337,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     }
     public void loadPlayerFile(ArrayList<String> nicks, ArrayList<Integer> stacks,
     							ArrayList<Integer> debts, ArrayList<Integer> bankrupts, 
-    							ArrayList<Integer> bjrounds, ArrayList<Boolean> simples) throws IOException {
+    							ArrayList<Integer> bjrounds, ArrayList<Integer> tprounds,
+    							ArrayList<Boolean> simples) throws IOException {
     	BufferedReader f = new BufferedReader(new FileReader("players.txt"));
         StringTokenizer st;
         while (f.ready()){
@@ -330,18 +348,21 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
             debts.add(Integer.parseInt(st.nextToken()));
             bankrupts.add(Integer.parseInt(st.nextToken()));
             bjrounds.add(Integer.parseInt(st.nextToken()));
+            tprounds.add(Integer.parseInt(st.nextToken()));
             simples.add(Boolean.parseBoolean(st.nextToken()));
         }
         f.close();
     }
     public void savePlayerFile(ArrayList<String> nicks, ArrayList<Integer> stacks,
-			ArrayList<Integer> debts, ArrayList<Integer> bankrupts, ArrayList<Integer> bjrounds, 
-			ArrayList<Boolean> simples) throws IOException {
+								ArrayList<Integer> debts, ArrayList<Integer> bankrupts, 
+								ArrayList<Integer> bjrounds, ArrayList<Integer> tprounds,
+								ArrayList<Boolean> simples) throws IOException {
     	int numLines = nicks.size();
     	PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("players.txt")));
         for (int ctr = 0; ctr<numLines; ctr++){
             out.println(nicks.get(ctr)+" "+stacks.get(ctr)+" "+debts.get(ctr)+
-            			" "+bankrupts.get(ctr)+" "+bjrounds.get(ctr)+" "+simples.get(ctr));
+            			" "+bankrupts.get(ctr)+" "+bjrounds.get(ctr)+" "+
+            			tprounds.get(ctr)+" "+simples.get(ctr));
         }
         out.close();
     }
@@ -363,12 +384,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     public int loadPlayerStat(String nick, String stat){
     	try {
         	ArrayList<String> nicks = new ArrayList<String>();
-            ArrayList<Boolean> simples = new ArrayList<Boolean>();
             ArrayList<Integer> stacks = new ArrayList<Integer>();
             ArrayList<Integer> bankrupts = new ArrayList<Integer>();
             ArrayList<Integer> debts = new ArrayList<Integer>();
             ArrayList<Integer> bjrounds = new ArrayList<Integer>();
-        	loadPlayerFile(nicks, stacks, debts, bankrupts, bjrounds, simples);
+            ArrayList<Integer> tprounds = new ArrayList<Integer>();
+            ArrayList<Boolean> simples = new ArrayList<Boolean>();
+        	loadPlayerFile(nicks, stacks, debts, bankrupts, bjrounds, tprounds, simples);
         	int numLines = nicks.size();
         	for (int ctr = 0; ctr < numLines; ctr++){
         		if (nick.toLowerCase().equals(nicks.get(ctr).toLowerCase())){
@@ -380,6 +402,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         				return bankrupts.get(ctr);
         			} else if (stat.equals("bjrounds")){
         				return bjrounds.get(ctr);
+        			} else if (stat.equals("tprounds")){
+        				return tprounds.get(ctr);
         			} else if (stat.equals("netcash")){
         				return stacks.get(ctr)-debts.get(ctr);
         			} else if (stat.equals("exists")){
@@ -432,6 +456,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     abstract public void showGameStats();
     abstract public void showTopPlayers(String param, int n);
     abstract public void showPlayerRounds(String nick);
+    abstract public void showReloadSettings();
     public void showSetting(String param, String value){
 		bot.sendMessage(channel, param+"="+value);
 	}
@@ -685,8 +710,15 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     }
     
     /* Formatted strings */
-    abstract public String getGameNameStr();
-    abstract public String getGameHelpStr();
+    public String getGameNameStr(){
+    	return Colors.BOLD + gameName + Colors.NORMAL;
+    }
+	public String getGameHelpStr() {
+		return "For help on how to play "
+				+ getGameNameStr()
+				+ ", please visit an online resource. "
+				+ "For game commands, type .gcommands. For house rules, type .grules.";
+	}
     abstract public String getGameRulesStr();
     abstract public String getGameCommandStr();
     public String getWinStr(){

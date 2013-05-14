@@ -21,6 +21,8 @@ package irccasino;
 
 import java.util.*;
 
+import org.pircbotx.Colors;
+
 public class Hand {
 	protected ArrayList<Card> cards;
 	protected int bet;
@@ -70,4 +72,11 @@ public class Hand {
         bet = 0;
     }
 	
+    public String toString(){
+        String outStr= "";
+        for (int ctr=0; ctr<getSize(); ctr++){
+            outStr += cards.get(ctr)+" ";
+        }
+        return outStr.substring(0, outStr.length()-1)+Colors.NORMAL;
+    }
 }
