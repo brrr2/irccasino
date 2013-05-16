@@ -1277,7 +1277,7 @@ public class Blackjack extends CardGame {
 			infoNotInsureHasHit(p.getNick());
 		} else if (p.hasSplit()){
 			infoNotInsureHasSplit(p.getNick());
-		} else if (p.getCash() == 0) {
+		} else if (amount > p.getCash()) {
 			infoInsufficientFunds(p.getNick());
 		} else if (amount > calcHalf(p.getInitialBet())) {
 			infoInsureBetTooHigh(p.getNick(), calcHalf(p.getInitialBet()));
@@ -1710,7 +1710,7 @@ public class Blackjack extends CardGame {
 	public void showProperBet(BlackjackPlayer p) {
 		bot.sendMessage(channel,
 				p.getNickStr() + " bets $"
-						+ String.format("%,d", p.getInitialBet())
+						+ formatNumber(p.getInitialBet())
 						+ ". Stack: $" + formatNumber(p.getCash()));
 	}
 
