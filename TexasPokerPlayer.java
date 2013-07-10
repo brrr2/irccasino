@@ -21,14 +21,14 @@ package irccasino;
 
 public class TexasPokerPlayer extends Player {
 	private Hand hand;
-	private int initialBet;
+	private int bet;
 	private boolean fold;
 	
 	public TexasPokerPlayer(String nick, String hostmask, boolean dealer){
         super(nick, hostmask, dealer);
         hand = new Hand();
         fold = false;
-        initialBet = 0;
+        bet = 0;
     }
 
 	public boolean hasHand(){
@@ -41,17 +41,20 @@ public class TexasPokerPlayer extends Player {
 		hand.clear();
 	}
 	
-	public void setInitialBet(int b){
-    	initialBet = b;
+	public void setBet(int b){
+		bet = b;
+	}
+	public void addBet(int b){
+		bet += b;
+	}
+    public int getBet(){
+    	return bet;
     }
-    public int getInitialBet(){
-    	return initialBet;
+    public boolean hasBet(){
+    	return bet > 0;
     }
-    public boolean hasInitialBet(){
-    	return initialBet > 0;
-    }
-    public void clearInitialBet(){
-    	initialBet = 0;
+    public void clearBet(){
+    	bet = 0;
     }
     
     public void setFold(boolean b){

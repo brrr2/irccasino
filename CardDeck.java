@@ -69,8 +69,11 @@ public class CardDeck {
         cards.remove(0);
         return temp;
     }
-    public void addToDiscard(ArrayList<Card> c){
-        discards.addAll(c);
+    public void addToDiscard(ArrayList<Card> cards){
+        discards.addAll(cards);
+    }
+    public void addToDiscard(Card c){
+    	discards.add(c);
     }
     public void mergeDiscards(){
         if (discards.size() > 0){

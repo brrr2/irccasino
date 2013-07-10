@@ -96,7 +96,7 @@ public class Blackjack extends CardGame {
 					+ formatNumber(cash) + " during those round(s).";
 		}
 	}
-
+	
 	private BlackjackPlayer dealer;
 	private boolean insuranceBets, countEnabled, holeEnabled;
 	private int shoeDecks, idleShuffleTime;
@@ -178,15 +178,15 @@ public class Blackjack extends CardGame {
 					infoNotJoined(nick);
 				} else if (isInProgress()) {
 					infoRoundStarted(nick);
-				} else if (getNumberJoined() > 0) {
+				} else if (getNumberJoined() < 1) {
+					showNoPlayers();
+				} else {
 					cancelIdleShuffleTimer();
 					showStartRound();
 					showPlayers();
 					setInProgress(true);
 					setBetting(true);
 					setStartRoundTimer();
-				} else {
-					showNoPlayers();
 				}
 			} else if (msg.startsWith("bet ") || msg.startsWith("b ")
 					|| msg.equals("bet") || msg.equals("b")) {
@@ -268,7 +268,7 @@ public class Blackjack extends CardGame {
 				/* Contributed by Yky */
 			} else if (msg.equals("zc") || (msg.equals("zen"))) {
 				if (isCountAllowed(nick)){
-					bot.sendMessage(channel, "Zen count = " + getZenCount());
+					bot.sendMessage(channel, "Zen count = " + getZen());
 				}
 				/* Contributed by Yky */
 			} else if (msg.equals("hc") || (msg.equals("hilo"))) {
@@ -279,6 +279,12 @@ public class Blackjack extends CardGame {
 			} else if (msg.equals("rc") || (msg.equals("red7"))) {
 				if (isCountAllowed(nick)){
 					bot.sendMessage(channel, "Red7 count = " + getRed7());
+				}
+			} else if (msg.equals("count") || msg.equals("c")){
+				if (isCountAllowed(nick)){
+					bot.sendMessage(channel, "Cards/Hi-Lo/Red7/Zen = " + 
+							formatNumber(deck.getNumberCards()) + "/" +
+							getHiLo() + "/" + getRed7() + "/" + getZen());
 				}
 			} else if (msg.equals("numcards") || msg.equals("ncards")) {
 				if (isCountAllowed(nick)){
@@ -744,8 +750,8 @@ public class Blackjack extends CardGame {
 	/* Game management methods */
 	@Override
 	public void leave(String nick) {
-		BlackjackPlayer p = (BlackjackPlayer) findJoined(nick);
 		if (isJoined(nick)){
+			BlackjackPlayer p = (BlackjackPlayer) findJoined(nick);
 			if (isInProgress()) {
 				if (isBetting()){
 					if (p == currentPlayer){
@@ -820,7 +826,7 @@ public class Blackjack extends CardGame {
 		BlackjackPlayer p;
 		BlackjackHand dHand;
 		setInProgress(false);
-		if (getNumberJoined() > 0) {
+		if (getNumberJoined() > 1) {
 			house.incrementNumRounds();
 			// Make dealer decisions
 			showTurn(dealer);
@@ -1254,7 +1260,7 @@ public class Blackjack extends CardGame {
 			infoNotInsureHasHit(p.getNick());
 		} else if (p.hasSplit()){
 			infoNotInsureHasSplit(p.getNick());
-		} else if (p.getCash() == 0) {
+		} else if (amount > p.getCash()) {
 			infoInsufficientFunds(p.getNick());
 		} else if (amount > calcHalf(p.getInitialBet())) {
 			infoInsureBetTooHigh(p.getNick(), calcHalf(p.getInitialBet()));
@@ -1367,7 +1373,7 @@ public class Blackjack extends CardGame {
 	}
 
 	/* contributed by Yky */
-	private int getZenCount() {
+	private int getZen() {
 		int zenCount = 0;
 		String face;
 		ArrayList<Card> discards = deck.getDiscards();
@@ -1691,7 +1697,7 @@ public class Blackjack extends CardGame {
 						+ ". Stack: $" + formatNumber(p.getCash()));
 	}
 
-	public void showDoubleDown(BlackjackPlayer p, Hand h) {
+	public void showDoubleDown(BlackjackPlayer p, BlackjackHand h) {
 		bot.sendMessage(channel,
 				p.getNickStr() + " has doubled down! The bet is now $"
 						+ formatNumber(h.getBet()) + ". Stack: $"
@@ -1744,10 +1750,6 @@ public class Blackjack extends CardGame {
 		}
 	}
 
-	public void showSeparator() {
-		bot.sendMessage(channel, Colors.BOLD
-						+ "------------------------------------------------------------------");
-	}
 	@Override
 	public void showNumCards() {
 		bot.sendMessage(channel, formatNumber(deck.getNumberCards())
@@ -1964,17 +1966,6 @@ public class Blackjack extends CardGame {
 			bot.sendNotice(p.getNick(), outStr);
 		} else {
 			bot.sendMessage(p.getNick(), outStr);
-		}
-	}
-
-	public void infoPlayerBankrupt(String nick) {
-		Player p = findJoined(nick);
-		if (p.isSimple()) {
-			bot.sendNotice(nick, "You've lost all your money. Please wait " 
-						+ respawnTime/60 + " minute(s) for a loan.");
-		} else {
-			bot.sendMessage(nick, "You've lost all your money. Please wait "
-						+ respawnTime/60 + " minute(s) for a loan.");
 		}
 	}
 

@@ -22,13 +22,31 @@ package irccasino;
 import org.pircbotx.Colors;
 
 public class BlackjackHand extends Hand {
-
+	protected int bet;
+	
 	/**
 	 * Class constructor for blackjack hand object
 	 */
 	public BlackjackHand(){
 		super();
-		
+		bet = 0;
+	}
+	
+	/* Blackjack specific betting, may get moved to a subclass */
+	public void setBet(int amount){
+    	bet = amount;
+    }
+    public void addBet(int amount){
+        bet += amount;
+    }
+    public int getBet(){
+        return bet;
+    }
+    public void clearBet(){
+        bet = 0;
+    }
+    public boolean hasHit(){
+		return getSize() != 2;
 	}
 	
 	/* Formatted string repsentation of the hand */

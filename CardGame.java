@@ -314,6 +314,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     public Player getCurrentPlayer(){
         return currentPlayer;
     }
+    public int getJoinedIndex(Player p){
+    	return joined.indexOf(p);
+    }
     public Player getNextPlayer(){
         int index = joined.indexOf(currentPlayer);
         if (index + 1 < getNumberJoined()){
@@ -570,6 +573,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     public void showPlayerDebtPayment(Player p, int amount){
     	bot.sendMessage(channel, p.getNickStr()+" has made a debt payment of $"+formatNumber(amount)+". "+p.getNickStr()+"'s debt is now $"+formatNumber(p.getDebt())+".");
     }
+    public void showSeparator() {
+		bot.sendMessage(channel, Colors.BOLD
+						+ "------------------------------------------------------------------");
+	}
     
     /* 
      * Player/nick output methods to reduce clutter elsewhere.
@@ -659,6 +666,16 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     public void infoBetTooHigh(String nick, int max){
         bot.sendNotice(nick, "Maximum bet is $"+formatNumber(max)+". Try again.");
     }
+	public void infoPlayerBankrupt(String nick) {
+		Player p = findJoined(nick);
+		if (p.isSimple()) {
+			bot.sendNotice(nick, "You've lost all your money. Please wait " 
+						+ respawnTime/60 + " minute(s) for a loan.");
+		} else {
+			bot.sendMessage(nick, "You've lost all your money. Please wait "
+						+ respawnTime/60 + " minute(s) for a loan.");
+		}
+	}
     
     /* Reveals cards in the deck/discards */
     public void infoDeckCards(String nick, char type, int num){
