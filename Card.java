@@ -46,8 +46,22 @@ public class Card implements Comparable<Card>{
     	}
     	return -1;
     }
+    public int getSuitValue(){
+    	for (int ctr=0; ctr < CardDeck.suits.length; ctr++){
+    		if (suit.equals(CardDeck.suits[ctr])){
+    			return ctr;
+    		}
+    	}
+    	return -1;
+    }
     public int compareTo(Card c){
-    	return getFaceValue() - c.getFaceValue();
+    	int valueDiff = getFaceValue() - c.getFaceValue();
+    	int suitDiff = getSuitValue() - c.getSuitValue();
+    	if (valueDiff == 0){
+    		return suitDiff;
+    	} else {
+    		return valueDiff;
+    	}
     }
     
     /* String representation of the card with IRC color formatting */

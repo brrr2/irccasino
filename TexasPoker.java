@@ -235,11 +235,23 @@ public class TexasPoker extends CardGame{
 				} else {
 					bet(Integer.MAX_VALUE);
 				}
-			} else if (msg.equals("table")) {
-
+			} else if (msg.equals("community")) {
+				if (!isInProgress()) {
+					infoNotStarted(nick);
+				} else if (stage == 0){
+					infoNoCommunity(nick);
+				} else {
+					showCommunityCards();
+				}
 			} else if (msg.equals("hand")) {
-				TexasPokerPlayer p = (TexasPokerPlayer) findJoined(nick);
-				infoPlayerHand(p, p.getHand());
+				if (!isJoined(nick)) {
+					infoNotJoined(nick);
+				} else if (!isInProgress()) {
+					infoNotStarted(nick);
+				} else {
+					TexasPokerPlayer p = (TexasPokerPlayer) findJoined(nick);
+					infoPlayerHand(p, p.getHand());
+				}
 			} else if (msg.equals("turn")) {
 				if (!isJoined(nick)) {
 					infoNotJoined(nick);
@@ -349,6 +361,61 @@ public class TexasPoker extends CardGame{
 			} else if (msg.equals("currentgame") || msg.equals("game")) {
 				showGameName();
 			/* Op commands */
+			} else if (msg.equals("fj") || msg.equals("fjoin") ||
+					msg.startsWith("fj ") || msg.startsWith("fjoin ")){
+				if (!channel.isOp(user)) {
+					infoOpsOnly(nick);
+				} else {
+					try {
+						String fNick = parseStringParam(msg);
+						Set<User> chanUsers = channel.getUsers();
+						Iterator<User> it = chanUsers.iterator();
+						while(it.hasNext()){
+							User u = it.next();
+							if (u.getNick().toLowerCase().equals(fNick.toLowerCase())){
+								join(u.getNick(), u.getHostmask());
+								return;
+							}
+						}
+						infoNickNotFound(nick,fNick);
+					} catch (NoSuchElementException e) {
+						infoNoParameter(nick);
+					}
+				}
+			} else if (msg.equals("fl") || msg.equals("fq") || msg.equals("fquit") || msg.equals("fleave") ||
+					msg.startsWith("fl ") || msg.startsWith("fq ") || msg.startsWith("fquit ") || msg.startsWith("fleave")){
+				if (!channel.isOp(user)) {
+					infoOpsOnly(nick);
+				} else {
+					try {
+						String fNick = parseStringParam(msg);
+						leave(fNick);
+					} catch (NoSuchElementException e) {
+						infoNoParameter(nick);
+					}
+				}
+			} else if (msg.equals("ff") || msg.equals("ffold") ||
+					msg.startsWith("ff ") || msg.startsWith("ffold ")){
+				if (!channel.isOp(user)) {
+					infoOpsOnly(nick);
+				} else if (!isInProgress()) {
+					infoNotStarted(nick);
+				} else {
+					try {
+						String fNick = parseStringParam(msg);
+						if (!isJoined(fNick)){
+							bot.sendNotice(nick, fNick+" is not currently joined!");
+						} else if (!isInProgress()) {
+							infoNotStarted(nick);
+						} else if (findJoined(fNick) != currentPlayer){
+							bot.sendNotice(nick, "It is not "+fNick+"'s turn!");
+						} else {
+							fold();
+						}
+					} catch (NoSuchElementException e) {
+						infoNoParameter(nick);
+					}
+				}
 			} else if (msg.startsWith("cards ") || msg.startsWith("discards ") || 
 					msg.equals("cards") || msg.equals("discards")) {
 				if (isOpCommandAllowed(user, nick)){
@@ -479,6 +546,11 @@ public class TexasPoker extends CardGame{
 			for (int ctr = 0; ctr < getNumberJoined(); ctr++){
 				p = (TexasPokerPlayer) getJoined(ctr);
 				showPlayerHand(p, p.getHand());
+				p.getTotalHand().addAll(p.getHand());
+				p.getTotalHand().addAll(community);
+				Collections.sort(p.getTotalHand().getAllCards());
+				Collections.reverse(p.getTotalHand().getAllCards());
+				showHandType(p);
 				p.incrementRounds();
 
 				if (p.getCash() == 0) {
@@ -677,8 +749,7 @@ public class TexasPoker extends CardGame{
 	@Override
 	public void saveSettings() {
 		try {
-			PrintWriter out = new PrintWriter(new BufferedWriter(
-					new FileWriter("texaspoker.ini")));
+			PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("texaspoker.ini")));
 			out.println("#Settings");
 			out.println("#Number of seconds before a player idles out");
 			out.println("idle=" + idleOutTime);
@@ -975,7 +1046,7 @@ public class TexasPoker extends CardGame{
 		if (total == 0){
 			bot.sendMessage(channel, p.getNickStr()+" has checked. Stack: $"+formatNumber(p.getCash()-p.getBet()));
 		} else {
-			bot.sendMessage(channel, p.getNickStr()+" has called. Stack: $"+formatNumber(p.getCash()-p.getBet()));
+			bot.sendMessage(channel, p.getNickStr()+" has called. "+p.getNickStr()+" in for $"+formatNumber(p.getBet())+". Stack: $"+formatNumber(p.getCash()-p.getBet()));
 		}
 		showBet(p);
 		continueRound();
@@ -1029,7 +1100,7 @@ public class TexasPoker extends CardGame{
 			}
 		}
 		if (currentPot != null && currentPot.getNumberPlayers() == 1){
-			currentPot.getPlayer(0).setCash(currentPot.getPot());
+			currentPot.getPlayer(0).addCash(currentPot.getPot());
 			currentPot = null;
 		}
 	}
@@ -1045,26 +1116,20 @@ public class TexasPoker extends CardGame{
 		Card a,b;
 		for (int ctr = 0; ctr < h.getSize()-1; ctr++){
 			a = h.get(ctr);
-			for (int ctr2 = ctr+1; ctr2 < h.getSize(); ctr2++){
-				b = h.get(ctr2);
-				if (a.getFace() == b.getFace()){
-					return true;
-				}
+			b = h.get(ctr+1);
+			if (a.getFace() == b.getFace()){
+				return true;
 			}
 		}
 		return false;
 	}
 	public boolean hasTwoPair(Hand h){
 		Card a,b;
-		for (int ctr = 0; ctr < h.getSize()-1; ctr++){
+		for (int ctr = 0; ctr < h.getSize()-3; ctr++){
 			a = h.get(ctr);
-			for (int ctr2 = ctr+1; ctr2 < h.getSize(); ctr2++){
-				b = h.get(ctr2);
-				if (a.getFace() == b.getFace()){
-					h.remove(a);
-					h.remove(b);
-					return hasPair(h);
-				}
+			b = h.get(ctr+1);
+			if (a.getFace() == b.getFace()){
+				return hasPair(h.subHand(ctr+2,h.getSize()));
 			}
 		}
 		return false;
@@ -1073,16 +1138,10 @@ public class TexasPoker extends CardGame{
 		Card a,b,c;
 		for (int ctr = 0; ctr < h.getSize()-2; ctr++){
 			a = h.get(ctr);
-			for (int ctr2 = ctr+1; ctr2 < h.getSize()-1; ctr2++){
-				b = h.get(ctr2);
-				if (a.getFace() == b.getFace()){
-					for (int ctr3 = ctr2+1; ctr3 < h.getSize(); ctr3++){
-						c = h.get(ctr3);
-						if (a.getFace() == c.getFace()){
-							return true;
-						}
-					}
-				}
+			b = h.get(ctr+1);
+			c = h.get(ctr+2);
+			if (a.getFace() == b.getFace() && b.getFace() == c.getFace()){
+				return true;
 			}
 		}
 		return false;
@@ -1094,12 +1153,10 @@ public class TexasPoker extends CardGame{
 			c = h.get(ctr);
 			if (c.getFace().equals("A")){
 				cardValues[0] = true;
-				cardValues[CardDeck.faces.length] = true;
-			} else {
-				cardValues[c.getFaceValue()+1] = true;
 			}
+			cardValues[c.getFaceValue()+1] = true;
 		}
-		for (int ctr = 0; ctr < cardValues.length-5; ctr++){
+		for (int ctr = 0; ctr < cardValues.length-4; ctr++){
 			if (cardValues[ctr] && cardValues[ctr+1] && cardValues[ctr+2] && 
 				cardValues[ctr+3] && cardValues[ctr+4]){
 				return true;
@@ -1108,18 +1165,15 @@ public class TexasPoker extends CardGame{
 		return false;
 	}
 	public boolean hasFlush(Hand h){
-		int suitCount;
+		int[] suitCount = new int[CardDeck.suits.length];
 		Card c;
-		for (int ctr = 0; ctr < 4; ctr++){
-			suitCount = 0;
-			for (int ctr2 = 0; ctr2 < h.getSize(); ctr2++){
-				c = h.get(ctr2);
-				if (c.getFace() == CardDeck.suits[ctr]){
-					suitCount++;
-					if (suitCount == 5){
-						return true;
-					}
-				}
+		for (int ctr = 0; ctr < h.getSize(); ctr++){
+			c = h.get(ctr);
+			suitCount[c.getSuitValue()]++;
+		}
+		for (int ctr = 0; ctr < suitCount.length; ctr++){
+			if (suitCount[ctr] >= 5){
+				return true;
 			}
 		}
 		return false;
@@ -1128,18 +1182,18 @@ public class TexasPoker extends CardGame{
 		Card a,b,c;
 		for (int ctr = 0; ctr < h.getSize()-2; ctr++){
 			a = h.get(ctr);
-			for (int ctr2 = ctr+1; ctr2 < h.getSize()-1; ctr2++){
-				b = h.get(ctr2);
-				if (a.getFace() == b.getFace()){
-					for (int ctr3 = ctr2+1; ctr3 < h.getSize(); ctr3++){
-						c = h.get(ctr3);
-						if (a.getFace() == c.getFace()){
-							h.remove(a);
-							h.remove(b);
-							h.remove(c);
-							return hasPair(h);
-						}
-					}
+			b = h.get(ctr+1);
+			c = h.get(ctr+2);
+			if (a.getFace() == b.getFace() && a.getFace() == c.getFace()){
+				h.remove(a);
+				h.remove(b);
+				h.remove(c);
+				boolean hp = hasPair(h);
+				h.add(a,ctr);
+				h.add(b,ctr+1);
+				h.add(c,ctr+2);
+				if (hp){
+					return hp;
 				}
 			}
 		}
@@ -1149,22 +1203,12 @@ public class TexasPoker extends CardGame{
 		Card a,b,c,d;
 		for (int ctr = 0; ctr < h.getSize()-3; ctr++){
 			a = h.get(ctr);
-			for (int ctr2 = ctr+1; ctr2 < h.getSize()-2; ctr2++){
-				b = h.get(ctr2);
-				if (a.getFace() == b.getFace()){
-					for (int ctr3 = ctr2+1; ctr3 < h.getSize()-1; ctr3++){
-						c = h.get(ctr3);
-						if (a.getFace() == c.getFace()){
-							for (int ctr4 = ctr3+1; ctr4 < h.getSize(); ctr4++){
-								d = h.get(ctr4);
-								if (a.getFace() == d.getFace()){
-									return true;
-								}
-							}
-							
-						}
-					}
-				}
+			b = h.get(ctr+1);
+			c = h.get(ctr+2);
+			d = h.get(ctr+3);
+			if (a.getFace() == b.getFace() && b.getFace() == c.getFace() 
+					&& c.getFace() == d.getFace()){
+				return true;
 			}
 		}
 		return false;
@@ -1334,6 +1378,27 @@ public class TexasPoker extends CardGame{
 	public void showFold(TexasPokerPlayer p){
 		bot.sendMessage(channel, p.getNickStr()+" has folded. Stack: $"+formatNumber(p.getCash()-p.getBet()));
 	}
+	public void showHandType(TexasPokerPlayer p){
+		if (hasStraightFlush(p.getTotalHand())){
+			bot.sendMessage(channel, "Straight flush");
+		} else if (hasFourOfAKind(p.getTotalHand())){
+			bot.sendMessage(channel, "4 of a kind");
+		} else if (hasFullHouse(p.getTotalHand())){
+			bot.sendMessage(channel, "Full house");
+		} else if (hasFlush(p.getTotalHand())){
+			bot.sendMessage(channel, "Flush");
+		} else if (hasStraight(p.getTotalHand())){
+			bot.sendMessage(channel, "Straight");
+		} else if (hasThreeOfAKind(p.getTotalHand())){
+			bot.sendMessage(channel, "3 of a kind");
+		} else if (hasTwoPair(p.getTotalHand())){
+			bot.sendMessage(channel, "Two pair");
+		} else if (hasPair(p.getTotalHand())){
+			bot.sendMessage(channel, "Pair");
+		} else {
+			bot.sendMessage(channel, p.getTotalHand().getAllCards().get(0)+Colors.NORMAL+" high");
+		}
+	}
 	
 	public void infoPlayerHand(TexasPokerPlayer p, Hand h) {
 		if (p.isSimple()) {
@@ -1348,18 +1413,20 @@ public class TexasPoker extends CardGame{
 	public void infoMustAllIn(String nick){
         bot.sendNotice(nick, "You must go all in or fold. Try again.");
     }
+	public void infoNoCommunity(String nick){
+		bot.sendNotice(nick, "No community cards have been dealt yet.");
+	}
 	
 	@Override
 	public String getGameRulesStr() {
-		// TODO Auto-generated method stub
-		return null;
+		return "This is no limit Texas Hold'em Poker.";
 	}
 
 	@Override
 	public String getGameCommandStr() {
 		return "start (go), join (j), leave (quit, l, q), bet (b), check/call (c), " +
-				"table, turn, hand, cash, netcash (net), debt, bankrupts, rounds," +
-				"simple, players, waitlist, blacklist, top5, gamehelp (ghelp), " +
-				"gamerules (grules), gamecommands (gcommands)";
+				"raise (r), fold (f), community, turn, hand, cash, netcash (net), " + 
+				"debt, bankrupts, rounds, simple, players, waitlist, blacklist, top5, " +
+				"gamehelp (ghelp), gamerules (grules), gamecommands (gcommands)";
 	}
 }

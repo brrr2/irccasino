@@ -654,6 +654,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     public void infoInsufficientFunds(String nick){
     	bot.sendNotice(nick, "Insufficient funds. Try again.");
     }
+    public void infoNickNotFound(String nick, String searchNick){
+    	bot.sendNotice(nick, searchNick + " was not found.");
+    }
     public void infoNoParameter(String nick){
     	bot.sendNotice(nick, "Parameter(s) missing!");
     }

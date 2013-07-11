@@ -37,8 +37,14 @@ public class Hand {
 	public void add(Card card){
 		cards.add(card);
 	}
+	public void add(Card card, int index){
+		cards.add(index, card);
+	}
 	public void addAll(ArrayList<Card> cardList){
 		cards.addAll(cardList);
+	}
+	public void addAll(Hand hand){
+		cards.addAll(hand.getAllCards());
 	}
 	public void remove(int index){
 		cards.remove(index);
@@ -57,6 +63,14 @@ public class Hand {
 	}
 	public int getSize(){
 		return cards.size();
+	}
+	/* Returns a subset specified by the indices (excluding end) as a new hand */
+	public Hand subHand(int start, int end){
+		Hand h = new Hand();
+		for (int ctr = start; ctr < end; ctr++){
+			h.add(this.get(ctr));
+		}
+		return h;
 	}
 	
     public String toString(){
