@@ -19,15 +19,16 @@
 
 package irccasino;
 
-public class TexasPokerPlayer extends Player {
-	private Hand hand, totalHand;
+public class PokerPlayer extends Player implements Comparable<PokerPlayer> {
+	private Hand hand;
+	private PokerHand pHand;
 	private int bet;
 	private boolean fold;
 	
-	public TexasPokerPlayer(String nick, String hostmask, boolean dealer){
+	public PokerPlayer(String nick, String hostmask, boolean dealer){
         super(nick, hostmask, dealer);
         hand = new Hand();
-        totalHand = new Hand();
+        pHand = new PokerHand();
         fold = false;
         bet = 0;
     }
@@ -35,15 +36,16 @@ public class TexasPokerPlayer extends Player {
 	public boolean hasHand(){
 		return (hand.getSize() > 0);
 	}
-	public Hand getTotalHand(){
-		return totalHand;
+	public PokerHand getPokerHand(){
+		return pHand;
 	}
 	public Hand getHand(){
 		return hand;
 	}
 	public void resetHand(){
 		hand.clear();
-		totalHand.clear();
+		pHand.clear();
+		pHand.resetValue();
 	}
 	
 	public void setBet(int b){
@@ -67,5 +69,10 @@ public class TexasPokerPlayer extends Player {
     }
     public boolean hasFolded(){
     	return fold;
+    }
+    
+    @Override
+    public int compareTo(PokerPlayer p){
+    	return this.getPokerHand().compareTo(p.getPokerHand());
     }
 }

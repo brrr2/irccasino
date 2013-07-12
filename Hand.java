@@ -41,10 +41,14 @@ public class Hand {
 		cards.add(index, card);
 	}
 	public void addAll(ArrayList<Card> cardList){
-		cards.addAll(cardList);
+		if (cardList.size() > 0){
+			cards.addAll(cardList);
+		}
 	}
 	public void addAll(Hand hand){
-		cards.addAll(hand.getAllCards());
+		if (hand.getSize() > 0){
+			cards.addAll(hand.getAllCards());
+		}
 	}
 	public void remove(int index){
 		cards.remove(index);

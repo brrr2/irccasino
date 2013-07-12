@@ -122,6 +122,7 @@ public class Player {
     public String getNickStr(){
     	return Colors.BOLD+getNick()+Colors.NORMAL;
     }
+    @Override
     public String toString(){
     	return getNick();
     }
