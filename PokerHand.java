@@ -1,4 +1,25 @@
+/*
+	Copyright (C) 2013 Yizhe Shen <brrr@live.ca>
+	
+	This file is part of irccasino.
+
+    irccasino is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    irccasino is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with irccasino.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 package irccasino;
+
+import java.util.Collections;
 
 import org.pircbotx.Colors;
 
@@ -87,7 +108,12 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
 	
 	public String getName(){
 		switch (this.getValue()) {
-			case 8: return "Straight Flush";
+			case 8: 
+				if (get(0).getFace().equals("A")){
+					return "Royal Flush";
+				} else {
+					return "Straight Flush";
+				}
 			case 7: return "Four of a Kind";
 			case 6: return "Full House";
 			case 5: return "Flush";
@@ -122,8 +148,9 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
 		}
 	}
 	
+	@Override
 	public String toString(){
-		return this.subHand(0,5).toString();
+		return toString(5);
 	}
 	
 	/*
@@ -186,6 +213,9 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
 	}
 	public static boolean hasStraight(Hand h){
 		Card c;
+		/* Create an boolean array to determine which face cards exist in the hand.
+		 * An extra index is added at the beginning for the value duality of aces.
+		 */
 		boolean[] cardValues = new boolean[CardDeck.faces.length+1];
 		for (int ctr = 0; ctr < h.getSize(); ctr++){
 			c = h.get(ctr);
@@ -194,13 +224,15 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
 			}
 			cardValues[c.getFaceValue()+1] = true;
 		}
-		for (int ctr = 0; ctr < cardValues.length-4; ctr++){
-			if (cardValues[ctr] && cardValues[ctr+1] && cardValues[ctr+2] && 
-				cardValues[ctr+3] && cardValues[ctr+4]){
-				for (int ctr2=0; ctr2<5; ctr2++){
+		// Determine if any 5 sequential cards exist
+		for (int ctr = cardValues.length-1; ctr >= 4; ctr--){
+			if (cardValues[ctr] && cardValues[ctr-1] && cardValues[ctr-2] && 
+				cardValues[ctr-3] && cardValues[ctr-4]){
+				// Move the sequence in descending order to the beginning of the hand
+				for (int ctr2 = 0; ctr2 < 5; ctr2++){
 					for (int ctr3=0; ctr3<h.getSize(); ctr3++){
 						c = h.get(ctr3);
-						if ((ctr == 0 && c.getFace().equals("A")) || c.getFaceValue()+1 == ctr){
+						if ((ctr-ctr2 == 0 && c.getFace().equals("A")) || c.getFaceValue()+1 == ctr-ctr2){
 							h.remove(c);
 							h.add(c,ctr2);
 							break;
@@ -282,23 +314,37 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
 		}
 		return false;
 	}
+
 	public static boolean hasStraightFlush(Hand h){
-		if (hasFlush(h)){
-			Hand nonFlushCards = new Hand();
-			for(int ctr = 0; ctr<h.getSize(); ctr++){
-				if (h.get(ctr).getSuitValue() != h.get(0).getSuitValue()){
-					nonFlushCards.add(h.get(ctr));
-					h.remove(ctr);
+		int[] suitCount = new int[CardDeck.suits.length];
+		Hand nonFlushCards = new Hand();
+		Card c;
+		for (int ctr = 0; ctr < h.getSize(); ctr++){
+			c = h.get(ctr);
+			suitCount[c.getSuitValue()]++;
+		}
+		// Reorganizes the cards to reveal the first straight flush
+		// that is found.
+		for (int ctr = 0; ctr < CardDeck.suits.length; ctr++){
+			if (suitCount[ctr] >= 5){
+				for (int ctr2 = 0; ctr2 < h.getSize(); ctr2++){
+					if (h.get(ctr2).getSuitValue() != ctr){
+						nonFlushCards.add(h.get(ctr2));
+						h.remove(ctr2--);
+					}
+				}
+				if (hasStraight(h)){
+					h.addAll(nonFlushCards);
+					nonFlushCards.clear();
+					return true;
+				} else {
+					h.addAll(nonFlushCards);
+					nonFlushCards.clear();
 				}
 			}
-			if (hasStraight(h)){
-				h.addAll(nonFlushCards);
-				return true;
-			} else {
-				h.addAll(nonFlushCards);
-				return false;
-			}
 		}
+		Collections.sort(h.getAllCards());
+		Collections.reverse(h.getAllCards());
 		return false;
 	}
 }

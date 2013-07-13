@@ -397,6 +397,66 @@ public class TexasPoker extends CardGame{
 						infoNoParameter(nick);
 					}
 				}
+			} else if (msg.equals("fb") || msg.equals("fbet") || msg.startsWith("fb ") 
+					|| msg.startsWith("fbet ")){
+				if (!channel.isOp(user)) {
+					infoOpsOnly(nick);
+				} else if (!isInProgress()) {
+					infoNotStarted(nick);
+				} else {
+					try {
+						try {
+							String[] params = parseIniParams(msg);
+							String fNick = params[0];
+							try {
+								int amount = Integer.parseInt(params[1]);
+								if (!isJoined(fNick)){
+									bot.sendNotice(nick, fNick+" is not currently joined!");
+								} else if (findJoined(fNick) != currentPlayer){
+									bot.sendNotice(nick, "It is not "+fNick+"'s turn!");
+								} else {
+									bet(amount);
+								}
+							} catch (NumberFormatException e) {
+								infoBadParameter(nick);
+							}
+						} catch (IllegalArgumentException e) {
+							infoBadParameter(nick);
+						}
+					} catch (NoSuchElementException e) {
+						infoNoParameter(nick);
+					}
+				}
+			} else if (msg.equals("fr") || msg.equals("fraise") || msg.startsWith("fr ") 
+					|| msg.startsWith("fraise ")){
+				if (!channel.isOp(user)) {
+					infoOpsOnly(nick);
+				} else if (!isInProgress()) {
+					infoNotStarted(nick);
+				} else {
+					try {
+						try {
+							String[] params = parseIniParams(msg);
+							String fNick = params[0];
+							try {
+								int amount = Integer.parseInt(params[1]);
+								if (!isJoined(fNick)){
+									bot.sendNotice(nick, fNick+" is not currently joined!");
+								} else if (findJoined(fNick) != currentPlayer){
+									bot.sendNotice(nick, "It is not "+fNick+"'s turn!");
+								} else {
+									raise(amount);
+								}
+							} catch (NumberFormatException e) {
+								infoBadParameter(nick);
+							}
+						} catch (IllegalArgumentException e) {
+							infoBadParameter(nick);
+						}
+					} catch (NoSuchElementException e) {
+						infoNoParameter(nick);
+					}
+				}
 			} else if (msg.equals("fc") ||	msg.startsWith("fc ")){
 				if (!channel.isOp(user)) {
 					infoOpsOnly(nick);
@@ -407,8 +467,6 @@ public class TexasPoker extends CardGame{
 						String fNick = parseStringParam(msg);
 						if (!isJoined(fNick)){
 							bot.sendNotice(nick, fNick+" is not currently joined!");
-						} else if (!isInProgress()) {
-							infoNotStarted(nick);
 						} else if (findJoined(fNick) != currentPlayer){
 							bot.sendNotice(nick, "It is not "+fNick+"'s turn!");
 						} else {
@@ -493,6 +551,63 @@ public class TexasPoker extends CardGame{
 					} catch (NoSuchElementException e) {
 						infoNoParameter(nick);
 					}
+				}
+			} else if (msg.equals("test1")){
+				if (isOpCommandAllowed(user, nick)){
+					// 1. Test if game will properly determine winner of two hands
+					Hand h1 = new Hand();
+					Hand h2 = new Hand();
+					PokerHand ph1 = new PokerHand();
+					PokerHand ph2 = new PokerHand();
+					Hand comm = new Hand();
+					for (int ctr=0; ctr<2; ctr++){
+						dealOne(h1);
+						dealOne(h2);
+					}
+					for (int ctr=0; ctr<5; ctr++){
+						dealOne(comm);
+					}
+					ph1.addAll(comm);
+					ph1.addAll(h1);
+					ph2.addAll(comm);
+					ph2.addAll(h2);
+					bot.sendMessage(channel, h1.toString());
+					bot.sendMessage(channel, h2.toString());
+					bot.sendMessage(channel, comm.toString());
+					Collections.sort(ph1.getAllCards());
+					Collections.reverse(ph1.getAllCards());
+					Collections.sort(ph2.getAllCards());
+					Collections.reverse(ph2.getAllCards());
+					ph1.getValue();
+					ph2.getValue();
+					bot.sendMessage(channel, ph1.getName()+": " + h1 + " / "+ ph1);
+					bot.sendMessage(channel, ph2.getName()+": " + h2 + " / "+ ph2);
+					if (ph1.compareTo(ph2) > 0){
+						bot.sendMessage(channel, "Hand 1 wins");
+					} else if (ph1.compareTo(ph2) < 0){
+						bot.sendMessage(channel, "Hand 2 wins");
+					} else {
+						bot.sendMessage(channel, "Draw");
+					}
+					deck.addToDiscard(h1.getAllCards());
+					deck.addToDiscard(h2.getAllCards());
+					deck.addToDiscard(comm.getAllCards());
+					deck.refillDeck();
+				}
+			} else if (msg.equals("test2")){	
+				// 2. Test if straight flushes will be determined properly
+				if (isOpCommandAllowed(user, nick)){
+					PokerHand h = new PokerHand();
+					for (int ctr=0; ctr<20; ctr++){
+						dealOne(h);
+					}
+					bot.sendMessage(channel, h.toString(h.getSize()));
+					Collections.sort(h.getAllCards());
+					Collections.reverse(h.getAllCards());
+					h.getValue();
+					bot.sendMessage(channel, h.getName()+": " + h);
+					deck.addToDiscard(h.getAllCards());
+					deck.refillDeck();
 				}
 			}
 		}
@@ -1243,7 +1358,7 @@ public class TexasPoker extends CardGame{
 		bot.sendMessage(channel, outStr);
 	}
 	public void showCommunityCards(){
-		bot.sendMessage(channel, "Community cards: " + community.toString());
+		bot.sendMessage(channel, Colors.BOLD + Colors.YELLOW + ",01Community cards:" + Colors.NORMAL + " " + community.toString());
 	}
 	public void showTurn(Player p) {
 		PokerPlayer TPp = (PokerPlayer) p;
@@ -1272,15 +1387,16 @@ public class TexasPoker extends CardGame{
 			for (int ctr2=1; ctr2<players.size(); ctr2++){
 				if (players.get(0).compareTo(players.get(ctr2)) == 0){
 					winners++;
-				} else {
-					break;
 				}
+			}
+			for (int ctr2=0; ctr2<players.size(); ctr2++){
+				p = players.get(ctr2);
+				showPlayerResult(p);
 			}
 			for (int ctr2=0; ctr2<winners; ctr2++){
 				p = players.get(ctr2);
-				showPlayerResult(p);
-				bot.sendMessage(channel, p.getNickStr()+" wins pot "+ctr+": $"+(currentPot.getPot()/winners));
 				p.addCash(currentPot.getPot()/winners);
+				bot.sendMessage(channel, p.getNickStr()+" wins pot "+ctr+": $"+formatNumber(currentPot.getPot()/winners)+". Stack: $"+formatNumber(p.getCash()));
 			}
 		}
 	}

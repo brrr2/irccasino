@@ -77,11 +77,16 @@ public class Hand {
 		return h;
 	}
 	
+	@Override
     public String toString(){
-        String outStr= "";
-        for (int ctr=0; ctr<getSize(); ctr++){
+        return toString(getSize());
+    }
+	public String toString(int num){
+		String outStr= "";
+		int limit = Math.min(num, getSize());
+        for (int ctr=0; ctr<limit; ctr++){
             outStr += cards.get(ctr)+" ";
         }
         return outStr.substring(0, outStr.length()-1)+Colors.NORMAL;
-    }
+	}
 }
