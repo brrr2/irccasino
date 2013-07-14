@@ -826,7 +826,7 @@ public class Blackjack extends CardGame {
 		BlackjackPlayer p;
 		BlackjackHand dHand;
 		setInProgress(false);
-		if (getNumberJoined() > 1) {
+		if (getNumberJoined() >= 1) {
 			house.incrementNumRounds();
 			// Make dealer decisions
 			showTurn(dealer);
