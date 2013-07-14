@@ -21,7 +21,7 @@ package irccasino;
 
 import org.pircbotx.*;
 
-public class Card {
+public class Card implements Comparable<Card>{
     private String suit, face;
     
     public Card(String s, String f){
@@ -37,12 +37,46 @@ public class Card {
         return suit;
     }
     
+    /* Comparator methods */
+    public int getFaceValue(){
+    	for (int ctr=0; ctr < CardDeck.faces.length; ctr++){
+    		if (face.equals(CardDeck.faces[ctr])){
+    			return ctr;
+    		}
+    	}
+    	return -1;
+    }
+    public int getSuitValue(){
+    	for (int ctr=0; ctr < CardDeck.suits.length; ctr++){
+    		if (suit.equals(CardDeck.suits[ctr])){
+    			return ctr;
+    		}
+    	}
+    	return -1;
+    }
+    
+    /* Compares using face value, then suit */
+    @Override
+    public int compareTo(Card c){
+    	int valueDiff = getFaceValue() - c.getFaceValue();
+    	int suitDiff = getSuitValue() - c.getSuitValue();
+    	if (valueDiff == 0){
+    		return suitDiff;
+    	} else {
+    		return valueDiff;
+    	}
+    }
+    
     /* String representation of the card with IRC color formatting */
     @Override
     public String toString(){
         String color;
-        if (suit.equals(CardDeck.suits[0]) || suit.equals(CardDeck.suits[1])){
+        if (suit.equals(CardDeck.suits[0])){
             color = Colors.RED;
+        } else if ( suit.equals(CardDeck.suits[1])){
+            color = Colors.BROWN;
+        } else if ( suit.equals(CardDeck.suits[2])){
+            color = Colors.DARK_BLUE;
         } else {
         	color = Colors.BLACK;
         }

@@ -19,9 +19,9 @@
 package irccasino;
 
 import javax.net.ssl.SSLSocketFactory;
-import org.pircbotx.cap.SASLCapHandler;
 
 import org.pircbotx.*;
+import org.pircbotx.cap.SASLCapHandler;
 import org.pircbotx.hooks.ListenerAdapter;
 import org.pircbotx.hooks.events.*;
 import org.pircbotx.hooks.managers.*;
@@ -102,6 +102,14 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
                 } else {
                     bot.sendMessage(channel,"A game is already running!");
                 }
+            } else if (msg.equals("texaspoker") || msg.equals("tp")) {
+            	if (game == null){
+                	game = new TexasPoker(event.getBot(), channel, commandChar);
+                	game.showGameStart();
+                    manager.addListener(game);
+                } else {
+                    bot.sendMessage(channel,"A game is already running!");
+                }
             } else if (msg.equals("endgame")) {
                 if (game == null){
                     bot.sendMessage(channel, "No game is currently running!");
@@ -118,7 +126,11 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
                     manager.removeListener(game);
                     game = null;
                 }
-                bot.quitServer();
+                try {
+                	bot.quitServer();
+                } catch (Exception e){
+                	System.out.println("Exception caught during disconnection.");
+                }
             }
         }
     }
@@ -127,13 +139,14 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
     public void onConnect (ConnectEvent<PircBotX> event){
 		bot.joinChannel(channel);
     }
-	
+
+	/*
 	@Override
     public void onJoin (JoinEvent<PircBotX> event){
 		Channel channel = event.getChannel();
 		User user = event.getUser();
 		
-		if (user.getNick().toLowerCase().equals(nick.toLowerCase())){
+		if (user.getNick().toLowerCase().equals(bot.getNick().toLowerCase())){
 			if (game == null){
 	        	game = new Blackjack(event.getBot(), channel, commandChar);
 	        	game.showGameStart();
@@ -143,4 +156,5 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
 	        }
 		}
     }
+    */
 }

@@ -23,7 +23,7 @@ import org.pircbotx.*;
 
 public class Player {
     protected boolean simple, dealer;
-    protected int cash, bet, debt, bankrupts, rounds;
+    protected int cash, debt, bankrupts, rounds;
     protected boolean quit;
     protected String nick, hostmask;
     
@@ -38,7 +38,6 @@ public class Player {
         this.dealer = dealer;
         this.hostmask = hostmask;
         cash = 0;
-        bet = 0;
         debt = 0;
         bankrupts = 0;
         rounds = 0;
@@ -123,6 +122,7 @@ public class Player {
     public String getNickStr(){
     	return Colors.BOLD+getNick()+Colors.NORMAL;
     }
+    @Override
     public String toString(){
     	return getNick();
     }

@@ -1,3 +1,18 @@
 README for irccasino
 
-Java implementations of various casino games for IRC using Pircbotx. It can be added to any IRC bot that has been implemented using the Pircbotx library. Please visit code.google.com/p/pircbotx to download the library.
+Java implementations of various casino games for IRC using PircBotX. It can be added to any IRC bot that has been implemented using the PircBotX library. Please visit code.google.com/p/pircbotx for more information.
+
+Included games:
+Blackjack
+Texas Hold'em Poker
+
+Steps to running the bot:
+1. Include the PircBotX library in the build path of the project or use Maven.
+2. Run ExampleBot.java with the parameters ([optional]): [nick] [password] network channel(without #).
+3. Type .[game], where game is the name of the game to be run.
+
+OR
+
+1. Include the PircBotX library in the build path of the project or use Maven.
+2. Include the classes in the location of your own PircBotX bot.
+3. Write your own bot to use these classes.

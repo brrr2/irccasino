@@ -21,24 +21,40 @@ package irccasino;
 
 import java.util.*;
 
+import org.pircbotx.Colors;
+
 public class Hand {
 	protected ArrayList<Card> cards;
-	protected int bet;
 	
 	/**
 	 * Class constructor for a hand of cards
 	 */
 	public Hand(){
 		cards = new ArrayList<Card>();
-		bet = 0;
 	}
 	
 	/* Accessor methods */
 	public void add(Card card){
 		cards.add(card);
 	}
+	public void add(Card card, int index){
+		cards.add(index, card);
+	}
+	public void addAll(ArrayList<Card> cardList){
+		if (cardList.size() > 0){
+			cards.addAll(cardList);
+		}
+	}
+	public void addAll(Hand hand){
+		if (hand.getSize() > 0){
+			cards.addAll(hand.getAllCards());
+		}
+	}
 	public void remove(int index){
 		cards.remove(index);
+	}
+	public void remove(Card c){
+		cards.remove(c);
 	}
 	public Card get(int index){
 		return cards.get(index);
@@ -52,22 +68,29 @@ public class Hand {
 	public int getSize(){
 		return cards.size();
 	}
-	public boolean hasHit(){
-		return getSize() != 2;
+	/* Returns a subset specified by the indices (excluding end) as a new hand */
+	public Hand subHand(int start, int end){
+		Hand h = new Hand();
+		for (int ctr = start; ctr < end; ctr++){
+			h.add(this.get(ctr));
+		}
+		return h;
 	}
 	
-    /* Blackjack specific betting, may get moved to a subclass */
-	public void setBet(int amount){
-    	bet = amount;
+	@Override
+    public String toString(){
+        return toString(getSize());
     }
-    public void addBet(int amount){
-        bet += amount;
-    }
-    public int getBet(){
-        return bet;
-    }
-    public void clearBet(){
-        bet = 0;
-    }
-	
+	public String toString(int num){
+        return toString(0,num);
+	}
+    public String toString(int start, int end){
+		String outStr= "";
+		int slimit = Math.max(0, start);
+        int elimit = Math.min(this.getSize(), end);
+        for (int ctr=slimit; ctr<elimit; ctr++){
+            outStr += cards.get(ctr)+" ";
+        }
+        return outStr.substring(0, outStr.length()-1)+Colors.NORMAL;
+	}
 }
