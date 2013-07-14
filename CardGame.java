@@ -20,7 +20,6 @@ package irccasino;
 
 import java.io.*;
 import java.util.*;
-
 import org.pircbotx.*;
 import org.pircbotx.hooks.*;
 import org.pircbotx.hooks.events.*;
@@ -186,11 +185,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
 	}
 	public void cancelRespawnTimers() {
 		Player p;
-		if (respawnTimers.size() != 0) {
+		if (!respawnTimers.isEmpty()) {
 			for (int ctr = 0; ctr < respawnTimers.size(); ctr++) {
-				respawnTimers.get(0).cancel();
-				respawnTimers.remove(0);
+				respawnTimers.get(ctr).cancel();
 			}
+            respawnTimers.clear();
 		}
 		for (int ctr = 0; ctr < getNumberBlacklisted(); ctr++){
 			p = getBlacklisted(ctr);

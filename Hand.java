@@ -82,9 +82,13 @@ public class Hand {
         return toString(getSize());
     }
 	public String toString(int num){
+        return toString(0,num);
+	}
+    public String toString(int start, int end){
 		String outStr= "";
-		int limit = Math.min(num, getSize());
-        for (int ctr=0; ctr<limit; ctr++){
+		int slimit = Math.max(0, start);
+        int elimit = Math.min(this.getSize(), end);
+        for (int ctr=slimit; ctr<elimit; ctr++){
             outStr += cards.get(ctr)+" ";
         }
         return outStr.substring(0, outStr.length()-1)+Colors.NORMAL;

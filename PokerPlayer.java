@@ -23,13 +23,14 @@ public class PokerPlayer extends Player implements Comparable<PokerPlayer> {
 	private Hand hand;
 	private PokerHand pHand;
 	private int bet;
-	private boolean fold;
+	private boolean fold, allIn;
 	
 	public PokerPlayer(String nick, String hostmask, boolean dealer){
         super(nick, hostmask, dealer);
         hand = new Hand();
         pHand = new PokerHand();
         fold = false;
+        allIn = false;
         bet = 0;
     }
 
@@ -69,6 +70,12 @@ public class PokerPlayer extends Player implements Comparable<PokerPlayer> {
     }
     public boolean hasFolded(){
     	return fold;
+    }
+    public void setAllIn(boolean b){
+        allIn = b;
+    }
+    public boolean hasAllIn(){
+        return allIn;
     }
     
     @Override

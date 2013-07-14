@@ -859,11 +859,9 @@ public class Blackjack extends CardGame {
 					bot.sendMessage(channel, p.getNickStr()	+ " has gone bankrupt. " +
 							"S/He has been kicked to the curb.");
 					removeJoined(p.getNick());
-					showLeave(p);
 					setRespawnTimer(p);
 					ctr--;
-				}
-				if (p.hasQuit() && isJoined(p)) {
+				} else if (p.hasQuit() && isJoined(p)) {
 					removeJoined(p.getNick());
 					showLeave(p);
 					ctr--;

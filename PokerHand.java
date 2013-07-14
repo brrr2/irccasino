@@ -20,7 +20,6 @@
 package irccasino;
 
 import java.util.Collections;
-
 import org.pircbotx.Colors;
 
 public class PokerHand extends Hand implements Comparable<PokerHand>{
@@ -30,70 +29,90 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
 		value = -1;
 	}
 	
+    /*
+     * Comparisons require that both hands be sorted in descending order and
+     * that the cards representing the hand value be at the beginning of the
+     * hand. This means that getValue() must have been called before making
+     * any comparisons.
+     */
+    @Override
 	public int compareTo(PokerHand h){
-		int value = this.getValue();
+		int thisValue = this.getValue();
 		int otherValue = h.getValue();
 		
-		if (value == otherValue){
+        // Check if hands have same value
+		if (thisValue == otherValue){
+            // Calculate comparisons for each card
+            int[] comps = new int[5];
+            for (int ctr = 0; ctr < 5; ctr++){
+                comps[ctr] = this.get(ctr).getFaceValue() - h.get(ctr).getFaceValue();
+            }
+            
 			switch (value) {
-				case 8: return this.get(0).getFaceValue() - h.get(0).getFaceValue();
-				case 7: return this.get(0).getFaceValue() - h.get(0).getFaceValue();
+                // Straight Flush and Straight: check top card of straight
+				case 8: case 4:
+                    return comps[0];
+                // 4 of a Kind: check 4 of a kind, then kicker
+				case 7: 
+                    if (comps[0] == 0){
+                        return comps[4];
+                    }
+                    return comps[0];
+                // Full House: check triplet, then pair
 				case 6:	
-					if (this.get(0).getFaceValue() - h.get(0).getFaceValue() == 0){
-						return this.get(3).getFaceValue() - h.get(3).getFaceValue();
-					} else {
-						return this.get(0).getFaceValue() - h.get(0).getFaceValue();
+					if (comps[0] == 0){
+						return comps[3];
 					}
-				case 5: 
+					return comps[0];
+				// Flush: check highest non-common card
+                case 5: 
 					for (int ctr = 0; ctr < 5; ctr++){
-						if (this.get(ctr).getFaceValue() != h.get(ctr).getFaceValue()){
-							return this.get(ctr).getFaceValue() - h.get(ctr).getFaceValue();
+						if (comps[ctr] != 0){
+							return comps[ctr];
 						}
 					}
 					return 0;
-				case 4:
-					return this.get(0).getFaceValue() - h.get(0).getFaceValue();
+                // Three of a Kind: check triplet, then check kickers
 				case 3:
-					if (this.get(0).getFaceValue() - h.get(0).getFaceValue() == 0){
+					if (comps[0] == 0){
 						for (int ctr = 3; ctr < 5; ctr++){
-							if (this.get(ctr).getFaceValue() != h.get(ctr).getFaceValue()){
-								return this.get(ctr).getFaceValue() - h.get(ctr).getFaceValue();
+							if (comps[ctr] != 0){
+								return comps[ctr];
 							}
 						}
-					} else {
-						return this.get(0).getFaceValue() - h.get(0).getFaceValue();
+                        return 0;
 					}
-					return 0;
+					return comps[0];
+                // Two pair: check each pair, then check kicker
 				case 2: 
-					if (this.get(0).getFaceValue() != h.get(0).getFaceValue()){
-						return this.get(0).getFaceValue() - h.get(0).getFaceValue();
-					} else if (this.get(2).getFaceValue() != h.get(2).getFaceValue()){
-						return this.get(2).getFaceValue() - h.get(2).getFaceValue();
-					} else {
-						return this.get(4).getFaceValue() - h.get(4).getFaceValue();
+					if (comps[0] != 0){
+						return comps[0];
+					} else if (comps[2] != 0){
+						return comps[2];
 					}
+                    return comps[4];
+                // Pair: check pair, then check highest non-common card
 				case 1:
-					if (this.get(0).getFaceValue() != h.get(0).getFaceValue()){
-						return this.get(0).getFaceValue() - h.get(0).getFaceValue();
-					} else {
+					if (comps[0] == 0){
 						for (int ctr = 2; ctr < 5; ctr++){
-							if (this.get(ctr).getFaceValue() != h.get(ctr).getFaceValue()){
-								return this.get(ctr).getFaceValue() - h.get(ctr).getFaceValue();
+							if (comps[ctr] != 0){
+								return comps[ctr];
 							}
 						}
 						return 0;
 					}
+                    return comps[0];
+                // High Card: check highest non-common card
 				default:
 					for (int ctr = 0; ctr < 5; ctr++){
-						if (this.get(ctr).getFaceValue() != h.get(ctr).getFaceValue()){
-							return this.get(ctr).getFaceValue() - h.get(ctr).getFaceValue();
+						if (comps[ctr] != 0){
+							return comps[ctr];
 						}
 					}
 					return 0;
 			}
-		} else {
-			return value - otherValue;
 		}
+		return thisValue - otherValue;
 	}
 	
 	public int getValue(){
@@ -105,26 +124,6 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
 	public void resetValue(){
 		value = -1;
 	}
-	
-	public String getName(){
-		switch (this.getValue()) {
-			case 8: 
-				if (get(0).getFace().equals("A")){
-					return "Royal Flush";
-				} else {
-					return "Straight Flush";
-				}
-			case 7: return "Four of a Kind";
-			case 6: return "Full House";
-			case 5: return "Flush";
-			case 4: return "Straight";
-			case 3: return "Three of a Kind";
-			case 2: return "Two Pairs";
-			case 1: return "Pair";
-			default: return get(0).toString()+Colors.NORMAL+" High";
-		}
-	}
-	
 	private int calcValue(){
 		// Always check the hands in order of descending value
 		if (hasStraightFlush(this)){	// Straight flush = 8
@@ -148,13 +147,41 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
 		}
 	}
 	
+    public String getName(){
+		switch (this.getValue()) {
+			case 8: 
+				if (get(0).getFace().equals("A")){
+					return "Royal Flush";
+				} else {
+					return "Straight Flush";
+				}
+			case 7: return "Four of a Kind";
+			case 6: return "Full House";
+			case 5: return "Flush";
+			case 4: return "Straight";
+			case 3: return "Three of a Kind";
+			case 2: return "Two Pairs";
+			case 1: return "Pair";
+			default: return "High Card";
+		}
+	}
 	@Override
 	public String toString(){
-		return toString(5);
+        switch (this.getValue()) {
+            case 8: return toString(5);
+            case 7: return toString(4)+"/"+toString(4,5);
+            case 6: return toString(5);
+            case 5: return toString(5);
+            case 4: return toString(5);
+            case 3: return toString(3)+"/"+toString(3,5);
+            case 2: return toString(4)+"/"+toString(4,5);
+            case 1: return toString(2)+"/"+toString(2,5);
+            default: return toString(5);
+        }
 	}
 	
 	/*
-	 * A smattering of methods to check for various poker card combinations.
+	 * A collection of methods to check for various poker card combinations.
 	 * Methods require that hands be sorted in descending order.
 	 */
 	public static boolean hasPair(Hand h){
@@ -162,7 +189,7 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
 		for (int ctr = 0; ctr < h.getSize()-1; ctr++){
 			a = h.get(ctr);
 			b = h.get(ctr+1);
-			if (a.getFace() == b.getFace()){
+			if (a.getFace().equals(b.getFace())){
 				h.remove(a);
 				h.remove(b);
 				h.add(a, 0);
@@ -177,7 +204,7 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
 		for (int ctr = 0; ctr < h.getSize()-3; ctr++){
 			a = h.get(ctr);
 			b = h.get(ctr+1);
-			if (a.getFace() == b.getFace()){
+			if (a.getFace().equals(b.getFace())){
 				h.remove(a);
 				h.remove(b);
 				if (hasPair(h)){
@@ -199,7 +226,7 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
 			a = h.get(ctr);
 			b = h.get(ctr+1);
 			c = h.get(ctr+2);
-			if (a.getFace() == b.getFace() && b.getFace() == c.getFace()){
+			if (a.getFace().equals(b.getFace()) && b.getFace().equals(c.getFace())){
 				h.remove(a);
 				h.remove(b);
 				h.remove(c);
@@ -212,11 +239,11 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
 		return false;
 	}
 	public static boolean hasStraight(Hand h){
-		Card c;
-		/* Create an boolean array to determine which face cards exist in the hand.
+		/* Create a boolean array to determine which face cards exist in the hand.
 		 * An extra index is added at the beginning for the value duality of aces.
 		 */
 		boolean[] cardValues = new boolean[CardDeck.faces.length+1];
+        Card c;
 		for (int ctr = 0; ctr < h.getSize(); ctr++){
 			c = h.get(ctr);
 			if (c.getFace().equals("A")){
@@ -224,7 +251,7 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
 			}
 			cardValues[c.getFaceValue()+1] = true;
 		}
-		// Determine if any 5 sequential cards exist
+		// Determine if any sequence of 5 consecutive cards exist
 		for (int ctr = cardValues.length-1; ctr >= 4; ctr--){
 			if (cardValues[ctr] && cardValues[ctr-1] && cardValues[ctr-2] && 
 				cardValues[ctr-3] && cardValues[ctr-4]){
@@ -272,7 +299,7 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
 			a = h.get(ctr);
 			b = h.get(ctr+1);
 			c = h.get(ctr+2);
-			if (a.getFace() == b.getFace() && a.getFace() == c.getFace()){
+			if (a.getFace().equals(b.getFace()) && a.getFace().equals(c.getFace())){
 				h.remove(a);
 				h.remove(b);
 				h.remove(c);
@@ -299,8 +326,8 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
 			b = h.get(ctr+1);
 			c = h.get(ctr+2);
 			d = h.get(ctr+3);
-			if (a.getFace() == b.getFace() && b.getFace() == c.getFace() 
-					&& c.getFace() == d.getFace()){
+			if (a.getFace().equals(b.getFace()) && b.getFace().equals(c.getFace()) 
+					&& c.getFace().equals(d.getFace())){
 				h.remove(a);
 				h.remove(b);
 				h.remove(c);
@@ -343,6 +370,7 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
 				}
 			}
 		}
+        // Re-sorts the hand in descending order if no straight flush is found
 		Collections.sort(h.getAllCards());
 		Collections.reverse(h.getAllCards());
 		return false;

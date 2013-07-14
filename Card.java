@@ -54,6 +54,9 @@ public class Card implements Comparable<Card>{
     	}
     	return -1;
     }
+    
+    /* Compares using face value, then suit */
+    @Override
     public int compareTo(Card c){
     	int valueDiff = getFaceValue() - c.getFaceValue();
     	int suitDiff = getSuitValue() - c.getSuitValue();
@@ -68,8 +71,12 @@ public class Card implements Comparable<Card>{
     @Override
     public String toString(){
         String color;
-        if (suit.equals(CardDeck.suits[0]) || suit.equals(CardDeck.suits[1])){
+        if (suit.equals(CardDeck.suits[0])){
             color = Colors.RED;
+        } else if ( suit.equals(CardDeck.suits[1])){
+            color = Colors.BROWN;
+        } else if ( suit.equals(CardDeck.suits[2])){
+            color = Colors.DARK_BLUE;
         } else {
         	color = Colors.BLACK;
         }
