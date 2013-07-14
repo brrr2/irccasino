@@ -20,7 +20,6 @@
 package irccasino;
 
 import java.util.Collections;
-import org.pircbotx.Colors;
 
 public class PokerHand extends Hand implements Comparable<PokerHand>{
 	private int value;
