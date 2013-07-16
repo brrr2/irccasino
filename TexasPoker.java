@@ -22,13 +22,13 @@ package irccasino;
 import java.io.*;
 import java.util.*;
 import org.pircbotx.*;
-import org.pircbotx.hooks.events.*;
+import org.pircbotx.hooks.events.MessageEvent;
 
 public class TexasPoker extends CardGame{
     /* Idle task specific for Texas Hold'em Poker. */
 	public static class IdleOutTask extends TimerTask {
-		PokerPlayer player;
-		TexasPoker game;
+		private PokerPlayer player;
+		private TexasPoker game;
 
 		public IdleOutTask(PokerPlayer p, TexasPoker g) {
 			player = p;
@@ -37,7 +37,7 @@ public class TexasPoker extends CardGame{
 
 		@Override
 		public void run() {
-			if (player == game.getCurrentPlayer()) {
+			if (game.isInProgress() && player == game.getCurrentPlayer()) {
 				player.setQuit(true);
 				game.bot.sendMessage(game.channel, player.getNickStr()
 						+ " has wasted precious time and idled out.");
@@ -97,6 +97,12 @@ public class TexasPoker extends CardGame{
 	private PokerPlayer dealer, smallBlind, bigBlind, topBettor;
 	private Hand community;
 	
+	/**
+	 * Constructor for TexasPoker, subclass of CardGame
+	 * @param parent
+	 * @param gameChannel
+	 * @param c
+	 */
 	public TexasPoker(PircBotX parent, Channel gameChannel, char c){
 		super(parent, gameChannel, c);
 		gameName = "Texas Hold'em Poker";
@@ -113,38 +119,6 @@ public class TexasPoker extends CardGame{
 		bigBlind = null;
 		topBettor = null;
 	}
-	
-	@Override
-	public void onPart(PartEvent<PircBotX> event) {
-		String nick = event.getUser().getNick();
-		if (isJoined(nick) || isWaitlisted(nick)){
-			leave(nick);
-		}
-	}
-
-	@Override
-	public void onQuit(QuitEvent<PircBotX> event) {
-		String nick = event.getUser().getNick();
-		if (isJoined(nick) || isWaitlisted(nick)){
-			leave(nick);
-		}
-	}
-	
-    @Override
-    public void onNickChange(NickChangeEvent<PircBotX> e){
-    	String oldNick = e.getOldNick();
-    	String newNick = e.getNewNick();
-    	String hostmask = e.getUser().getHostmask();
-    	if (isJoined(oldNick) || isWaitlisted(oldNick)){
-    		infoNickChange(newNick);
-    		if (isJoined(oldNick)){
-		    	leave(oldNick);
-	    	} else if(isWaitlisted(oldNick)){
-				removeWaitlisted(oldNick);
-	    	}
-    		join(newNick, hostmask);
-    	}
-    }
 	
 	@Override
 	public void onMessage(MessageEvent<PircBotX> event){
@@ -725,7 +699,7 @@ public class TexasPoker extends CardGame{
 			pots.add(currentPot);
 		}
 		
-		if (getNumberJoined() > 0) {
+		if (getNumberJoined() > 1) {
 			// Give all non-folded players the community cards
 			for (int ctr = 0; ctr < getNumberJoined(); ctr++){
 				p = (PokerPlayer) getJoined(ctr);
@@ -805,6 +779,9 @@ public class TexasPoker extends CardGame{
 		currentPot = null;
 		minRaise = minBet;
 		pots.clear();
+		currentPlayer = null;
+		bigBlind = null;
+		smallBlind = null;
 		topBettor = null;
 		deck.refillDeck();
 	}

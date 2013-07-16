@@ -19,7 +19,7 @@
 
 package irccasino;
 
-import org.pircbotx.*;
+import org.pircbotx.Colors;
 
 public class Card implements Comparable<Card>{
     private String suit, face;

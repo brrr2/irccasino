@@ -19,16 +19,15 @@
 
 package irccasino;
 
-import java.util.*;
 import java.io.*;
-
+import java.util.*;
 import org.pircbotx.*;
-import org.pircbotx.hooks.events.*;
+import org.pircbotx.hooks.events.MessageEvent;
 
 public class Blackjack extends CardGame {
 	public static class IdleOutTask extends TimerTask {
-		BlackjackPlayer player;
-		Blackjack game;
+		private BlackjackPlayer player;
+		private Blackjack game;
 
 		public IdleOutTask(BlackjackPlayer p, Blackjack g) {
 			player = p;
@@ -37,7 +36,7 @@ public class Blackjack extends CardGame {
 
 		@Override
 		public void run() {
-			if (player == game.getCurrentPlayer()) {
+			if (game.isInProgress() && player == game.getCurrentPlayer()) {
 				player.setQuit(true);
 				game.bot.sendMessage(game.channel, player.getNickStr()
 						+ " has wasted precious time and idled out.");
@@ -51,7 +50,7 @@ public class Blackjack extends CardGame {
 	}
 
 	public static class IdleShuffleTask extends TimerTask {
-		Blackjack game;
+		private Blackjack game;
 
 		public IdleShuffleTask(Blackjack g) {
 			game = g;
@@ -64,7 +63,7 @@ public class Blackjack extends CardGame {
 	}
 
 	public static class HouseStat {
-		int decks, rounds, cash;
+		private int decks, rounds, cash;
 
 		public HouseStat() {
 			this(0, 0, 0);
@@ -121,39 +120,6 @@ public class Blackjack extends CardGame {
 		loadSettings();
 		insuranceBets = false;
 	}
-
-	@Override
-	public void onPart(PartEvent<PircBotX> event) {
-		String nick = event.getUser().getNick();
-		if (isJoined(nick) || isWaitlisted(nick)){
-			leave(nick);
-		}
-	}
-
-	@Override
-	public void onQuit(QuitEvent<PircBotX> event) {
-		String nick = event.getUser().getNick();
-		if (isJoined(nick) || isWaitlisted(nick)){
-			leave(nick);
-		}
-		
-	}
-	
-    @Override
-    public void onNickChange(NickChangeEvent<PircBotX> e){
-    	String oldNick = e.getOldNick();
-    	String newNick = e.getNewNick();
-    	String hostmask = e.getUser().getHostmask();
-    	if (isJoined(oldNick) || isWaitlisted(oldNick)){
-    		infoNickChange(newNick);
-    		if (isJoined(oldNick)){
-		    	leave(oldNick);
-	    	} else if(isWaitlisted(oldNick)){
-				removeWaitlisted(oldNick);
-	    	}
-    		join(newNick, hostmask);
-    	}
-    }
 
 	@Override
 	public void onMessage(MessageEvent<PircBotX> event) {
@@ -414,6 +380,169 @@ public class Blackjack extends CardGame {
 					showNumDecks();
 				}
 			/* Op commands */
+			} else if (msg.equals("fj") || msg.equals("fjoin") ||
+					msg.startsWith("fj ") || msg.startsWith("fjoin ")){
+				if (!channel.isOp(user)) {
+					infoOpsOnly(nick);
+				} else {
+					try {
+						String fNick = parseStringParam(msg);
+						Set<User> chanUsers = channel.getUsers();
+						Iterator<User> it = chanUsers.iterator();
+						while(it.hasNext()){
+							User u = it.next();
+							if (u.getNick().toLowerCase().equals(fNick.toLowerCase())){
+								join(u.getNick(), u.getHostmask());
+								return;
+							}
+						}
+						infoNickNotFound(nick,fNick);
+					} catch (NoSuchElementException e) {
+						infoNoParameter(nick);
+					}
+				}
+			} else if (msg.equals("fl") || msg.equals("fq") || msg.equals("fquit") || msg.equals("fleave") ||
+					msg.startsWith("fl ") || msg.startsWith("fq ") || msg.startsWith("fquit ") || msg.startsWith("fleave")){
+				if (!channel.isOp(user)) {
+					infoOpsOnly(nick);
+				} else {
+					try {
+						String fNick = parseStringParam(msg);
+						leave(fNick);
+					} catch (NoSuchElementException e) {
+						infoNoParameter(nick);
+					}
+				}
+			} else if (msg.equals("fb") || msg.equals("fbet") ||
+					msg.startsWith("fb ") || msg.startsWith("fbet ")){
+				if (!channel.isOp(user)) {
+					infoOpsOnly(nick);
+				} else if (!isInProgress()) {
+					infoNotStarted(nick);
+				} else {
+					try {
+						try {
+							String[] params = parseIniParams(msg);
+							String fNick = params[0];
+							try {
+								int amount = Integer.parseInt(params[1]);
+								if (isStage1PlayerTurn(fNick)){
+									bet(amount);
+								}
+							} catch (NumberFormatException e) {
+								infoBadParameter(nick);
+							}
+						} catch (IllegalArgumentException e) {
+							infoBadParameter(nick);
+						}
+					} catch (NoSuchElementException e) {
+						infoNoParameter(nick);
+					}
+				}
+			} else if (msg.equals("fhit") || msg.equals("fh") ||
+					msg.startsWith("fhit ") || msg.startsWith("fh ")) {
+				if (!channel.isOp(user)) {
+					infoOpsOnly(nick);
+				} else if (!isInProgress()) {
+					infoNotStarted(nick);
+				} else {
+					try {
+						String fNick = parseStringParam(msg);
+						if (isStage2PlayerTurn(fNick)){
+							hit();
+						}
+					} catch (NoSuchElementException e) {
+						infoNoParameter(nick);
+					}
+				}
+			} else if (msg.equals("fstay") || msg.equals("fstand") || msg.equals("fsit") || 
+					msg.startsWith("fstay ") || msg.startsWith("fstand ") || msg.startsWith("fsit ") ) {
+				if (!channel.isOp(user)) {
+					infoOpsOnly(nick);
+				} else if (!isInProgress()) {
+					infoNotStarted(nick);
+				} else {
+					try {
+						String fNick = parseStringParam(msg);
+						if (isStage2PlayerTurn(fNick)){
+							stay();
+						}
+					} catch (NoSuchElementException e) {
+						infoNoParameter(nick);
+					}
+				}
+			} else if (msg.equals("fdoubledown") || msg.equals("fdd") || 
+					msg.startsWith("fdoubledown ") || msg.startsWith("fdd ")) {
+				if (!channel.isOp(user)) {
+					infoOpsOnly(nick);
+				} else if (!isInProgress()) {
+					infoNotStarted(nick);
+				} else {
+					try {
+						String fNick = parseStringParam(msg);
+						if (isStage2PlayerTurn(fNick)){
+							doubleDown();
+						}
+					} catch (NoSuchElementException e) {
+						infoNoParameter(nick);
+					}
+				}
+			} else if (msg.equals("fsurrender") || msg.equals("fsurr") || 
+					msg.startsWith("fsurrender ") || msg.startsWith("fsurr ") ) {
+				if (!channel.isOp(user)) {
+					infoOpsOnly(nick);
+				} else if (!isInProgress()) {
+					infoNotStarted(nick);
+				} else {
+					try {
+						String fNick = parseStringParam(msg);
+						if (isStage2PlayerTurn(fNick)){
+							surrender();
+						}
+					} catch (NoSuchElementException e) {
+						infoNoParameter(nick);
+					}
+				}
+			} else if (msg.equals("finsure") || msg.startsWith("finsure ")) {
+				if (!channel.isOp(user)) {
+					infoOpsOnly(nick);
+				} else if (!isInProgress()) {
+					infoNotStarted(nick);
+				} else {
+					try {
+						try {
+							String[] params = parseIniParams(msg);
+							String fNick = params[0];
+							try {
+								int amount = Integer.parseInt(params[1]);
+								if (isStage2PlayerTurn(fNick)){
+									insure(amount);
+								}
+							} catch (NumberFormatException e) {
+								infoBadParameter(nick);
+							}
+						} catch (IllegalArgumentException e) {
+							infoBadParameter(nick);
+						}
+					} catch (NoSuchElementException e) {
+						infoNoParameter(nick);
+					}
+				}
+			} else if (msg.equals("fsplit") || msg.startsWith("fsplit ")) {
+				if (!channel.isOp(user)) {
+					infoOpsOnly(nick);
+				} else if (!isInProgress()) {
+					infoNotStarted(nick);
+				} else {
+					try {
+						String fNick = parseStringParam(msg);
+						if (isStage2PlayerTurn(fNick)){
+							split();
+						}
+					} catch (NoSuchElementException e) {
+						infoNoParameter(nick);
+					}
+				}
 			} else if (msg.startsWith("cards ") || msg.startsWith("discards ") || 
 					msg.equals("cards") || msg.equals("discards")) {
 				if (isOpCommandAllowed(user, nick)){
@@ -474,6 +603,8 @@ public class Blackjack extends CardGame {
 						infoNoParameter(nick);
 					}
 				}
+			} else if (msg.equals("test1")){
+				bot.sendMessage(channel, "No test implemented yet.");
 			}
 		}
 	}
@@ -900,6 +1031,7 @@ public class Blackjack extends CardGame {
 	public void resetGame() {
 		discardPlayerHand(dealer);
 		setInsuranceBets(false);
+		currentPlayer = null;
 	}
 	public void resetPlayer(BlackjackPlayer p) {
 		discardPlayerHand(p);

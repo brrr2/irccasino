@@ -31,26 +31,11 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
 	public static PircBotX bot;
 	public static ThreadedListenerManager<PircBotX> manager;
 	public static CardGame game;
-	public static String nick, password, network, channel;
+	public static String botNick, password, network, channel;
 	public static final char commandChar = '.';
 	    
 	public static void main(String[] args) throws Exception {
-		/* Check number of arguments */
-        if (args.length == 4){
-        	nick = args[0];
-        	password = args[1];
-        	network = args[2];
-        	channel = "##"+args[3];
-        } else if (args.length == 2){
-        	network = args[0];
-        	channel = "##"+args[1];
-        } else {
-        	System.out.println("2 or 4 parameters required. Unable to continue. " +
-        			"[nick] [password] network channel.");
-        	System.exit(0);
-        }
-        
-	    //Create Listener Manager to use
+		 //Create Listener Manager to use
 	    manager = new ThreadedListenerManager<PircBotX>();
 	    manager.addListener(new ExampleBot());
 	    
@@ -59,32 +44,51 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
 	    bot.setVerbose(true);
 	    bot.setAutoNickChange(true);
 	    bot.setCapEnabled(true);
-
-	    if (args.length == 4){
-        	nick = args[0];
-        	password = args[1];
-        	network = args[2];
-        	channel = "##"+args[3];
-        	bot.setName(nick);
-    	    bot.setLogin(nick);
-        	try {
-    	    	bot.getCapHandlers().add(new SASLCapHandler(nick, password));
-            	bot.connect(network,7000,SSLSocketFactory.getDefault());
-            } catch (Exception e){
-            	System.out.println("Error connecting to "+network);
-            }
-        } else if (args.length == 2){
-        	network = args[0];
-        	channel = "##"+args[1];
-        	bot.setName("ExampleBot");
-    	    bot.setLogin("ExampleBot");
-    	    try {
-            	bot.connect(network);
-            } catch (Exception e){
-            	System.out.println("Error connecting to "+network);
-            }
-        }
-
+		
+		/* Check number of arguments */
+		switch (args.length){
+			case 4:
+				botNick = args[0];
+	        	password = args[1];
+	        	network = args[2];
+	        	channel = "##"+args[3];
+	        	bot.setName(botNick);
+	    	    bot.setLogin("Bot");
+	        	try {
+	    	    	bot.getCapHandlers().add(new SASLCapHandler(botNick, password));
+	            	bot.connect(network,7000,SSLSocketFactory.getDefault());
+	            } catch (Exception e){
+	            	System.out.println("Error connecting to "+network);
+	            }
+	        	break;
+			case 3:
+				botNick = args[0];
+				network = args[1];
+	        	channel = "##"+args[2];
+	        	bot.setName(botNick);
+	    	    bot.setLogin("Bot");
+	    	    try {
+	            	bot.connect(network);
+	            } catch (Exception e){
+	            	System.out.println("Error connecting to "+network);
+	            }
+	        	break;
+			case 2:
+				network = args[0];
+	        	channel = "##"+args[1];
+	        	bot.setName("botNick");
+	    	    bot.setLogin("Bot");
+	    	    try {
+	            	bot.connect(network);
+	            } catch (Exception e){
+	            	System.out.println("Error connecting to "+network);
+	            }
+	        	break;
+			default:
+				System.out.println("Incorrect number of parameters. Required: " +
+	        			"[botNick] [password] network channel.");
+	        	System.exit(0);
+		}
 	}
 	
 	@Override
@@ -139,22 +143,4 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
     public void onConnect (ConnectEvent<PircBotX> event){
 		bot.joinChannel(channel);
     }
-
-	/*
-	@Override
-    public void onJoin (JoinEvent<PircBotX> event){
-		Channel channel = event.getChannel();
-		User user = event.getUser();
-		
-		if (user.getNick().toLowerCase().equals(bot.getNick().toLowerCase())){
-			if (game == null){
-	        	game = new Blackjack(event.getBot(), channel, commandChar);
-	        	game.showGameStart();
-	            manager.addListener(game);
-	        } else {
-	            bot.sendMessage(channel,"A game is already running!");
-	        }
-		}
-    }
-    */
 }

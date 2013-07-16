@@ -19,8 +19,7 @@
 
 package irccasino;
 
-import java.util.*;
-
+import java.util.ArrayList;
 import org.pircbotx.Colors;
 
 public class Hand {

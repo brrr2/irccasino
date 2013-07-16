@@ -21,9 +21,8 @@ package irccasino;
 import java.io.*;
 import java.util.*;
 import org.pircbotx.*;
-import org.pircbotx.hooks.*;
+import org.pircbotx.hooks.ListenerAdapter;
 import org.pircbotx.hooks.events.*;
-
 
 public abstract class CardGame extends ListenerAdapter<PircBotX>{
 	public static class StartRoundTask extends TimerTask{
@@ -92,6 +91,38 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     	String nick = e.getUser().getNick();
     	if (loadPlayerStat(nick, "exists") != 1){
     		infoNewNick(nick);
+    	}
+    }
+    
+    @Override
+	public void onPart(PartEvent<PircBotX> event) {
+		String nick = event.getUser().getNick();
+		if (isJoined(nick) || isWaitlisted(nick)){
+			leave(nick);
+		}
+	}
+
+	@Override
+	public void onQuit(QuitEvent<PircBotX> event) {
+		String nick = event.getUser().getNick();
+		if (isJoined(nick) || isWaitlisted(nick)){
+			leave(nick);
+		}
+	}
+	
+	@Override
+    public void onNickChange(NickChangeEvent<PircBotX> e){
+    	String oldNick = e.getOldNick();
+    	String newNick = e.getNewNick();
+    	String hostmask = e.getUser().getHostmask();
+    	if (isJoined(oldNick) || isWaitlisted(oldNick)){
+    		infoNickChange(newNick);
+    		if (isJoined(oldNick)){
+		    	leave(oldNick);
+	    	} else if(isWaitlisted(oldNick)){
+				removeWaitlisted(oldNick);
+	    	}
+    		join(newNick, hostmask);
     	}
     }
     

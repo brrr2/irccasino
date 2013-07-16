@@ -19,7 +19,8 @@
 
 package irccasino;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Random;
 
 public class CardDeck {
     protected static final String[] suits = {"\u2665","\u2666","\u2663","\u2660"};

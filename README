@@ -8,11 +8,11 @@ Texas Hold'em Poker
 
 Steps to running the bot:
 1. Include the PircBotX library in the build path of the project or use Maven.
-2. Run ExampleBot.java with the parameters ([optional]): [nick] [password] network channel(without #).
+2. Run ExampleBot.java with the parameters ([optional]): [botnick] [password] network channel(without #).
 3. Type .[game], where game is the name of the game to be run.
 
 OR
 
 1. Include the PircBotX library in the build path of the project or use Maven.
-2. Include the classes in the location of your own PircBotX bot.
-3. Write your own bot to use these classes.
+2. Write your own bot to use these classes.
+3. Include the classes in the location of your own PircBotX bot.
