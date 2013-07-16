@@ -581,17 +581,17 @@ public class TexasPoker extends CardGame{
 					ph1.addAll(h1);
 					ph2.addAll(comm);
 					ph2.addAll(h2);
-					bot.sendMessage(channel, h1.toString());
-					bot.sendMessage(channel, h2.toString());
-					bot.sendMessage(channel, comm.toString());
+					bot.sendMessage(channel, "Hand 1: "+h1.toString());
+					bot.sendMessage(channel, "Hand 2: "+h2.toString());
+					bot.sendMessage(channel, "Community: "+comm.toString());
 					Collections.sort(ph1.getAllCards());
 					Collections.reverse(ph1.getAllCards());
 					Collections.sort(ph2.getAllCards());
 					Collections.reverse(ph2.getAllCards());
 					ph1.getValue();
 					ph2.getValue();
-					bot.sendMessage(channel, ph1.getName()+": " + h1 + " / "+ ph1);
-					bot.sendMessage(channel, ph2.getName()+": " + h2 + " / "+ ph2);
+					bot.sendMessage(channel, "Hand 1, "+ph1.getName()+": " + ph1);
+					bot.sendMessage(channel, "Hand 2, "+ph2.getName()+": " + ph2);
 					if (ph1.compareTo(ph2) > 0){
 						bot.sendMessage(channel, "Hand 1 wins");
 					} else if (ph1.compareTo(ph2) < 0){
@@ -729,17 +729,13 @@ public class TexasPoker extends CardGame{
 					p.incrementBankrupts();
 					blacklist.add(p);
 					infoPlayerBankrupt(p.getNick());
-					bot.sendMessage(channel, p.getNickStr()	+ " has gone bankrupt. " +
-							"S/He has been kicked to the curb.");
                     removeJoined(p.getNick());
                     setRespawnTimer(p);
                     ctr--;
 				} else if (p.hasQuit() && isJoined(p)) {
 					removeJoined(p.getNick());
-					showLeave(p);
 					ctr--;
 				}
-				savePlayerData(p);
 				resetPlayer(p);
 			}
 		} else {
@@ -759,6 +755,7 @@ public class TexasPoker extends CardGame{
 		cancelRespawnTimers();
 		saveAllPlayers();
 		saveSettings();
+		devoiceAll();
 		joined.clear();
 		waitlist.clear();
 		blacklist.clear();
@@ -801,11 +798,15 @@ public class TexasPoker extends CardGame{
 					fold();
 				} else {
 					p.setFold(true);
+					showFold(p);
+					// Check if there is only one more player who hasn't folded,
+					// force check/call on that remaining player (whose turn it is)
+					if (getNumberNotFolded() == 1){
+						checkCall();
+					}
 				}
 			} else {
-				savePlayerData(p);
 				removeJoined(p);
-				showLeave(p);
 			}
 		} else if (isWaitlisted(nick)) {
 			infoLeaveWaitlist(nick);
@@ -1121,6 +1122,17 @@ public class TexasPoker extends CardGame{
     /* 
      * Betting-related methods
      */
+	public int getNumberNotFolded(){
+		PokerPlayer p;
+		int numberNotFolded = 0;
+		for (int ctr = 0; ctr < getNumberJoined(); ctr++){
+			p = (PokerPlayer) getJoined(ctr);
+			if (!p.hasFolded()){
+				numberNotFolded++;
+			}
+		}
+		return numberNotFolded;
+	}
 	public int getNumberCanBet(){
 		PokerPlayer p;
 		int numberCanBet = 0;
@@ -1546,7 +1558,8 @@ public class TexasPoker extends CardGame{
 	public String getGameCommandStr() {
 		return "start (go), join (j), leave (quit, l, q), bet (b), check/call (c), " +
 				"raise (r), fold (f), community, turn, hand, cash, netcash (net), " + 
-				"debt, bankrupts, rounds, players, waitlist, blacklist, top5, simple, " +
-				"game, gamehelp (ghelp), gamerules (grules), gamecommands (gcommands)";
+				"debt, paydebt, bankrupts, rounds, players, waitlist, blacklist, top5, " + 
+				"simple, game, gamehelp (ghelp), gamerules (grules), " + 
+				"gamecommands (gcommands)";
 	}
 }

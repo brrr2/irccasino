@@ -20,6 +20,7 @@ package irccasino;
 
 import java.io.*;
 import java.util.*;
+
 import org.pircbotx.*;
 import org.pircbotx.hooks.ListenerAdapter;
 import org.pircbotx.hooks.events.*;
@@ -255,6 +256,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
 	public void addPlayer(Player p){
 		joined.add(p);
 		loadPlayerData(p);
+		bot.voice(channel, findUser(p.getNick()));
 		showJoin(p);
 	}
     public boolean isJoined(String nick){
@@ -281,6 +283,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     }
     public void removeJoined(Player p){
     	joined.remove(p);
+    	savePlayerData(p);
+    	bot.deVoice(channel, findUser(p.getNick()));
+    	showLeave(p);
     }
     public void removeWaitlisted(String nick){
     	Player p = findWaitlisted(nick);
@@ -295,6 +300,18 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     }
     public void removeBlacklisted(Player p){
     	blacklist.remove(p);
+    }
+    public User findUser(String nick){
+        Set<User> users = bot.getUsers(channel);
+        User user;
+        Iterator<User> it = users.iterator();
+        while(it.hasNext()){
+        	user = (User) it.next();
+            if (user.getNick().toLowerCase().equals(nick.toLowerCase())){
+                return user;
+            }
+        }
+        return null;
     }
     public Player findJoined(String nick){
     	for (int ctr=0; ctr< getNumberJoined(); ctr++){
@@ -481,6 +498,14 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     	}
     }
     
+    public void devoiceAll(){
+    	Player p;
+        for (int ctr=0; ctr<getNumberJoined(); ctr++){
+            p = getJoined(ctr);
+            bot.deVoice(channel, findUser(p.getNick()));
+        }
+    }
+    
     /* 
      * Channel output methods to reduce clutter.
      * These methods will all send a specific message or set of
@@ -503,7 +528,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         bot.sendMessage(channel, p.getNickStr()+" has joined the game.");
     }
     public void showLeave(Player p){
-        bot.sendMessage(channel, p.getNickStr()+" has left the game.");
+    	if (p.getCash() == 0){
+    		bot.sendMessage(channel, p.getNickStr()+" has gone bankrupt and left the game.");
+    	} else {
+    		bot.sendMessage(channel, p.getNickStr()+" has left the game.");
+    	}
     }
     public void showNoPlayers(){
         bot.sendMessage(channel, "Not enough players.");

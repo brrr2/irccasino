@@ -76,7 +76,7 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
 			case 2:
 				network = args[0];
 	        	channel = "##"+args[1];
-	        	bot.setName("botNick");
+	        	bot.setName("ExampleBot");
 	    	    bot.setLogin("Bot");
 	    	    try {
 	            	bot.connect(network);

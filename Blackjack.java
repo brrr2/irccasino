@@ -887,9 +887,7 @@ public class Blackjack extends CardGame {
 				if (isBetting()){
 					if (p == currentPlayer){
 						currentPlayer = getNextPlayer();
-						savePlayerData(p);
 						removeJoined(p);
-						showLeave(p);
 						if (currentPlayer == null) {
 							setBetting(false);
 							if (getNumberJoined() == 0) {
@@ -903,9 +901,7 @@ public class Blackjack extends CardGame {
 							showTurn(currentPlayer);
 						}
 					} else {
-						savePlayerData(p);
 						removeJoined(p);
-						showLeave(p);
 					}
 				} else {
 					p.setQuit(true);
@@ -914,9 +910,7 @@ public class Blackjack extends CardGame {
 					}
 				}
 			} else {
-				savePlayerData(p);
 				removeJoined(p);
-				showLeave(p);
 			}
 		} else if (isWaitlisted(nick)) {
 			infoLeaveWaitlist(nick);
@@ -987,17 +981,13 @@ public class Blackjack extends CardGame {
 					p.incrementBankrupts();
 					blacklist.add(p);
 					infoPlayerBankrupt(p.getNick());
-					bot.sendMessage(channel, p.getNickStr()	+ " has gone bankrupt. " +
-							"S/He has been kicked to the curb.");
 					removeJoined(p.getNick());
 					setRespawnTimer(p);
 					ctr--;
 				} else if (p.hasQuit() && isJoined(p)) {
 					removeJoined(p.getNick());
-					showLeave(p);
 					ctr--;
 				}
-				savePlayerData(p);
 				resetPlayer(p);
 			}
 		} else {
@@ -1020,6 +1010,7 @@ public class Blackjack extends CardGame {
 		saveAllPlayers();
 		saveHouseStats();
 		saveSettings();
+		devoiceAll();
 		joined.clear();
 		waitlist.clear();
 		blacklist.clear();
@@ -2113,8 +2104,8 @@ public class Blackjack extends CardGame {
 	public String getGameCommandStr() {
 		return "start (go), join (j), leave (quit, l, q), bet (b), hit (h), stay (sit, stand), doubledown (dd), "
 				+ "surrender (surr), insure, split, table, turn, sum, hand, allhands, cash, netcash (net), "
-				+ "debt, bankrupts, rounds, numdecks (ndecks), numcards (ncards), numdiscards (ndiscards), "
-				+ "hilo (hc), zen (zc), red7 (rc), simple, players, waitlist, blacklist, top5, "
+				+ "debt, paydebt, bankrupts, rounds, numdecks (ndecks), numcards (ncards), numdiscards (ndiscards), "
+				+ "hilo (hc), zen (zc), red7 (rc), count, simple, players, waitlist, blacklist, top5, "
 				+ "gamehelp (ghelp), gamerules (grules), gamecommands (gcommands)";
 	}
 	
