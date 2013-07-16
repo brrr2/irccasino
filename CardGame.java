@@ -115,10 +115,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     public void onNickChange(NickChangeEvent<PircBotX> e){
     	String oldNick = e.getOldNick();
     	String newNick = e.getNewNick();
+    	User user = e.getUser();
     	String hostmask = e.getUser().getHostmask();
+    	
     	if (isJoined(oldNick) || isWaitlisted(oldNick)){
     		infoNickChange(newNick);
     		if (isJoined(oldNick)){
+    			bot.deVoice(channel, user);
 		    	leave(oldNick);
 	    	} else if(isWaitlisted(oldNick)){
 				removeWaitlisted(oldNick);
@@ -254,9 +257,12 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     abstract public void addPlayer(String nick, String hostmask);
     abstract public void addWaitlistPlayer(String nick, String hostmask);
 	public void addPlayer(Player p){
+		User user = findUser(p.getNick());
 		joined.add(p);
 		loadPlayerData(p);
-		bot.voice(channel, findUser(p.getNick()));
+		if (user != null){
+			bot.voice(channel, user);
+		}
 		showJoin(p);
 	}
     public boolean isJoined(String nick){
@@ -282,9 +288,12 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         removeJoined(p);
     }
     public void removeJoined(Player p){
+    	User user = findUser(p.getNick());
     	joined.remove(p);
     	savePlayerData(p);
-    	bot.deVoice(channel, findUser(p.getNick()));
+    	if (user != null){
+    		bot.deVoice(channel, user);
+    	}
     	showLeave(p);
     }
     public void removeWaitlisted(String nick){
