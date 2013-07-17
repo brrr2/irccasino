@@ -25,7 +25,8 @@ import org.pircbotx.*;
 import org.pircbotx.hooks.events.MessageEvent;
 
 public class Blackjack extends CardGame {
-	public static class IdleOutTask extends TimerTask {
+	/* Nested class to create an idle out task for blackjack */
+	public class IdleOutTask extends TimerTask {
 		private BlackjackPlayer player;
 		private Blackjack game;
 
@@ -48,8 +49,8 @@ public class Blackjack extends CardGame {
 			}
 		}
 	}
-
-	public static class IdleShuffleTask extends TimerTask {
+	/* Nested class to create a shuffle timer thread */
+	public class IdleShuffleTask extends TimerTask {
 		private Blackjack game;
 
 		public IdleShuffleTask(Blackjack g) {
@@ -61,8 +62,8 @@ public class Blackjack extends CardGame {
 			game.shuffleShoe();
 		}
 	}
-
-	public static class HouseStat {
+	/* Nested class to store statistics, based on number of decks used, for the house */
+	public class HouseStat {
 		private int decks, rounds, cash;
 
 		public HouseStat() {
@@ -106,10 +107,8 @@ public class Blackjack extends CardGame {
 	/**
 	 * Class constructor for Blackjack, a subclass of CardGame.
 	 * 
-	 * @param parent
-	 *            the bot that creates an instance of this ListenerAdapter
-	 * @param gameChannel
-	 *            the IRC channel in which the game is to be run.
+	 * @param parent		the bot that creates an instance of this ListenerAdapter
+	 * @param gameChannel	the IRC channel in which the game is to be run.
 	 */
 	public Blackjack(PircBotX parent, Channel gameChannel, char c) {
 		super(parent, gameChannel, c);

@@ -26,7 +26,7 @@ import org.pircbotx.hooks.ListenerAdapter;
 import org.pircbotx.hooks.events.*;
 
 public abstract class CardGame extends ListenerAdapter<PircBotX>{
-	public static class StartRoundTask extends TimerTask{
+	public class StartRoundTask extends TimerTask{
 		CardGame game;
 		public StartRoundTask(CardGame g){
 			game = g;
@@ -36,7 +36,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
 			game.startRound();
 		}
 	}
-	public static class RespawnTask extends TimerTask {
+	public class RespawnTask extends TimerTask {
 		Player p;
 		CardGame game;
 		public RespawnTask(Player p, CardGame g) {
@@ -534,13 +534,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     	bot.sendMessage(channel,"It's now "+p.getNickStr()+"'s turn.");
     }
     public void showJoin(Player p){
-        bot.sendMessage(channel, p.getNickStr()+" has joined the game.");
+        bot.sendMessage(channel, p.getNickStr()+" has joined the game. Players: "+getNumberJoined());
     }
     public void showLeave(Player p){
     	if (p.getCash() == 0){
-    		bot.sendMessage(channel, p.getNickStr()+" has gone bankrupt and left the game.");
+    		bot.sendMessage(channel, p.getNickStr()+" has gone bankrupt and left the game. Players: "+getNumberJoined());
     	} else {
-    		bot.sendMessage(channel, p.getNickStr()+" has left the game.");
+    		bot.sendMessage(channel, p.getNickStr()+" has left the game. Players: "+getNumberJoined());
     	}
     }
     public void showNoPlayers(){

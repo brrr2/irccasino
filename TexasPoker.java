@@ -26,7 +26,7 @@ import org.pircbotx.hooks.events.MessageEvent;
 
 public class TexasPoker extends CardGame{
     /* Idle task specific for Texas Hold'em Poker. */
-	public static class IdleOutTask extends TimerTask {
+	public class IdleOutTask extends TimerTask {
 		private PokerPlayer player;
 		private TexasPoker game;
 
@@ -46,7 +46,7 @@ public class TexasPoker extends CardGame{
 		}
 	}
     /* A pot class to handle bets and payouts in Texas Hold'em Poker. */
-	public static class PokerPot {
+	public class PokerPot {
 		private ArrayList<PokerPlayer> players;
 		private int pot;
 		
@@ -148,8 +148,7 @@ public class TexasPoker extends CardGame{
 				} else {
 					showStartRound();
 					setButton();
-					showTablePlayers();
-					setInProgress(true);
+					showTablePlayers();				
 					setStartRoundTimer();
 				}
 			} else if (msg.startsWith("bet ") || msg.startsWith("b ")
@@ -645,9 +644,10 @@ public class TexasPoker extends CardGame{
 	
 	@Override
 	public void startRound() {
-		if (getNumberJoined() < 2){
+		if (getNumberNotQuit() < 2){
 			endRound();
 		} else {
+			setInProgress(true);
 			dealTable();
 			setBlindBets();
 			currentPlayer = getPlayerAfter(bigBlind);
@@ -678,7 +678,11 @@ public class TexasPoker extends CardGame{
 					burnOne();
 				}
 				dealCommunity();
-				showCommunityCards();
+				// Only show dealt community cards when there are 
+				// more than 1 non-folded player remaining.
+				if (getNumberNotFolded() > 1){
+					showCommunityCards();
+				}
 				topBettor = null;
 				currentPlayer = dealer;
 				continueRound();
@@ -699,7 +703,7 @@ public class TexasPoker extends CardGame{
 			pots.add(currentPot);
 		}
 		
-		if (getNumberJoined() > 1) {
+		if (getNumberJoined() > 1 && pots.size() > 0) {
 			// Give all non-folded players the community cards
 			for (int ctr = 0; ctr < getNumberJoined(); ctr++){
 				p = (PokerPlayer) getJoined(ctr);
@@ -797,12 +801,25 @@ public class TexasPoker extends CardGame{
 				if (p == currentPlayer){
 					fold();
 				} else {
-					p.setFold(true);
-					showFold(p);
-					// Check if there is only one more player who hasn't folded,
-					// force check/call on that remaining player (whose turn it is)
-					if (getNumberNotFolded() == 1){
-						checkCall();
+					bot.sendNotice(p.getNick(), "You will be removed at the end of the round.");
+					if (!p.hasFolded()){
+						p.setFold(true);
+						showFold(p);
+						// Remove this player from any existing pots
+						if (currentPot != null && currentPot.hasPlayer(p)){
+				            currentPot.removePlayer(p);
+				        }
+						for (int ctr = 0; ctr < pots.size(); ctr++){
+							PokerPot cPot = pots.get(ctr);
+							if (cPot.hasPlayer(p)){
+								cPot.removePlayer(p);
+							}
+						}
+						// Check if there is only one more player who hasn't folded,
+						// force check/call on that remaining player (whose turn it is)
+						if (getNumberNotFolded() == 1){
+							checkCall();
+						}
 					}
 				}
 			} else {
@@ -1122,6 +1139,17 @@ public class TexasPoker extends CardGame{
     /* 
      * Betting-related methods
      */
+	public int getNumberNotQuit(){
+		PokerPlayer p;
+		int numberNotQuit = 0;
+		for (int ctr = 0; ctr < getNumberJoined(); ctr++){
+			p = (PokerPlayer) getJoined(ctr);
+			if (!p.hasQuit()){
+				numberNotQuit++;
+			}
+		}
+		return numberNotQuit;
+	}
 	public int getNumberNotFolded(){
 		PokerPlayer p;
 		int numberNotFolded = 0;
@@ -1551,7 +1579,7 @@ public class TexasPoker extends CardGame{
 	
 	@Override
 	public String getGameRulesStr() {
-		return "This is no limit Texas Hold'em Poker.";
+		return "This is no limit Texas Hold'em Poker. $" + getMinBet() + " minimum bet/raise.";
 	}
 
 	@Override
