@@ -18,8 +18,6 @@
 */
 package irccasino;
 
-import javax.net.ssl.SSLSocketFactory;
-
 import org.pircbotx.*;
 import org.pircbotx.cap.SASLCapHandler;
 import org.pircbotx.hooks.ListenerAdapter;
@@ -56,7 +54,7 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
 	    	    bot.setLogin("Bot");
 	        	try {
 	    	    	bot.getCapHandlers().add(new SASLCapHandler(botNick, password));
-	            	bot.connect(network,7000,SSLSocketFactory.getDefault());
+	            	bot.connect(network);
 	            } catch (Exception e){
 	            	System.out.println("Error connecting to "+network);
 	            }
@@ -79,7 +77,7 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
 	        	bot.setName("ExampleBot");
 	    	    bot.setLogin("Bot");
 	    	    try {
-	            	bot.connect(network);
+	    	    	bot.connect(network);
 	            } catch (Exception e){
 	            	System.out.println("Error connecting to "+network);
 	            }
