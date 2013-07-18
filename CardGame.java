@@ -547,6 +547,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     abstract public void showGameStats();
     abstract public void showTopPlayers(String param, int n);
     abstract public void showPlayerRounds(String nick);
+    abstract public void showPlayerAllStats(String nick);
     abstract public void showReloadSettings();
     public void showSetting(String param, String value){
 		bot.sendMessage(channel, param+"="+value);

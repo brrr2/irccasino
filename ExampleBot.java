@@ -116,14 +116,12 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
                 if (game == null){
                     bot.sendMessage(channel, "No game is currently running!");
                 } else {
-                    game.showGameEnd();
                     game.endGame();
                     manager.removeListener(game);
                     game = null;
                 }
             } else if (msg.equals("shutdown") || msg.equals("botquit")) {
                 if (game != null){
-                	game.showGameEnd();
                 	game.endGame();
                     manager.removeListener(game);
                     game = null;

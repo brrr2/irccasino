@@ -116,6 +116,7 @@ public class TexasPoker extends CardGame{
 		stage = 0;
 		currentBet = 0;
 		currentPot = null;
+        currentPlayer = null;
 		dealer = null;
 		smallBlind = null;
 		bigBlind = null;
@@ -142,9 +143,10 @@ public class TexasPoker extends CardGame{
 				leave(nick);
 			} else if (msg.equals("start") || msg.equals("go")) {
                 if (canPlayerStart(nick)){
+                    setInProgress(true);
 					showStartRound();
 					setButton();
-					showTablePlayers();				
+					showTablePlayers();
 					setStartRoundTimer();
 				}
 			} else if (msg.startsWith("bet ") || msg.startsWith("b ")
@@ -257,6 +259,14 @@ public class TexasPoker extends CardGame{
 					showPlayerRounds(param);
 				} catch (NoSuchElementException e) {
 					showPlayerRounds(nick);
+				}
+            } else if (msg.startsWith("player ") || msg.equals("player") || 
+                    msg.startsWith("p ") || msg.equals("p")){
+                try {
+					String param = parseStringParam(origMsg);
+                    showPlayerAllStats(param);
+				} catch (NoSuchElementException e) {
+					showPlayerAllStats(nick);
 				}
 			} else if (msg.startsWith("paydebt ") || msg.equals("paydebt") ) {
 				if (!isJoined(nick)) {
@@ -532,7 +542,6 @@ public class TexasPoker extends CardGame{
 		if (getNumberNotQuit() < 2){
 			endRound();
 		} else {
-			setInProgress(true);
 			dealTable();
 			setBlindBets();
 			currentPlayer = getPlayerAfter(bigBlind);
@@ -595,7 +604,6 @@ public class TexasPoker extends CardGame{
 	@Override
 	public void endRound() {
 		PokerPlayer p;
-		setInProgress(false);
 		if (currentPot != null){
 			pots.add(currentPot);
 		}
@@ -637,7 +645,9 @@ public class TexasPoker extends CardGame{
 				} else if (p.hasQuit() && isJoined(p)) {
 					removeJoined(p.getNick());
 					ctr--;
-				}
+				} else {
+                    savePlayerData(p);
+                }
 				resetPlayer(p);
 			}
 		} else {
@@ -647,6 +657,7 @@ public class TexasPoker extends CardGame{
 		resetGame();
 		showEndRound();
 		showSeparator();
+        setInProgress(false);
 		mergeWaitlist();
 	}
 
@@ -668,6 +679,7 @@ public class TexasPoker extends CardGame{
 		smallBlind = null;
 		bigBlind = null;
 		topBettor = null;
+        showGameEnd();
 	}
 
 	@Override
@@ -698,8 +710,12 @@ public class TexasPoker extends CardGame{
             // Check if a round is in progress
 			if (isInProgress()) {
 				p.setQuit(true);
+                /* If still in the post-start wait period, then currentPlayer has
+                 * not been set yet. */
+                if (currentPlayer == null){
+                    removeJoined(p);
                 // Force the player to fold if it is his turn
-				if (p == currentPlayer){
+                } else if (p == currentPlayer){
 					fold();
 				} else {
 					bot.sendNotice(p.getNick(), "You will be removed at the end of the round.");
@@ -1371,7 +1387,21 @@ public class TexasPoker extends CardGame{
 			bot.sendMessage(channel, "No data found for " + nick + ".");
 		}
 	}
-	
+	@Override
+    public void showPlayerAllStats(String nick){
+        int cash = getPlayerStat(nick, "cash");
+        int debt = getPlayerStat(nick, "debt");
+        int net = getPlayerStat(nick, "netcash");
+        int bankrupts = getPlayerStat(nick, "bankrupts");
+        int rounds = getPlayerStat(nick, "tprounds");
+        if (cash != Integer.MIN_VALUE) {
+            bot.sendMessage(channel, nick+" | Cash: $"+formatNumber(cash)+" | Debt: $"+
+                    formatNumber(debt)+" | Net: $"+formatNumber(net)+" | Bankrupts: "+
+                    formatNumber(bankrupts)+" | Rounds: "+formatNumber(rounds));
+        } else {
+            bot.sendMessage(channel, "No data found for " + nick + ".");
+        }
+    }       
 	@Override
 	public void showReloadSettings() {
 		bot.sendMessage(channel, "texaspoker.ini has been reloaded.");
@@ -1518,8 +1548,8 @@ public class TexasPoker extends CardGame{
 	public String getGameCommandStr() {
 		return "start (go), join (j), leave (quit, l, q), bet (b), check/call (c), " +
 				"raise (r), fold (f), community, turn, hand, cash, netcash (net), " + 
-				"debt, paydebt, bankrupts, rounds, players, waitlist, blacklist, top5, " + 
-				"simple, game, gamehelp (ghelp), gamerules (grules), " + 
-				"gamecommands (gcommands)";
+				"debt, paydebt, bankrupts, rounds, player (p), players, waitlist, " +
+                "blacklist, top5, top10, simple, game, gamehelp (ghelp), gamerules " +
+                "(grules), gamecommands (gcommands)";
 	}
 }

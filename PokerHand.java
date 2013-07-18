@@ -231,7 +231,7 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
 				h.remove(c);
 				h.add(a, 0);
 				h.add(b, 1);
-				h.add(b, 2);
+				h.add(c, 2);
 				return true;
 			}
 		}
@@ -334,7 +334,7 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
 				h.add(a,0);
 				h.add(b,1);
 				h.add(c,2);
-				h.add(d,2);
+				h.add(d,3);
 				return true;
 			}
 		}
@@ -349,8 +349,8 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
 			c = h.get(ctr);
 			suitCount[c.getSuitValue()]++;
 		}
-		// Reorganizes the cards to reveal the first straight flush
-		// that is found.
+		/* Reorganizes the cards to reveal the first suit that has 
+         * a straight flush. */
 		for (int ctr = 0; ctr < CardDeck.suits.length; ctr++){
 			if (suitCount[ctr] >= 5){
 				for (int ctr2 = 0; ctr2 < h.getSize(); ctr2++){

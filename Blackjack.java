@@ -119,6 +119,7 @@ public class Blackjack extends CardGame {
 		stats = new ArrayList<HouseStat>();
 		loadHouseStats();
 		loadSettings();
+        currentPlayer = null;
 		insuranceBets = false;
 	}
 
@@ -149,9 +150,9 @@ public class Blackjack extends CardGame {
 					showNoPlayers();
 				} else {
 					cancelIdleShuffleTimer();
+                    setInProgress(true);
 					showStartRound();
 					showPlayers();
-					setInProgress(true);
 					setBetting(true);
 					setStartRoundTimer();
 				}
@@ -304,6 +305,14 @@ public class Blackjack extends CardGame {
 					showPlayerRounds(param);
 				} catch (NoSuchElementException e) {
 					showPlayerRounds(nick);
+				}
+			} else if (msg.startsWith("player ") || msg.equals("player") || 
+                    msg.startsWith("p ") || msg.equals("p")){
+                try {
+					String param = parseStringParam(origMsg);
+                    showPlayerAllStats(param);
+				} catch (NoSuchElementException e) {
+					showPlayerAllStats(nick);
 				}
 			} else if (msg.startsWith("paydebt ") || msg.equals("paydebt") ) {
 				if (!isJoined(nick)) {
@@ -867,7 +876,6 @@ public class Blackjack extends CardGame {
 	public void endRound() {
 		BlackjackPlayer p;
 		BlackjackHand dHand;
-		setInProgress(false);
 		if (getNumberJoined() >= 1) {
 			house.incrementNumRounds();
 			// Make dealer decisions
@@ -904,7 +912,9 @@ public class Blackjack extends CardGame {
 				} else if (p.hasQuit() && isJoined(p)) {
 					removeJoined(p.getNick());
 					ctr--;
-				}
+				} else {
+                    savePlayerData(p);
+                }
 				resetPlayer(p);
 			}
 		} else {
@@ -913,6 +923,7 @@ public class Blackjack extends CardGame {
 		resetGame();
 		showEndRound();
 		showSeparator();
+        setInProgress(false);
 		mergeWaitlist();
 		if (deck.getNumberDiscards() > 0) {
 			setIdleShuffleTimer();
@@ -934,6 +945,7 @@ public class Blackjack extends CardGame {
 		deck = null;
 		dealer = null;
 		currentPlayer = null;
+        showGameEnd();
 	}
 	@Override
 	public void resetGame() {
@@ -1732,6 +1744,21 @@ public class Blackjack extends CardGame {
 		}
 	}
     @Override
+    public void showPlayerAllStats(String nick){
+        int cash = getPlayerStat(nick, "cash");
+        int debt = getPlayerStat(nick, "debt");
+        int net = getPlayerStat(nick, "netcash");
+        int bankrupts = getPlayerStat(nick, "bankrupts");
+        int rounds = getPlayerStat(nick, "bjrounds");
+        if (cash != Integer.MIN_VALUE) {
+            bot.sendMessage(channel, nick+" | Cash: $"+formatNumber(cash)+" | Debt: $"+
+                    formatNumber(debt)+" | Net: $"+formatNumber(net)+" | Bankrupts: "+
+                    formatNumber(bankrupts)+" | Rounds: "+formatNumber(rounds));
+        } else {
+            bot.sendMessage(channel, "No data found for " + nick + ".");
+        }
+    } 
+    @Override
 	public void showDeckEmpty() {
 		bot.sendMessage(channel,
 				"The dealer's shoe is empty. Refilling the dealer's shoe with discards...");
@@ -2027,11 +2054,12 @@ public class Blackjack extends CardGame {
 
 	@Override
 	public String getGameCommandStr() {
-		return "start (go), join (j), leave (quit, l, q), bet (b), hit (h), stay (sit, stand), doubledown (dd), "
-				+ "surrender (surr), insure, split, table, turn, sum, hand, allhands, cash, netcash (net), "
-				+ "debt, paydebt, bankrupts, rounds, numdecks (ndecks), numcards (ncards), numdiscards (ndiscards), "
-				+ "hilo (hc), zen (zc), red7 (rc), count, simple, players, waitlist, blacklist, top5, "
-				+ "gamehelp (ghelp), gamerules (grules), gamecommands (gcommands)";
+		return "start (go), join (j), leave (quit, l, q), bet (b), hit (h), stay (sit, stand), "+
+                "doubledown (dd), surrender (surr), insure, split, table, turn, sum, hand, "+
+                "allhands, cash, netcash (net), debt, paydebt, bankrupts, rounds, player (p), "+
+                "numdecks (ndecks), numcards (ncards), numdiscards (ndiscards), hilo (hc), "+
+                "zen (zc), red7 (rc), count, simple, players, waitlist, blacklist, top5, "+
+                "top10, gamehelp (ghelp), gamerules (grules), gamecommands (gcommands)";
 	}
 	
 	public String getSurrenderStr(){

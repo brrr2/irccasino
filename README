@@ -2,6 +2,8 @@ README for irccasino
 
 Java implementations of various casino games for IRC using PircBotX. It can be added to any IRC bot that has been implemented using the PircBotX library. Please visit code.google.com/p/pircbotx for more information.
 
+This project is compatible with PircBotX v1.9.
+
 Included games:
 Blackjack
 Texas Hold'em Poker
