@@ -29,7 +29,6 @@ public class Blackjack extends CardGame {
 	public class IdleOutTask extends TimerTask {
 		private BlackjackPlayer player;
 		private Blackjack game;
-
 		public IdleOutTask(BlackjackPlayer p, Blackjack g) {
 			player = p;
 			game = g;
@@ -47,12 +46,13 @@ public class Blackjack extends CardGame {
 					game.leave(player.getNick());
 				}
 			}
+            game.idleOutTimer.cancel();
+            game.idleOutTimer = null;
 		}
 	}
 	/* Nested class to create a shuffle timer thread */
 	public class IdleShuffleTask extends TimerTask {
 		private Blackjack game;
-
 		public IdleShuffleTask(Blackjack g) {
 			game = g;
 		}
@@ -60,6 +60,8 @@ public class Blackjack extends CardGame {
 		@Override
 		public void run() {
 			game.shuffleShoe();
+            game.idleShuffleTimer.cancel();
+            game.idleShuffleTimer = null;
 		}
 	}
 	/* Nested class to store statistics, based on number of decks used, for the house */
@@ -289,8 +291,7 @@ public class Blackjack extends CardGame {
 				} catch (NoSuchElementException e) {
 					showPlayerDebt(nick);
 				}
-			} else if (msg.startsWith("bankrupts ")
-					|| msg.equals("bankrupts")) {
+			} else if (msg.startsWith("bankrupts ")	|| msg.equals("bankrupts")) {
 				try {
 					String param = parseStringParam(origMsg);
 					showPlayerBankrupts(param);
@@ -414,130 +415,47 @@ public class Blackjack extends CardGame {
 				}
 			} else if (msg.equals("fb") || msg.equals("fbet") ||
 					msg.startsWith("fb ") || msg.startsWith("fbet ")){
-				if (!channel.isOp(user)) {
-					infoOpsOnly(nick);
-				} else if (!isInProgress()) {
-					infoNotStarted(nick);
-				} else {
+				if (isForceBetCommandAllowed(user, nick)){
 					try {
-						try {
-							String[] params = parseIniParams(msg);
-							String fNick = params[0];
-							try {
-								int amount = Integer.parseInt(params[1]);
-								if (isStage1PlayerTurn(fNick)){
-									bet(amount);
-								}
-							} catch (NumberFormatException e) {
-								infoBadParameter(nick);
-							}
-						} catch (IllegalArgumentException e) {
-							infoBadParameter(nick);
-						}
+                        try {
+                            int amount = parseNumberParam(msg);
+                            bet(amount);
+                        } catch (NumberFormatException e) {
+                            infoBadParameter(nick);
+                        }
 					} catch (NoSuchElementException e) {
 						infoNoParameter(nick);
 					}
 				}
-			} else if (msg.equals("fhit") || msg.equals("fh") ||
-					msg.startsWith("fhit ") || msg.startsWith("fh ")) {
-				if (!channel.isOp(user)) {
-					infoOpsOnly(nick);
-				} else if (!isInProgress()) {
-					infoNotStarted(nick);
-				} else {
-					try {
-						String fNick = parseStringParam(msg);
-						if (isStage2PlayerTurn(fNick)){
-							hit();
-						}
-					} catch (NoSuchElementException e) {
-						infoNoParameter(nick);
-					}
+			} else if (msg.equals("fhit") || msg.equals("fh")) {
+				if (isForcePlayCommandAllowed(user, nick)){
+                    hit();
 				}
-			} else if (msg.equals("fstay") || msg.equals("fstand") || msg.equals("fsit") || 
-					msg.startsWith("fstay ") || msg.startsWith("fstand ") || msg.startsWith("fsit ") ) {
-				if (!channel.isOp(user)) {
-					infoOpsOnly(nick);
-				} else if (!isInProgress()) {
-					infoNotStarted(nick);
-				} else {
-					try {
-						String fNick = parseStringParam(msg);
-						if (isStage2PlayerTurn(fNick)){
-							stay();
-						}
-					} catch (NoSuchElementException e) {
-						infoNoParameter(nick);
-					}
+			} else if (msg.equals("fstay") || msg.equals("fstand") || msg.equals("fsit")) {
+				if (isForcePlayCommandAllowed(user, nick)){
+                    stay();
 				}
-			} else if (msg.equals("fdoubledown") || msg.equals("fdd") || 
-					msg.startsWith("fdoubledown ") || msg.startsWith("fdd ")) {
-				if (!channel.isOp(user)) {
-					infoOpsOnly(nick);
-				} else if (!isInProgress()) {
-					infoNotStarted(nick);
-				} else {
-					try {
-						String fNick = parseStringParam(msg);
-						if (isStage2PlayerTurn(fNick)){
-							doubleDown();
-						}
-					} catch (NoSuchElementException e) {
-						infoNoParameter(nick);
-					}
+			} else if (msg.equals("fdoubledown") || msg.equals("fdd")) {
+				if (isForcePlayCommandAllowed(user, nick)){
+                    doubleDown();
 				}
-			} else if (msg.equals("fsurrender") || msg.equals("fsurr") || 
-					msg.startsWith("fsurrender ") || msg.startsWith("fsurr ") ) {
-				if (!channel.isOp(user)) {
-					infoOpsOnly(nick);
-				} else if (!isInProgress()) {
-					infoNotStarted(nick);
-				} else {
-					try {
-						String fNick = parseStringParam(msg);
-						if (isStage2PlayerTurn(fNick)){
-							surrender();
-						}
-					} catch (NoSuchElementException e) {
-						infoNoParameter(nick);
-					}
+			} else if (msg.equals("fsurrender") || msg.equals("fsurr")) {
+                if (isForcePlayCommandAllowed(user, nick)){
+                    surrender();
+				}
+			} else if (msg.equals("fsplit")) {
+				if (isForcePlayCommandAllowed(user, nick)){
+                    split();
 				}
 			} else if (msg.equals("finsure") || msg.startsWith("finsure ")) {
-				if (!channel.isOp(user)) {
-					infoOpsOnly(nick);
-				} else if (!isInProgress()) {
-					infoNotStarted(nick);
-				} else {
+				if (isForcePlayCommandAllowed(user, nick)){
 					try {
-						try {
-							String[] params = parseIniParams(msg);
-							String fNick = params[0];
-							try {
-								int amount = Integer.parseInt(params[1]);
-								if (isStage2PlayerTurn(fNick)){
-									insure(amount);
-								}
-							} catch (NumberFormatException e) {
-								infoBadParameter(nick);
-							}
-						} catch (IllegalArgumentException e) {
-							infoBadParameter(nick);
-						}
-					} catch (NoSuchElementException e) {
-						infoNoParameter(nick);
-					}
-				}
-			} else if (msg.equals("fsplit") || msg.startsWith("fsplit ")) {
-				if (!channel.isOp(user)) {
-					infoOpsOnly(nick);
-				} else if (!isInProgress()) {
-					infoNotStarted(nick);
-				} else {
-					try {
-						String fNick = parseStringParam(msg);
-						if (isStage2PlayerTurn(fNick)){
-							split();
-						}
+                        try {
+                            int amount = parseNumberParam(msg);
+                            insure(amount);
+                        } catch (NumberFormatException e) {
+                            infoBadParameter(nick);
+                        }
 					} catch (NoSuchElementException e) {
 						infoNoParameter(nick);
 					}
@@ -958,7 +876,7 @@ public class Blackjack extends CardGame {
 			showPlayerHand(dealer, dHand, true);
 			if (needDealerHit()) {
 				while (getCardSum(dHand) < 17) {
-					dealOne(dHand);
+					dealCard(dHand);
 					showPlayerHand(dealer, dHand, true);
 				}
 			}
@@ -1034,8 +952,7 @@ public class Blackjack extends CardGame {
 	@Override
 	public void setIdleOutTimer() {
 		idleOutTimer = new Timer();
-		idleOutTimer.schedule(new IdleOutTask((BlackjackPlayer) currentPlayer,
-				this), idleOutTime*1000);
+		idleOutTimer.schedule(new IdleOutTask((BlackjackPlayer) currentPlayer, this), idleOutTime*1000);
 	}
 	@Override
 	public void cancelIdleOutTimer() {
@@ -1057,63 +974,83 @@ public class Blackjack extends CardGame {
 	public boolean isStage1PlayerTurn(String nick){
 		if (!isJoined(nick)) {
 			infoNotJoined(nick);
-			return false;
 		} else if (!isInProgress()) {
 			infoNotStarted(nick);
-			return false;
 		} else if (!isBetting()) {
 			infoNotBetting(nick);
-			return false;
-		} else if (!(currentPlayer == findJoined(nick))) {
+		} else if (currentPlayer != findJoined(nick)) {
 			infoNotTurn(nick);
-			return false;
-		}
-		return true;
+		} else {
+            return true;
+        }
+        return false;
 	}
 	public boolean isStage2(String nick){
 		if (!isJoined(nick)) {
 			infoNotJoined(nick);
-			return false;
 		} else if (!isInProgress()) {
 			infoNotStarted(nick);
-			return false;
 		} else if (isBetting()) {
 			infoNoCards(nick);
-			return false;
-		}
-		return true;
+		} else {
+            return true;
+        }
+        return false;
 	}
 	public boolean isStage2PlayerTurn(String nick){
 		if (!isStage2(nick)){
-			return false;
 		} else if (!(currentPlayer == findJoined(nick))) {
 			infoNotTurn(nick);
-			return false;
-		}
-		return true;
+		} else {
+            return true;
+        }
+        return false;
 	}
 	public boolean isOpCommandAllowed(User user, String nick){
-		if (isInProgress()) {
-			infoWaitRoundEnd(nick);
-			return false;
-		} else if (!channel.isOp(user)) {
+		if (!channel.isOp(user)) {
 			infoOpsOnly(nick);
-			return false;
-		}
-		return true;
+		} else if (isInProgress()) {
+			infoWaitRoundEnd(nick);
+		} else {
+            return true;
+        }
+        return false;
+	}
+    public boolean isForcePlayCommandAllowed(User user, String nick){
+		if (!channel.isOp(user)) {
+			infoOpsOnly(nick);
+		} else if (!isInProgress()) {
+			infoNotStarted(nick);
+		} else if (isBetting()) {
+            infoNoCards(nick);
+        } else {
+            return true;
+        }
+        return false;
+	}
+    public boolean isForceBetCommandAllowed(User user, String nick){
+		if (!channel.isOp(user)) {
+			infoOpsOnly(nick);
+		} else if (!isInProgress()) {
+			infoNotStarted(nick);
+		} else if (!isBetting()) {
+            infoNotBetting(nick);
+        } else {
+            return true;
+        }
+        return false;
 	}
 	public boolean isCountAllowed(String nick){
 		if (!isJoined(nick)) {
 			infoNotJoined(nick);
-			return false;
 		} else if (isInProgress()) {
 			infoWaitRoundEnd(nick);
-			return false;
 		} else if (!isCountEnabled()) {
 			infoCountDisabled(nick);
-			return false;
-		}
-		return true;
+		} else {
+            return true;
+        }
+        return false;
 	}
 
 	/* Player management methods */
@@ -1239,22 +1176,11 @@ public class Blackjack extends CardGame {
 		deck.refillDeck();
 		showShuffleShoe();
 	}
-	public void dealOne(Hand h) {
-		h.add(deck.takeCard());
-		if (deck.getNumberCards() == 0) {
-			showDeckEmpty();
-			deck.refillDeck();
-		}
-	}
 	public void dealHand(BlackjackPlayer p) {
 		p.addHand();
 		Hand h = p.getCurrentHand();
 		for (int ctr2 = 0; ctr2 < 2; ctr2++) {
-			h.add(deck.takeCard());
-			if (deck.getNumberCards() == 0) {
-				showDeckEmpty();
-				deck.refillDeck();
-			}
+            dealCard(h);
 		}
 	}
 	public void dealTable() {
@@ -1319,7 +1245,7 @@ public class Blackjack extends CardGame {
 		cancelIdleOutTimer();
 		BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
 		BlackjackHand h = p.getCurrentHand();
-		dealOne(h);
+		dealCard(h);
 		showHitResult(p,h);
 		if (isHandBusted(h)) {
 			continueRound();
@@ -1343,7 +1269,7 @@ public class Blackjack extends CardGame {
 			house.addCash(h.getBet());
 			h.addBet(h.getBet());
 			showDoubleDown(p, h);
-			dealOne(h);
+			dealCard(h);
 			showHitResult(p,h);
 			continueRound();
 		}
@@ -1410,9 +1336,9 @@ public class Blackjack extends CardGame {
 			p.addCash(-1 * cHand.getBet());
 			house.addCash(cHand.getBet());
 			p.splitHand();
-			dealOne(cHand);
+			dealCard(cHand);
 			nHand = p.getHand(p.getCurrentIndex() + 1);
-			dealOne(nHand);
+			dealCard(nHand);
 			nHand.setBet(cHand.getBet());
 			showSplitHands(p);
 			showSeparator();
@@ -1805,10 +1731,10 @@ public class Blackjack extends CardGame {
 			bot.sendMessage(channel, "No data found for " + nick + ".");
 		}
 	}
-
+    @Override
 	public void showDeckEmpty() {
 		bot.sendMessage(channel,
-				"The dealer's shoe is empty. Refilling the dealer's shoe...");
+				"The dealer's shoe is empty. Refilling the dealer's shoe with discards...");
 	}
 
 	public void showProperBet(BlackjackPlayer p) {

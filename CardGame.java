@@ -34,25 +34,31 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
 		@Override
 		public void run(){
 			game.startRound();
+            game.startRoundTimer.cancel();
+            game.startRoundTimer = null;
 		}
 	}
 	public class RespawnTask extends TimerTask {
-		Player p;
+		Player player;
 		CardGame game;
-		public RespawnTask(Player p, CardGame g) {
-			this.p = p;
+        Timer timer;
+		public RespawnTask(Player p, CardGame g, Timer t) {
+			player = p;
 			game = g;
+            timer = t;
 		}
 		@Override
 		public void run() {
 			ArrayList<Timer> timers = game.getRespawnTimers();
-			p.setCash(game.getNewCash());
-			p.addDebt(game.getNewCash());
-			game.bot.sendMessage(game.channel, p.getNickStr() + " has been loaned $"
+			player.setCash(game.getNewCash());
+			player.addDebt(game.getNewCash());
+			game.bot.sendMessage(game.channel, player.getNickStr() + " has been loaned $"
 							+ formatNumber(game.getNewCash()) + ". Please bet responsibly.");
-			game.removeBlacklisted(p);
-			game.savePlayerData(p);
-			timers.remove(this);
+			game.removeBlacklisted(player);
+			game.savePlayerData(player);
+			timers.remove(timer);
+            timer.cancel();
+            timer = null;
 		}
 	}
 
@@ -215,7 +221,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     }
     public void setRespawnTimer(Player p) {
 		Timer t = new Timer();
-		t.schedule(new RespawnTask(p, this), respawnTime*1000);
+		t.schedule(new RespawnTask(p, this, t), respawnTime*1000);
 		respawnTimers.add(t);
 	}
 	public void cancelRespawnTimers() {
@@ -516,6 +522,24 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     }
     
     /* 
+     * Generic card dealing methods
+     */
+	public void burnCard(){
+		deck.addToDiscard(deck.takeCard());
+        if (deck.getNumberCards() == 0) {
+			showDeckEmpty();
+			deck.refillDeck();
+		}
+	}
+    public void dealCard(Hand h) {
+		h.add(deck.takeCard());
+		if (deck.getNumberCards() == 0) {
+			showDeckEmpty();
+			deck.refillDeck();
+		}
+	}
+    
+    /* 
      * Channel output methods to reduce clutter.
      * These methods will all send a specific message or set of
      * messages to the main channel.
@@ -570,6 +594,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     public void showNumDiscards(){
         bot.sendMessage(channel, deck.getNumberDiscards()+" cards in the discard pile.");
     }
+    public void showDeckEmpty() {
+		bot.sendMessage(channel, "The deck is empty. Refilling with discards...");
+	}
     public void showPlayers(){
         String outStr;
         if (getNumberJoined()==0){
