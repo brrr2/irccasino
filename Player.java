@@ -30,8 +30,9 @@ public class Player {
     /**
      * Class constructor
      * 
-     * @param u		IRC user object
-     * @param d		Whether or not this player is dealer
+     * @param nick		IRC user nick
+     * @param hostmask  IRC user hostmask
+     * @param dealer	Whether or not this player is dealer
      */
     public Player(String nick, String hostmask, boolean dealer){
     	this.nick = nick;

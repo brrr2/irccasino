@@ -34,31 +34,25 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
 		@Override
 		public void run(){
 			game.startRound();
-            game.startRoundTimer.cancel();
-            game.startRoundTimer = null;
 		}
 	}
 	public class RespawnTask extends TimerTask {
 		Player player;
 		CardGame game;
-        Timer timer;
-		public RespawnTask(Player p, CardGame g, Timer t) {
+		public RespawnTask(Player p, CardGame g) {
 			player = p;
 			game = g;
-            timer = t;
 		}
 		@Override
 		public void run() {
-			ArrayList<Timer> timers = game.getRespawnTimers();
+			ArrayList<RespawnTask> tasks = game.getRespawnTasks();
 			player.setCash(game.getNewCash());
 			player.addDebt(game.getNewCash());
 			game.bot.sendMessage(game.channel, player.getNickStr() + " has been loaned $"
 							+ formatNumber(game.getNewCash()) + ". Please bet responsibly.");
-			game.removeBlacklisted(player);
 			game.savePlayerData(player);
-			timers.remove(timer);
-            timer.cancel();
-            timer = null;
+            game.removeBlacklisted(player);
+            tasks.remove(this);
 		}
 	}
 
@@ -70,9 +64,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     protected CardDeck deck;
     protected Player currentPlayer;
     protected boolean inProgress, betting;
-    protected Timer idleOutTimer, startRoundTimer;
+    protected Timer idleOutTimer, startRoundTimer, respawnTimer;
+    protected StartRoundTask startRoundTask;
     protected int idleOutTime, respawnTime, newcash;
-    private ArrayList<Timer> respawnTimers;
+    private ArrayList<RespawnTask> respawnTasks;
     
     /**
      * Class constructor for generic CardGame
@@ -87,9 +82,14 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         joined = new ArrayList<Player>();
         blacklist = new ArrayList<Player>();
         waitlist = new ArrayList<Player>();
-        respawnTimers = new ArrayList<Timer>();
+        respawnTasks = new ArrayList<RespawnTask>();
+        idleOutTimer = new Timer("IdleOutTimer");
+        startRoundTimer = new Timer("StartRoundTimer");
+        respawnTimer = new Timer("RespawnTimer");
+        startRoundTask = null;
         inProgress = false;
         betting = false;
+        currentPlayer = null;
         checkPlayerFile();
     }
     
@@ -175,8 +175,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     abstract public void endGame();
     abstract public void resetGame();
     abstract public void leave(String nick);
-    abstract public void setIdleOutTimer();
-    abstract public void cancelIdleOutTimer();
+    abstract public void setIdleOutTask();
+    abstract public void cancelIdleOutTask();
     abstract public void setSetting(String[] params);
     abstract public String getSetting(String param);
     abstract public void loadSettings();
@@ -219,37 +219,39 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     public boolean isBetting(){
         return betting;
     }
-    public void setRespawnTimer(Player p) {
-		Timer t = new Timer();
-		t.schedule(new RespawnTask(p, this, t), respawnTime*1000);
-		respawnTimers.add(t);
+    public void setRespawnTask(Player p) {
+		RespawnTask task = new RespawnTask(p, this);
+		respawnTimer.schedule(task, respawnTime*1000);
+		respawnTasks.add(task);
 	}
-	public void cancelRespawnTimers() {
+	public void cancelRespawnTasks() {
 		Player p;
-		if (!respawnTimers.isEmpty()) {
-			for (int ctr = 0; ctr < respawnTimers.size(); ctr++) {
-				respawnTimers.get(ctr).cancel();
+		if (!respawnTasks.isEmpty()) {
+			for (int ctr = 0; ctr < respawnTasks.size(); ctr++) {
+				respawnTasks.get(ctr).cancel();
 			}
-            respawnTimers.clear();
+            respawnTasks.clear();
 		}
+        // Fast-track loans
 		for (int ctr = 0; ctr < getNumberBlacklisted(); ctr++){
 			p = getBlacklisted(ctr);
 			p.setCash(getNewCash());
 			p.addDebt(getNewCash());
+            savePlayerData(p);
 		}
 	}
-	public ArrayList<Timer> getRespawnTimers() {
-		return respawnTimers;
+	public ArrayList<RespawnTask> getRespawnTasks() {
+		return respawnTasks;
 	}
-    public void setStartRoundTimer(){
-    	startRoundTimer = new Timer();
-    	startRoundTimer.schedule(new StartRoundTask(this), 5000);
+    public void setStartRoundTask(){
+        startRoundTask = new StartRoundTask(this);
+    	startRoundTimer.schedule(startRoundTask, 5000);
     }
-    public void cancelStartRoundTimer(){
-    	if (startRoundTimer != null){
-	    	startRoundTimer.cancel();
-	    	startRoundTimer = null;
-    	}
+    public void cancelStartRoundTask(){
+        if (startRoundTask != null){
+            startRoundTask.cancel();
+            startRoundTimer.purge();
+        }
     }
     
     /* 
@@ -397,8 +399,26 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         }
     }
     public int getPlayerStat(String nick, String stat){
-    	saveAllPlayers();
-    	return loadPlayerStat(nick, stat);
+        if (isJoined(nick) || isBlacklisted(nick)){
+            Player p = findJoined(nick);
+            if (p == null){
+                p = findBlacklisted(nick);
+            }
+            if (stat.equals("cash")){
+                return p.getCash();
+            } else if (stat.equals("debt")){
+                return p.getDebt();
+            } else if (stat.equals("bankrupts")){
+                return p.getBankrupts();
+            } else if (stat.equals("bjrounds") || stat.equals("tprounds")){
+                return p.getRounds();
+            } else if (stat.equals("netcash")){
+                return p.getCash()-p.getDebt();
+            } else if (stat.equals("exists")){
+                return 1;
+            }
+        }
+        return loadPlayerStat(nick, stat);
     }
     public void loadPlayerFile(ArrayList<String> nicks, ArrayList<Integer> stacks,
     							ArrayList<Integer> debts, ArrayList<Integer> bankrupts, 
@@ -430,21 +450,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
             			tprounds.get(ctr)+" "+simples.get(ctr));
         }
         out.close();
-    }
-    public void saveAllPlayers(){
-    	Player p;
-        for (int ctr=0; ctr<getNumberJoined(); ctr++){
-            p = getJoined(ctr);
-            savePlayerData(p);
-        }
-        for (int ctr=0; ctr<getNumberWaitlisted(); ctr++){
-            p = getWaitlisted(ctr);
-            savePlayerData(p);
-        }
-        for (int ctr=0; ctr<getNumberBlacklisted(); ctr++){
-            p = getBlacklisted(ctr);
-            savePlayerData(p);
-        }
     }
     public int loadPlayerStat(String nick, String stat){
     	try {
@@ -509,6 +514,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     		infoPaymentWillBankrupt(nick);
     	} else {
     		p.payDebt(amount);
+            savePlayerData(p);
     		showPlayerDebtPayment(p, amount);
     	}
     }
@@ -559,13 +565,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     	bot.sendMessage(channel,"It's now "+p.getNickStr()+"'s turn.");
     }
     public void showJoin(Player p){
-        bot.sendMessage(channel, p.getNickStr()+" has joined the game. Players: "+getNumberJoined());
+        bot.sendMessage(channel, p.getNickStr()+" has joined the game. Players: "+Colors.BOLD+getNumberJoined());
     }
     public void showLeave(Player p){
     	if (p.getCash() == 0){
-    		bot.sendMessage(channel, p.getNickStr()+" has gone bankrupt and left the game. Players: "+getNumberJoined());
+    		bot.sendMessage(channel, p.getNickStr()+" has gone bankrupt and left the game. Players: "+Colors.BOLD+getNumberJoined());
     	} else {
-    		bot.sendMessage(channel, p.getNickStr()+" has left the game. Players: "+getNumberJoined());
+    		bot.sendMessage(channel, p.getNickStr()+" has left the game. Players: "+Colors.BOLD+getNumberJoined());
     	}
     }
     public void showNoPlayers(){
@@ -599,40 +605,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
 		bot.sendMessage(channel, "The deck is empty. Refilling with discards...");
 	}
     public void showPlayers(){
-        String outStr;
-        if (getNumberJoined()==0){
-            outStr = "0 players joined!";
-        } else {
-            outStr = getNumberJoined()+ " player(s): ";
-            for (int ctr=0; ctr<getNumberJoined(); ctr++){
-                outStr += getJoined(ctr).getNick()+" "; 
-            }
-        }
-        bot.sendMessage(channel, outStr);
+        bot.sendMessage(channel, "Joined: "+getPlayerListString(joined));
     }
     public void showWaitlist(){
-    	String outStr;
-        if (getNumberWaitlisted()==0){
-            outStr = "0 players waiting!";
-        } else {
-            outStr = getNumberWaitlisted()+ " player(s) waiting: ";
-            for (int ctr=0; ctr < getNumberWaitlisted(); ctr++){
-                outStr += getWaitlisted(ctr).getNick()+" "; 
-            }
-        }
-        bot.sendMessage(channel, outStr);
+        bot.sendMessage(channel, "Waiting: "+getPlayerListString(waitlist));
     }
     public void showBlacklist(){
-    	String outStr;
-        if (getNumberBlacklisted()==0){
-            outStr = "0 players bankrupt!";
-        } else {
-            outStr = getNumberBlacklisted()+ " player(s) bankrupt: ";
-            for (int ctr=0; ctr < getNumberBlacklisted(); ctr++){
-                outStr += getBlacklisted(ctr).getNick()+" "; 
-            }
-        }
-        bot.sendMessage(channel, outStr);
+        bot.sendMessage(channel, "Bankrupt: "+getPlayerListString(blacklist));
     }
     public void showPlayerCash(String nick){
     	int cash = getPlayerStat(nick, "cash");
@@ -801,21 +780,21 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     }
     
     /* Parameter handling */   
-    public int parseNumberParam(String str){
+    public static int parseNumberParam(String str){
         StringTokenizer st = new StringTokenizer(str);
         String a;
         a = st.nextToken();
         a = st.nextToken();
         return Integer.parseInt(a);
     }
-    public String parseStringParam(String str){
+    public static String parseStringParam(String str){
         StringTokenizer st = new StringTokenizer(str);
         String a;
         a = st.nextToken();
         a = st.nextToken();
         return a;
     }
-    public String[] parseIniParams(String str){
+    public static String[] parseIniParams(String str){
     	StringTokenizer st = new StringTokenizer(str);
         String a,b;
         a = st.nextToken();
@@ -837,13 +816,32 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
 	}
     abstract public String getGameRulesStr();
     abstract public String getGameCommandStr();
-    public String getWinStr(){
+    public static String getWinStr(){
     	return Colors.GREEN+",01"+" WIN "+Colors.NORMAL;
     }
-    public String getLossStr(){
+    public static String getLossStr(){
     	return Colors.RED+",01"+" LOSS "+Colors.NORMAL;
     }
     public static String formatNumber(int n){
     	return String.format("%,d", n);
+    }
+    public static String getPlayerListString(ArrayList<? extends Player> playerList){
+        String outStr;
+        int size = playerList.size();
+        if (size == 0){
+            outStr = Colors.BOLD+"0"+Colors.NORMAL+" players!";
+        } else if (size == 1){
+            outStr = Colors.BOLD+"1"+Colors.NORMAL+" player: "+playerList.get(0).getNick();
+        } else {
+            outStr = Colors.BOLD+size+Colors.NORMAL+" players: ";
+            for (int ctr=0; ctr < size; ctr++){
+                if (ctr == size-1){
+                    outStr += playerList.get(ctr).getNick();
+                } else {
+                    outStr += playerList.get(ctr).getNick()+", ";
+                }
+            }
+        }
+        return outStr;
     }
 }
