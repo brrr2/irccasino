@@ -665,6 +665,7 @@ public class TexasPoker extends CardGame{
 		cancelIdleOutTask();
         idleOutTimer.cancel();
 		cancelRespawnTasks();
+		respawnTimer.cancel();
 		saveSettings();
 		devoiceAll();
 		joined.clear();
