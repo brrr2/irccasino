@@ -26,6 +26,7 @@ import org.pircbotx.hooks.ListenerAdapter;
 import org.pircbotx.hooks.events.*;
 
 public abstract class CardGame extends ListenerAdapter<PircBotX>{
+    /* Start round task to be performed after post-start waiting period */
 	public class StartRoundTask extends TimerTask{
 		CardGame game;
 		public StartRoundTask(CardGame g){
@@ -34,6 +35,24 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
 		@Override
 		public void run(){
 			game.startRound();
+		}
+	}
+    /* Idle task for card games */
+	public class IdleOutTask extends TimerTask {
+		private Player player;
+		private CardGame game;
+		public IdleOutTask(Player p, CardGame g) {
+			player = p;
+			game = g;
+		}
+
+		@Override
+		public void run() {
+			if (game.isInProgress() && player == game.getCurrentPlayer()) {
+				game.bot.sendMessage(game.channel, player.getNickStr()
+						+ " has wasted precious time and idled out.");
+				game.leave(player);
+			}
 		}
 	}
 	public class RespawnTask extends TimerTask {
@@ -65,8 +84,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     protected Player currentPlayer;
     protected boolean inProgress, betting;
     protected Timer idleOutTimer, startRoundTimer, respawnTimer;
-    protected StartRoundTask startRoundTask;
+    protected IdleOutTask idleOutTask;
     protected int idleOutTime, respawnTime, newcash;
+    private StartRoundTask startRoundTask;
     private ArrayList<RespawnTask> respawnTasks;
     
     /**
@@ -87,6 +107,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         startRoundTimer = new Timer("StartRoundTimer");
         respawnTimer = new Timer("RespawnTimer");
         startRoundTask = null;
+        idleOutTask = null;
         inProgress = false;
         betting = false;
         currentPlayer = null;
@@ -176,7 +197,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     abstract public void resetGame();
     abstract public void leave(String nick);
     abstract public void setIdleOutTask();
-    abstract public void cancelIdleOutTask();
     abstract public void setSetting(String[] params);
     abstract public String getSetting(String param);
     abstract public void loadSettings();
@@ -251,6 +271,12 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         if (startRoundTask != null){
             startRoundTask.cancel();
             startRoundTimer.purge();
+        }
+    }
+    public void cancelIdleOutTask() {
+        if (idleOutTask != null){
+            idleOutTask.cancel();
+            idleOutTimer.purge();
         }
     }
     
@@ -413,7 +439,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
             } else if (stat.equals("bjrounds") || stat.equals("tprounds")){
                 return p.getRounds();
             } else if (stat.equals("netcash")){
-                return p.getCash()-p.getDebt();
+                return p.getNetCash();
             } else if (stat.equals("exists")){
                 return 1;
             }
@@ -829,11 +855,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         String outStr;
         int size = playerList.size();
         if (size == 0){
-            outStr = Colors.BOLD+"0"+Colors.NORMAL+" players!";
+            outStr = Colors.BOLD+"0"+Colors.BOLD+" players!";
         } else if (size == 1){
-            outStr = Colors.BOLD+"1"+Colors.NORMAL+" player: "+playerList.get(0).getNick();
+            outStr = Colors.BOLD+"1"+Colors.BOLD+" player: "+playerList.get(0).getNick();
         } else {
-            outStr = Colors.BOLD+size+Colors.NORMAL+" players: ";
+            outStr = Colors.BOLD+size+Colors.BOLD+" players: ";
             for (int ctr=0; ctr < size; ctr++){
                 if (ctr == size-1){
                     outStr += playerList.get(ctr).getNick();

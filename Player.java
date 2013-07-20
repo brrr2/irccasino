@@ -118,10 +118,13 @@ public class Player {
     	debt -= amount;
     	cash -= amount;
     }
+    public int getNetCash(){
+        return cash - debt;
+    }
     
     /* Formatted string representations */
     public String getNickStr(){
-    	return Colors.BOLD+getNick()+Colors.NORMAL;
+    	return Colors.BOLD+getNick()+Colors.BOLD;
     }
     @Override
     public String toString(){

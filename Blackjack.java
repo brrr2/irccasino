@@ -25,24 +25,6 @@ import org.pircbotx.*;
 import org.pircbotx.hooks.events.MessageEvent;
 
 public class Blackjack extends CardGame {
-	/* Nested class to create an idle out task for blackjack */
-	public class IdleOutTask extends TimerTask {
-		private BlackjackPlayer player;
-		private Blackjack game;
-		public IdleOutTask(BlackjackPlayer p, Blackjack g) {
-			player = p;
-			game = g;
-		}
-
-		@Override
-		public void run() {
-			if (game.isInProgress() && player == game.getCurrentPlayer()) {
-				game.bot.sendMessage(game.channel, player.getNickStr()
-						+ " has wasted precious time and idled out.");
-				game.leave(player);
-			}
-		}
-	}
 	/* Nested class to create a shuffle timer thread */
 	public class IdleShuffleTask extends TimerTask {
 		private Blackjack game;
@@ -96,7 +78,6 @@ public class Blackjack extends CardGame {
 	private int shoeDecks, idleShuffleTime;
 	private Timer idleShuffleTimer;	
 	private ArrayList<HouseStat> stats;
-    private IdleOutTask idleOutTask;
     private IdleShuffleTask idleShuffleTask;
 	private HouseStat house;
 
@@ -115,7 +96,6 @@ public class Blackjack extends CardGame {
 		loadHouseStats();
 		loadSettings();
 		insuranceBets = false;
-        idleOutTask = null;
         idleShuffleTask = null;
 	}
 
@@ -138,13 +118,7 @@ public class Blackjack extends CardGame {
 					|| msg.equals("l") || msg.equals("q")) {
 				leave(nick);
 			} else if (msg.equals("start") || msg.equals("go")) {
-				if (!isJoined(nick)) {
-					infoNotJoined(nick);
-				} else if (isInProgress()) {
-					infoRoundStarted(nick);
-				} else if (getNumberJoined() < 1) {
-					showNoPlayers();
-				} else {
+				if (canPlayerStart(nick)) {
 					cancelIdleShuffleTask();
                     setInProgress(true);
 					showStartRound();
@@ -387,6 +361,13 @@ public class Blackjack extends CardGame {
 					showNumDecks();
 				}
 			/* Op commands */
+			} else if (msg.equals("fstart") || msg.equals("fgo")){
+                if (canForceStart(user,nick)){
+                    cancelIdleShuffleTask();
+                    setInProgress(true);
+					showStartRound();
+					setStartRoundTask();
+                }
 			} else if (msg.equals("fj") || msg.equals("fjoin") ||
 					msg.startsWith("fj ") || msg.startsWith("fjoin ")){
 				if (!channel.isOp(user)) {
@@ -645,7 +626,7 @@ public class Blackjack extends CardGame {
 		} catch (IOException e) {
 			/* load defaults if blackjack.ini is not found */
 			System.out.println("blackjack.ini not found! Creating new blackjack.ini...");
-			shoeDecks = 1;
+			shoeDecks = 4;
 			newcash = 1000;
 			idleOutTime = 60;
 			respawnTime = 600;
@@ -717,8 +698,7 @@ public class Blackjack extends CardGame {
 			}
 			f.close();
 		} catch (IOException e) {
-			System.out
-					.println("housestats.txt not found! Creating new housestats.txt...");
+			System.out.println("housestats.txt not found! Creating new housestats.txt...");
 			try {
 				PrintWriter out = new PrintWriter(new BufferedWriter(
 						new FileWriter("housestats.txt")));
@@ -805,9 +785,12 @@ public class Blackjack extends CardGame {
 	/* Game management methods */
 	@Override
 	public void leave(String nick) {
+        // Check if the nick is even joined
 		if (isJoined(nick)){
 			BlackjackPlayer p = (BlackjackPlayer) findJoined(nick);
+            // Check if a round is in progress
 			if (isInProgress()) {
+                // If in the betting or post-start wait phase
 				if (isBetting() || currentPlayer == null){
 					if (p == currentPlayer){
 						currentPlayer = getNextPlayer();
@@ -823,10 +806,12 @@ public class Blackjack extends CardGame {
 							}
 						} else {
 							showTurn(currentPlayer);
+                            setIdleOutTask();
 						}
 					} else {
 						removeJoined(p);
 					}
+                // If in the card-playing phase
 				} else {
                     bot.sendNotice(p.getNick(), "You will be removed at the end of the round.");
 					p.setQuit(true);
@@ -837,6 +822,7 @@ public class Blackjack extends CardGame {
 			} else {
 				removeJoined(p);
 			}
+        // Check if on the waitlist
 		} else if (isWaitlisted(nick)) {
 			infoLeaveWaitlist(nick);
 			removeWaitlisted(nick);
@@ -980,13 +966,6 @@ public class Blackjack extends CardGame {
         idleOutTask = new IdleOutTask((BlackjackPlayer) currentPlayer, this);
 		idleOutTimer.schedule(idleOutTask, idleOutTime*1000);
 	}
-    @Override
-    public void cancelIdleOutTask() {
-        if (idleOutTask != null){
-            idleOutTask.cancel();
-            idleOutTimer.purge();
-        }
-    }
 	public void setIdleShuffleTask() {
         idleShuffleTask = new IdleShuffleTask(this);
 		idleShuffleTimer.schedule(idleShuffleTask, idleShuffleTime*1000);
@@ -997,6 +976,20 @@ public class Blackjack extends CardGame {
             idleShuffleTimer.purge();
         }
 	}
+    
+    /* Game command logic checking methods */
+    public boolean canPlayerStart(String nick){
+        if (!isJoined(nick)) {
+            infoNotJoined(nick);
+        } else if (isInProgress()) {
+            infoRoundStarted(nick);
+        } else if (getNumberJoined() < 1) {
+            showNoPlayers();
+        } else {
+            return true;
+        }
+        return false;
+    }
 	public boolean isStage1PlayerTurn(String nick){
 		if (!isJoined(nick)) {
 			infoNotJoined(nick);
@@ -1042,6 +1035,18 @@ public class Blackjack extends CardGame {
         }
         return false;
 	}
+    public boolean canForceStart(User user, String nick){
+        if (!channel.isOp(user)) {
+			infoOpsOnly(nick);
+		} else if (isInProgress()) {
+            infoRoundStarted(nick);
+        } else if (getNumberJoined() < 1) {
+            showNoPlayers();
+        } else {
+            return true;
+        }
+        return false;
+    }
     public boolean isForcePlayCommandAllowed(User user, String nick){
 		if (!channel.isOp(user)) {
 			infoOpsOnly(nick);

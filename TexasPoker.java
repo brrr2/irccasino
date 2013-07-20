@@ -25,25 +25,6 @@ import org.pircbotx.*;
 import org.pircbotx.hooks.events.MessageEvent;
 
 public class TexasPoker extends CardGame{
-    /* Idle task specific for Texas Hold'em Poker. */
-	public class IdleOutTask extends TimerTask {
-		private PokerPlayer player;
-		private TexasPoker game;
-
-		public IdleOutTask(PokerPlayer p, TexasPoker g) {
-			player = p;
-			game = g;
-		}
-
-		@Override
-		public void run() {
-			if (game.isInProgress() && player == game.getCurrentPlayer()) {
-				game.bot.sendMessage(game.channel, player.getNickStr()
-						+ " has wasted precious time and idled out.");
-				game.leave(player);
-			}
-		}
-	}
     /* A pot class to handle bets and payouts in Texas Hold'em Poker. */
 	public class PokerPot {
 		private ArrayList<PokerPlayer> players;
@@ -85,7 +66,6 @@ public class TexasPoker extends CardGame{
 	private PokerPot currentPot;
 	private PokerPlayer dealer, smallBlind, bigBlind, topBettor;
 	private Hand community;
-    private IdleOutTask idleOutTask;
 	
 	/**
 	 * Constructor for TexasPoker, subclass of CardGame
@@ -108,7 +88,6 @@ public class TexasPoker extends CardGame{
 		smallBlind = null;
 		bigBlind = null;
 		topBettor = null;
-        idleOutTask = null;
 	}
 	
 	@Override
@@ -321,6 +300,12 @@ public class TexasPoker extends CardGame{
 				showGameName();
                 
 			/* Op commands */
+            } else if (msg.equals("fstart") || msg.equals("fgo")){
+                if (canForceStart(user,nick)){
+                    setInProgress(true);
+					showStartRound();
+					setStartRoundTask();
+                }
 			} else if (msg.equals("fj") || msg.equals("fjoin") ||
 					msg.startsWith("fj ") || msg.startsWith("fjoin ")){
 				if (!channel.isOp(user)) {
@@ -531,7 +516,7 @@ public class TexasPoker extends CardGame{
 	
 	@Override
 	public void startRound() {
-		if (getNumberNotQuit() < 2){
+		if (getNumberJoined() < 2){
 			endRound();
 		} else {
             setButton();
@@ -708,16 +693,17 @@ public class TexasPoker extends CardGame{
 			PokerPlayer p = (PokerPlayer) findJoined(nick);
             // Check if a round is in progress
 			if (isInProgress()) {
-				p.setQuit(true);
-                /* If still in the post-start wait period, then currentPlayer has
+                /* If still in the post-start waiting phase, then currentPlayer has
                  * not been set yet. */
                 if (currentPlayer == null){
                     removeJoined(p);
                 // Force the player to fold if it is his turn
                 } else if (p == currentPlayer){
+                    p.setQuit(true);
                     bot.sendNotice(p.getNick(), "You will be removed at the end of the round.");
 					fold();
 				} else {
+                    p.setQuit(true);
 					bot.sendNotice(p.getNick(), "You will be removed at the end of the round.");
 					if (!p.hasFolded()){
 						p.setFold(true);
@@ -732,16 +718,18 @@ public class TexasPoker extends CardGame{
 								cPot.removePlayer(p);
 							}
 						}
-						// Check if there is only one more player who hasn't folded,
-						// force check/call on that remaining player (whose turn it is)
+						// If there is only one player who hasn't folded,
+						// force check/call on that remaining player (whose turn it must be)
 						if (getNumberNotFolded() == 1){
 							checkCall();
 						}
 					}
 				}
+            // Just remove the player from the joined list if no round in progress
 			} else {
 				removeJoined(p);
 			}
+        // Check if on the waitlist
 		} else if (isWaitlisted(nick)) {
 			infoLeaveWaitlist(nick);
 			removeWaitlisted(nick);
@@ -755,14 +743,8 @@ public class TexasPoker extends CardGame{
         idleOutTask = new IdleOutTask((PokerPlayer) currentPlayer,	this);
 		idleOutTimer.schedule(idleOutTask, idleOutTime*1000);
 	}
-    @Override
-    public void cancelIdleOutTask() {
-        if (idleOutTask != null){
-            idleOutTask.cancel();
-            idleOutTimer.purge();
-        }
-    }
     
+    /* Game command logic checking methods */
     public boolean canPlayerStart(String nick){
         if (!isJoined(nick)) {
             infoNotJoined(nick);
@@ -782,6 +764,18 @@ public class TexasPoker extends CardGame{
             infoNotStarted(nick);
         } else if (findJoined(nick) != currentPlayer){
             infoNotTurn(nick);
+        } else {
+            return true;
+        }
+        return false;
+    }
+    public boolean canForceStart(User user, String nick){
+        if (!channel.isOp(user)) {
+			infoOpsOnly(nick);
+		} else if (isInProgress()) {
+            infoRoundStarted(nick);
+        } else if (getNumberJoined() < 2) {
+            showNoPlayers();
         } else {
             return true;
         }
@@ -1085,17 +1079,6 @@ public class TexasPoker extends CardGame{
     /* 
      * Betting-related methods
      */
-	public int getNumberNotQuit(){
-		PokerPlayer p;
-		int numberNotQuit = 0;
-		for (int ctr = 0; ctr < getNumberJoined(); ctr++){
-			p = (PokerPlayer) getJoined(ctr);
-			if (!p.hasQuit()){
-				numberNotQuit++;
-			}
-		}
-		return numberNotQuit;
-	}
 	public int getNumberNotFolded(){
 		PokerPlayer p;
 		int numberNotFolded = 0;
@@ -1112,7 +1095,7 @@ public class TexasPoker extends CardGame{
 		int numberCanBet = 0;
 		for (int ctr = 0; ctr < getNumberJoined(); ctr++){
 			p = (PokerPlayer) getJoined(ctr);
-			if (!p.hasQuit() && !p.hasFolded() && !p.hasAllIn()){
+			if (!p.hasFolded() && !p.hasAllIn()){
 				numberCanBet++;
 			}
 		}
@@ -1410,33 +1393,40 @@ public class TexasPoker extends CardGame{
 	
 	public void showTablePlayers(){
 		PokerPlayer p;
-		String outStr = Colors.BOLD+getNumberJoined()+Colors.NORMAL+" players:"+" ";
-        
+        String msg = Colors.BOLD+getNumberJoined()+Colors.BOLD+" players: ";
+        String nickColor = "";
 		for (int ctr = 0; ctr < getNumberJoined(); ctr++){
 			p = (PokerPlayer) getJoined(ctr);
-            if (p.hasFolded() || p.hasQuit()){
-                outStr += Colors.DARK_GRAY;
-            }
-            
-			outStr += p.getNick(); 
-			if (p == dealer){
-				outStr += "(D)";
-			}
-			if (p == smallBlind){
-				outStr += "(SB)";
-			}
-			if (p == bigBlind){
-				outStr += "(BB)";
-			}
-            if (ctr == getNumberJoined()-1){
-                outStr += Colors.NORMAL;
+            // Give bold to remaining non-folded players
+            if (!p.hasFolded()){
+                nickColor = Colors.BOLD;
             } else {
-                outStr += Colors.NORMAL+", ";
+                nickColor = "";
+            }
+            msg += nickColor+p.getNick();
+
+            // Give special players a label
+            if (p == dealer || p == smallBlind || p == bigBlind){
+                msg += "(";
+                if (p == dealer){
+                    msg += "D";
+                }
+                if (p == smallBlind){
+                    msg += "S";
+                } else if (p == bigBlind){
+                    msg += "B";
+                }
+                msg += ")";
+            }
+            msg += nickColor;
+            if (ctr != getNumberJoined()-1){
+                msg += ", ";
             }
 		}
-		bot.sendMessage(channel, outStr);
+		bot.sendMessage(channel, msg);
 	}
 	public void showCommunityCards(){
+        PokerPlayer p;
         StringBuilder msg = new StringBuilder();
         // Append community cards to StringBuilder
         String str = Colors.BOLD+Colors.YELLOW + ",01Community Cards:" + 
@@ -1455,7 +1445,22 @@ public class TexasPoker extends CardGame{
         str = Colors.YELLOW+",01Pot #"+(pots.size()+1)+": "+Colors.GREEN+",01$"+formatNumber(currentPot.getPot())+Colors.NORMAL+" ";
         msg.append(str);
         
-        // Append players and their status
+        // Append remaining non-folded players
+        int notFolded = getNumberNotFolded();
+        int count = 0;
+        str = "("+Colors.BOLD+notFolded+Colors.BOLD+" players: ";;
+        for (int ctr = 0; ctr < getNumberJoined(); ctr++){
+			p = (PokerPlayer) getJoined(ctr);
+            if (!p.hasFolded()){
+                str += p.getNick();
+                if (count != notFolded-1){
+                    str += ", ";
+                }
+                count++;
+            }
+		}
+        str += ")";
+        msg.append(str);
         
         bot.sendMessage(channel, msg.toString());
 	}
