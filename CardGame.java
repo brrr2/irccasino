@@ -80,7 +80,6 @@ public abstract class CardGame{
     protected PircBotX bot; //bot handling the game
     protected Channel channel; //channel where game is being played
     protected String gameName;
-    protected char commandChar;
     protected ArrayList<Player> joined, blacklist, waitlist;
     protected CardDeck deck;
     protected Player currentPlayer;
@@ -100,7 +99,6 @@ public abstract class CardGame{
     public CardGame (PircBotX parent, Channel gameChannel, char comChar){
         bot = parent;
         channel = gameChannel;
-        commandChar = comChar;
         joined = new ArrayList<Player>();
         blacklist = new ArrayList<Player>();
         waitlist = new ArrayList<Player>();
@@ -166,12 +164,6 @@ public abstract class CardGame{
     }
     public int getNewCash(){
     	return newcash;
-    }
-    public char getCommandChar(){
-    	return commandChar;
-    }
-    public void setCommandChar(char c){
-    	commandChar = c;
     }
     
     /* 

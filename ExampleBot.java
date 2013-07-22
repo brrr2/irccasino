@@ -124,41 +124,44 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
         String msg = origMsg.toLowerCase();
         Channel channel = event.getChannel();
         User user = event.getUser();
-        if (msg.length() > 1 && msg.charAt(0) == commandChar && channel.isOp(user)){
+        if (msg.length() > 1 && msg.charAt(0) == commandChar){
         	msg = msg.substring(1);
             origMsg = origMsg.substring(1);
-            if (msg.equals("blackjack") || msg.equals("bj")) {
-                if (game == null){
-                	game = new Blackjack(event.getBot(), channel, commandChar);
-                	game.showGameStart();
-                } else {
-                    bot.sendMessage(channel,"A game is already running!");
-                }
-            } else if (msg.equals("texaspoker") || msg.equals("tp")) {
-            	if (game == null){
-                	game = new TexasPoker(event.getBot(), channel, commandChar);
-                	game.showGameStart();
-                } else {
-                    bot.sendMessage(channel,"A game is already running!");
-                }
-            } else if (msg.equals("endgame")) {
-                if (game == null){
-                    bot.sendMessage(channel, "No game is currently running!");
-                } else {
-                    game.endGame();
-                    game = null;
-                }
-            } else if (msg.equals("shutdown") || msg.equals("botquit")) {
-                if (game != null){
-                	game.endGame();
-                    game = null;
-                }
-                try {
-                	bot.quitServer();
-                } catch (Exception e){
-                	System.out.println("Exception caught during disconnection.");
-                }
-            } else if (game != null){
+            if (channel.isOp(user)){
+	            if (msg.equals("blackjack") || msg.equals("bj")) {
+	                if (game == null){
+	                	game = new Blackjack(event.getBot(), channel, commandChar);
+	                	game.showGameStart();
+	                } else {
+	                    bot.sendMessage(channel,"A game is already running!");
+	                }
+	            } else if (msg.equals("texaspoker") || msg.equals("tp")) {
+	            	if (game == null){
+	                	game = new TexasPoker(event.getBot(), channel, commandChar);
+	                	game.showGameStart();
+	                } else {
+	                    bot.sendMessage(channel,"A game is already running!");
+	                }
+	            } else if (msg.equals("endgame")) {
+	                if (game == null){
+	                    bot.sendMessage(channel, "No game is currently running!");
+	                } else {
+	                    game.endGame();
+	                    game = null;
+	                }
+	            } else if (msg.equals("shutdown") || msg.equals("botquit")) {
+	                if (game != null){
+	                	game.endGame();
+	                    game = null;
+	                }
+	                try {
+	                	bot.quitServer();
+	                } catch (Exception e){
+	                	System.out.println("Exception caught during disconnection.");
+	                }
+	            }
+            }
+            if (game != null){
                 game.processMessage(user, msg, origMsg);
             }
         }
