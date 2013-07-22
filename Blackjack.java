@@ -621,7 +621,7 @@ public class Blackjack extends CardGame {
 			in.close();
 		} catch (IOException e) {
 			/* load defaults if blackjack.ini is not found */
-			System.out.println("blackjack.ini not found! Creating new blackjack.ini...");
+			bot.log("blackjack.ini not found! Creating new blackjack.ini...");
 			shoeDecks = 4;
 			newcash = 1000;
 			idleOutTime = 60;
@@ -660,7 +660,7 @@ public class Blackjack extends CardGame {
 			out.println("hole=" + holeEnabled);
 			out.close();
 		} catch (IOException e) {
-			System.out.println("Error creating blackjack.ini!");
+			bot.log("Error creating blackjack.ini!");
 		}
 	}
 
@@ -692,13 +692,13 @@ public class Blackjack extends CardGame {
 			}
 			in.close();
 		} catch (IOException e) {
-			System.out.println("housestats.txt not found! Creating new housestats.txt...");
+			bot.log("housestats.txt not found! Creating new housestats.txt...");
 			try {
 				PrintWriter out = new PrintWriter(new BufferedWriter(
 						new FileWriter("housestats.txt")));
 				out.close();
 			} catch (IOException f) {
-				System.out.println("Error creating housestats.txt!");
+				bot.log("Error creating housestats.txt!");
 			}
 		}
 	}
@@ -727,7 +727,7 @@ public class Blackjack extends CardGame {
 			in.close();
 		} catch (IOException e) {
 			/* housestats.txt is not found */
-			System.out.println("Error reading housestats.txt!");
+			bot.log("Error reading housestats.txt!");
 		}
 		if (!found) {
 			lines.add("#blackjack");
@@ -745,7 +745,7 @@ public class Blackjack extends CardGame {
 			}
 			out.close();
 		} catch (IOException e) {
-			System.out.println("Error writing to housestats.txt!");
+			bot.log("Error writing to housestats.txt!");
 		}
 	}
 	public HouseStat getHouseStat(int numDecks) {
@@ -938,6 +938,8 @@ public class Blackjack extends CardGame {
 		dealer = null;
 		currentPlayer = null;
         showGameEnd();
+        bot = null;
+        channel = null;
 	}
 	@Override
 	public void resetGame() {
@@ -953,11 +955,7 @@ public class Blackjack extends CardGame {
 		p.setSurrender(false);
 		p.clearInsureBet();
 	}
-	@Override
-	public void setIdleOutTask() {
-        idleOutTask = new IdleOutTask((BlackjackPlayer) currentPlayer, this);
-		idleOutTimer.schedule(idleOutTask, idleOutTime*1000);
-	}
+    
 	public void setIdleShuffleTask() {
         idleShuffleTask = new IdleShuffleTask(this);
 		idleShuffleTimer.schedule(idleShuffleTask, idleShuffleTime*1000);
@@ -1114,7 +1112,7 @@ public class Blackjack extends CardGame {
 				infoNewPlayer(p.getNick());
 			}
 		} catch (IOException e) {
-			System.out.println("Error reading players.txt!");
+			bot.log("Error reading players.txt!");
 		}
 	}
 	@Override
@@ -1152,13 +1150,13 @@ public class Blackjack extends CardGame {
 				simples.add(p.isSimple());
 			}
 		} catch (IOException e) {
-			System.out.println("Error reading players.txt!");
+			bot.log("Error reading players.txt!");
 		}
 
 		try {
 			savePlayerFile(nicks, stacks, debts, bankrupts, bjrounds, tprounds, simples);
 		} catch (IOException e) {
-			System.out.println("Error writing to players.txt!");
+			bot.log("Error writing to players.txt!");
 		}
 	}
 	@Override
@@ -1180,7 +1178,7 @@ public class Blackjack extends CardGame {
         	}
         	return total;
     	} catch (IOException e){
-		 	System.out.println("Error reading players.txt!");
+		 	bot.log("Error reading players.txt!");
 		 	return -1;
     	}
     }
@@ -1691,7 +1689,7 @@ public class Blackjack extends CardGame {
 			}
 			bot.sendMessage(channel, list);
 		} catch (IOException e) {
-			System.out.println("Error reading players.txt!");
+			bot.log("Error reading players.txt!");
 		}
 	}
 
@@ -1839,8 +1837,7 @@ public class Blackjack extends CardGame {
 				+ " cards left in the dealer's shoe.");
 	}
 	public void showDealingTable() {
-		bot.sendMessage(channel, Colors.BOLD + Colors.DARK_GREEN + "Dealing..."
-				+ Colors.NORMAL);
+		bot.sendMessage(channel, Colors.BOLD + Colors.YELLOW + ",01 Dealing... "	+ Colors.NORMAL);
 	}
 	public void showHitResult(BlackjackPlayer p, BlackjackHand h){
 		if (p.hasSplit()) {
@@ -1875,7 +1872,7 @@ public class Blackjack extends CardGame {
 	public void showTableHands() {
 		BlackjackPlayer p;
 		BlackjackHand h;
-		bot.sendMessage(channel, Colors.BOLD + Colors.DARK_GREEN + "Table:"	+ Colors.NORMAL);
+		bot.sendMessage(channel, Colors.BOLD+Colors.YELLOW + ",01 Table: " + Colors.NORMAL);
 		for (int ctr = 0; ctr < getNumberJoined(); ctr++) {
 			p = (BlackjackPlayer) getJoined(ctr);
 			for (int ctr2 = 0; ctr2 < p.getNumberHands(); ctr2++){
@@ -1893,7 +1890,7 @@ public class Blackjack extends CardGame {
 	public void showResults() {
 		BlackjackPlayer p;
 		BlackjackHand h;
-		bot.sendMessage(channel, Colors.BOLD + Colors.DARK_GREEN + "Results:" + Colors.NORMAL);
+		bot.sendMessage(channel, Colors.BOLD+Colors.YELLOW + ",01 Results: " + Colors.NORMAL);
 		showDealerResult();
 		for (int ctr = 0; ctr < getNumberJoined(); ctr++) {
 			p = (BlackjackPlayer) getJoined(ctr);
@@ -1914,7 +1911,7 @@ public class Blackjack extends CardGame {
 		BlackjackPlayer p;
 		BlackjackHand dHand = dealer.getCurrentHand();
 
-		bot.sendMessage(channel, Colors.BOLD + Colors.DARK_GREEN + "Insurance Results:" + Colors.NORMAL);
+		bot.sendMessage(channel, Colors.BOLD+Colors.YELLOW + ",01 Insurance Results: " + Colors.NORMAL);
 		if (isHandBlackjack(dHand)) {
 			bot.sendMessage(channel, dealer.getNickStr() + " had blackjack.");
 		} else {
@@ -1991,22 +1988,18 @@ public class Blackjack extends CardGame {
 	public void infoCountDisabled(String nick){
 		bot.sendNotice(nick, "Counting functions are disabled.");
 	}
-
 	public void infoNotPair(String nick) {
 		bot.sendNotice(nick, "Your hand cannot be split. It is not a pair.");
 	}
-
 	public void infoNotDoubleDown(String nick) {
 		bot.sendNotice(nick, "You can only double down before hitting!");
 	}
-	
 	public void infoNotSurrender(String nick) {
 		bot.sendNotice(nick, "You cannot surrender after hitting!");
 	}
 	public void infoNotSurrenderSplit(String nick) {
 		bot.sendNotice(nick, "You cannot surrender a split hand!");
 	}
-
 	public void infoInsureBetTooHigh(String nick, int max) {
 		bot.sendNotice(nick, "Maximum insurance bet is $" + formatNumber(max) + ". Try again.");
 	}

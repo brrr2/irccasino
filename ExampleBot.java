@@ -18,20 +18,22 @@
 */
 package irccasino;
 
-
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.StringTokenizer;
 import org.pircbotx.Channel;
 import org.pircbotx.PircBotX;
 import org.pircbotx.User;
 import org.pircbotx.cap.SASLCapHandler;
 import org.pircbotx.hooks.ListenerAdapter;
 import org.pircbotx.hooks.events.*;
-import org.pircbotx.hooks.managers.*;
 
 public class ExampleBot extends ListenerAdapter<PircBotX> {
+    /* A PircBotX bot that also logs to a file */
     public static class FileLogBot extends PircBotX{
         public String logFile;
         public FileLogBot(String fileName){
@@ -49,75 +51,86 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
                 out.println(System.currentTimeMillis() + " " + line);
                 out.close();
             } catch(IOException e) {
-                System.out.println("Error: unable to write to "+logFile);
+                bot.log("Error: unable to write to "+logFile);
             }
         }
     }
     
 	public static FileLogBot bot;
-	public static ThreadedListenerManager<PircBotX> manager;
 	public static CardGame game;
     public static String configFile;
-	public static String botNick, password, network, ircchannel;
-	public static final char commandChar = '.';
+	public static String botNick, password, network, channelStr;
+	public static char commandChar = '.';
 	    
 	public static void main(String[] args) throws Exception {
-		 //Create Listener Manager to use
-	    manager = new ThreadedListenerManager<PircBotX>();
-	    manager.addListener(new ExampleBot());
-	    
 	    bot = new FileLogBot("log.txt");
-	    bot.setListenerManager(manager);
+        bot.getListenerManager().addListener(new ExampleBot());
 	    bot.setVerbose(true);
 	    bot.setAutoNickChange(true);
 	    bot.setCapEnabled(true);
-		
-		/* Check number of arguments */
-		switch (args.length){
-			case 4:
-				botNick = args[0];
-	        	password = args[1];
-	        	network = args[2];
-	        	ircchannel = "##"+args[3];
-	        	bot.setName(botNick);
-	    	    bot.setLogin("Bot");
-	        	try {
-	    	    	bot.getCapHandlers().add(new SASLCapHandler(botNick, password));
-	            	bot.connect(network);
-	            } catch (Exception e){
-	            	System.out.println("Error connecting to "+network);
-	            }
-	        	break;
-			case 3:
-				botNick = args[0];
-				network = args[1];
-	        	ircchannel = "##"+args[2];
-	        	bot.setName(botNick);
-	    	    bot.setLogin("Bot");
-	    	    try {
-	            	bot.connect(network);
-	            } catch (Exception e){
-	            	System.out.println("Error connecting to "+network);
-	            }
-	        	break;
-			case 2:
-				network = args[0];
-	        	ircchannel = "##"+args[1];
-	        	bot.setName("ExampleBot");
-	    	    bot.setLogin("Bot");
-	    	    try {
-	    	    	bot.connect(network);
-	            } catch (Exception e){
-	            	System.out.println("Error connecting to "+network);
-	            }
-	        	break;
-			default:
-				System.out.println("Incorrect number of parameters. Required: " +
-	        			"[botNick] [password] network channel.");
-	        	System.exit(0);
-		}
+        loadConfig("irccasino.conf");
+        bot.setName(botNick);
+        bot.setLogin("bot");
+        
+		if (password != null){
+            bot.getCapHandlers().add(new SASLCapHandler(botNick, password));
+        }
+        bot.connect(network);
 	}
 	
+    public static void loadConfig(String configFile){
+        try {
+			BufferedReader in = new BufferedReader(new FileReader(configFile));
+			String str, name, value;
+			StringTokenizer st;
+			while (in.ready()) {
+				str = in.readLine();
+				if (str.startsWith("#")) {
+					continue;
+				}
+				st = new StringTokenizer(str, "=");
+				name = st.nextToken();
+                if (st.hasMoreTokens()){
+                    value = st.nextToken();
+                } else {
+                    value = null;
+                }
+				if (name.equals("nick")) {
+					botNick = value;
+				} else if (name.equals("password")) {
+					password = value;
+				} else if (name.equals("channel")) {
+					channelStr = value;
+				} else if (name.equals("network")) {
+					network = value;
+				}
+			}
+			in.close();
+		} catch (IOException e) {
+			/* load defaults if config file is not found */
+			bot.log(configFile+" not found! Loading default values...");
+            botNick = "ExampleBot";
+            network = "chat.freenode.net";
+            channelStr = "##ExampleBot";
+            password = null;
+            /* Write these values to a new file */
+            try{
+                PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(configFile)));
+                out.println("#Bot nick");
+                out.println("nick=" + botNick);
+                out.println("#SASL password");
+                out.println("password=");
+                out.println("#IRC network");
+                out.println("network=" + network);
+                out.println("#IRC channel");
+                out.println("channel=" + channelStr);
+                out.close();
+            } catch (IOException f) {
+                bot.log("Error creating "+configFile+"!");
+            }
+        }
+    }
+    
 	@Override
     public void onMessage (MessageEvent<PircBotX> event){
         String origMsg = event.getMessage();
@@ -154,13 +167,11 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
 	                	game.endGame();
 	                    game = null;
 	                }
-	                try {
-	                	bot.quitServer();
-	                } catch (Exception e){
-	                	System.out.println("Exception caught during disconnection.");
-	                }
+                    bot.getListenerManager().removeListener(this);
+	                bot.quitServer();
 	            }
             }
+            // Process any game message if a game has been instantiated
             if (game != null){
                 game.processMessage(user, msg, origMsg);
             }
@@ -169,7 +180,7 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
 	
 	@Override
     public void onConnect(ConnectEvent<PircBotX> event){
-		bot.joinChannel(ircchannel);
+		bot.joinChannel(channelStr);
     }
     
     @Override

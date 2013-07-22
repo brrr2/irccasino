@@ -583,7 +583,7 @@ public class TexasPoker extends CardGame{
 			pots.add(currentPot);
 		}
 		
-        // Check if anybody left before blind bets were set
+        // Check if anybody left during post-start waiting period
 		if (getNumberJoined() > 1 && pots.size() > 0) {
 			// Give all non-folded players the community cards
 			for (int ctr = 0; ctr < getNumberJoined(); ctr++){
@@ -660,6 +660,8 @@ public class TexasPoker extends CardGame{
 		bigBlind = null;
 		topBettor = null;
         showGameEnd();
+        bot = null;
+        channel = null;
 	}
 
 	@Override
@@ -732,12 +734,6 @@ public class TexasPoker extends CardGame{
 		} else {
 			infoNotJoined(nick);
 		}
-	}
-
-	@Override
-	public void setIdleOutTask() {
-        idleOutTask = new IdleOutTask((PokerPlayer) currentPlayer,	this);
-		idleOutTimer.schedule(idleOutTask, idleOutTime*1000);
 	}
     
     /* Game command logic checking methods */
@@ -879,7 +875,7 @@ public class TexasPoker extends CardGame{
 			in.close();
 		} catch (IOException e) {
 			/* load defaults if texaspoker.ini is not found */
-			System.out.println("texaspoker.ini not found! Creating new texaspoker.ini...");
+			bot.log("texaspoker.ini not found! Creating new texaspoker.ini...");
 			newcash = 1000;
 			idleOutTime = 60;
 			respawnTime = 600;
@@ -904,7 +900,7 @@ public class TexasPoker extends CardGame{
 			out.println("minbet=" + minBet);
 			out.close();
 		} catch (IOException f) {
-			System.out.println("Error creating texaspoker.ini!");
+			bot.log("Error creating texaspoker.ini!");
 		}
     }
 
@@ -927,7 +923,7 @@ public class TexasPoker extends CardGame{
         	}
         	return total;
     	} catch (IOException e){
-		 	System.out.println("Error reading players.txt!");
+		 	bot.log("Error reading players.txt!");
 		 	return -1;
     	}
 	}
@@ -969,7 +965,7 @@ public class TexasPoker extends CardGame{
 				infoNewPlayer(p.getNick());
 			}
 		} catch (IOException e) {
-			System.out.println("Error reading players.txt!");
+			bot.log("Error reading players.txt!");
 		}
 	}
 
@@ -1008,13 +1004,13 @@ public class TexasPoker extends CardGame{
 				simples.add(p.isSimple());
 			}
 		} catch (IOException e) {
-			System.out.println("Error reading players.txt!");
+			bot.log("Error reading players.txt!");
 		}
 
 		try {
 			savePlayerFile(nicks, stacks, debts, bankrupts, bjrounds, tprounds, simples);
 		} catch (IOException e) {
-			System.out.println("Error writing to players.txt!");
+			bot.log("Error writing to players.txt!");
 		}
 	}
 
@@ -1353,7 +1349,7 @@ public class TexasPoker extends CardGame{
 			}
 			bot.sendMessage(channel, list);
 		} catch (IOException e) {
-			System.out.println("Error reading players.txt!");
+			bot.log("Error reading players.txt!");
 		}
 	}
 
@@ -1425,7 +1421,7 @@ public class TexasPoker extends CardGame{
         PokerPlayer p;
         StringBuilder msg = new StringBuilder();
         // Append community cards to StringBuilder
-        String str = Colors.BOLD+Colors.YELLOW + ",01Community Cards:" + 
+        String str = Colors.BOLD+Colors.YELLOW + ",01 Community Cards: " + 
                 Colors.NORMAL + " " + community.toString() + " ";
         msg.append(str);
         
@@ -1495,7 +1491,7 @@ public class TexasPoker extends CardGame{
 		PokerPlayer p;
         int winners;
         // Show introduction to end results
-        bot.sendMessage(channel, Colors.BOLD + Colors.DARK_GREEN + "Results:" + Colors.NORMAL);
+        bot.sendMessage(channel, Colors.BOLD+Colors.YELLOW + ",01 Results: " + Colors.NORMAL);
         players = pots.get(0).getPlayers();
         Collections.sort(players);
 		Collections.reverse(players);
@@ -1523,7 +1519,7 @@ public class TexasPoker extends CardGame{
 			for (int ctr2=0; ctr2<winners; ctr2++){
 				p = players.get(ctr2);
 				p.addCash(currentPot.getPot()/winners);
-                bot.sendMessage(channel, Colors.YELLOW+",01Pot #" + (ctr+1) + ":" + Colors.NORMAL + " " + 
+                bot.sendMessage(channel, Colors.YELLOW+",01 Pot #" + (ctr+1) + ": " + Colors.NORMAL + " " + 
                     p.getNickStr() + " wins $" + formatNumber(currentPot.getPot()/winners) + 
                     ". Stack: $" + formatNumber(p.getCash())+ " (" + getPlayerListString(currentPot.getPlayers()) + ")");
 			}

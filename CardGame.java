@@ -93,7 +93,7 @@ public abstract class CardGame{
     /**
      * Class constructor for generic CardGame
      * 
-     * @param parent	the bot that creates an instance of this ListenerAdapter
+     * @param parent	the bot that creates an instance of this class
      * @param gameChannel	the IRC channel in which the game is to be run.
      */
     public CardGame (PircBotX parent, Channel gameChannel, char comChar){
@@ -176,7 +176,6 @@ public abstract class CardGame{
     abstract public void endGame();
     abstract public void resetGame();
     abstract public void leave(String nick);
-    abstract public void setIdleOutTask();
     abstract public void setSetting(String[] params);
     abstract public String getSetting(String param);
     abstract public void loadSettings();
@@ -231,6 +230,7 @@ public abstract class CardGame{
 				respawnTasks.get(ctr).cancel();
 			}
             respawnTasks.clear();
+            respawnTimer.purge();
 		}
         // Fast-track loans
 		for (int ctr = 0; ctr < getNumberBlacklisted(); ctr++){
@@ -253,6 +253,10 @@ public abstract class CardGame{
             startRoundTimer.purge();
         }
     }
+	public void setIdleOutTask() {
+        idleOutTask = new IdleOutTask(currentPlayer, this);
+		idleOutTimer.schedule(idleOutTask, idleOutTime*1000);
+	}
     public void cancelIdleOutTask() {
         if (idleOutTask != null){
             idleOutTask.cancel();
@@ -489,7 +493,7 @@ public abstract class CardGame{
         	}
             return Integer.MIN_VALUE;
         } catch (IOException e){
-        	System.out.println("Error reading players.txt!");
+        	bot.log("Error reading players.txt!");
         	return Integer.MIN_VALUE;
         }
     }
@@ -498,12 +502,12 @@ public abstract class CardGame{
     		BufferedReader out = new BufferedReader(new FileReader("players.txt"));
     		out.close();
     	} catch (IOException e){
-    		System.out.println("players.txt not found! Creating new players.txt...");
+    		bot.log("players.txt not found! Creating new players.txt...");
     		try {
 	            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("players.txt")));
 	            out.close();
     		} catch (IOException f){
-        		System.out.println("Error creating players.txt.");
+        		bot.log("Error creating players.txt.");
         	}
         }
     }
@@ -655,8 +659,7 @@ public abstract class CardGame{
     	bot.sendMessage(channel, p.getNickStr()+" has made a debt payment of $"+formatNumber(amount)+". "+p.getNickStr()+"'s debt is now $"+formatNumber(p.getDebt())+".");
     }
     public void showSeparator() {
-		bot.sendMessage(channel, Colors.BOLD
-						+ "------------------------------------------------------------------");
+		bot.sendMessage(channel, Colors.BOLD+ "------------------------------------------------------------------");
 	}
     
     /* 
@@ -812,7 +815,7 @@ public abstract class CardGame{
     
     /* Formatted strings */
     public String getGameNameStr(){
-    	return Colors.BOLD + gameName + Colors.NORMAL;
+    	return Colors.BOLD + gameName + Colors.BOLD;
     }
 	public String getGameHelpStr() {
 		return "For help on how to play "
