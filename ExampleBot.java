@@ -18,18 +18,47 @@
 */
 package irccasino;
 
-import org.pircbotx.*;
+
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+import org.pircbotx.Channel;
+import org.pircbotx.PircBotX;
+import org.pircbotx.User;
 import org.pircbotx.cap.SASLCapHandler;
 import org.pircbotx.hooks.ListenerAdapter;
 import org.pircbotx.hooks.events.*;
 import org.pircbotx.hooks.managers.*;
 
 public class ExampleBot extends ListenerAdapter<PircBotX> {
-	
-	public static PircBotX bot;
+    public static class FileLogBot extends PircBotX{
+        public String logFile;
+        public FileLogBot(String fileName){
+            super();
+            logFile = fileName;
+        }
+        
+        @Override
+        public void log(String line){
+            if (!verbose) { return; }
+            super.log(line);
+            try{
+                PrintWriter out;
+                out = new PrintWriter(new BufferedWriter(new FileWriter(logFile,true)));
+                out.println(System.currentTimeMillis() + " " + line);
+                out.close();
+            } catch(IOException e) {
+                System.out.println("Error: unable to write to "+logFile);
+            }
+        }
+    }
+    
+	public static FileLogBot bot;
 	public static ThreadedListenerManager<PircBotX> manager;
 	public static CardGame game;
-	public static String botNick, password, network, channel;
+    public static String configFile;
+	public static String botNick, password, network, ircchannel;
 	public static final char commandChar = '.';
 	    
 	public static void main(String[] args) throws Exception {
@@ -37,7 +66,7 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
 	    manager = new ThreadedListenerManager<PircBotX>();
 	    manager.addListener(new ExampleBot());
 	    
-	    bot = new PircBotX();
+	    bot = new FileLogBot("log.txt");
 	    bot.setListenerManager(manager);
 	    bot.setVerbose(true);
 	    bot.setAutoNickChange(true);
@@ -49,7 +78,7 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
 				botNick = args[0];
 	        	password = args[1];
 	        	network = args[2];
-	        	channel = "##"+args[3];
+	        	ircchannel = "##"+args[3];
 	        	bot.setName(botNick);
 	    	    bot.setLogin("Bot");
 	        	try {
@@ -62,7 +91,7 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
 			case 3:
 				botNick = args[0];
 				network = args[1];
-	        	channel = "##"+args[2];
+	        	ircchannel = "##"+args[2];
 	        	bot.setName(botNick);
 	    	    bot.setLogin("Bot");
 	    	    try {
@@ -73,7 +102,7 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
 	        	break;
 			case 2:
 				network = args[0];
-	        	channel = "##"+args[1];
+	        	ircchannel = "##"+args[1];
 	        	bot.setName("ExampleBot");
 	    	    bot.setLogin("Bot");
 	    	    try {
@@ -91,16 +120,17 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
 	
 	@Override
     public void onMessage (MessageEvent<PircBotX> event){
-        String msg = event.getMessage().toLowerCase();
+        String origMsg = event.getMessage();
+        String msg = origMsg.toLowerCase();
         Channel channel = event.getChannel();
         User user = event.getUser();
         if (msg.length() > 1 && msg.charAt(0) == commandChar && channel.isOp(user)){
         	msg = msg.substring(1);
+            origMsg = origMsg.substring(1);
             if (msg.equals("blackjack") || msg.equals("bj")) {
                 if (game == null){
                 	game = new Blackjack(event.getBot(), channel, commandChar);
                 	game.showGameStart();
-                    manager.addListener(game);
                 } else {
                     bot.sendMessage(channel,"A game is already running!");
                 }
@@ -108,7 +138,6 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
             	if (game == null){
                 	game = new TexasPoker(event.getBot(), channel, commandChar);
                 	game.showGameStart();
-                    manager.addListener(game);
                 } else {
                     bot.sendMessage(channel,"A game is already running!");
                 }
@@ -117,13 +146,11 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
                     bot.sendMessage(channel, "No game is currently running!");
                 } else {
                     game.endGame();
-                    manager.removeListener(game);
                     game = null;
                 }
             } else if (msg.equals("shutdown") || msg.equals("botquit")) {
                 if (game != null){
                 	game.endGame();
-                    manager.removeListener(game);
                     game = null;
                 }
                 try {
@@ -131,12 +158,42 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
                 } catch (Exception e){
                 	System.out.println("Exception caught during disconnection.");
                 }
+            } else if (game != null){
+                game.processMessage(user, msg, origMsg);
             }
         }
     }
 	
 	@Override
-    public void onConnect (ConnectEvent<PircBotX> event){
-		bot.joinChannel(channel);
+    public void onConnect(ConnectEvent<PircBotX> event){
+		bot.joinChannel(ircchannel);
+    }
+    
+    @Override
+    public void onJoin(JoinEvent<PircBotX> event){
+        if (game != null){
+            game.processJoin(event.getUser());
+        }
+    }
+    
+    @Override
+    public void onPart(PartEvent<PircBotX> event){
+        if (game != null){
+            game.processQuit(event.getUser());
+        }
+    }
+    
+    @Override
+    public void onQuit(QuitEvent<PircBotX> event){
+        if (game != null){
+            game.processQuit(event.getUser());
+        }
+    }
+    
+    @Override
+    public void onNickChange(NickChangeEvent<PircBotX> event){
+        if (game != null){
+            game.processNickChange(event.getUser(), event.getOldNick(), event.getNewNick());
+        }
     }
 }

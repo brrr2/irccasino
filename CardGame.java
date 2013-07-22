@@ -18,14 +18,16 @@
 */
 package irccasino;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.*;
-
 import org.pircbotx.*;
-import org.pircbotx.hooks.ListenerAdapter;
-import org.pircbotx.hooks.events.*;
 
-public abstract class CardGame extends ListenerAdapter<PircBotX>{
+public abstract class CardGame{
     /* Start round task to be performed after post-start waiting period */
 	public class StartRoundTask extends TimerTask{
 		CardGame game;
@@ -95,10 +97,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
      * @param parent	the bot that creates an instance of this ListenerAdapter
      * @param gameChannel	the IRC channel in which the game is to be run.
      */
-    public CardGame (PircBotX parent,Channel gameChannel, char c){
+    public CardGame (PircBotX parent, Channel gameChannel, char comChar){
         bot = parent;
         channel = gameChannel;
-        commandChar = c;
+        commandChar = comChar;
         joined = new ArrayList<Player>();
         blacklist = new ArrayList<Player>();
         waitlist = new ArrayList<Player>();
@@ -114,37 +116,23 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
         checkPlayerFile();
     }
     
-    @Override
-    public void onJoin(JoinEvent<PircBotX> e){
-    	String nick = e.getUser().getNick();
+    abstract public void processMessage(User user, String msg, String origMsg);
+    public void processJoin(User user){
+        String nick = user.getNick();
     	if (loadPlayerStat(nick, "exists") != 1){
     		infoNewNick(nick);
     	}
     }
     
-    @Override
-	public void onPart(PartEvent<PircBotX> event) {
-		String nick = event.getUser().getNick();
+    public void processQuit(User user){
+        String nick = user.getNick();
 		if (isJoined(nick) || isWaitlisted(nick)){
 			leave(nick);
 		}
-	}
-
-	@Override
-	public void onQuit(QuitEvent<PircBotX> event) {
-		String nick = event.getUser().getNick();
-		if (isJoined(nick) || isWaitlisted(nick)){
-			leave(nick);
-		}
-	}
-	
-	@Override
-    public void onNickChange(NickChangeEvent<PircBotX> e){
-    	String oldNick = e.getOldNick();
-    	String newNick = e.getNewNick();
-    	User user = e.getUser();
-    	String hostmask = e.getUser().getHostmask();
-    	
+    }
+    
+    public void processNickChange(User user, String oldNick, String newNick){
+    	String hostmask = user.getHostmask();
     	if (isJoined(oldNick) || isWaitlisted(oldNick)){
     		infoNickChange(newNick);
     		if (isJoined(oldNick)){
@@ -450,10 +438,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     							ArrayList<Integer> debts, ArrayList<Integer> bankrupts, 
     							ArrayList<Integer> bjrounds, ArrayList<Integer> tprounds,
     							ArrayList<Boolean> simples) throws IOException {
-    	BufferedReader f = new BufferedReader(new FileReader("players.txt"));
+    	BufferedReader in = new BufferedReader(new FileReader("players.txt"));
         StringTokenizer st;
-        while (f.ready()){
-            st = new StringTokenizer(f.readLine());
+        while (in.ready()){
+            st = new StringTokenizer(in.readLine());
             nicks.add(st.nextToken());
             stacks.add(Integer.parseInt(st.nextToken()));
             debts.add(Integer.parseInt(st.nextToken()));
@@ -462,7 +450,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
             tprounds.add(Integer.parseInt(st.nextToken()));
             simples.add(Boolean.parseBoolean(st.nextToken()));
         }
-        f.close();
+        in.close();
     }
     public void savePlayerFile(ArrayList<String> nicks, ArrayList<Integer> stacks,
 								ArrayList<Integer> debts, ArrayList<Integer> bankrupts, 
@@ -515,8 +503,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX>{
     }
     public void checkPlayerFile(){
     	try {
-    		BufferedReader f = new BufferedReader(new FileReader("players.txt"));
-    		f.close();
+    		BufferedReader out = new BufferedReader(new FileReader("players.txt"));
+    		out.close();
     	} catch (IOException e){
     		System.out.println("players.txt not found! Creating new players.txt...");
     		try {
