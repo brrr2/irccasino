@@ -156,19 +156,30 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
 	                    bot.sendMessage(channel,"A game is already running!");
 	                }
 	            } else if (msg.equals("endgame")) {
-	                if (game == null){
+	            	if (game == null){
 	                    bot.sendMessage(channel, "No game is currently running!");
 	                } else {
-	                    game.endGame();
-	                    game = null;
+	                	if (game.isInProgress()){
+	                		bot.sendMessage(channel, "Please wait for the current round to finish.");
+	                	} else {
+	                		game.endGame();
+		                    game = null;
+	                	}
 	                }
 	            } else if (msg.equals("shutdown") || msg.equals("botquit")) {
-	                if (game != null){
-	                	game.endGame();
-	                    game = null;
+	            	if (game != null){
+	                	if (game.isInProgress()){
+	                		bot.sendMessage(channel, "Please wait for the current round to finish.");
+	                	} else {
+	                		game.endGame();
+		                    game = null;
+			                bot.getListenerManager().removeListener(this);
+			                bot.quitServer();
+	                	}
+	                } else {
+		                bot.getListenerManager().removeListener(this);
+		                bot.quitServer();
 	                }
-                    bot.getListenerManager().removeListener(this);
-	                bot.quitServer();
 	            }
             }
             // Process any game message if a game has been instantiated

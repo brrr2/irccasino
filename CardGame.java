@@ -533,6 +533,7 @@ public abstract class CardGame{
     	Player p;
         for (int ctr=0; ctr<getNumberJoined(); ctr++){
             p = getJoined(ctr);
+            savePlayerData(p);
             bot.deVoice(channel, findUser(p.getNick()));
         }
     }
