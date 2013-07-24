@@ -1,20 +1,28 @@
-README for irccasino
+README
 
-Java implementations of various casino games for IRC using PircBotX. It can be added to any IRC bot that has been implemented using the PircBotX library. Please visit code.google.com/p/pircbotx for more information.
-
-This project is compatible with PircBotX v1.9.
+irccasino is a Java package that includes implementations of various casino games for IRC using the PircBotX library. It can be included as an add-on to an existing PircBotX bot or it can be run as a standalone bot. The latest version is compatible with PircBotX v1.9 and JRE v1.6. For more infomation about the PircBotX library, please visit http://code.google.com/p/pircbotx/.
 
 Included games:
 Blackjack
 Texas Hold'em Poker
 
-Steps to running the bot:
-1. Include the PircBotX library in the build path of the project or use Maven.
-2. Run ExampleBot.java with the parameters ([optional]): [botnick] [password] network channel(without #).
-3. Type .[game], where game is the name of the game to be run.
+To run as a standalone bot:
+1. Download the PircBotX library (the JAR package). 
+2. Download irccasino and create a new project for it.
+3. Add the PircBotX library to the build/compile path for the project.
+4. Set the project to run ExampleBot.java.
+5. Create the file "irccasion.conf" in the run directory for the project with the following contents (The program will automatically generate this file, if it cannot be found and it will be propagated with default values. By default, it will connect to Freenode to the channel ##ExampleBot with the nick ExampleBot.):
+    nick=bot nick
+    password=SASL password
+    network=IRC network
+    channel=IRC channel
+6. Give the bot Op status in the channel.
+7. While as Op, type ".texaspoker" or ".blackjack" to start the desired game.
 
-OR
+To include in an existing project:
+1. Download irccasino and include it in the Source Packages of the existing project.
+2. Create instances of Blackjack.java or TexasPoker.java with the proper constructor parameters as desired.
+3. Pass the necessary events to the games' processMessage, processJoin, processQuit, and processNickChange methods.
+4. See ExampleBot.java for an example.
 
-1. Include the PircBotX library in the build path of the project or use Maven.
-2. Write your own bot to use these classes.
-3. Include the classes in the location of your own PircBotX bot.
+For more information, visit the project wiki page on GitHub.

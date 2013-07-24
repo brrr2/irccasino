@@ -143,14 +143,14 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
             if (channel.isOp(user)){
 	            if (msg.equals("blackjack") || msg.equals("bj")) {
 	                if (game == null){
-	                	game = new Blackjack(event.getBot(), channel, commandChar);
+	                	game = new Blackjack(event.getBot(), channel);
 	                	game.showGameStart();
 	                } else {
 	                    bot.sendMessage(channel,"A game is already running!");
 	                }
 	            } else if (msg.equals("texaspoker") || msg.equals("tp")) {
 	            	if (game == null){
-	                	game = new TexasPoker(event.getBot(), channel, commandChar);
+	                	game = new TexasPoker(event.getBot(), channel);
 	                	game.showGameStart();
 	                } else {
 	                    bot.sendMessage(channel,"A game is already running!");

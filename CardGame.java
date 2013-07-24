@@ -96,7 +96,7 @@ public abstract class CardGame{
      * @param parent	the bot that creates an instance of this class
      * @param gameChannel	the IRC channel in which the game is to be run.
      */
-    public CardGame (PircBotX parent, Channel gameChannel, char comChar){
+    public CardGame (PircBotX parent, Channel gameChannel){
         bot = parent;
         channel = gameChannel;
         joined = new ArrayList<Player>();

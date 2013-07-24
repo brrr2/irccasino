@@ -77,8 +77,8 @@ public class TexasPoker extends CardGame{
 	 * @param gameChannel
 	 * @param c
 	 */
-	public TexasPoker(PircBotX parent, Channel gameChannel, char c){
-		super(parent, gameChannel, c);
+	public TexasPoker(PircBotX parent, Channel gameChannel){
+		super(parent, gameChannel);
 		gameName = "Texas Hold'em Poker";
 		deck = new CardDeck();
 		deck.shuffleCards();

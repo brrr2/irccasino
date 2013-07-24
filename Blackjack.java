@@ -91,8 +91,8 @@ public class Blackjack extends CardGame {
 	 * @param parent		the bot that creates an instance of this ListenerAdapter
 	 * @param gameChannel	the IRC channel in which the game is to be run.
 	 */
-	public Blackjack(PircBotX parent, Channel gameChannel, char c) {
-		super(parent, gameChannel, c);
+	public Blackjack(PircBotX parent, Channel gameChannel) {
+		super(parent, gameChannel);
 		gameName = "Blackjack";
 		dealer = new BlackjackPlayer(bot.getNick(),"",true);
 		stats = new ArrayList<HouseStat>();
