@@ -78,6 +78,7 @@ public abstract class CardGame{
 	}
 
     protected PircBotX bot; //bot handling the game
+    protected ExampleBot parentListener; //ListenerAdapter that is receiving commands
     protected Channel channel; //channel where game is being played
     protected String gameName;
     protected ArrayList<Player> joined, blacklist, waitlist;
@@ -96,9 +97,10 @@ public abstract class CardGame{
      * @param parent	the bot that creates an instance of this class
      * @param gameChannel	the IRC channel in which the game is to be run.
      */
-    public CardGame (PircBotX parent, Channel gameChannel){
+    public CardGame (PircBotX parent, Channel gameChannel, ExampleBot eb){
         bot = parent;
         channel = gameChannel;
+        parentListener = eb;
         joined = new ArrayList<Player>();
         blacklist = new ArrayList<Player>();
         waitlist = new ArrayList<Player>();
@@ -114,7 +116,7 @@ public abstract class CardGame{
         checkPlayerFile();
     }
     
-    abstract public void processMessage(User user, String msg, String origMsg);
+    abstract public void processCommand(User user, String command, String[] params);
     public void processJoin(User user){
         String nick = user.getNick();
     	if (loadPlayerStat(nick, "exists") != 1){
@@ -164,6 +166,12 @@ public abstract class CardGame{
     }
     public int getNewCash(){
     	return newcash;
+    }
+    public Channel getChannel(){
+        return channel;
+    }
+    public String getGameName(){
+        return gameName;
     }
     
     /* 
@@ -767,6 +775,9 @@ public abstract class CardGame{
     
     /* Reveals cards in the deck/discards */
     public void infoDeckCards(String nick, char type, int num){
+        if (num < 1){
+            throw new IllegalArgumentException();
+        }
     	int cardIndex=0, numOut, n;
     	String cardStr;
     	ArrayList<Card> tCards;
@@ -789,31 +800,6 @@ public abstract class CardGame{
         }
     }
     
-    /* Parameter handling */   
-    public static int parseNumberParam(String str){
-        StringTokenizer st = new StringTokenizer(str);
-        String a;
-        a = st.nextToken();
-        a = st.nextToken();
-        return Integer.parseInt(a);
-    }
-    public static String parseStringParam(String str){
-        StringTokenizer st = new StringTokenizer(str);
-        String a;
-        a = st.nextToken();
-        a = st.nextToken();
-        return a;
-    }
-    public static String[] parseIniParams(String str){
-    	StringTokenizer st = new StringTokenizer(str);
-        String a,b;
-        a = st.nextToken();
-        a = st.nextToken();
-        b = st.nextToken();
-        String[] out = {a,b};
-        return out;
-    }
-    
     /* Formatted strings */
     public String getGameNameStr(){
     	return Colors.BOLD + gameName + Colors.BOLD;
@@ -826,12 +812,6 @@ public abstract class CardGame{
 	}
     abstract public String getGameRulesStr();
     abstract public String getGameCommandStr();
-    public static String getWinStr(){
-    	return Colors.GREEN+",01"+" WIN "+Colors.NORMAL;
-    }
-    public static String getLossStr(){
-    	return Colors.RED+",01"+" LOSS "+Colors.NORMAL;
-    }
     public static String formatNumber(int n){
     	return String.format("%,d", n);
     }

@@ -24,6 +24,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.StringTokenizer;
 import org.pircbotx.Channel;
 import org.pircbotx.PircBotX;
@@ -57,28 +58,36 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
     }
     
 	public static FileLogBot bot;
-	public static CardGame game;
-    public static String configFile;
-	public static String botNick, password, network, channelStr;
+	public CardGame bjgame, tpgame;
+    public String configFile;
+	public String botNick, password, network;
+    public ArrayList<String> channelList;
 	public static char commandChar = '.';
-	    
+    
+    public ExampleBot(){
+        channelList = new ArrayList<String>();
+        loadConfig("irccasino.conf");
+        bjgame = null;
+        tpgame = null;
+    }
+    
 	public static void main(String[] args) throws Exception {
+        ExampleBot eb = new ExampleBot();
 	    bot = new FileLogBot("log.txt");
-        bot.getListenerManager().addListener(new ExampleBot());
+        bot.getListenerManager().addListener(eb);
 	    bot.setVerbose(true);
 	    bot.setAutoNickChange(true);
 	    bot.setCapEnabled(true);
-        loadConfig("irccasino.conf");
-        bot.setName(botNick);
+        bot.setName(eb.botNick);
         bot.setLogin("bot");
         
-		if (password != null){
-            bot.getCapHandlers().add(new SASLCapHandler(botNick, password));
+		if (eb.password != null){
+            bot.getCapHandlers().add(new SASLCapHandler(eb.botNick, eb.password));
         }
-        bot.connect(network);
+        bot.connect(eb.network);
 	}
 	
-    public static void loadConfig(String configFile){
+    public void loadConfig(String configFile){
         try {
 			BufferedReader in = new BufferedReader(new FileReader(configFile));
 			String str, name, value;
@@ -96,13 +105,28 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
                     value = null;
                 }
 				if (name.equals("nick")) {
-					botNick = value;
+                    if (value == null){
+                        botNick = "ExampleBot";
+                    } else {
+                        botNick = value;
+                    }
 				} else if (name.equals("password")) {
 					password = value;
 				} else if (name.equals("channel")) {
-					channelStr = value;
+                    if (value == null){
+                        channelList.add("##ExampleBot");
+                    } else {
+                        StringTokenizer st2 = new StringTokenizer(value, ",");
+                        while (st2.hasMoreTokens()){
+                            channelList.add(st2.nextToken());
+                        }
+                    }
 				} else if (name.equals("network")) {
-					network = value;
+                    if (value == null){
+                        network = "chat.freenode.net";
+                    } else {
+                        network = value;
+                    }
 				}
 			}
 			in.close();
@@ -111,7 +135,7 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
 			bot.log(configFile+" not found! Loading default values...");
             botNick = "ExampleBot";
             network = "chat.freenode.net";
-            channelStr = "##ExampleBot";
+            channelList.add("##ExampleBot");
             password = null;
             /* Write these values to a new file */
             try{
@@ -123,7 +147,7 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
                 out.println("#IRC network");
                 out.println("network=" + network);
                 out.println("#IRC channel");
-                out.println("channel=" + channelStr);
+                out.println("channel=" + channelList.get(0));
                 out.close();
             } catch (IOException f) {
                 bot.log("Error creating "+configFile+"!");
@@ -133,92 +157,141 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
     
 	@Override
     public void onMessage (MessageEvent<PircBotX> event){
-        String origMsg = event.getMessage();
-        String msg = origMsg.toLowerCase();
+        String msg = event.getMessage();
         Channel channel = event.getChannel();
         User user = event.getUser();
+        
         if (msg.length() > 1 && msg.charAt(0) == commandChar){
-        	msg = msg.substring(1);
-            origMsg = origMsg.substring(1);
-            if (channel.isOp(user)){
-	            if (msg.equals("blackjack") || msg.equals("bj")) {
-	                if (game == null){
-	                	game = new Blackjack(event.getBot(), channel);
-	                	game.showGameStart();
-	                } else {
-	                    bot.sendMessage(channel,"A game is already running!");
-	                }
-	            } else if (msg.equals("texaspoker") || msg.equals("tp")) {
-	            	if (game == null){
-	                	game = new TexasPoker(event.getBot(), channel);
-	                	game.showGameStart();
-	                } else {
-	                    bot.sendMessage(channel,"A game is already running!");
-	                }
-	            } else if (msg.equals("endgame")) {
-	            	if (game == null){
-	                    bot.sendMessage(channel, "No game is currently running!");
-	                } else {
-	                	if (game.isInProgress()){
-	                		bot.sendMessage(channel, "Please wait for the current round to finish.");
-	                	} else {
-	                		game.endGame();
-		                    game = null;
-	                	}
-	                }
-	            } else if (msg.equals("shutdown") || msg.equals("botquit")) {
-	            	if (game != null){
-	                	if (game.isInProgress()){
-	                		bot.sendMessage(channel, "Please wait for the current round to finish.");
-	                	} else {
-	                		game.endGame();
-		                    game = null;
-			                bot.getListenerManager().removeListener(this);
-			                bot.quitServer();
-	                	}
-	                } else {
-		                bot.getListenerManager().removeListener(this);
-		                bot.quitServer();
-	                }
-	            }
+            msg = msg.substring(1);
+            StringTokenizer st = new StringTokenizer(msg);
+            String command = st.nextToken().toLowerCase();
+            String[] params = new String[st.countTokens()];
+            for (int ctr = 0; ctr < params.length; ctr++){
+                params[ctr] = st.nextToken();
             }
-            // Process any game message if a game has been instantiated
-            if (game != null){
-                game.processMessage(user, msg, origMsg);
+            
+            // Process commands
+            processCommand(channel, user, command, params);
+            
+            // Process any game command if a game has been instantiated
+            if (bjgame != null && bjgame.getChannel() == channel){
+                bjgame.processCommand(user, command, params);
+            }
+            if (tpgame != null && tpgame.getChannel() == channel){
+                tpgame.processCommand(user, command, params);
             }
         }
     }
 	
 	@Override
     public void onConnect(ConnectEvent<PircBotX> event){
-		bot.joinChannel(channelStr);
+        for (int ctr = 0; ctr < channelList.size(); ctr++){
+            bot.joinChannel(channelList.get(ctr));
+        }
     }
     
     @Override
     public void onJoin(JoinEvent<PircBotX> event){
-        if (game != null){
-            game.processJoin(event.getUser());
+        Channel channel = event.getChannel();
+        if (bjgame != null && bjgame.getChannel() == channel){
+            bjgame.processJoin(event.getUser());
+        }
+        if (tpgame != null && tpgame.getChannel() == channel){
+            tpgame.processJoin(event.getUser());
         }
     }
     
     @Override
     public void onPart(PartEvent<PircBotX> event){
-        if (game != null){
-            game.processQuit(event.getUser());
+        Channel channel = event.getChannel();
+        if (bjgame != null && bjgame.getChannel() == channel){
+            bjgame.processQuit(event.getUser());
+        }
+        if (tpgame != null && tpgame.getChannel() == channel){
+            tpgame.processQuit(event.getUser());
         }
     }
     
     @Override
     public void onQuit(QuitEvent<PircBotX> event){
-        if (game != null){
-            game.processQuit(event.getUser());
+        if (bjgame != null){
+            bjgame.processQuit(event.getUser());
+        }
+        if (tpgame != null){
+            tpgame.processQuit(event.getUser());
         }
     }
     
     @Override
     public void onNickChange(NickChangeEvent<PircBotX> event){
-        if (game != null){
-            game.processNickChange(event.getUser(), event.getOldNick(), event.getNewNick());
+        if (bjgame != null){
+            bjgame.processNickChange(event.getUser(), event.getOldNick(), event.getNewNick());
+        }
+        if (tpgame != null){
+            tpgame.processNickChange(event.getUser(), event.getOldNick(), event.getNewNick());
+        }
+    }
+    
+    public void processCommand(Channel channel, User user, String command, String[] params){
+        if (channel.isOp(user)){
+            if (command.equals("blackjack") || command.equals("bj")) {
+                if (tpgame != null && tpgame.getChannel() == channel){
+                    bot.sendMessage(channel, "Currently running "+tpgame.getGameNameStr()+" in this channel.");
+                } else if (bjgame != null) {
+                    bot.sendMessage(channel, bjgame.getGameNameStr()+" is already running in "+bjgame.getChannel().getName());
+                } else {
+                    bjgame = new Blackjack(bot, channel, this);
+                    bjgame.showGameStart();
+                }
+            } else if (command.equals("texaspoker") || command.equals("tp")) {
+                if (bjgame != null && bjgame.getChannel() == channel){
+                    bot.sendMessage(channel, "Currently running "+bjgame.getGameNameStr()+" in this channel.");
+                } else if (tpgame != null) {
+                    bot.sendMessage(channel, tpgame.getGameNameStr()+" is already running in "+tpgame.getChannel().getName());
+                } else {
+                    tpgame = new TexasPoker(bot, channel, this);
+                    tpgame.showGameStart();
+                }
+            } else if (command.equals("endgame")) {
+                if (bjgame != null && channel == bjgame.getChannel()){
+                    if (bjgame.isInProgress()){
+                        bot.sendMessage(channel, "Please wait for the current round to finish.");
+                    } else {
+                        bjgame.endGame();
+                        bjgame = null;
+                    }
+                }
+                if (tpgame != null && tpgame.getChannel() == channel){
+                    if (tpgame.isInProgress()){
+                        bot.sendMessage(channel, "Please wait for the current round to finish.");
+                    } else {
+                        tpgame.endGame();
+                        tpgame = null;
+                    }
+                }
+            } else if (command.equals("shutdown") || command.equals("botquit")) {
+                if (bjgame != null || tpgame != null){
+                    if (bjgame != null && bjgame.isInProgress()){
+                        bot.sendMessage(channel, "A round of "+bjgame.getGameNameStr()+" is in progress. Please wait for it to finish.");
+                    } else if (tpgame != null && tpgame.isInProgress()){
+                        bot.sendMessage(channel, "A round of "+tpgame.getGameNameStr()+" is in progress. Please wait for it to finish.");
+                    } else {
+                        if (bjgame != null){
+                            bjgame.endGame();
+                            bjgame = null;
+                        }
+                        if (tpgame != null){
+                            tpgame.endGame();
+                            tpgame = null;
+                        }
+                        bot.getListenerManager().removeListener(this);
+                        bot.shutdown();
+                    }
+                } else {
+                    bot.getListenerManager().removeListener(this);
+                    bot.shutdown();
+                }
+            }
         }
     }
 }

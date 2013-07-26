@@ -91,8 +91,8 @@ public class Blackjack extends CardGame {
 	 * @param parent		the bot that creates an instance of this ListenerAdapter
 	 * @param gameChannel	the IRC channel in which the game is to be run.
 	 */
-	public Blackjack(PircBotX parent, Channel gameChannel) {
-		super(parent, gameChannel);
+	public Blackjack(PircBotX parent, Channel gameChannel, ExampleBot eb) {
+		super(parent, gameChannel, eb);
 		gameName = "Blackjack";
 		dealer = new BlackjackPlayer(bot.getNick(),"",true);
 		stats = new ArrayList<HouseStat>();
@@ -104,88 +104,90 @@ public class Blackjack extends CardGame {
 	}
 
     @Override
-    public void processMessage(User user, String msg, String origMsg){
+    public void processCommand(User user, String command, String[] params){
         String nick = user.getNick();
         String hostmask = user.getHostmask();
 
         /* Parsing commands from the channel */
-        if (msg.equals("join") || msg.equals("j")) {
-            join(nick, hostmask);
-        } else if (msg.equals("leave") || msg.equals("quit")
-                || msg.equals("l") || msg.equals("q")) {
+        if (command.equals("join") || command.equals("j")){
+            if (parentListener.tpgame != null && 
+                (parentListener.tpgame.isJoined(nick) || parentListener.tpgame.isWaitlisted(nick))){
+                bot.sendNotice(user, "You're already joined in "+parentListener.tpgame.getGameNameStr()+"!");
+            } else if (parentListener.tpgame != null && parentListener.tpgame.isBlacklisted(nick)){
+                infoBlacklisted(nick);
+            } else {
+                join(nick, hostmask);
+            }
+        } else if (command.equals("leave") || command.equals("quit") || command.equals("l") || command.equals("q")){
             leave(nick);
-        } else if (msg.equals("start") || msg.equals("go")) {
+        } else if (command.equals("start") || command.equals("go")){
             if (canPlayerStart(nick)) {
                 cancelIdleShuffleTask();
                 setInProgress(true);
                 showStartRound();
                 setStartRoundTask();
             }
-        } else if (msg.startsWith("bet ") || msg.startsWith("b ")
-                || msg.equals("bet") || msg.equals("b")) {
+        } else if (command.equals("bet") || command.equals("b")) {
             if (isStage1PlayerTurn(nick)){
-                try {
+                if (params.length > 0){
                     try {
-                        int amount = parseNumberParam(msg);
-                        bet(amount);
+                        bet(Integer.parseInt(params[0]));
                     } catch (NumberFormatException e) {
                         infoBadParameter(nick);
                     }
-                } catch (NoSuchElementException e) {
+                } else {
                     infoNoParameter(nick);
                 }
             }
-        } else if (msg.equals("hit") || msg.equals("h")) {
+        } else if (command.equals("hit") || command.equals("h")) {
             if (isStage2PlayerTurn(nick)){
                 hit();
             }
-        } else if (msg.equals("stay") || msg.equals("stand")
-                || msg.equals("sit")) {
+        } else if (command.equals("stay") || command.equals("stand") || command.equals("sit")) {
             if (isStage2PlayerTurn(nick)){
                 stay();
             }
-        } else if (msg.equals("doubledown") || msg.equals("dd")) {
+        } else if (command.equals("doubledown") || command.equals("dd")) {
             if (isStage2PlayerTurn(nick)){
                 doubleDown();
             }
-        } else if (msg.equals("surrender") || msg.equals("surr")) {
+        } else if (command.equals("surrender") || command.equals("surr")) {
             if (isStage2PlayerTurn(nick)){
                 surrender();
             }
-        } else if (msg.startsWith("insure ") || msg.startsWith("insure")) {
+        } else if (command.equals("insure")) {
             if (isStage2PlayerTurn(nick)){
-                try {
+                if (params.length > 0){
                     try {
-                        int amount = parseNumberParam(msg);
-                        insure(amount);
+                        insure(Integer.parseInt(params[0]));
                     } catch (NumberFormatException e) {
                         infoBadParameter(nick);
                     }
-                } catch (NoSuchElementException e) {
+                } else {
                     infoNoParameter(nick);
                 }
             }
-        } else if (msg.equals("split")) {
+        } else if (command.equals("split")) {
             if (isStage2PlayerTurn(nick)){
                 split();
             }
-        } else if (msg.equals("table")) {
+        } else if (command.equals("table")) {
             if (isStage2(nick)){
                 showTableHands();
             }
-        } else if (msg.equals("sum")) {
+        } else if (command.equals("sum")) {
             if (isStage2(nick)){
                 BlackjackPlayer p = (BlackjackPlayer) findJoined(nick);
                 infoPlayerSum(p, p.getCurrentHand());
             }
-        } else if (msg.equals("hand")) {
+        } else if (command.equals("hand")) {
             if (isStage2(nick)){
                 BlackjackPlayer p = (BlackjackPlayer) findJoined(nick);
                 infoPlayerHand(p, p.getCurrentHand());
             }
-        } else if (msg.equals("allhands")) {
+        } else if (command.equals("allhands")) {
             bot.sendNotice(nick, "This command is not implemented.");
-        } else if (msg.equals("turn")) {
+        } else if (command.equals("turn")) {
             if (!isJoined(nick)) {
                 infoNotJoined(nick);
             } else if (!isInProgress()) {
@@ -199,179 +201,164 @@ public class Blackjack extends CardGame {
                 }
             }
             /* Contributed by Yky */
-        } else if (msg.equals("zc") || (msg.equals("zen"))) {
+        } else if (command.equals("zc") || (command.equals("zen"))) {
             if (isCountAllowed(nick)){
                 bot.sendMessage(channel, "Zen count = " + getZen());
             }
             /* Contributed by Yky */
-        } else if (msg.equals("hc") || (msg.equals("hilo"))) {
+        } else if (command.equals("hc") || (command.equals("hilo"))) {
             if (isCountAllowed(nick)){
                 bot.sendMessage(channel, "Hi-Lo count = " + getHiLo());
             }
             /* Contributed by Yky */
-        } else if (msg.equals("rc") || (msg.equals("red7"))) {
+        } else if (command.equals("rc") || (command.equals("red7"))) {
             if (isCountAllowed(nick)){
                 bot.sendMessage(channel, "Red7 count = " + getRed7());
             }
-        } else if (msg.equals("count") || msg.equals("c")){
+        } else if (command.equals("count") || command.equals("c")){
             if (isCountAllowed(nick)){
                 bot.sendMessage(channel, "Cards/Hi-Lo/Red7/Zen = " + 
                         formatNumber(deck.getNumberCards()) + "/" +
                         getHiLo() + "/" + getRed7() + "/" + getZen());
             }
-        } else if (msg.equals("numcards") || msg.equals("ncards")) {
+        } else if (command.equals("numcards") || command.equals("ncards")) {
             if (isCountAllowed(nick)){
                 showNumCards();
             }
-        } else if (msg.equals("numdiscards") || msg.equals("ndiscards")) {
+        } else if (command.equals("numdiscards") || command.equals("ndiscards")) {
             if (isCountAllowed(nick)){
                 showNumDiscards();
             }
-        } else if (msg.equals("simple")) {
+        } else if (command.equals("simple")) {
             if (!isJoined(nick)) {
                 infoNotJoined(nick);
             } else {
                 togglePlayerSimple(nick);
             }
-        } else if (msg.equals("stats")){
+        } else if (command.equals("stats")){
             if (isInProgress()){
                 infoWaitRoundEnd(nick);
             } else {
                 showGameStats();
             }
-        } else if (msg.startsWith("cash ") || msg.equals("cash")) {
-            try {
-                String param = parseStringParam(origMsg);
-                showPlayerCash(param);
-            } catch (NoSuchElementException e) {
+        } else if (command.equals("cash")) {
+            if (params.length > 0){
+                showPlayerCash(params[0]);
+            } else {
                 showPlayerCash(nick);
             }
-        } else if (msg.startsWith("netcash ") || msg.equals("netcash")
-                || msg.startsWith("net ") || msg.equals("net")) {
-            try {
-                String param = parseStringParam(origMsg);
-                showPlayerNetCash(param);
-            } catch (NoSuchElementException e) {
+        } else if (command.equals("netcash") || command.equals("net")) {
+            if (params.length > 0){
+                showPlayerNetCash(params[0]);
+            } else {
                 showPlayerNetCash(nick);
             }
-        } else if (msg.startsWith("debt ") || msg.equals("debt")) {
-            try {
-                String param = parseStringParam(origMsg);
-                showPlayerDebt(param);
-            } catch (NoSuchElementException e) {
+        } else if (command.equals("debt")) {
+            if (params.length > 0){
+                showPlayerDebt(params[0]);
+            } else {
                 showPlayerDebt(nick);
             }
-        } else if (msg.startsWith("bankrupts ")	|| msg.equals("bankrupts")) {
-            try {
-                String param = parseStringParam(origMsg);
-                showPlayerBankrupts(param);
-            } catch (NoSuchElementException e) {
+        } else if (command.equals("bankrupts")) {
+            if (params.length > 0){
+                showPlayerBankrupts(params[0]);
+            } else {
                 showPlayerBankrupts(nick);
             }
-        } else if (msg.startsWith("rounds ") || msg.equals("rounds")) {
-            try {
-                String param = parseStringParam(origMsg);
-                showPlayerRounds(param);
-            } catch (NoSuchElementException e) {
+        } else if (command.equals("rounds")) {
+            if (params.length > 0){
+                showPlayerRounds(params[0]);
+            } else {
                 showPlayerRounds(nick);
             }
-        } else if (msg.startsWith("player ") || msg.equals("player") || 
-                msg.startsWith("p ") || msg.equals("p")){
-            try {
-                String param = parseStringParam(origMsg);
-                showPlayerAllStats(param);
-            } catch (NoSuchElementException e) {
+        } else if (command.equals("player") || command.equals("p")){
+            if (params.length > 0){
+                showPlayerAllStats(params[0]);
+            } else {
                 showPlayerAllStats(nick);
             }
-        } else if (msg.startsWith("paydebt ") || msg.equals("paydebt") ) {
+        } else if (command.equals("paydebt") ) {
             if (!isJoined(nick)) {
                 infoNotJoined(nick);
             } else if (isInProgress()) {
                 infoWaitRoundEnd(nick);
             } else {
-                try {
+                if (params.length > 0){
                     try {
-                        int amount = parseNumberParam(msg);
-                        payPlayerDebt(nick, amount);
+                        payPlayerDebt(nick, Integer.parseInt(params[0]));
                     } catch (NumberFormatException e) {
                         infoBadParameter(nick);
                     }
-                } catch (NoSuchElementException e) {
+                } else {
                     infoNoParameter(nick);
                 }
             }
-        } else if (msg.equals("players")) {
+        } else if (command.equals("players")) {
             showPlayers();
-        } else if (msg.equals("waitlist")) {
+        } else if (command.equals("waitlist")) {
             showWaitlist();
-        } else if (msg.equals("blacklist")) {
+        } else if (command.equals("blacklist")) {
             showBlacklist();
-        } else if (msg.startsWith("house ") || msg.equals("house")) {
+        } else if (command.equals("house")) {
             if (isInProgress()) {
                 infoWaitRoundEnd(nick);
             } else {
-                try {
+                if (params.length > 0){
                     try {
-                        int ndecks = parseNumberParam(msg);
-                        showHouseStat(ndecks);
+                        showHouseStat(Integer.parseInt(params[0]));
                     } catch (NumberFormatException e) {
                         infoBadParameter(nick);
                     }
-                } catch (NoSuchElementException e) {
+                } else {
                     showHouseStat(shoeDecks);
                 }
             }
-        } else if (msg.startsWith("top5 ") || msg.equals("top5") || 
-                msg.startsWith("top10 ") || msg.equals("top10")) {
+        } else if (command.equals("top")) {
             if (isInProgress()) {
                 infoWaitRoundEnd(nick);
             } else {
-                try {
+                if (params.length > 1){
                     try {
-                        String param = parseStringParam(msg).toLowerCase();
-                        if (msg.startsWith("top5")){
-                            showTopPlayers(param, 5);
-                        } else if (msg.startsWith("top10")){
-                            showTopPlayers(param, 10);
-                        }
+                        showTopPlayers(params[1].toLowerCase(), Integer.parseInt(params[0]));
                     } catch (IllegalArgumentException e) {
                         infoBadParameter(nick);
                     }
-                } catch (NoSuchElementException e) {
-                    if (msg.startsWith("top5")){
-                        showTopPlayers("cash", 5);
-                    } else if (msg.startsWith("top10")){
-                        showTopPlayers("cash", 10);
+                } else if (params.length == 1){
+                    try {
+                        showTopPlayers("cash", Integer.parseInt(params[0]));
+                    } catch (IllegalArgumentException e) {
+                        infoBadParameter(nick);
                     }
+                } else {
+                    showTopPlayers("cash", 5);
                 }
             }
-        } else if (msg.equals("gamerules") || msg.equals("grules")) {
+        } else if (command.equals("grules")) {
             infoGameRules(nick);
-        } else if (msg.equals("gamehelp") || msg.equals("ghelp")) {
+        } else if (command.equals("ghelp")) {
             infoGameHelp(nick);
-        } else if (msg.equals("gamecommands") || msg.equals("gcommands")) {
+        } else if (command.equals("gcommands")) {
             infoGameCommands(nick);
-        } else if (msg.equals("currentgame") || msg.equals("game")) {
+        } else if (command.equals("game")) {
             showGameName();
-        } else if (msg.equals("numdecks") || msg.equals("ndecks")) {
+        } else if (command.equals("numdecks") || command.equals("ndecks")) {
             if (isCountAllowed(nick)){
                 showNumDecks();
             }
         /* Op commands */
-        } else if (msg.equals("fstart") || msg.equals("fgo")){
+        } else if (command.equals("fstart") || command.equals("fgo")){
             if (canForceStart(user,nick)){
                 cancelIdleShuffleTask();
                 setInProgress(true);
                 showStartRound();
                 setStartRoundTask();
             }
-        } else if (msg.equals("fj") || msg.equals("fjoin") ||
-                msg.startsWith("fj ") || msg.startsWith("fjoin ")){
+        } else if (command.equals("fj") || command.equals("fjoin")){
             if (!channel.isOp(user)) {
                 infoOpsOnly(nick);
             } else {
-                try {
-                    String fNick = parseStringParam(msg);
+                if (params.length > 0){
+                    String fNick = params[0];
                     Set<User> chanUsers = channel.getUsers();
                     Iterator<User> it = chanUsers.iterator();
                     while(it.hasNext()){
@@ -382,130 +369,120 @@ public class Blackjack extends CardGame {
                         }
                     }
                     infoNickNotFound(nick,fNick);
-                } catch (NoSuchElementException e) {
+                } else {
                     infoNoParameter(nick);
                 }
             }
-        } else if (msg.equals("fl") || msg.equals("fq") || msg.equals("fquit") || msg.equals("fleave") ||
-                msg.startsWith("fl ") || msg.startsWith("fq ") || msg.startsWith("fquit ") || msg.startsWith("fleave")){
+        } else if (command.equals("fl") || command.equals("fq") || command.equals("fquit") || command.equals("fleave")){
             if (!channel.isOp(user)) {
                 infoOpsOnly(nick);
             } else {
-                try {
-                    String fNick = parseStringParam(msg);
-                    leave(fNick);
-                } catch (NoSuchElementException e) {
+                if (params.length > 0){
+                    leave(params[0]);
+                } else {
                     infoNoParameter(nick);
                 }
             }
-        } else if (msg.equals("fb") || msg.equals("fbet") ||
-                msg.startsWith("fb ") || msg.startsWith("fbet ")){
+        } else if (command.equals("fb") || command.equals("fbet")){
             if (isForceBetCommandAllowed(user, nick)){
-                try {
+                if (params.length > 0){
                     try {
-                        int amount = parseNumberParam(msg);
-                        bet(amount);
+                        bet(Integer.parseInt(params[0]));
                     } catch (NumberFormatException e) {
                         infoBadParameter(nick);
                     }
-                } catch (NoSuchElementException e) {
+                } else {
                     infoNoParameter(nick);
                 }
             }
-        } else if (msg.equals("fhit") || msg.equals("fh")) {
+        } else if (command.equals("fhit") || command.equals("fh")) {
             if (isForcePlayCommandAllowed(user, nick)){
                 hit();
             }
-        } else if (msg.equals("fstay") || msg.equals("fstand") || msg.equals("fsit")) {
+        } else if (command.equals("fstay") || command.equals("fstand") || command.equals("fsit")) {
             if (isForcePlayCommandAllowed(user, nick)){
                 stay();
             }
-        } else if (msg.equals("fdoubledown") || msg.equals("fdd")) {
+        } else if (command.equals("fdoubledown") || command.equals("fdd")) {
             if (isForcePlayCommandAllowed(user, nick)){
                 doubleDown();
             }
-        } else if (msg.equals("fsurrender") || msg.equals("fsurr")) {
+        } else if (command.equals("fsurrender") || command.equals("fsurr")) {
             if (isForcePlayCommandAllowed(user, nick)){
                 surrender();
             }
-        } else if (msg.equals("fsplit")) {
+        } else if (command.equals("fsplit")) {
             if (isForcePlayCommandAllowed(user, nick)){
                 split();
             }
-        } else if (msg.equals("finsure") || msg.startsWith("finsure ")) {
+        } else if (command.equals("finsure")) {
             if (isForcePlayCommandAllowed(user, nick)){
-                try {
+                if (params.length > 0){
                     try {
-                        int amount = parseNumberParam(msg);
-                        insure(amount);
+                        insure(Integer.parseInt(params[0]));
                     } catch (NumberFormatException e) {
                         infoBadParameter(nick);
                     }
-                } catch (NoSuchElementException e) {
+                } else {
                     infoNoParameter(nick);
                 }
             }
-        } else if (msg.startsWith("cards ") || msg.startsWith("discards ") || 
-                msg.equals("cards") || msg.equals("discards")) {
+        } else if (command.equals("cards") || command.equals("discards")){
             if (isOpCommandAllowed(user, nick)){
-                try {
+                if (params.length > 0){
                     try {
-                        int num = parseNumberParam(msg);
-                        if (msg.startsWith("cards ")
-                                && deck.getNumberCards() > 0) {
+                        int num = Integer.parseInt(params[0]);
+                        if (command.equals("cards") && deck.getNumberCards() > 0){
                             infoDeckCards(nick, 'c', num);
-                        } else if (msg.startsWith("discards ")
-                                && deck.getNumberDiscards() > 0) {
+                        } else if (command.equals("discards") && deck.getNumberDiscards() > 0){
                             infoDeckCards(nick, 'd', num);
                         } else {
                             bot.sendNotice(nick, "Empty!");
                         }
-                    } catch (NumberFormatException e) {
+                    } catch (IllegalArgumentException e){
                         infoBadParameter(nick);
                     }
-                } catch (NoSuchElementException e) {
+                } else {
                     infoNoParameter(nick);
                 }
             }
-        } else if (msg.equals("shuffle")) {
+        } else if (command.equals("shuffle")){
             if (isOpCommandAllowed(user, nick)){
                 cancelIdleShuffleTask();
                 shuffleShoe();
             }
-        } else if (msg.equals("reload")) {
+        } else if (command.equals("reload")){
             if (isOpCommandAllowed(user, nick)){
                 cancelIdleShuffleTask();
                 loadSettings();
                 showReloadSettings();
             }
-        } else if (msg.startsWith("set ") || msg.equals("set")) {
+        } else if (command.equals("set")){
             if (isOpCommandAllowed(user, nick)){
-                try {
+                if (params.length > 1){
                     try {
-                        String[] iniParams = parseIniParams(msg);
-                        setSetting(iniParams);
-                        showUpdateSetting(iniParams[0]);
+                        setSetting(params);
+                        showUpdateSetting(params[0]);
                     } catch (IllegalArgumentException e) {
                         infoBadParameter(nick);
                     }
-                } catch (NoSuchElementException e) {
+                } else {
                     infoNoParameter(nick);
                 }
             }
-        } else if (msg.startsWith("get ") || msg.equals("get")) {
+        } else if (command.equals("get")) {
             if (isOpCommandAllowed(user, nick)){
-                try {
+                if (params.length > 0){
                     try {
-                        String param = parseStringParam(msg);
-                        showSetting(param,getSetting(param));
+                        showSetting(params[0], getSetting(params[0]));
                     } catch (IllegalArgumentException e) {
                         infoBadParameter(nick);
                     }
-                } catch (NoSuchElementException e) {
+                } else {
                     infoNoParameter(nick);
                 }
             }
-        } else if (msg.equals("test1")){
+        } else if (command.equals("test1")){
             bot.sendMessage(channel, "No test implemented yet.");
         }
     }
@@ -539,7 +516,7 @@ public class Blackjack extends CardGame {
 	/* Game settings management */
 	@Override
 	public void setSetting(String[] params) {
-		String setting = params[0];
+		String setting = params[0].toLowerCase();
 		String value = params[1];
 		if (setting.equals("decks")) {
 			cancelIdleShuffleTask();
@@ -940,6 +917,7 @@ public class Blackjack extends CardGame {
         showGameEnd();
         bot = null;
         channel = null;
+        parentListener = null;
 	}
 	@Override
 	public void resetGame() {
@@ -2062,10 +2040,14 @@ public class Blackjack extends CardGame {
                 "allhands, cash, netcash (net), debt, paydebt, bankrupts, rounds, player (p), "+
                 "numdecks (ndecks), numcards (ncards), numdiscards (ndiscards), hilo (hc), "+
                 "zen (zc), red7 (rc), count, simple, players, stats, house, waitlist, "+
-                "blacklist, top5, top10, game, gamehelp (ghelp), gamerules (grules), "+
-                "gamecommands (gcommands)";
+                "blacklist, top, game, ghelp, grules, gcommands";
 	}
-	
+	public static String getWinStr(){
+    	return Colors.GREEN+",01"+" WIN "+Colors.NORMAL;
+    }
+    public static String getLossStr(){
+    	return Colors.RED+",01"+" LOSS "+Colors.NORMAL;
+    }
 	public String getSurrenderStr(){
 		return Colors.RED+",01"+" SURR "+Colors.NORMAL;
 	}
