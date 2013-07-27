@@ -73,9 +73,10 @@ public class TexasPoker extends CardGame{
 	
 	/**
 	 * Constructor for TexasPoker, subclass of CardGame
-	 * @param parent
-	 * @param gameChannel
-	 * @param c
+     * 
+	 * @param parent The bot that created an instance of this ListenerAdapter
+	 * @param gameChannel The IRC channel in which the game is to be run.
+     * @param eb The ListenerAdapter that is listening for commands for this game
 	 */
 	public TexasPoker(PircBotX parent, Channel gameChannel, ExampleBot eb){
 		super(parent, gameChannel, eb);
@@ -95,6 +96,7 @@ public class TexasPoker extends CardGame{
         maxPlayers = 22;
 	}
 	
+    /* Command management method */
     @Override
     public void processCommand(User user, String command, String[] params){
         String nick = user.getNick();
@@ -113,7 +115,7 @@ public class TexasPoker extends CardGame{
         } else if (command.equals("leave") || command.equals("quit") || command.equals("l") || command.equals("q")) {
             leave(nick);
         } else if (command.equals("start") || command.equals("go")) {
-            if (canPlayerStart(nick)){
+            if (isStartCommandAllowed(nick)){
                 setInProgress(true);
                 showStartRound();
                 setStartRoundTask();
@@ -286,7 +288,7 @@ public class TexasPoker extends CardGame{
 
         /* Op commands */
         } else if (command.equals("fstart") || command.equals("fgo")){
-            if (canForceStart(user,nick)){
+            if (isForceStartAllowed(user,nick)){
                 setInProgress(true);
                 showStartRound();
                 setStartRoundTask();
@@ -461,7 +463,7 @@ public class TexasPoker extends CardGame{
                         for (int ctr = 0; ctr < number; ctr++){
                             dealCard(h);
                         }
-                        bot.sendMessage(channel, h.toString(h.getSize()));
+                        bot.sendMessage(channel, h.toString(0, h.getSize()));
                         Collections.sort(h.getAllCards());
                         Collections.reverse(h.getAllCards());
                         h.getValue();
@@ -479,6 +481,7 @@ public class TexasPoker extends CardGame{
         }
     }
     
+    /* Accessor methods */
 	public void setMinBet(int value){
     	minBet = value;
     }
@@ -486,6 +489,20 @@ public class TexasPoker extends CardGame{
     	return minBet;
     }
 	
+    /* Game management methods */
+    @Override
+	public void addPlayer(String nick, String hostmask) {
+		addPlayer(new PokerPlayer(nick, hostmask, false));
+	}
+	@Override
+	public void addWaitlistPlayer(String nick, String hostmask) {
+		Player p = new PokerPlayer(nick, hostmask, false);
+		waitlist.add(p);
+		infoJoinWaitlist(p.getNick());
+	}
+	public Player getPlayerAfter(Player p){
+		return getJoined((getJoinedIndex(p)+1) % getNumberJoined());
+	}
 	@Override
 	public void startRound() {
 		if (getNumberJoined() < 2){
@@ -500,7 +517,6 @@ public class TexasPoker extends CardGame{
 			setIdleOutTask();
 		}
 	}
-
 	@Override
 	public void continueRound() {
         // Store currentPlayer as firstPlayer and find the next player
@@ -551,7 +567,6 @@ public class TexasPoker extends CardGame{
 			setIdleOutTask();
 		}
 	}
-
 	@Override
 	public void endRound() {
 		PokerPlayer p;
@@ -614,7 +629,6 @@ public class TexasPoker extends CardGame{
         setInProgress(false);
 		mergeWaitlist();
 	}
-
 	@Override
 	public void endGame() {
 		cancelStartRoundTask();
@@ -640,7 +654,6 @@ public class TexasPoker extends CardGame{
         channel = null;
         parentListener = null;
 	}
-
 	@Override
 	public void resetGame() {
 		discardCommunity();
@@ -655,13 +668,7 @@ public class TexasPoker extends CardGame{
 		topBettor = null;
 		deck.refillDeck();
 	}
-	public void resetPlayer(PokerPlayer p) {
-		discardPlayerHand(p);
-		p.setFold(false);
-		p.setQuit(false);
-        p.setAllIn(false);
-	}
-	@Override
+    @Override
 	public void leave(String nick) {
         // Check if the nick is even joined
 		if (isJoined(nick)){
@@ -712,9 +719,34 @@ public class TexasPoker extends CardGame{
 			infoNotJoined(nick);
 		}
 	}
+	public void resetPlayer(PokerPlayer p) {
+		discardPlayerHand(p);
+		p.setFold(false);
+		p.setQuit(false);
+        p.setAllIn(false);
+	}
+	public void setButton(){
+		if (dealer == null){
+			dealer = (PokerPlayer) getJoined(0);
+		} else {
+			dealer = (PokerPlayer) getPlayerAfter(dealer);
+		}
+		if (getNumberJoined() == 2){
+			smallBlind = dealer;
+		} else {
+			smallBlind = (PokerPlayer) getPlayerAfter(dealer);
+		}
+		bigBlind = (PokerPlayer) getPlayerAfter(smallBlind);
+	}
+	public void setBlindBets(){
+		currentBet = Math.min(minRaise, smallBlind.getCash());
+		smallBlind.setBet(currentBet);
+		currentBet = Math.min(currentBet+minRaise, bigBlind.getCash());
+		bigBlind.setBet(currentBet);
+	}
     
     /* Game command logic checking methods */
-    public boolean canPlayerStart(String nick){
+    public boolean isStartCommandAllowed(String nick){
         if (!isJoined(nick)) {
             infoNotJoined(nick);
         } else if (isInProgress()) {
@@ -738,7 +770,7 @@ public class TexasPoker extends CardGame{
         }
         return false;
     }
-    public boolean canForceStart(User user, String nick){
+    public boolean isForceStartAllowed(User user, String nick){
         if (!channel.isOp(user)) {
 			infoOpsOnly(nick);
 		} else if (isInProgress()) {
@@ -770,27 +802,8 @@ public class TexasPoker extends CardGame{
         }
         return false;
     }
-
-	public void setButton(){
-		if (dealer == null){
-			dealer = (PokerPlayer) getJoined(0);
-		} else {
-			dealer = (PokerPlayer) getPlayerAfter(dealer);
-		}
-		if (getNumberJoined() == 2){
-			smallBlind = dealer;
-		} else {
-			smallBlind = (PokerPlayer) getPlayerAfter(dealer);
-		}
-		bigBlind = (PokerPlayer) getPlayerAfter(smallBlind);
-	}
-	public void setBlindBets(){
-		currentBet = Math.min(minRaise, smallBlind.getCash());
-		smallBlind.setBet(currentBet);
-		currentBet = Math.min(currentBet+minRaise, bigBlind.getCash());
-		bigBlind.setBet(currentBet);
-	}
 	
+    /* Game settings management */
 	@Override
 	public void setSetting(String[] params) {
 		String setting = params[0].toLowerCase();
@@ -808,7 +821,6 @@ public class TexasPoker extends CardGame{
 		}
 		saveSettings();
 	}
-
 	@Override
 	public String getSetting(String param) {
 		if (param.equals("idle")) {
@@ -823,7 +835,6 @@ public class TexasPoker extends CardGame{
 			throw new IllegalArgumentException();
 		}
 	}
-
 	@Override
 	public void loadSettings() {
 		try {
@@ -861,7 +872,6 @@ public class TexasPoker extends CardGame{
 			saveSettings();
 		}
 	}
-
 	@Override
 	public void saveSettings() {
 		try {
@@ -880,8 +890,9 @@ public class TexasPoker extends CardGame{
 			bot.log("Error creating texaspoker.ini!");
 		}
     }
-
 	@Override
+    
+    /* Player data management */
 	public int getTotalPlayers() {
 		try {
 	    	ArrayList<String> nicks = new ArrayList<String>();
@@ -904,7 +915,6 @@ public class TexasPoker extends CardGame{
 		 	return -1;
     	}
 	}
-
 	@Override
 	public void loadPlayerData(Player p) {
 		try {
@@ -945,7 +955,6 @@ public class TexasPoker extends CardGame{
 			bot.log("Error reading players.txt!");
 		}
 	}
-
 	@Override
 	public void savePlayerData(Player p) {
 		boolean found = false;
@@ -990,25 +999,8 @@ public class TexasPoker extends CardGame{
 			bot.log("Error writing to players.txt!");
 		}
 	}
-
-	@Override
-	public void addPlayer(String nick, String hostmask) {
-		addPlayer(new PokerPlayer(nick, hostmask, false));
-	}
-
-	@Override
-	public void addWaitlistPlayer(String nick, String hostmask) {
-		Player p = new PokerPlayer(nick, hostmask, false);
-		waitlist.add(p);
-		infoJoinWaitlist(p.getNick());
-	}
-	public Player getPlayerAfter(Player p){
-		return getJoined((getJoinedIndex(p)+1) % getNumberJoined());
-	}
 	
-    /* 
-     * Card management methods for Texas Hold'em Poker
-     */
+    /* Card management methods for Texas Hold'em Poker */
     public void dealCommunity(){
 		if (stage == 1) {
 			for (int ctr = 1; ctr <= 3; ctr++){
@@ -1045,9 +1037,7 @@ public class TexasPoker extends CardGame{
         }
 	}
 	
-    /* 
-     * Betting-related methods
-     */
+    /* Texas Hold'em Poker gameplay methods */
 	public int getNumberNotFolded(){
 		PokerPlayer p;
 		int numberNotFolded = 0;
@@ -1253,6 +1243,7 @@ public class TexasPoker extends CardGame{
 		}
 	}
 	
+    /* Channel message output methods for Texas Hold'em Poker*/
 	@Override
 	public void showGameStats() {
 		int totalPlayers;
@@ -1263,7 +1254,6 @@ public class TexasPoker extends CardGame{
             bot.sendMessage(channel, formatNumber(totalPlayers)+" players have played " +	getGameNameStr()+".");
         }
 	}
-
     @Override
 	public void showTopPlayers(String stat, int n) {
         if (n < 1){
@@ -1340,7 +1330,6 @@ public class TexasPoker extends CardGame{
 			bot.log("Error reading players.txt!");
 		}
 	}
-
 	@Override
 	public void showPlayerRounds(String nick) {
 		int rounds = getPlayerStat(nick, "tprounds");
@@ -1370,7 +1359,6 @@ public class TexasPoker extends CardGame{
 	public void showReloadSettings() {
 		bot.sendMessage(channel, "texaspoker.ini has been reloaded.");
 	}
-	
 	public void showTablePlayers(){
 		PokerPlayer p;
         String msg = Colors.BOLD+getNumberJoined()+Colors.BOLD+" players: ";
@@ -1450,7 +1438,6 @@ public class TexasPoker extends CardGame{
 		bot.sendMessage(channel, p.getNickStr()+"'s turn. " + p.getNick()+" in for $" + formatNumber(pp.getBet()) + 
                 ". Stack: $" + formatNumber(p.getCash()-pp.getBet()) + ". Current bet: $" + formatNumber(currentBet) + ".");
 	}
-    
     public void showRaise(PokerPlayer p){
         bot.sendMessage(channel, p.getNickStr()+" has raised to $" + formatNumber(p.getBet())+
 					". Stack: $" + formatNumber(p.getCash() - p.getBet()));
@@ -1470,7 +1457,6 @@ public class TexasPoker extends CardGame{
 	public void showFold(PokerPlayer p){
 		bot.sendMessage(channel, p.getNickStr()+" has folded. Stack: $" + formatNumber(p.getCash()-p.getBet()));
 	}
-    
 	public void showPlayerResult(PokerPlayer p){
 		bot.sendMessage(channel, p.getNickStr() + ": "+ p.getPokerHand().getName()+", " + p.getPokerHand() + " (" + p.getHand() + ")");
 	}
@@ -1514,6 +1500,7 @@ public class TexasPoker extends CardGame{
 		}
 	}
 	
+    /* Private messages to players */
 	public void infoPlayerHand(PokerPlayer p, Hand h) {
 		if (p.isSimple()) {
 			bot.sendNotice(p.getNick(), "Your hand is " + h + ".");
@@ -1535,7 +1522,6 @@ public class TexasPoker extends CardGame{
 	public String getGameRulesStr() {
 		return "This is no limit Texas Hold'em Poker. $" + getMinBet() + " minimum bet/raise.";
 	}
-
 	@Override
 	public String getGameCommandStr() {
 		return "go, join, quit, bet, check, call, " +

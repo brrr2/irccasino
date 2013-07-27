@@ -21,11 +21,12 @@ package irccasino;
 
 import org.pircbotx.Colors;
 
-public class BlackjackHand extends Hand {
-	protected int bet;
-	
+public class BlackjackHand extends Hand implements Comparable<BlackjackHand>{
+	private int bet;
+
 	/**
-	 * Class constructor for blackjack hand object
+	 * Creates a Blackjack hand with no initial bet.
+     * Initializes the bet to 0.
 	 */
 	public BlackjackHand(){
 		super();
@@ -49,7 +50,98 @@ public class BlackjackHand extends Hand {
 		return getSize() != 2;
 	}
 	
-	/* Formatted string repsentation of the hand */
+    /**
+     * Determines if a hand is blackjack.
+     * If the sum is 21 and there are only 2 cards then it is blackjack.
+     * 
+     * @return true if the hand is blackjack
+     */
+    public boolean isBlackjack() {
+		return calcSum() == 21 && getSize() == 2;
+	}
+	/**
+     * Determines if a hand is bust.
+     * If the sum is greater than 21 then it is bust.
+     * 
+     * @return true if the hand is bust
+     */
+    public boolean isBusted() {
+		return calcSum() > 21;
+	}
+    
+    /**
+     * Determines if a BlackjackHand is a pair.
+     * Useful when determining if splitting is possible.
+     * 
+     * @return true if the hand is a pair
+     */
+    public boolean isPair() {
+		return getSize() > 2 && get(0).getFace().equals(get(1).getFace());
+	}
+    
+    /**
+     * Calculates the highest sum of a BlackjackHand.
+     * The largest non-busting sum is returned whenever possible.
+     * 
+     * @return The sum of the BlackjackHand.
+     */
+    public int calcSum() {
+		int sum = 0, numAces = 0;
+		Card card;
+		// Add up all the cards and keep track of the number of aces
+		for (int ctr = 0; ctr < getSize(); ctr++) {
+			card = get(ctr);
+			if (card.getFace().equals("A")) {
+				numAces++;
+			}
+			sum += card.getBlackjackValue();
+		}
+		// Use the lower of each ace while the sum is greater than 21
+        for (int ctr = 0; ctr < numAces; ctr++){
+            if (sum > 21){
+                sum -= 10;
+            } else { 
+                break;
+            }
+        }
+		return sum;
+	}
+    
+    @Override
+    public int compareTo(BlackjackHand h) {
+		int sum = calcSum(), hsum = h.calcSum();
+		boolean BJ = isBlackjack();
+		boolean hBJ = h.isBlackjack();
+		if (sum > 21) {
+			return -1;
+		} else if (sum == 21) {
+			/* Different cases at 21 */
+			if (BJ && !hBJ) {
+				return 2;
+			} else if (BJ && hBJ) {
+				return 0;
+			} else if (!BJ && hBJ) {
+				return -1;
+			} else {
+				if (hsum == 21) {
+					return 0;
+				} else {
+					return 1;
+				}
+			}
+		} else {
+			/* Any case other than 21 */
+			if (hsum > 21 || hsum < sum) {
+				return 1;
+			} else if (hsum == sum) {
+				return 0;
+			} else {
+				return -1;
+			}
+		}
+	}
+    
+	/* Formatted string representation of the hand */
 	public String toString(int numHidden){
     	String hiddenBlock = Colors.DARK_BLUE+",00\uFFFD";
         String outStr= "";

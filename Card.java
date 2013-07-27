@@ -24,6 +24,11 @@ import org.pircbotx.Colors;
 public class Card implements Comparable<Card>{
     private String suit, face;
     
+    /**
+     * Creates a new Card with suit and face.
+     * @param s Card suit.
+     * @param f Card face.
+     */
     public Card(String s, String f){
         suit = s;
         face = f;
@@ -38,6 +43,19 @@ public class Card implements Comparable<Card>{
     }
     
     /* Comparator methods */
+    public int getBlackjackValue() {
+		int num;
+        if (face.equals("A")){
+            num = 11; // Give aces a default value of 11
+        } else {
+            try {
+                num = Integer.parseInt(getFace());
+            } catch (NumberFormatException e) {
+                return 10;
+            }
+        }
+		return num;
+	}
     public int getFaceValue(){
     	for (int ctr=0; ctr < CardDeck.faces.length; ctr++){
     		if (face.equals(CardDeck.faces[ctr])){

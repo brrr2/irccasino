@@ -29,7 +29,7 @@ import org.pircbotx.*;
 
 public abstract class CardGame{
     /* Start round task to be performed after post-start waiting period */
-	public class StartRoundTask extends TimerTask{
+	public static class StartRoundTask extends TimerTask{
 		CardGame game;
 		public StartRoundTask(CardGame g){
 			game = g;
@@ -40,7 +40,7 @@ public abstract class CardGame{
 		}
 	}
     /* Idle task for card games */
-	public class IdleOutTask extends TimerTask {
+	public static class IdleOutTask extends TimerTask {
 		private Player player;
 		private CardGame game;
 		public IdleOutTask(Player p, CardGame g) {
@@ -57,7 +57,7 @@ public abstract class CardGame{
 			}
 		}
 	}
-	public class RespawnTask extends TimerTask {
+	public static class RespawnTask extends TimerTask {
 		Player player;
 		CardGame game;
 		public RespawnTask(Player p, CardGame g) {
@@ -92,10 +92,12 @@ public abstract class CardGame{
     private ArrayList<RespawnTask> respawnTasks;
     
     /**
-     * Class constructor for generic CardGame
+     * Creates a generic CardGame
+     * Not to be directly instantiated.
      * 
-     * @param parent	the bot that creates an instance of this class
-     * @param gameChannel	the IRC channel in which the game is to be run.
+     * @param parent The bot that creates an instance of this class
+     * @param gameChannel The IRC channel in which the game is to be run.
+     * @param eb The ListenerAdapter that is listening for commands for this game
      */
     public CardGame (PircBotX parent, Channel gameChannel, ExampleBot eb){
         bot = parent;
@@ -116,6 +118,7 @@ public abstract class CardGame{
         checkPlayerFile();
     }
     
+    /* Methods that process IRC events */
     abstract public void processCommand(User user, String command, String[] params);
     public void processJoin(User user){
         String nick = user.getNick();
@@ -574,7 +577,7 @@ public abstract class CardGame{
     abstract public void showGameStats();
     /**
      * Outputs the top N players for a given statistic.
-     * Sends a message to channel with the list of players sorted in ascending order.
+     * Sends a message to channel with the list of players sorted by ranking.
      * 
      * @param stat The statistic used for ranking.
      * @param n The length of the list up to n players.

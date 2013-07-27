@@ -26,7 +26,7 @@ public class Hand {
 	protected ArrayList<Card> cards;
 	
 	/**
-	 * Class constructor for a hand of cards
+	 * Creates a Hand with an empty ArrayList of cards.
 	 */
 	public Hand(){
 		cards = new ArrayList<Card>();
@@ -67,8 +67,16 @@ public class Hand {
 	public int getSize(){
 		return cards.size();
 	}
-	/* Returns a subset specified by the indices (excluding end) as a new hand */
-	public Hand subHand(int start, int end){
+    
+	/**
+     * Gets a sub-hand specified by the indices.
+     * The sub-hand includes the starting index and excludes the end index.
+     * 
+     * @param start Starting index.
+     * @param end End index.
+     * @return A sub-hand of the hand
+     */
+    public Hand subHand(int start, int end){
 		Hand h = new Hand();
 		for (int ctr = start; ctr < end; ctr++){
 			h.add(this.get(ctr));
@@ -78,11 +86,8 @@ public class Hand {
 	
 	@Override
     public String toString(){
-        return toString(getSize());
+        return toString(0,getSize());
     }
-	public String toString(int num){
-        return toString(0,num);
-	}
     public String toString(int start, int end){
 		String outStr= "";
 		int slimit = Math.max(0, start);

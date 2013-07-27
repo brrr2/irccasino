@@ -31,7 +31,7 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
     /*
      * Comparisons require that both hands be sorted in descending order and
      * that the cards representing the hand value be at the beginning of the
-     * hand. This means that getValue() must have been called before making
+     * hand. This means that getValue() must be called before making
      * any comparisons.
      */
     @Override
@@ -51,7 +51,7 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
                 // Straight Flush and Straight: check top card of straight
 				case 8: case 4:
                     return comps[0];
-                // 4 of a Kind: check 4 of a kind, then kicker
+                // 4 of a Kind: compare 4 of a kind, then kicker
 				case 7: 
                     if (comps[0] == 0){
                         return comps[4];
@@ -113,39 +113,21 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
 		}
 		return thisValue - otherValue;
 	}
-	
-	public int getValue(){
+
+    public int getValue(){
 		if (value == -1){
-			value = calcValue();
+			value = calcValue(this);
 		}
 		return value;
 	}
 	public void resetValue(){
 		value = -1;
 	}
-	private int calcValue(){
-		// Always check the hands in order of descending value
-		if (hasStraightFlush(this)){	// Straight flush = 8
-			return 8;
-		} else if (hasFourOfAKind(this)){	// Four of a kind = 7
-			return 7;
-		} else if (hasFullHouse(this)){	// Full house = 6
-			return 6;
-		} else if (hasFlush(this)){	// Flush = 5
-			return 5;
-		} else if (hasStraight(this)){	// Straight = 4
-			return 4;
-		} else if (hasThreeOfAKind(this)){	// Three of a kind = 3
-			return 3;
-		} else if (hasTwoPair(this)){	// Two-pair = 2
-			return 2;
-		} else if (hasPair(this)){	// Pair = 1
-			return 1;
-		} else {	// High card = 0
-			return 0;
-		}
-	}
 	
+    /**
+     * Name of the hand.
+     * @return the name of the hand based on value.
+     */
     public String getName(){
 		switch (this.getValue()) {
 			case 8: 
@@ -167,23 +149,46 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
 	@Override
 	public String toString(){
         switch (this.getValue()) {
-            case 8: return toString(5);
-            case 7: return toString(4)+"/"+toString(4,5);
-            case 6: return toString(5);
-            case 5: return toString(5);
-            case 4: return toString(5);
-            case 3: return toString(3)+"/"+toString(3,5);
-            case 2: return toString(4)+"/"+toString(4,5);
-            case 1: return toString(2)+"/"+toString(2,5);
-            default: return toString(5);
+            case 8: return toString(0,5);
+            case 7: return toString(0,4)+"/"+toString(4,5);
+            case 6: return toString(0,5);
+            case 5: return toString(0,5);
+            case 4: return toString(0,5);
+            case 3: return toString(0,3)+"/"+toString(3,5);
+            case 2: return toString(0,4)+"/"+toString(4,5);
+            case 1: return toString(0,2)+"/"+toString(2,5);
+            default: return toString(0,5);
         }
 	}
 	
+    private static int calcValue(PokerHand h){
+		// Always check the hands in order of descending value
+		if (hasStraightFlush(h)){	// Straight flush = 8
+			return 8;
+		} else if (hasFourOfAKind(h)){	// Four of a kind = 7
+			return 7;
+		} else if (hasFullHouse(h)){	// Full house = 6
+			return 6;
+		} else if (hasFlush(h)){	// Flush = 5
+			return 5;
+		} else if (hasStraight(h)){	// Straight = 4
+			return 4;
+		} else if (hasThreeOfAKind(h)){	// Three of a kind = 3
+			return 3;
+		} else if (hasTwoPair(h)){	// Two-pair = 2
+			return 2;
+		} else if (hasPair(h)){	// Pair = 1
+			return 1;
+		} else {	// High card = 0
+			return 0;
+		}
+	}
+    
 	/*
 	 * A collection of methods to check for various poker card combinations.
 	 * Methods require that hands be sorted in descending order.
 	 */
-	public static boolean hasPair(Hand h){
+	private static boolean hasPair(Hand h){
 		Card a,b;
 		for (int ctr = 0; ctr < h.getSize()-1; ctr++){
 			a = h.get(ctr);
@@ -198,7 +203,7 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
 		}
 		return false;
 	}
-	public static boolean hasTwoPair(Hand h){
+	private static boolean hasTwoPair(Hand h){
 		Card a,b;
 		for (int ctr = 0; ctr < h.getSize()-3; ctr++){
 			a = h.get(ctr);
@@ -219,7 +224,7 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
 		}
 		return false;
 	}
-	public static boolean hasThreeOfAKind(Hand h){
+	private static boolean hasThreeOfAKind(Hand h){
 		Card a,b,c;
 		for (int ctr = 0; ctr < h.getSize()-2; ctr++){
 			a = h.get(ctr);
@@ -237,7 +242,7 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
 		}
 		return false;
 	}
-	public static boolean hasStraight(Hand h){
+	private static boolean hasStraight(Hand h){
 		/* Create a boolean array to determine which face cards exist in the hand.
 		 * An extra index is added at the beginning for the value duality of aces.
 		 */
@@ -270,7 +275,7 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
 		}
 		return false;
 	}
-	public static boolean hasFlush(Hand h){
+	private static boolean hasFlush(Hand h){
 		int[] suitCount = new int[CardDeck.suits.length];
 		Card c;
 		for (int ctr = 0; ctr < h.getSize(); ctr++){
@@ -292,7 +297,7 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
 		}
 		return false;
 	}
-	public static boolean hasFullHouse(Hand h){
+	private static boolean hasFullHouse(Hand h){
 		Card a,b,c;
 		for (int ctr = 0; ctr < h.getSize()-2; ctr++){
 			a = h.get(ctr);
@@ -318,7 +323,7 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
 		}
 		return false;
 	}
-	public static boolean hasFourOfAKind(Hand h){
+	private static boolean hasFourOfAKind(Hand h){
 		Card a,b,c,d;
 		for (int ctr = 0; ctr < h.getSize()-3; ctr++){
 			a = h.get(ctr);
@@ -340,8 +345,7 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
 		}
 		return false;
 	}
-
-	public static boolean hasStraightFlush(Hand h){
+	private static boolean hasStraightFlush(Hand h){
 		int[] suitCount = new int[CardDeck.suits.length];
 		Hand nonFlushCards = new Hand();
 		Card c;
