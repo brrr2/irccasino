@@ -92,6 +92,7 @@ public class TexasPoker extends CardGame{
 		smallBlind = null;
 		bigBlind = null;
 		topBettor = null;
+        maxPlayers = 22;
 	}
 	
     @Override
@@ -1263,8 +1264,11 @@ public class TexasPoker extends CardGame{
         }
 	}
 
-	@Override
-	public void showTopPlayers(String param, int n) {
+    @Override
+	public void showTopPlayers(String stat, int n) {
+        if (n < 1){
+            throw new IllegalArgumentException();
+        }
 		int highIndex;
 		try {
 			ArrayList<String> nicks = new ArrayList<String>();
@@ -1276,37 +1280,40 @@ public class TexasPoker extends CardGame{
 			ArrayList<Boolean> simples = new ArrayList<Boolean>();
 			loadPlayerFile(nicks, stacks, debts, bankrupts, bjrounds, tprounds, simples);
 			ArrayList<Integer> test = new ArrayList<Integer>();
-			String title = Colors.BLACK + ",08Top " + n;
+            int length = Math.min(n, nicks.size());
+			String title = Colors.BLACK + ",08Top " + length;
 			String list;
-			if (param.equals("cash")) {
+			if (stat.equals("cash")) {
 				test = stacks;
 				title += " Cash:";
-			} else if (param.equals("debt")) {
+			} else if (stat.equals("debt")) {
 				test = debts;
 				title += " Debt:";
-			} else if (param.equals("bankrupts")) {
+			} else if (stat.equals("bankrupts")) {
 				test = bankrupts;
 				title += " Bankrupts:";
-			} else if (param.equals("net") || param.equals("netcash")) {
+			} else if (stat.equals("net") || stat.equals("netcash")) {
 				for (int ctr = 0; ctr < nicks.size(); ctr++) {
 					test.add(stacks.get(ctr) - debts.get(ctr));
 				}
 				title += " Net Cash:";
-			} else if (param.equals("rounds")) {
+			} else if (stat.equals("rounds")) {
 				test = tprounds;
 				title += " Texas Hold'em Poker Rounds:";
 			} else {
 				throw new IllegalArgumentException();
 			}
 			list = title;
-			for (int ctr = 1; ctr <= n; ctr++){
+            // Find the player with the highest value, add to output string and remove.
+            // Repeat n times or for the length of the lists.
+			for (int ctr = 1; ctr <= length; ctr++){
 				highIndex = 0;
 				for (int ctr2 = 0; ctr2 < nicks.size(); ctr2++) {
 					if (test.get(ctr2) > test.get(highIndex)) {
 						highIndex = ctr2;
 					}
 				}
-				if (param.equals("rounds") || param.equals("bankrupts")) {
+				if (stat.equals("rounds") || stat.equals("bankrupts")) {
 					list += " #" + ctr + ": " + Colors.WHITE + ",04 "
 							+ nicks.get(highIndex) + " " 
 							+ formatNumber(test.get(highIndex)) + " "
@@ -1319,9 +1326,14 @@ public class TexasPoker extends CardGame{
 				}
 				nicks.remove(highIndex);
 				test.remove(highIndex);
-				if (nicks.isEmpty()) {
+				if (nicks.isEmpty() || ctr == length) {
 					break;
 				}
+                // Output and reset after 10 players
+                if (ctr % 10 == 0){
+                    bot.sendMessage(channel, list);
+                    list = title;
+                }
 			}
 			bot.sendMessage(channel, list);
 		} catch (IOException e) {
@@ -1526,9 +1538,9 @@ public class TexasPoker extends CardGame{
 
 	@Override
 	public String getGameCommandStr() {
-		return "start (go), join (j), leave (quit, l, q), bet (b), check/call (c), " +
-				"raise (r), fold (f), community (comm), turn, hand, cash, netcash (net), " + 
-				"debt, paydebt, bankrupts, rounds, player (p), players, waitlist, " +
-                "blacklist, top, simple, stats, game, ghelp, grules, gcommands";
+		return "go, join, quit, bet, check, call, " +
+               "raise, fold, community, turn, hand, cash, netcash, " + 
+			   "debt, paydebt, bankrupts, rounds, player, players, waitlist, " +
+               "blacklist, top, simple, stats, game, ghelp, grules, gcommands";
 	}
 }

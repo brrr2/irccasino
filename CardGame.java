@@ -87,7 +87,7 @@ public abstract class CardGame{
     protected boolean inProgress, betting;
     protected Timer idleOutTimer, startRoundTimer, respawnTimer;
     protected IdleOutTask idleOutTask;
-    protected int idleOutTime, respawnTime, newcash;
+    protected int idleOutTime, respawnTime, newcash, maxPlayers;
     private StartRoundTask startRoundTask;
     private ArrayList<RespawnTask> respawnTasks;
     
@@ -189,7 +189,9 @@ public abstract class CardGame{
     abstract public void loadSettings();
     abstract public void saveSettings();
 	public void join(String nick, String hostmask) {
-		if (isJoined(nick)) {
+        if (getNumberJoined() == maxPlayers){
+            infoMaxPlayers(nick);
+        } else if (isJoined(nick)) {
 			infoAlreadyJoined(nick);
 		} else if (isBlacklisted(nick)) {
 			infoBlacklisted(nick);
@@ -570,7 +572,14 @@ public abstract class CardGame{
      * messages to the main channel.
      */
     abstract public void showGameStats();
-    abstract public void showTopPlayers(String param, int n);
+    /**
+     * Outputs the top N players for a given statistic.
+     * Sends a message to channel with the list of players sorted in ascending order.
+     * 
+     * @param stat The statistic used for ranking.
+     * @param n The length of the list up to n players.
+     */
+    abstract public void showTopPlayers(String stat, int n);
     abstract public void showPlayerRounds(String nick);
     abstract public void showPlayerAllStats(String nick);
     abstract public void showReloadSettings();
@@ -692,6 +701,9 @@ public abstract class CardGame{
     public void infoNewNick(String nick){
     	bot.sendNotice(nick, "Welcome to "+getGameNameStr()+"! For help, type .ghelp!");
     }
+    public void infoMaxPlayers(String nick){
+        bot.sendNotice(nick, "Unable to join. The maximum number of players has been reached.");
+    }
     public void infoAlreadyJoined(String nick){
     	bot.sendNotice(nick, "You have already joined!");
     }
@@ -805,9 +817,7 @@ public abstract class CardGame{
     	return Colors.BOLD + gameName + Colors.BOLD;
     }
 	public String getGameHelpStr() {
-		return "For help on how to play "
-				+ getGameNameStr()
-				+ ", please visit an online resource. "
+		return "For help on " + getGameNameStr() + ", visit Wikipedia. "
 				+ "For game commands, type .gcommands. For house rules, type .grules.";
 	}
     abstract public String getGameRulesStr();

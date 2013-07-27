@@ -101,6 +101,7 @@ public class Blackjack extends CardGame {
 		loadSettings();
 		insuranceBets = false;
         idleShuffleTask = null;
+        maxPlayers = Integer.MAX_VALUE;
 	}
 
     @Override
@@ -1605,8 +1606,12 @@ public class Blackjack extends CardGame {
 					formatNumber(totalRounds) + " rounds. The house has won $" +
 					formatNumber(totalHouse) + " in those rounds.");
 	}
+    
 	@Override
-	public void showTopPlayers(String param, int n) {
+	public void showTopPlayers(String stat, int n) {
+        if (n < 1){
+            throw new IllegalArgumentException();
+        }
 		int highIndex;
 		try {
 			ArrayList<String> nicks = new ArrayList<String>();
@@ -1618,37 +1623,40 @@ public class Blackjack extends CardGame {
 			ArrayList<Boolean> simples = new ArrayList<Boolean>();
 			loadPlayerFile(nicks, stacks, debts, bankrupts, bjrounds, tprounds, simples);
 			ArrayList<Integer> test = new ArrayList<Integer>();
-			String title = Colors.BLACK + ",08Top " + n;
+            int length = Math.min(n, nicks.size());
+			String title = Colors.BLACK + ",08Top " + length;
 			String list;
-			if (param.equals("cash")) {
+			if (stat.equals("cash")) {
 				test = stacks;
 				title += " Cash:";
-			} else if (param.equals("debt")) {
+			} else if (stat.equals("debt")) {
 				test = debts;
 				title += " Debt:";
-			} else if (param.equals("bankrupts")) {
+			} else if (stat.equals("bankrupts")) {
 				test = bankrupts;
 				title += " Bankrupts:";
-			} else if (param.equals("net") || param.equals("netcash")) {
+			} else if (stat.equals("net") || stat.equals("netcash")) {
 				for (int ctr = 0; ctr < nicks.size(); ctr++) {
 					test.add(stacks.get(ctr) - debts.get(ctr));
 				}
 				title += " Net Cash:";
-			} else if (param.equals("rounds")) {
+			} else if (stat.equals("rounds")) {
 				test = bjrounds;
 				title += " Blackjack Rounds:";
 			} else {
 				throw new IllegalArgumentException();
 			}
 			list = title;
-			for (int ctr = 1; ctr <= n; ctr++){
+            // Find the player with the highest value, add to output string and remove.
+            // Repeat n times or for the length of the lists.
+			for (int ctr = 1; ctr <= length; ctr++){
 				highIndex = 0;
 				for (int ctr2 = 0; ctr2 < nicks.size(); ctr2++) {
 					if (test.get(ctr2) > test.get(highIndex)) {
 						highIndex = ctr2;
 					}
 				}
-				if (param.equals("rounds") || param.equals("bankrupts")) {
+				if (stat.equals("rounds") || stat.equals("bankrupts")) {
 					list += " #" + ctr + ": " + Colors.WHITE + ",04 "
 							+ nicks.get(highIndex) + " " 
 							+ formatNumber(test.get(highIndex)) + " "
@@ -1661,9 +1669,14 @@ public class Blackjack extends CardGame {
 				}
 				nicks.remove(highIndex);
 				test.remove(highIndex);
-				if (nicks.isEmpty()) {
+				if (nicks.isEmpty() || ctr == length) {
 					break;
 				}
+                // Output and reset after 10 players
+                if (ctr % 10 == 0){
+                    bot.sendMessage(channel, list);
+                    list = title;
+                }
 			}
 			bot.sendMessage(channel, list);
 		} catch (IOException e) {
@@ -2026,21 +2039,20 @@ public class Blackjack extends CardGame {
 	/* Formatted strings */
 	@Override
 	public String getGameRulesStr() {
-		return "Dealer stands on soft 17. The dealer's shoe has "
-				+ deck.getNumberDecks()
-				+ " deck(s) of cards. Cards are reshuffled when the shoe is depleted. "
-				+ "Regular wins are paid out at 1:1 and blackjacks are paid out at 3:2. "
-				+ "Insurance wins are paid out at 2:1";
+		return "Dealer stands on soft 17. The dealer's shoe has " + deck.getNumberDecks() +
+				" deck(s) of cards. Discards are shuffled back into the shoe when the shoe " +
+                " becomes depleted. Regular wins are paid out at 1:1 and blackjacks are paid "+
+                "out at 3:2. Insurance wins are paid out at 2:1";
 	}
 
 	@Override
 	public String getGameCommandStr() {
-		return "start (go), join (j), leave (quit, l, q), bet (b), hit (h), stay (sit, stand), "+
-                "doubledown (dd), surrender (surr), insure, split, table, turn, sum, hand, "+
-                "allhands, cash, netcash (net), debt, paydebt, bankrupts, rounds, player (p), "+
-                "numdecks (ndecks), numcards (ncards), numdiscards (ndiscards), hilo (hc), "+
-                "zen (zc), red7 (rc), count, simple, players, stats, house, waitlist, "+
-                "blacklist, top, game, ghelp, grules, gcommands";
+		return "go, join, quit, bet, hit, stand, "+
+               "doubledown, surrender, insure, split, table, turn, sum, hand, "+
+               "allhands, cash, netcash, debt, paydebt, bankrupts, rounds, player, "+
+               "numdecks, numcards, numdiscards, hilo, "+
+               "zen, red7, count, simple, players, stats, house, waitlist, "+
+               "blacklist, top, game, ghelp, grules, gcommands";
 	}
 	public static String getWinStr(){
     	return Colors.GREEN+",01"+" WIN "+Colors.NORMAL;
