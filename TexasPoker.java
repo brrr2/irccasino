@@ -492,11 +492,11 @@ public class TexasPoker extends CardGame{
     /* Game management methods */
     @Override
 	public void addPlayer(String nick, String hostmask) {
-		addPlayer(new PokerPlayer(nick, hostmask, false));
+		addPlayer(new PokerPlayer(nick, hostmask));
 	}
 	@Override
 	public void addWaitlistPlayer(String nick, String hostmask) {
-		Player p = new PokerPlayer(nick, hostmask, false);
+		Player p = new PokerPlayer(nick, hostmask);
 		waitlist.add(p);
 		infoJoinWaitlist(p.getNick());
 	}

@@ -19,8 +19,6 @@
 
 package irccasino;
 
-import org.pircbotx.Colors;
-
 public class BlackjackHand extends Hand implements Comparable<BlackjackHand>{
 	private int bet;
 
@@ -33,7 +31,7 @@ public class BlackjackHand extends Hand implements Comparable<BlackjackHand>{
 		bet = 0;
 	}
 	
-	/* Blackjack specific betting, may get moved to a subclass */
+	/* Blackjack specific methods */
 	public void setBet(int amount){
     	bet = amount;
     }
@@ -80,10 +78,10 @@ public class BlackjackHand extends Hand implements Comparable<BlackjackHand>{
 	}
     
     /**
-     * Calculates the highest sum of a BlackjackHand.
-     * The largest non-busting sum is returned whenever possible.
+     * Calculates the highest non-busting sum of a BlackjackHand.
+     * The highest non-busting sum is returned whenever possible.
      * 
-     * @return The sum of the BlackjackHand.
+     * @return the sum of the BlackjackHand.
      */
     public int calcSum() {
 		int sum = 0, numAces = 0;
@@ -140,17 +138,4 @@ public class BlackjackHand extends Hand implements Comparable<BlackjackHand>{
 			}
 		}
 	}
-    
-	/* Formatted string representation of the hand */
-	public String toString(int numHidden){
-    	String hiddenBlock = Colors.DARK_BLUE+",00\uFFFD";
-        String outStr= "";
-        for (int ctr=0; ctr<numHidden; ctr++){
-            outStr += hiddenBlock+" ";
-        }
-        for (int ctr=numHidden; ctr<getSize(); ctr++){
-            outStr += cards.get(ctr)+" ";
-        }
-        return outStr.substring(0, outStr.length()-1)+Colors.NORMAL;
-    }
 }

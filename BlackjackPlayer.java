@@ -28,10 +28,12 @@ public class BlackjackPlayer extends Player{
 	private boolean surrender;
 	
 	/**
-	 * Class constructor for subclass of Player
+	 * Creates a new BlackjackPlayer.
+     * Creates the new player with the specified parameters.
 	 * 
-	 * @param u		IRC user object
-	 * @param d		Whether or not player is dealer
+	 * @param nick IRC user's nick.
+     * @param hostmask IRC user's hostmask.
+	 * @param d Whether or not player is dealer.
 	 */
     public BlackjackPlayer(String nick, String hostmask, boolean dealer){
         super(nick, hostmask, dealer);
@@ -107,6 +109,12 @@ public class BlackjackPlayer extends Player{
     public boolean hasSplit(){
     	return hands.size() > 1;
     }
+    /**
+     * Splits a BlackjackHand into two BlackjackHands.
+     * Creates a new BlackjackHand and gives it the second card of the original.
+     * The card is then removed from the original BlackjackHand. The new
+     * BlackjackHand is added to the end of the ArrayList of BlackjackHands.
+     */
     public void splitHand(){
     	BlackjackHand tHand = new BlackjackHand();
     	BlackjackHand cHand = getCurrentHand();

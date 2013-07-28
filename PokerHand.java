@@ -23,7 +23,16 @@ import java.util.Collections;
 
 public class PokerHand extends Hand implements Comparable<PokerHand>{
 	private int value;
-	public PokerHand(){
+	public static String[] handNames = {"High Card","Pair","Two Pairs",
+                                        "Three of a Kind","Straight",
+                                        "Flush","Full House","Four of a Kind",
+                                        "Straight Flush","Royal Flush"};
+    
+    /**
+     * Creates a new PokerHand.
+     * The same as a Hand with extra methods for hand comparisons.
+     */
+    public PokerHand(){
 		super();
 		value = -1;
 	}
@@ -49,7 +58,7 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
             
 			switch (value) {
                 // Straight Flush and Straight: check top card of straight
-				case 8: case 4:
+				case 9: case 8: case 4:
                     return comps[0];
                 // 4 of a Kind: compare 4 of a kind, then kicker
 				case 7: 
@@ -129,22 +138,7 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
      * @return the name of the hand based on value.
      */
     public String getName(){
-		switch (this.getValue()) {
-			case 8: 
-				if (get(0).getFace().equals("A")){
-					return "Royal Flush";
-				} else {
-					return "Straight Flush";
-				}
-			case 7: return "Four of a Kind";
-			case 6: return "Full House";
-			case 5: return "Flush";
-			case 4: return "Straight";
-			case 3: return "Three of a Kind";
-			case 2: return "Two Pairs";
-			case 1: return "Pair";
-			default: return "High Card";
-		}
+		return handNames[this.getValue()];
 	}
 	@Override
 	public String toString(){
@@ -160,11 +154,18 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
             default: return toString(0,5);
         }
 	}
-	
+
+	/*
+	 * A collection of methods to check for various poker card combinations.
+	 * Methods require that hands be sorted in descending order.
+	 */
     private static int calcValue(PokerHand h){
 		// Always check the hands in order of descending value
-		if (hasStraightFlush(h)){	// Straight flush = 8
-			return 8;
+		if (hasStraightFlush(h)){	
+			if (h.get(0).getFace().equals("A")){
+                return 9; // Royal flush = 9
+            }
+            return 8;   // Straight flush = 8
 		} else if (hasFourOfAKind(h)){	// Four of a kind = 7
 			return 7;
 		} else if (hasFullHouse(h)){	// Full house = 6
@@ -183,11 +184,6 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
 			return 0;
 		}
 	}
-    
-	/*
-	 * A collection of methods to check for various poker card combinations.
-	 * Methods require that hands be sorted in descending order.
-	 */
 	private static boolean hasPair(Hand h){
 		Card a,b;
 		for (int ctr = 0; ctr < h.getSize()-1; ctr++){

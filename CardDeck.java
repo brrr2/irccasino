@@ -23,11 +23,11 @@ import java.util.ArrayList;
 import java.util.Random;
 
 public class CardDeck {
-    protected static final String[] suits = {"\u2665","\u2666","\u2663","\u2660"};
-    protected static final String[] faces = {"2","3","4","5","6","7","8","9","T","J","Q","K","A"};
-    protected ArrayList<Card> cards;
-    protected ArrayList<Card> discards;
-    protected int numDecks;
+    public static final String[] suits = {"\u2665","\u2666","\u2663","\u2660"};
+    public static final String[] faces = {"2","3","4","5","6","7","8","9","T","J","Q","K","A"};
+    private ArrayList<Card> cards;
+    private ArrayList<Card> discards;
+    private int numDecks;
     
     /**
      * Default constructor creates a CardDeck with a single set of cards (52 cards).
@@ -38,7 +38,7 @@ public class CardDeck {
     /**
      * Creates a CardDeck with n sets of cards (52n cards).
      * 
-     * @param n		number of sets of cards.
+     * @param n number of sets of cards.
      */
     public CardDeck(int n){
         numDecks = n;
@@ -82,6 +82,14 @@ public class CardDeck {
             discards.clear();
         }
     }
+    
+    /**
+     * Shuffles the cards in the deck.
+     * A temporary ArrayList is created with the existing cards. The cards
+     * ArrayList is then emptied. Cards are then randomly drawn one at a time 
+     * from the temporary ArrayList and added back to the cards ArrayList in the 
+     * order they are drawn. 
+     */
     public void shuffleCards(){
         ArrayList<Card> tCards = new ArrayList<Card>(cards);
         int randomNum;
@@ -93,6 +101,10 @@ public class CardDeck {
             tCards.remove(randomNum);
         }
     }
+    /**
+     * Makes the deck full again.
+     * Merges the discards back into the deck and then shuffles the deck.
+     */
     public void refillDeck(){
     	mergeDiscards();
     	shuffleCards();

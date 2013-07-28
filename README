@@ -11,11 +11,11 @@ To run as a standalone bot:
 2. Download irccasino and create a new project for it.
 3. Add the PircBotX library to the build/compile path for the project.
 4. Set the project to run ExampleBot.java.
-5. Create the file "irccasion.conf" in the run directory for the project with the following contents (The program will automatically generate this file, if it cannot be found and it will be propagated with default values. By default, it will connect to Freenode to the channel ##ExampleBot with the nick ExampleBot.):
+5. Create the file "irccasino.conf" in the run directory for the project with the following contents (The program will automatically generate this file, if it cannot be found and it will be propagated with default values. By default, it will connect to Freenode to the channel ##ExampleBot with the nick ExampleBot.):
     nick=bot nick
     password=SASL password
     network=IRC network
-    channel=IRC channel
+    channel=IRC channels (comma delimited)
 6. Give the bot Op status in the channel.
 7. While as Op, type ".texaspoker" or ".blackjack" to start the desired game.
 

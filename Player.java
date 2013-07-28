@@ -28,11 +28,13 @@ public class Player {
     protected String nick, hostmask;
     
     /**
-     * Class constructor
+     * Creates a new Player.
+     * Not to be instantiated directly. Serves as the template for specific types
+     * of players.
      * 
-     * @param nick		IRC user nick
-     * @param hostmask  IRC user hostmask
-     * @param dealer	Whether or not this player is dealer
+     * @param nick IRC user nick
+     * @param hostmask IRC user hostmask
+     * @param dealer Whether or not this player is dealer
      */
     public Player(String nick, String hostmask, boolean dealer){
     	this.nick = nick;

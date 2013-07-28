@@ -41,8 +41,6 @@ public class Card implements Comparable<Card>{
     public String getSuit(){
         return suit;
     }
-    
-    /* Comparator methods */
     public int getBlackjackValue() {
 		int num;
         if (face.equals("A")){

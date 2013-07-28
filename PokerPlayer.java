@@ -25,8 +25,15 @@ public class PokerPlayer extends Player implements Comparable<PokerPlayer> {
 	private int bet;
 	private boolean fold, allIn;
 	
-	public PokerPlayer(String nick, String hostmask, boolean dealer){
-        super(nick, hostmask, dealer);
+	/**
+     * Creates a new PokerPlayer.
+     * Creates the new player with the specified parameters.
+     * 
+     * @param nick IRC user's nick.
+     * @param hostmask IRC user's hostmask.
+     */
+    public PokerPlayer(String nick, String hostmask){
+        super(nick, hostmask, false);
         hand = new Hand();
         pHand = new PokerHand();
         fold = false;

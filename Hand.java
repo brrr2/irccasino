@@ -88,6 +88,32 @@ public class Hand {
     public String toString(){
         return toString(0,getSize());
     }
+	/**
+     * Gets a string representation of the hand with hidden cards.
+     * User can specify how many of the cards are hidden.
+     * 
+     * @param numHidden The number of hidden cards
+     * @return a String with the first numHidden cards replaced
+     */
+    public String toString(int numHidden){
+    	String hiddenBlock = Colors.DARK_BLUE+",00\uFFFD";
+        String outStr= "";
+        for (int ctr=0; ctr<numHidden; ctr++){
+            outStr += hiddenBlock+" ";
+        }
+        for (int ctr=numHidden; ctr<getSize(); ctr++){
+            outStr += cards.get(ctr)+" ";
+        }
+        return outStr.substring(0, outStr.length()-1)+Colors.NORMAL;
+    }
+    /**
+     * Gets an index-select string representation of the hand.
+     * A space-delimited string of cards starting from start and excluding end.
+     * 
+     * @param start the start index.
+     * @param end the end index.
+     * @return a String showing the selected cards
+     */
     public String toString(int start, int end){
 		String outStr= "";
 		int slimit = Math.max(0, start);

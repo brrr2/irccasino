@@ -119,6 +119,13 @@ public abstract class CardGame{
     }
     
     /* Methods that process IRC events */
+    /**
+     * Processes commands that are given in the game channel.
+     * 
+     * @param user IRC user who issued the command.
+     * @param command The command that was issued.
+     * @param params A list of parameters that were passed along.
+     */
     abstract public void processCommand(User user, String command, String[] params);
     public void processJoin(User user){
         String nick = user.getNick();
@@ -421,6 +428,8 @@ public abstract class CardGame{
             bot.sendMessage(nick, "Game info will now be messaged to you.");
         }
     }
+    
+    /* Player file management methods */
     public int getPlayerStat(String nick, String stat){
         if (isJoined(nick) || isBlacklisted(nick)){
             Player p = findJoined(nick);
@@ -541,7 +550,6 @@ public abstract class CardGame{
     		showPlayerDebtPayment(p, amount);
     	}
     }
-    
     public void devoiceAll(){
     	Player p;
         for (int ctr=0; ctr<getNumberJoined(); ctr++){
@@ -551,9 +559,7 @@ public abstract class CardGame{
         }
     }
     
-    /* 
-     * Generic card dealing methods
-     */
+    /* Generic card management methods */
 	public void burnCard(){
 		deck.addToDiscard(deck.takeCard());
         if (deck.getNumberCards() == 0) {

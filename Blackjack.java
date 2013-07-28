@@ -962,7 +962,7 @@ public class Blackjack extends CardGame {
 	}
     
     /* Game command logic checking methods */
-    public boolean isStartAllowed(String nick){
+    private boolean isStartAllowed(String nick){
         if (!isJoined(nick)) {
             infoNotJoined(nick);
         } else if (isInProgress()) {
@@ -974,7 +974,7 @@ public class Blackjack extends CardGame {
         }
         return false;
     }
-	public boolean isStage1PlayerTurn(String nick){
+	private boolean isStage1PlayerTurn(String nick){
 		if (!isJoined(nick)) {
 			infoNotJoined(nick);
 		} else if (!isInProgress()) {
@@ -988,7 +988,7 @@ public class Blackjack extends CardGame {
         }
         return false;
 	}
-	public boolean isStage2(String nick){
+	private boolean isStage2(String nick){
 		if (!isJoined(nick)) {
 			infoNotJoined(nick);
 		} else if (!isInProgress()) {
@@ -1000,7 +1000,7 @@ public class Blackjack extends CardGame {
         }
         return false;
 	}
-	public boolean isStage2PlayerTurn(String nick){
+	private boolean isStage2PlayerTurn(String nick){
 		if (!isStage2(nick)){
 		} else if (!(currentPlayer == findJoined(nick))) {
 			infoNotTurn(nick);
@@ -1009,7 +1009,7 @@ public class Blackjack extends CardGame {
         }
         return false;
 	}
-	public boolean isOpCommandAllowed(User user, String nick){
+	private boolean isOpCommandAllowed(User user, String nick){
 		if (!channel.isOp(user)) {
 			infoOpsOnly(nick);
 		} else if (isInProgress()) {
@@ -1019,7 +1019,7 @@ public class Blackjack extends CardGame {
         }
         return false;
 	}
-    public boolean isForceStartAllowed(User user, String nick){
+    private boolean isForceStartAllowed(User user, String nick){
         if (!channel.isOp(user)) {
 			infoOpsOnly(nick);
 		} else if (isInProgress()) {
@@ -1031,7 +1031,7 @@ public class Blackjack extends CardGame {
         }
         return false;
     }
-    public boolean isForcePlayAllowed(User user, String nick){
+    private boolean isForcePlayAllowed(User user, String nick){
 		if (!channel.isOp(user)) {
 			infoOpsOnly(nick);
 		} else if (!isInProgress()) {
@@ -1043,7 +1043,7 @@ public class Blackjack extends CardGame {
         }
         return false;
 	}
-    public boolean isForceBetAllowed(User user, String nick){
+    private boolean isForceBetAllowed(User user, String nick){
 		if (!channel.isOp(user)) {
 			infoOpsOnly(nick);
 		} else if (!isInProgress()) {
@@ -1055,7 +1055,7 @@ public class Blackjack extends CardGame {
         }
         return false;
 	}
-	public boolean isCountAllowed(String nick){
+	private boolean isCountAllowed(String nick){
 		if (!isJoined(nick)) {
 			infoNotJoined(nick);
 		} else if (isInProgress()) {
@@ -1214,7 +1214,7 @@ public class Blackjack extends CardGame {
 	}
 
 	/* Blackjack gameplay methods */
-	public void bet(int amount) {
+	private void bet(int amount) {
 		cancelIdleOutTask();
 		BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
 		if (amount > p.getCash()) {
@@ -1241,11 +1241,11 @@ public class Blackjack extends CardGame {
 			}
 		}
 	}
-	public void stay() {
+	private void stay() {
 		cancelIdleOutTask();
 		continueRound();
 	}
-	public void hit() {
+	private void hit() {
 		cancelIdleOutTask();
 		BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
 		BlackjackHand h = p.getCurrentHand();
@@ -1257,7 +1257,7 @@ public class Blackjack extends CardGame {
 			setIdleOutTask();
 		}
 	}
-	public void doubleDown() {
+	private void doubleDown() {
 		cancelIdleOutTask();
 		BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
 		BlackjackHand h = p.getCurrentHand();
@@ -1277,7 +1277,7 @@ public class Blackjack extends CardGame {
 			continueRound();
 		}
 	}
-	public void surrender() {
+	private void surrender() {
 		cancelIdleOutTask();
 		BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
 		BlackjackHand h = p.getCurrentHand();
@@ -1295,7 +1295,7 @@ public class Blackjack extends CardGame {
 			continueRound();
 		}
 	}
-	public void insure(int amount) {
+	private void insure(int amount) {
 		cancelIdleOutTask();
 		BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
 		BlackjackHand h = p.getCurrentHand();
@@ -1322,7 +1322,7 @@ public class Blackjack extends CardGame {
 		}
 		setIdleOutTask();
 	}
-	public void split() {
+	private void split() {
 		cancelIdleOutTask();
 		BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
 		BlackjackHand nHand, cHand = p.getCurrentHand();
@@ -1348,7 +1348,7 @@ public class Blackjack extends CardGame {
 	}
 
 	/* Blackjack behind-the-scenes methods */
-	public void quickEval() {
+	private void quickEval() {
 		BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
 		BlackjackHand h = p.getCurrentHand();
 		if (p.hasSplit()) {
@@ -1372,29 +1372,26 @@ public class Blackjack extends CardGame {
 	private int calcHalf(int amount) {
 		return (int) (Math.ceil((double) (amount) / 2.));
 	}
-	private int getBlackjackPayout(BlackjackHand h){
+	private int calcBlackjackPayout(BlackjackHand h){
 		return (2 * h.getBet() + calcHalf(h.getBet()));
 	}
-	private int getWinPayout(BlackjackHand h){
+	private int calcWinPayout(BlackjackHand h){
 		return 2 * h.getBet();
 	}
-	private int getInsurancePayout(BlackjackPlayer p){
+	private int calcInsurancePayout(BlackjackPlayer p){
 		return 3 * p.getInsureBet();
 	}
-	public int evaluateInsurance() {
+	private int evaluateInsurance() {
 		if (dealer.getCurrentHand().isBlackjack()) {
 			return 1;
 		} else {
 			return -1;
 		}
 	}
-	public boolean dealerUpcardAce() {
-		if (dealer.getCurrentHand().get(1).getFace().equals("A")) {
-			return true;
-		}
-		return false;
+	private boolean dealerUpcardAce() {
+		return dealer.getCurrentHand().get(1).getFace().equals("A");
 	}
-	public boolean needDealerHit() {
+	private boolean needDealerHit() {
 		for (int ctr = 0; ctr < getNumberJoined(); ctr++) {
 			BlackjackPlayer p = (BlackjackPlayer) getJoined(ctr);
 			for (int ctr2 = 0; ctr2 < p.getNumberHands(); ctr2++) {
@@ -1406,24 +1403,24 @@ public class Blackjack extends CardGame {
 		}
 		return false;
 	}
-	public void payPlayer(BlackjackPlayer p, BlackjackHand h){
+	private void payPlayer(BlackjackPlayer p, BlackjackHand h){
 		int result = h.compareTo(dealer.getCurrentHand());
 		if (result == 2) {
-			p.addCash(getBlackjackPayout(h));
-			house.addCash(-1*getBlackjackPayout(h));
+			p.addCash(calcBlackjackPayout(h));
+			house.addCash(-1*calcBlackjackPayout(h));
 		} else if (result == 1) {
-			p.addCash(getWinPayout(h));
-			house.addCash(-1*getWinPayout(h));
+			p.addCash(calcWinPayout(h));
+			house.addCash(-1*calcWinPayout(h));
 		} else if (result == 0) {
 			p.addCash(h.getBet());
 			house.addCash(-1*h.getBet());
 		}
 	}
-	public void payPlayerInsurance(BlackjackPlayer p){
+	private void payPlayerInsurance(BlackjackPlayer p){
 		int result = evaluateInsurance();
 		if (result == 1) {
-			p.addCash(getInsurancePayout(p));
-			house.addCash(-1*getInsurancePayout(p));
+			p.addCash(calcInsurancePayout(p));
+			house.addCash(-1*calcInsurancePayout(p));
 		}
 	}
 
@@ -1814,11 +1811,11 @@ public class Blackjack extends CardGame {
 		} else if (result == 2) {
 			outStr = getWinStr()+": ";
 			outStr += nickStr+" has blackjack ("+h.toString(0)+") and wins $";
-			outStr += formatNumber(getBlackjackPayout(h)) + ".";
+			outStr += formatNumber(calcBlackjackPayout(h)) + ".";
 		} else if (result == 1) {
 			outStr = getWinStr()+": ";
 			outStr += nickStr+" has "+sum+" ("+h.toString(0)+") and wins $";
-			outStr += formatNumber(getWinPayout(h))+".";
+			outStr += formatNumber(calcWinPayout(h))+".";
 		} else if (result == 0) {
 			outStr = getPushStr()+": "+nickStr+" has "+sum+" ("+h.toString(0)+") ";
 			outStr += "and the $" + formatNumber(h.getBet()) + " bet is returned.";
@@ -1835,7 +1832,7 @@ public class Blackjack extends CardGame {
 		
 		if (result == 1) {
 			outStr = getWinStr()+": " + p.getNickStr() + " wins $"
-					+ formatNumber(getInsurancePayout(p)) + ".";
+					+ formatNumber(calcInsurancePayout(p)) + ".";
 		} else {
 			outStr = getLossStr()+": " + p.getNickStr() + " loses.";
 		}
