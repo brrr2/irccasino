@@ -94,6 +94,7 @@ public class TexasPoker extends CardGame{
 		bigBlind = null;
 		topBettor = null;
         maxPlayers = 22;
+        iniFile = "texaspoker.ini";
 	}
 	
     /* Command management method */
@@ -602,7 +603,7 @@ public class TexasPoker extends CardGame{
 				p.incrementRounds();
                 
                 // Bankrupts
-				if (p.getCash() == 0) {
+				if (p.isBankrupt()) {
 					p.incrementBankrupts();
 					blacklist.add(p);
 					infoPlayerBankrupt(p.getNick());
@@ -890,115 +891,6 @@ public class TexasPoker extends CardGame{
 			bot.log("Error creating texaspoker.ini!");
 		}
     }
-	@Override
-    
-    /* Player data management */
-	public int getTotalPlayers() {
-		try {
-	    	ArrayList<String> nicks = new ArrayList<String>();
-	        ArrayList<Integer> stacks = new ArrayList<Integer>();
-	        ArrayList<Integer> bankrupts = new ArrayList<Integer>();
-	        ArrayList<Integer> debts = new ArrayList<Integer>();
-	        ArrayList<Integer> bjrounds = new ArrayList<Integer>();
-	        ArrayList<Integer> tprounds = new ArrayList<Integer>();
-	        ArrayList<Boolean> simples = new ArrayList<Boolean>();
-	    	loadPlayerFile(nicks, stacks, debts, bankrupts, bjrounds, tprounds, simples);
-	    	int total = 0, numLines = nicks.size();
-        	for (int ctr = 0; ctr < numLines; ctr++){
-        		if (tprounds.get(ctr) > 0){
-        			total++;
-        		}
-        	}
-        	return total;
-    	} catch (IOException e){
-		 	bot.log("Error reading players.txt!");
-		 	return -1;
-    	}
-	}
-	@Override
-	public void loadPlayerData(Player p) {
-		try {
-			boolean found = false;
-			ArrayList<String> nicks = new ArrayList<String>();
-			ArrayList<Integer> stacks = new ArrayList<Integer>();
-			ArrayList<Integer> bankrupts = new ArrayList<Integer>();
-			ArrayList<Integer> debts = new ArrayList<Integer>();
-			ArrayList<Integer> bjrounds = new ArrayList<Integer>();
-			ArrayList<Integer> tprounds = new ArrayList<Integer>();
-			ArrayList<Boolean> simples = new ArrayList<Boolean>();
-			loadPlayerFile(nicks, stacks, debts, bankrupts, bjrounds, tprounds, simples);
-			int numLines = nicks.size();
-			for (int ctr = 0; ctr < numLines; ctr++) {
-				if (p.getNick().toLowerCase().equals(nicks.get(ctr).toLowerCase())) {
-					if (stacks.get(ctr) <= 0) {
-						p.setCash(getNewCash());
-					} else {
-						p.setCash(stacks.get(ctr));
-					}
-					p.setDebt(debts.get(ctr));
-					p.setBankrupts(bankrupts.get(ctr));
-					p.setRounds(tprounds.get(ctr));
-					p.setSimple(simples.get(ctr));
-					found = true;
-					break;
-				}
-			}
-			if (!found) {
-				p.setCash(getNewCash());
-				p.setDebt(0);
-				p.setBankrupts(0);
-				p.setRounds(0);
-				p.setSimple(true);
-				infoNewPlayer(p.getNick());
-			}
-		} catch (IOException e) {
-			bot.log("Error reading players.txt!");
-		}
-	}
-	@Override
-	public void savePlayerData(Player p) {
-		boolean found = false;
-		ArrayList<String> nicks = new ArrayList<String>();
-		ArrayList<Integer> stacks = new ArrayList<Integer>();
-		ArrayList<Integer> debts = new ArrayList<Integer>();
-		ArrayList<Integer> bankrupts = new ArrayList<Integer>();
-		ArrayList<Integer> bjrounds = new ArrayList<Integer>();
-		ArrayList<Integer> tprounds = new ArrayList<Integer>();
-		ArrayList<Boolean> simples = new ArrayList<Boolean>();
-		int numLines;
-		try {
-			loadPlayerFile(nicks, stacks, debts, bankrupts, bjrounds, tprounds, simples);
-			numLines = nicks.size();
-			for (int ctr = 0; ctr < numLines; ctr++) {
-				if (p.getNick().toLowerCase().equals(nicks.get(ctr).toLowerCase())) {
-					stacks.set(ctr, p.getCash());
-					debts.set(ctr, p.getDebt());
-					bankrupts.set(ctr, p.getBankrupts());
-					tprounds.set(ctr, p.getRounds());
-					simples.set(ctr, p.isSimple());
-					found = true;
-                    break;
-				}
-			}
-			if (!found) {
-				nicks.add(p.getNick());
-				stacks.add(p.getCash());
-				debts.add(p.getDebt());
-				bankrupts.add(p.getBankrupts());
-				bjrounds.add(0);
-				tprounds.add(p.getRounds());
-				simples.add(p.isSimple());
-			}
-		} catch (IOException e) {
-			bot.log("Error reading players.txt!");
-		}
-
-		try {
-			savePlayerFile(nicks, stacks, debts, bankrupts, bjrounds, tprounds, simples);
-		} catch (IOException e) {
-			bot.log("Error writing to players.txt!");
-		}
-	}
 	
     /* Card management methods for Texas Hold'em Poker */
     public void dealCommunity(){
@@ -1253,111 +1145,6 @@ public class TexasPoker extends CardGame{
         } else {
             bot.sendMessage(channel, formatNumber(totalPlayers)+" players have played " +	getGameNameStr()+".");
         }
-	}
-    @Override
-	public void showTopPlayers(String stat, int n) {
-        if (n < 1){
-            throw new IllegalArgumentException();
-        }
-		int highIndex;
-		try {
-			ArrayList<String> nicks = new ArrayList<String>();
-			ArrayList<Integer> stacks = new ArrayList<Integer>();
-			ArrayList<Integer> bankrupts = new ArrayList<Integer>();
-			ArrayList<Integer> debts = new ArrayList<Integer>();
-			ArrayList<Integer> bjrounds = new ArrayList<Integer>();
-			ArrayList<Integer> tprounds = new ArrayList<Integer>();
-			ArrayList<Boolean> simples = new ArrayList<Boolean>();
-			loadPlayerFile(nicks, stacks, debts, bankrupts, bjrounds, tprounds, simples);
-			ArrayList<Integer> test = new ArrayList<Integer>();
-            int length = Math.min(n, nicks.size());
-			String title = Colors.BLACK + ",08Top " + length;
-			String list;
-			if (stat.equals("cash")) {
-				test = stacks;
-				title += " Cash:";
-			} else if (stat.equals("debt")) {
-				test = debts;
-				title += " Debt:";
-			} else if (stat.equals("bankrupts")) {
-				test = bankrupts;
-				title += " Bankrupts:";
-			} else if (stat.equals("net") || stat.equals("netcash")) {
-				for (int ctr = 0; ctr < nicks.size(); ctr++) {
-					test.add(stacks.get(ctr) - debts.get(ctr));
-				}
-				title += " Net Cash:";
-			} else if (stat.equals("rounds")) {
-				test = tprounds;
-				title += " Texas Hold'em Poker Rounds:";
-			} else {
-				throw new IllegalArgumentException();
-			}
-			list = title;
-            // Find the player with the highest value, add to output string and remove.
-            // Repeat n times or for the length of the lists.
-			for (int ctr = 1; ctr <= length; ctr++){
-				highIndex = 0;
-				for (int ctr2 = 0; ctr2 < nicks.size(); ctr2++) {
-					if (test.get(ctr2) > test.get(highIndex)) {
-						highIndex = ctr2;
-					}
-				}
-				if (stat.equals("rounds") || stat.equals("bankrupts")) {
-					list += " #" + ctr + ": " + Colors.WHITE + ",04 "
-							+ nicks.get(highIndex) + " " 
-							+ formatNumber(test.get(highIndex)) + " "
-							+ Colors.BLACK + ",08";
-				} else {
-					list += " #" + ctr + ": " + Colors.WHITE + ",04 "
-							+ nicks.get(highIndex) + " $"
-							+ formatNumber(test.get(highIndex)) + " "
-							+ Colors.BLACK + ",08";
-				}
-				nicks.remove(highIndex);
-				test.remove(highIndex);
-				if (nicks.isEmpty() || ctr == length) {
-					break;
-				}
-                // Output and reset after 10 players
-                if (ctr % 10 == 0){
-                    bot.sendMessage(channel, list);
-                    list = title;
-                }
-			}
-			bot.sendMessage(channel, list);
-		} catch (IOException e) {
-			bot.log("Error reading players.txt!");
-		}
-	}
-	@Override
-	public void showPlayerRounds(String nick) {
-		int rounds = getPlayerStat(nick, "tprounds");
-		if (rounds != Integer.MIN_VALUE) {
-			bot.sendMessage(channel, nick + " has played " + rounds
-					+ " round(s) of " + getGameNameStr() + ".");
-		} else {
-			bot.sendMessage(channel, "No data found for " + nick + ".");
-		}
-	}
-	@Override
-    public void showPlayerAllStats(String nick){
-        int cash = getPlayerStat(nick, "cash");
-        int debt = getPlayerStat(nick, "debt");
-        int net = getPlayerStat(nick, "netcash");
-        int bankrupts = getPlayerStat(nick, "bankrupts");
-        int rounds = getPlayerStat(nick, "tprounds");
-        if (cash != Integer.MIN_VALUE) {
-            bot.sendMessage(channel, nick+" | Cash: $"+formatNumber(cash)+" | Debt: $"+
-                    formatNumber(debt)+" | Net: $"+formatNumber(net)+" | Bankrupts: "+
-                    formatNumber(bankrupts)+" | Rounds: "+formatNumber(rounds));
-        } else {
-            bot.sendMessage(channel, "No data found for " + nick + ".");
-        }
-    }       
-	@Override
-	public void showReloadSettings() {
-		bot.sendMessage(channel, "texaspoker.ini has been reloaded.");
 	}
 	public void showTablePlayers(){
 		PokerPlayer p;

@@ -80,7 +80,7 @@ public abstract class CardGame{
     protected PircBotX bot; //bot handling the game
     protected ExampleBot parentListener; //ListenerAdapter that is receiving commands
     protected Channel channel; //channel where game is being played
-    protected String gameName;
+    protected String gameName, iniFile;
     protected ArrayList<Player> joined, blacklist, waitlist;
     protected CardDeck deck;
     protected Player currentPlayer;
@@ -92,7 +92,7 @@ public abstract class CardGame{
     private ArrayList<RespawnTask> respawnTasks;
     
     /**
-     * Creates a generic CardGame
+     * Creates a generic CardGame.
      * Not to be directly instantiated.
      * 
      * @param parent The bot that creates an instance of this class
@@ -120,13 +120,19 @@ public abstract class CardGame{
     
     /* Methods that process IRC events */
     /**
-     * Processes commands that are given in the game channel.
+     * Processes commands in the channel where the game is running.
      * 
      * @param user IRC user who issued the command.
      * @param command The command that was issued.
      * @param params A list of parameters that were passed along.
      */
     abstract public void processCommand(User user, String command, String[] params);
+    
+    /**
+     * Processes a user join event in the channel where the game is running.
+     * 
+     * @param user The IRC user who has joined.
+     */
     public void processJoin(User user){
         String nick = user.getNick();
     	if (loadPlayerStat(nick, "exists") != 1){
@@ -134,6 +140,11 @@ public abstract class CardGame{
     	}
     }
     
+    /**
+     * Processes a user quit or part event in the channel where the game is running.
+     * 
+     * @param user The IRC user who has quit or parted.
+     */
     public void processQuit(User user){
         String nick = user.getNick();
 		if (isJoined(nick) || isWaitlisted(nick)){
@@ -141,6 +152,13 @@ public abstract class CardGame{
 		}
     }
     
+    /**
+     * Process a user change nick event in the channel where the game is running.
+     * 
+     * @param user The IRC user who has changed nicks.
+     * @param oldNick The old nick of the user.
+     * @param newNick The new nick of the user.
+     */
     public void processNickChange(User user, String oldNick, String newNick){
     	String hostmask = user.getHostmask();
     	if (isJoined(oldNick) || isWaitlisted(oldNick)){
@@ -186,7 +204,7 @@ public abstract class CardGame{
     
     /* 
      * Game management methods
-     * These methods control various aspects of the game. 
+     * These methods control the game flow. 
      */
     abstract public void startRound();
     abstract public void continueRound();
@@ -219,12 +237,10 @@ public abstract class CardGame{
 		leave(p.getNick());
 	}
     public void mergeWaitlist(){
-    	Player p;
-    	while(!waitlist.isEmpty()){
-    		p = getWaitlisted(0);
-    		addPlayer(p);
-    		removeWaitlisted(p);
-    	}
+        for (int ctr = 0; ctr < waitlist.size(); ctr++){
+            addPlayer(getWaitlisted(ctr));
+        }
+        waitlist.clear();
     }
     public void setInProgress(boolean b){
         inProgress = b;
@@ -245,13 +261,11 @@ public abstract class CardGame{
 	}
 	public void cancelRespawnTasks() {
 		Player p;
-		if (!respawnTasks.isEmpty()) {
-			for (int ctr = 0; ctr < respawnTasks.size(); ctr++) {
-				respawnTasks.get(ctr).cancel();
-			}
-            respawnTasks.clear();
-            respawnTimer.purge();
-		}
+        for (int ctr = 0; ctr < respawnTasks.size(); ctr++) {
+            respawnTasks.get(ctr).cancel();
+        }
+        respawnTasks.clear();
+        respawnTimer.purge();
         // Fast-track loans
 		for (int ctr = 0; ctr < getNumberBlacklisted(); ctr++){
 			p = getBlacklisted(ctr);
@@ -286,12 +300,9 @@ public abstract class CardGame{
     
     /* 
      * Player management methods 
-     * These methods are intended to manage players. They include
-     * stats management and play management.
+     * Controls joining, leaving, waitlisting, and bankruptcies. Also includes
+     * toggling of simple, paying debt.
      */
-    abstract public int getTotalPlayers();
-    abstract public void loadPlayerData(Player p);
-    abstract public void savePlayerData(Player p);
     abstract public void addPlayer(String nick, String hostmask);
     abstract public void addWaitlistPlayer(String nick, String hostmask);
 	public void addPlayer(Player p){
@@ -353,7 +364,7 @@ public abstract class CardGame{
         User user;
         Iterator<User> it = users.iterator();
         while(it.hasNext()){
-        	user = (User) it.next();
+        	user = it.next();
             if (user.getNick().toLowerCase().equals(nick.toLowerCase())){
                 return user;
             }
@@ -428,8 +439,80 @@ public abstract class CardGame{
             bot.sendMessage(nick, "Game info will now be messaged to you.");
         }
     }
+    public void payPlayerDebt(String nick, int amount){
+    	Player p = findJoined(nick);
+    	if (amount <= 0){
+    		infoPaymentTooLow(nick);
+    	} else if (amount > p.getDebt()){
+    		infoPaymentTooHigh(nick, p.getDebt());
+    	} else if (amount > p.getCash()){
+    		infoInsufficientFunds(nick);
+    	} else if (amount == p.getCash()){
+    		infoPaymentWillBankrupt(nick);
+    	} else {
+    		p.payDebt(amount);
+            savePlayerData(p);
+    		showPlayerDebtPayment(p, amount);
+    	}
+    }
+    public void devoiceAll(){
+    	Player p;
+        for (int ctr=0; ctr<getNumberJoined(); ctr++){
+            p = getJoined(ctr);
+            savePlayerData(p);
+            bot.deVoice(channel, findUser(p.getNick()));
+        }
+    }
     
-    /* Player file management methods */
+    /* Player file management methods
+     * Methods for reading and saving player data.
+     */
+    /**
+     * Returns the total number of players who have played this game.
+     * Counts the number of players who have played more than one round of this
+     * game.
+     * 
+     * @return the total counted from players.txt
+     */
+    public int getTotalPlayers(){
+    	try {
+	    	ArrayList<String> nicks = new ArrayList<String>();
+	        ArrayList<Integer> stacks = new ArrayList<Integer>();
+	        ArrayList<Integer> bankrupts = new ArrayList<Integer>();
+	        ArrayList<Integer> debts = new ArrayList<Integer>();
+	        ArrayList<Integer> bjrounds = new ArrayList<Integer>();
+	        ArrayList<Integer> tprounds = new ArrayList<Integer>();
+	        ArrayList<Boolean> simples = new ArrayList<Boolean>();
+	    	loadPlayerFile(nicks, stacks, debts, bankrupts, bjrounds, tprounds, simples);
+	    	int total = 0, numLines = nicks.size();
+            if (gameName.equals("Blackjack")){
+                for (int ctr = 0; ctr < numLines; ctr++){
+                    if (bjrounds.get(ctr) > 0){
+                        total++;
+                    }
+                }
+            } else if (gameName.equals("Texas Hold'em Poker")){
+                for (int ctr = 0; ctr < numLines; ctr++){
+                    if (tprounds.get(ctr) > 0){
+                        total++;
+                    }
+                }
+            }
+        	return total;
+    	} catch (IOException e){
+		 	bot.log("Error reading players.txt!");
+		 	return 0;
+    	}
+    }
+    /**
+     * Returns the specified statistic for a nick.
+     * If a player is already joined or blacklisted, the value is read from the
+     * Player object. Otherwise, a search is done in players.txt.
+     * 
+     * @param nick IRC user's nick
+     * @param stat the statistic's name
+     * @return the desired statistic
+     */
     public int getPlayerStat(String nick, String stat){
         if (isJoined(nick) || isBlacklisted(nick)){
             Player p = findJoined(nick);
@@ -452,37 +535,14 @@ public abstract class CardGame{
         }
         return loadPlayerStat(nick, stat);
     }
-    public void loadPlayerFile(ArrayList<String> nicks, ArrayList<Integer> stacks,
-    							ArrayList<Integer> debts, ArrayList<Integer> bankrupts, 
-    							ArrayList<Integer> bjrounds, ArrayList<Integer> tprounds,
-    							ArrayList<Boolean> simples) throws IOException {
-    	BufferedReader in = new BufferedReader(new FileReader("players.txt"));
-        StringTokenizer st;
-        while (in.ready()){
-            st = new StringTokenizer(in.readLine());
-            nicks.add(st.nextToken());
-            stacks.add(Integer.parseInt(st.nextToken()));
-            debts.add(Integer.parseInt(st.nextToken()));
-            bankrupts.add(Integer.parseInt(st.nextToken()));
-            bjrounds.add(Integer.parseInt(st.nextToken()));
-            tprounds.add(Integer.parseInt(st.nextToken()));
-            simples.add(Boolean.parseBoolean(st.nextToken()));
-        }
-        in.close();
-    }
-    public void savePlayerFile(ArrayList<String> nicks, ArrayList<Integer> stacks,
-								ArrayList<Integer> debts, ArrayList<Integer> bankrupts, 
-								ArrayList<Integer> bjrounds, ArrayList<Integer> tprounds,
-								ArrayList<Boolean> simples) throws IOException {
-    	int numLines = nicks.size();
-    	PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("players.txt")));
-        for (int ctr = 0; ctr<numLines; ctr++){
-            out.println(nicks.get(ctr)+" "+stacks.get(ctr)+" "+debts.get(ctr)+
-            			" "+bankrupts.get(ctr)+" "+bjrounds.get(ctr)+" "+
-            			tprounds.get(ctr)+" "+simples.get(ctr));
-        }
-        out.close();
-    }
+    /**
+     * Searches players.txt for a specific player's statistic.
+     * If the player or statistic is not found, Integer.MIN_VALUE is returned.
+     * 
+     * @param nick IRC user's nick
+     * @param stat the statistic's name
+     * @return the desired statistic or Integer.MIN_VALUE if not found
+     */
     public int loadPlayerStat(String nick, String stat){
     	try {
         	ArrayList<String> nicks = new ArrayList<String>();
@@ -519,6 +579,115 @@ public abstract class CardGame{
         	return Integer.MIN_VALUE;
         }
     }
+    /**
+     * Loads a Player's data from players.txt.
+     * If a matching nick is found then all statistics are loaded. Otherwise,
+     * the player is loaded with default values.
+     * 
+     * @param p the Player to find
+     */
+    public void loadPlayerData(Player p) {
+		try {
+			boolean found = false;
+			ArrayList<String> nicks = new ArrayList<String>();
+			ArrayList<Integer> stacks = new ArrayList<Integer>();
+			ArrayList<Integer> bankrupts = new ArrayList<Integer>();
+			ArrayList<Integer> debts = new ArrayList<Integer>();
+			ArrayList<Integer> bjrounds = new ArrayList<Integer>();
+			ArrayList<Integer> tprounds = new ArrayList<Integer>();
+			ArrayList<Boolean> simples = new ArrayList<Boolean>();
+			loadPlayerFile(nicks, stacks, debts, bankrupts, bjrounds, tprounds, simples);
+			int numLines = nicks.size();
+			for (int ctr = 0; ctr < numLines; ctr++) {
+				if (p.getNick().toLowerCase().equals(nicks.get(ctr).toLowerCase())) {
+					if (stacks.get(ctr) <= 0) {
+						p.setCash(getNewCash());
+					} else {
+						p.setCash(stacks.get(ctr));
+					}
+					p.setDebt(debts.get(ctr));
+					p.setBankrupts(bankrupts.get(ctr));
+                    if (gameName.equals("Blackjack")){
+                        p.setRounds(bjrounds.get(ctr));
+                    } else if (gameName.equals("Texas Hold'em Poker")){
+                        p.setRounds(tprounds.get(ctr));
+                    }
+					p.setSimple(simples.get(ctr));
+					found = true;
+					break;
+				}
+			}
+			if (!found) {
+				p.setCash(getNewCash());
+				p.setDebt(0);
+				p.setBankrupts(0);
+				p.setRounds(0);
+				p.setSimple(true);
+				infoNewPlayer(p.getNick());
+			}
+		} catch (IOException e) {
+			bot.log("Error reading players.txt!");
+		}
+	}
+	/**
+     * Saves a Player's data into players.txt.
+     * If a matching nick is found, the existing data is overwritten. Otherwise,
+     * a new line is added for the Player.
+     * 
+     * @param p the Player to save
+     */
+    public void savePlayerData(Player p){
+		boolean found = false;
+		ArrayList<String> nicks = new ArrayList<String>();
+		ArrayList<Integer> stacks = new ArrayList<Integer>();
+		ArrayList<Integer> debts = new ArrayList<Integer>();
+		ArrayList<Integer> bankrupts = new ArrayList<Integer>();
+		ArrayList<Integer> bjrounds = new ArrayList<Integer>();
+		ArrayList<Integer> tprounds = new ArrayList<Integer>();
+		ArrayList<Boolean> simples = new ArrayList<Boolean>();
+		int numLines;
+		try {
+			loadPlayerFile(nicks, stacks, debts, bankrupts, bjrounds, tprounds, simples);
+			numLines = nicks.size();
+			for (int ctr = 0; ctr < numLines; ctr++) {
+				if (p.getNick().toLowerCase().equals(nicks.get(ctr).toLowerCase())) {
+					stacks.set(ctr, p.getCash());
+					debts.set(ctr, p.getDebt());
+					bankrupts.set(ctr, p.getBankrupts());
+                    if (gameName.equals("Blackjack")){
+                        bjrounds.set(ctr, p.getRounds());
+                    } else if (gameName.equals("Texas Hold'em Poker")){
+                        tprounds.set(ctr, p.getRounds());
+                    }
+					simples.set(ctr, p.isSimple());
+					found = true;
+                    break;
+				}
+			}
+			if (!found) {
+				nicks.add(p.getNick());
+				stacks.add(p.getCash());
+				debts.add(p.getDebt());
+				bankrupts.add(p.getBankrupts());
+                if (gameName.equals("Blackjack")){
+                    bjrounds.add(p.getRounds());
+                    tprounds.add(0);
+                } else if (gameName.equals("Texas Hold'em Poker")){
+                    bjrounds.add(0);
+                    tprounds.add(p.getRounds());
+                }
+				simples.add(p.isSimple());
+			}
+		} catch (IOException e) {
+			bot.log("Error reading players.txt!");
+		}
+
+		try {
+			savePlayerFile(nicks, stacks, debts, bankrupts, bjrounds, tprounds, simples);
+		} catch (IOException e) {
+			bot.log("Error writing to players.txt!");
+		}
+	}
     public void checkPlayerFile(){
     	try {
     		BufferedReader out = new BufferedReader(new FileReader("players.txt"));
@@ -533,30 +702,62 @@ public abstract class CardGame{
         	}
         }
     }
-
-    public void payPlayerDebt(String nick, int amount){
-    	Player p = findJoined(nick);
-    	if (amount <= 0){
-    		infoPaymentTooLow(nick);
-    	} else if (amount > p.getDebt()){
-    		infoPaymentTooHigh(nick, p.getDebt());
-    	} else if (amount > p.getCash()){
-    		infoInsufficientFunds(nick);
-    	} else if (amount == p.getCash()){
-    		infoPaymentWillBankrupt(nick);
-    	} else {
-    		p.payDebt(amount);
-            savePlayerData(p);
-    		showPlayerDebtPayment(p, amount);
-    	}
-    }
-    public void devoiceAll(){
-    	Player p;
-        for (int ctr=0; ctr<getNumberJoined(); ctr++){
-            p = getJoined(ctr);
-            savePlayerData(p);
-            bot.deVoice(channel, findUser(p.getNick()));
+    /**
+     * Loads players.txt.
+     * Reads the file's contents into a set of ArrayLists.
+     * 
+     * @param nicks
+     * @param stacks
+     * @param debts
+     * @param bankrupts
+     * @param bjrounds
+     * @param tprounds
+     * @param simples
+     * @throws IOException
+     */
+    public static void loadPlayerFile(ArrayList<String> nicks, ArrayList<Integer> stacks,
+    							ArrayList<Integer> debts, ArrayList<Integer> bankrupts, 
+    							ArrayList<Integer> bjrounds, ArrayList<Integer> tprounds,
+    							ArrayList<Boolean> simples) throws IOException {
+    	BufferedReader in = new BufferedReader(new FileReader("players.txt"));
+        StringTokenizer st;
+        while (in.ready()){
+            st = new StringTokenizer(in.readLine());
+            nicks.add(st.nextToken());
+            stacks.add(Integer.parseInt(st.nextToken()));
+            debts.add(Integer.parseInt(st.nextToken()));
+            bankrupts.add(Integer.parseInt(st.nextToken()));
+            bjrounds.add(Integer.parseInt(st.nextToken()));
+            tprounds.add(Integer.parseInt(st.nextToken()));
+            simples.add(Boolean.parseBoolean(st.nextToken()));
         }
+        in.close();
+    }
+    /**
+     * Saves data to players.txt.
+     * Saves a set of ArrayLists to players.txt.
+     * 
+     * @param nicks
+     * @param stacks
+     * @param debts
+     * @param bankrupts
+     * @param bjrounds
+     * @param tprounds
+     * @param simples
+     * @throws IOException
+     */
+    public static void savePlayerFile(ArrayList<String> nicks, ArrayList<Integer> stacks,
+								ArrayList<Integer> debts, ArrayList<Integer> bankrupts, 
+								ArrayList<Integer> bjrounds, ArrayList<Integer> tprounds,
+								ArrayList<Boolean> simples) throws IOException {
+    	int numLines = nicks.size();
+    	PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("players.txt")));
+        for (int ctr = 0; ctr<numLines; ctr++){
+            out.println(nicks.get(ctr)+" "+stacks.get(ctr)+" "+debts.get(ctr)+
+            			" "+bankrupts.get(ctr)+" "+bjrounds.get(ctr)+" "+
+            			tprounds.get(ctr)+" "+simples.get(ctr));
+        }
+        out.close();
     }
     
     /* Generic card management methods */
@@ -581,17 +782,122 @@ public abstract class CardGame{
      * messages to the main channel.
      */
     abstract public void showGameStats();
+	public void showReloadSettings() {
+		bot.sendMessage(channel, iniFile+" has been reloaded.");
+	}
     /**
+     * Outputs all of a player's data relevant to this game.
+     * Sends a message to a player the list of statistics separated by '|'
+     * character.
+     * 
+     * @param nick the player's nick
+     */
+    public void showPlayerAllStats(String nick){
+        int cash = getPlayerStat(nick, "cash");
+        int debt = getPlayerStat(nick, "debt");
+        int net = getPlayerStat(nick, "netcash");
+        int bankrupts = getPlayerStat(nick, "bankrupts");
+        int rounds = 0;
+        if (gameName.equals("Blackjack")){
+            rounds = getPlayerStat(nick, "bjrounds");
+        } else if (gameName.equals("Texas Hold'em Poker")){
+            rounds = getPlayerStat(nick, "tprounds");
+        }
+        if (cash != Integer.MIN_VALUE) {
+            bot.sendMessage(channel, nick+" | Cash: $"+formatNumber(cash)+" | Debt: $"+
+                    formatNumber(debt)+" | Net: $"+formatNumber(net)+" | Bankrupts: "+
+                    formatNumber(bankrupts)+" | Rounds: "+formatNumber(rounds));
+        } else {
+            bot.sendMessage(channel, "No data found for " + nick + ".");
+        }
+    }
+	 /**
      * Outputs the top N players for a given statistic.
      * Sends a message to channel with the list of players sorted by ranking.
      * 
-     * @param stat The statistic used for ranking.
-     * @param n The length of the list up to n players.
+     * @param stat the statistic used for ranking
+     * @param n the length of the list up to n players
      */
-    abstract public void showTopPlayers(String stat, int n);
-    abstract public void showPlayerRounds(String nick);
-    abstract public void showPlayerAllStats(String nick);
-    abstract public void showReloadSettings();
+    public void showTopPlayers(String stat, int n) {
+        if (n < 1){
+            throw new IllegalArgumentException();
+        }
+		int highIndex;
+		try {
+			ArrayList<String> nicks = new ArrayList<String>();
+			ArrayList<Integer> stacks = new ArrayList<Integer>();
+			ArrayList<Integer> bankrupts = new ArrayList<Integer>();
+			ArrayList<Integer> debts = new ArrayList<Integer>();
+			ArrayList<Integer> bjrounds = new ArrayList<Integer>();
+			ArrayList<Integer> tprounds = new ArrayList<Integer>();
+			ArrayList<Boolean> simples = new ArrayList<Boolean>();
+			loadPlayerFile(nicks, stacks, debts, bankrupts, bjrounds, tprounds, simples);
+			ArrayList<Integer> test = new ArrayList<Integer>();
+            int length = Math.min(n, nicks.size());
+			String title = Colors.BLACK + ",08Top " + length;
+			String list;
+			if (stat.equals("cash")) {
+				test = stacks;
+				title += " Cash:";
+			} else if (stat.equals("debt")) {
+				test = debts;
+				title += " Debt:";
+			} else if (stat.equals("bankrupts")) {
+				test = bankrupts;
+				title += " Bankrupts:";
+			} else if (stat.equals("net") || stat.equals("netcash")) {
+				for (int ctr = 0; ctr < nicks.size(); ctr++) {
+					test.add(stacks.get(ctr) - debts.get(ctr));
+				}
+				title += " Net Cash:";
+			} else if (stat.equals("rounds")) {
+                if (gameName.equals("Blackjack")){
+                    test = bjrounds;
+                    title += " Blackjack Rounds:";
+                } else if (gameName.equals("Texas Hold'em Poker")){
+                    test = tprounds;
+                    title += " Texas Hold'em Poker Rounds:";
+                }
+			} else {
+				throw new IllegalArgumentException();
+			}
+			list = title;
+            // Find the player with the highest value, add to output string and remove.
+            // Repeat n times or for the length of the list.
+			for (int ctr = 1; ctr <= length; ctr++){
+				highIndex = 0;
+				for (int ctr2 = 0; ctr2 < nicks.size(); ctr2++) {
+					if (test.get(ctr2) > test.get(highIndex)) {
+						highIndex = ctr2;
+					}
+				}
+				if (stat.equals("rounds") || stat.equals("bankrupts")) {
+					list += " #" + ctr + ": " + Colors.WHITE + ",04 "
+							+ nicks.get(highIndex) + " " 
+							+ formatNumber(test.get(highIndex)) + " "
+							+ Colors.BLACK + ",08";
+				} else {
+					list += " #" + ctr + ": " + Colors.WHITE + ",04 "
+							+ nicks.get(highIndex) + " $"
+							+ formatNumber(test.get(highIndex)) + " "
+							+ Colors.BLACK + ",08";
+				}
+				nicks.remove(highIndex);
+				test.remove(highIndex);
+				if (nicks.isEmpty() || ctr == length) {
+					break;
+				}
+                // Output and reset after 10 players
+                if (ctr % 10 == 0){
+                    bot.sendMessage(channel, list);
+                    list = title;
+                }
+			}
+			bot.sendMessage(channel, list);
+		} catch (IOException e) {
+			bot.log("Error reading players.txt!");
+		}
+	}
     public void showSetting(String param, String value){
 		bot.sendMessage(channel, param+"="+value);
 	}
@@ -605,7 +911,7 @@ public abstract class CardGame{
         bot.sendMessage(channel, p.getNickStr()+" has joined the game. Players: "+Colors.BOLD+getNumberJoined());
     }
     public void showLeave(Player p){
-    	if (p.getCash() == 0){
+    	if (p.isBankrupt()){
     		bot.sendMessage(channel, p.getNickStr()+" has gone bankrupt and left the game. Players: "+Colors.BOLD+getNumberJoined());
     	} else {
     		bot.sendMessage(channel, p.getNickStr()+" has left the game. Players: "+Colors.BOLD+getNumberJoined());
@@ -682,6 +988,20 @@ public abstract class CardGame{
         	bot.sendMessage(channel, "No data found for "+nick+".");
         }
     }
+    public void showPlayerRounds(String nick){
+        int rounds = 0;
+        if (gameName.equals("Blackjack")){
+            rounds = getPlayerStat(nick, "bjrounds");
+        } else if (gameName.equals("Texas Hold'em Poker")){
+            rounds = getPlayerStat(nick, "tprounds");
+        }
+		
+		if (rounds != Integer.MIN_VALUE) {
+			bot.sendMessage(channel, nick + " has played " + rounds + " round(s) of " + getGameNameStr() + ".");
+		} else {
+			bot.sendMessage(channel, "No data found for " + nick + ".");
+		}
+	} 
     public void showPlayerDebtPayment(Player p, int amount){
     	bot.sendMessage(channel, p.getNickStr()+" has made a debt payment of $"+formatNumber(amount)+". "+p.getNickStr()+"'s debt is now $"+formatNumber(p.getDebt())+".");
     }
@@ -690,9 +1010,8 @@ public abstract class CardGame{
 	}
     
     /* 
-     * Player/nick output methods to reduce clutter elsewhere.
-     * These methods will all send notices to the intended
-     * recipient with a specific message.
+     * Private messages to players.
+     * These methods will all send notices/messages to the specified nick.
      */
 	public void infoGameRules(String nick) {
 		bot.sendNotice(nick,getGameRulesStr());
@@ -793,8 +1112,7 @@ public abstract class CardGame{
 						+ respawnTime/60 + " minute(s) for a loan.");
 		}
 	}
-    
-    /* Reveals cards in the deck/discards */
+    /* Reveals cards from the card deck */
     public void infoDeckCards(String nick, char type, int num){
         if (num < 1){
             throw new IllegalArgumentException();

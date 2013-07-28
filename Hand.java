@@ -84,6 +84,7 @@ public class Hand {
 		return h;
 	}
 	
+    /* Default toString returns all cards in the hand face-up */
 	@Override
     public String toString(){
         return toString(0,getSize());

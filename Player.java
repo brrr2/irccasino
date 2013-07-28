@@ -56,6 +56,9 @@ public class Player {
     		return nick;
     	}
     }
+    public boolean isBankrupt(){
+        return cash == 0;
+    }
     public void setDealer(boolean b){
     	dealer = b;
     }

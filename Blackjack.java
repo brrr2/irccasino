@@ -103,6 +103,7 @@ public class Blackjack extends CardGame {
 		insuranceBets = false;
         idleShuffleTask = null;
         maxPlayers = Integer.MAX_VALUE;
+        iniFile = "blackjack.ini";
 	}
 
     @Override
@@ -883,7 +884,7 @@ public class Blackjack extends CardGame {
 				p.incrementRounds();
                 
                 // Bankrupts
-				if (p.getCash() == 0) {
+				if (p.isBankrupt()) {
 					p.incrementBankrupts();
 					blacklist.add(p);
 					infoPlayerBankrupt(p.getNick());
@@ -1068,115 +1069,6 @@ public class Blackjack extends CardGame {
         return false;
 	}
 
-	/* Player data management */
-	@Override
-	public void loadPlayerData(Player p) {
-		try {
-			boolean found = false;
-			ArrayList<String> nicks = new ArrayList<String>();
-			ArrayList<Integer> stacks = new ArrayList<Integer>();
-			ArrayList<Integer> bankrupts = new ArrayList<Integer>();
-			ArrayList<Integer> debts = new ArrayList<Integer>();
-			ArrayList<Integer> bjrounds = new ArrayList<Integer>();
-			ArrayList<Integer> tprounds = new ArrayList<Integer>();
-			ArrayList<Boolean> simples = new ArrayList<Boolean>();
-			loadPlayerFile(nicks, stacks, debts, bankrupts, bjrounds, tprounds, simples);
-			int numLines = nicks.size();
-			for (int ctr = 0; ctr < numLines; ctr++) {
-				if (p.getNick().toLowerCase().equals(nicks.get(ctr).toLowerCase())) {
-					if (stacks.get(ctr) <= 0) {
-						p.setCash(getNewCash());
-					} else {
-						p.setCash(stacks.get(ctr));
-					}
-					p.setDebt(debts.get(ctr));
-					p.setBankrupts(bankrupts.get(ctr));
-					p.setRounds(bjrounds.get(ctr));
-					p.setSimple(simples.get(ctr));
-					found = true;
-					break;
-				}
-			}
-			if (!found) {
-				p.setCash(getNewCash());
-				p.setDebt(0);
-				p.setBankrupts(0);
-				p.setRounds(0);
-				p.setSimple(true);
-				infoNewPlayer(p.getNick());
-			}
-		} catch (IOException e) {
-			bot.log("Error reading players.txt!");
-		}
-	}
-	@Override
-	public void savePlayerData(Player p) {
-		boolean found = false;
-		ArrayList<String> nicks = new ArrayList<String>();
-		ArrayList<Integer> stacks = new ArrayList<Integer>();
-		ArrayList<Integer> debts = new ArrayList<Integer>();
-		ArrayList<Integer> bankrupts = new ArrayList<Integer>();
-		ArrayList<Integer> bjrounds = new ArrayList<Integer>();
-		ArrayList<Integer> tprounds = new ArrayList<Integer>();
-		ArrayList<Boolean> simples = new ArrayList<Boolean>();
-		int numLines;
-		try {
-			loadPlayerFile(nicks, stacks, debts, bankrupts, bjrounds, tprounds, simples);
-			numLines = nicks.size();
-			for (int ctr = 0; ctr < numLines; ctr++) {
-				if (p.getNick().toLowerCase().equals(nicks.get(ctr).toLowerCase())) {
-					stacks.set(ctr, p.getCash());
-					debts.set(ctr, p.getDebt());
-					bankrupts.set(ctr, p.getBankrupts());
-					bjrounds.set(ctr, p.getRounds());
-					simples.set(ctr, p.isSimple());
-					found = true;
-                    break;
-				}
-			}
-			if (!found) {
-				nicks.add(p.getNick());
-				stacks.add(p.getCash());
-				debts.add(p.getDebt());
-				bankrupts.add(p.getBankrupts());
-				bjrounds.add(p.getRounds());
-				tprounds.add(0);
-				simples.add(p.isSimple());
-			}
-		} catch (IOException e) {
-			bot.log("Error reading players.txt!");
-		}
-
-		try {
-			savePlayerFile(nicks, stacks, debts, bankrupts, bjrounds, tprounds, simples);
-		} catch (IOException e) {
-			bot.log("Error writing to players.txt!");
-		}
-	}
-	@Override
-    public int getTotalPlayers(){
-    	try {
-	    	ArrayList<String> nicks = new ArrayList<String>();
-	        ArrayList<Integer> stacks = new ArrayList<Integer>();
-	        ArrayList<Integer> bankrupts = new ArrayList<Integer>();
-	        ArrayList<Integer> debts = new ArrayList<Integer>();
-	        ArrayList<Integer> bjrounds = new ArrayList<Integer>();
-	        ArrayList<Integer> tprounds = new ArrayList<Integer>();
-	        ArrayList<Boolean> simples = new ArrayList<Boolean>();
-	    	loadPlayerFile(nicks, stacks, debts, bankrupts, bjrounds, tprounds, simples);
-	    	int total = 0, numLines = nicks.size();
-        	for (int ctr = 0; ctr < numLines; ctr++){
-        		if (bjrounds.get(ctr) > 0){
-        			total++;
-        		}
-        	}
-        	return total;
-    	} catch (IOException e){
-		 	bot.log("Error reading players.txt!");
-		 	return -1;
-    	}
-    }
-	
 	/* Card management methods for Blackjack */
 	public void shuffleShoe() {
 		deck.refillDeck();
@@ -1184,10 +1076,8 @@ public class Blackjack extends CardGame {
 	}
 	public void dealHand(BlackjackPlayer p) {
 		p.addHand();
-		Hand h = p.getCurrentHand();
-		for (int ctr2 = 0; ctr2 < 2; ctr2++) {
-            dealCard(h);
-		}
+        dealCard(p.getCurrentHand());
+        dealCard(p.getCurrentHand());
 	}
 	public void dealTable() {
 		BlackjackPlayer p;
@@ -1417,8 +1307,7 @@ public class Blackjack extends CardGame {
 		}
 	}
 	private void payPlayerInsurance(BlackjackPlayer p){
-		int result = evaluateInsurance();
-		if (result == 1) {
+		if (evaluateInsurance() == 1) {
 			p.addCash(calcInsurancePayout(p));
 			house.addCash(-1*calcInsurancePayout(p));
 		}
@@ -1498,82 +1387,6 @@ public class Blackjack extends CardGame {
 					formatNumber(totalHouse) + " in those rounds.");
 	}
 	@Override
-	public void showTopPlayers(String stat, int n) {
-        if (n < 1){
-            throw new IllegalArgumentException();
-        }
-		int highIndex;
-		try {
-			ArrayList<String> nicks = new ArrayList<String>();
-			ArrayList<Integer> stacks = new ArrayList<Integer>();
-			ArrayList<Integer> bankrupts = new ArrayList<Integer>();
-			ArrayList<Integer> debts = new ArrayList<Integer>();
-			ArrayList<Integer> bjrounds = new ArrayList<Integer>();
-			ArrayList<Integer> tprounds = new ArrayList<Integer>();
-			ArrayList<Boolean> simples = new ArrayList<Boolean>();
-			loadPlayerFile(nicks, stacks, debts, bankrupts, bjrounds, tprounds, simples);
-			ArrayList<Integer> test = new ArrayList<Integer>();
-            int length = Math.min(n, nicks.size());
-			String title = Colors.BLACK + ",08Top " + length;
-			String list;
-			if (stat.equals("cash")) {
-				test = stacks;
-				title += " Cash:";
-			} else if (stat.equals("debt")) {
-				test = debts;
-				title += " Debt:";
-			} else if (stat.equals("bankrupts")) {
-				test = bankrupts;
-				title += " Bankrupts:";
-			} else if (stat.equals("net") || stat.equals("netcash")) {
-				for (int ctr = 0; ctr < nicks.size(); ctr++) {
-					test.add(stacks.get(ctr) - debts.get(ctr));
-				}
-				title += " Net Cash:";
-			} else if (stat.equals("rounds")) {
-				test = bjrounds;
-				title += " Blackjack Rounds:";
-			} else {
-				throw new IllegalArgumentException();
-			}
-			list = title;
-            // Find the player with the highest value, add to output string and remove.
-            // Repeat n times or for the length of the lists.
-			for (int ctr = 1; ctr <= length; ctr++){
-				highIndex = 0;
-				for (int ctr2 = 0; ctr2 < nicks.size(); ctr2++) {
-					if (test.get(ctr2) > test.get(highIndex)) {
-						highIndex = ctr2;
-					}
-				}
-				if (stat.equals("rounds") || stat.equals("bankrupts")) {
-					list += " #" + ctr + ": " + Colors.WHITE + ",04 "
-							+ nicks.get(highIndex) + " " 
-							+ formatNumber(test.get(highIndex)) + " "
-							+ Colors.BLACK + ",08";
-				} else {
-					list += " #" + ctr + ": " + Colors.WHITE + ",04 "
-							+ nicks.get(highIndex) + " $"
-							+ formatNumber(test.get(highIndex)) + " "
-							+ Colors.BLACK + ",08";
-				}
-				nicks.remove(highIndex);
-				test.remove(highIndex);
-				if (nicks.isEmpty() || ctr == length) {
-					break;
-				}
-                // Output and reset after 10 players
-                if (ctr % 10 == 0){
-                    bot.sendMessage(channel, list);
-                    list = title;
-                }
-			}
-			bot.sendMessage(channel, list);
-		} catch (IOException e) {
-			bot.log("Error reading players.txt!");
-		}
-	}
-	@Override
 	public void showTurn(Player p) {
 		if (isBetting()) {
 			bot.sendMessage(channel, p.getNickStr() + "'s turn. Stack: $"
@@ -1628,21 +1441,6 @@ public class Blackjack extends CardGame {
 		}
 	}
     @Override
-    public void showPlayerAllStats(String nick){
-        int cash = getPlayerStat(nick, "cash");
-        int debt = getPlayerStat(nick, "debt");
-        int net = getPlayerStat(nick, "netcash");
-        int bankrupts = getPlayerStat(nick, "bankrupts");
-        int rounds = getPlayerStat(nick, "bjrounds");
-        if (cash != Integer.MIN_VALUE) {
-            bot.sendMessage(channel, nick+" | Cash: $"+formatNumber(cash)+" | Debt: $"+
-                    formatNumber(debt)+" | Net: $"+formatNumber(net)+" | Bankrupts: "+
-                    formatNumber(bankrupts)+" | Rounds: "+formatNumber(rounds));
-        } else {
-            bot.sendMessage(channel, "No data found for " + nick + ".");
-        }
-    } 
-    @Override
 	public void showDeckEmpty() {
 		bot.sendMessage(channel, "The dealer's shoe is empty. Refilling the dealer's shoe with discards...");
 	}
@@ -1680,10 +1478,6 @@ public class Blackjack extends CardGame {
 	}
 	public void showShuffleShoe() {
 		bot.sendMessage(channel, "The dealer's shoe has been shuffled.");
-	}
-	@Override
-	public void showReloadSettings() {
-		bot.sendMessage(channel, "blackjack.ini has been reloaded.");
 	}
 	public void showHouseStat(int n) {
 		HouseStat hs = getHouseStat(n);
