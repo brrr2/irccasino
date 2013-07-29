@@ -133,9 +133,13 @@ public class TexasPoker extends CardGame{
                     infoNoParameter(nick);
                 }
             }
-        } else if (command.equals("check") || command.equals("c") || command.equals("call")) {
+        } else if (command.equals("c") || command.equals("ca") || command.equals("call")) {
             if (isPlayerTurn(nick)){
-                checkCall();
+                call();
+            }
+        } else if (command.equals("x") || command.equals("ch") || command.equals("check")) {
+            if (isPlayerTurn(nick)){
+                check();
             }
         } else if (command.equals("fold") || command.equals("f")) {
             if (isPlayerTurn(nick)){
@@ -145,7 +149,7 @@ public class TexasPoker extends CardGame{
             if (isPlayerTurn(nick)){
                 if (params.length > 0){
                     try {
-                        raise(Integer.parseInt(params[0]));
+                        bet(Integer.parseInt(params[0]) + currentBet);
                     } catch (NumberFormatException e) {
                         infoBadParameter(nick);
                     }
@@ -344,7 +348,7 @@ public class TexasPoker extends CardGame{
             if (isForceCommandAllowed(user, nick)){
                 if (params.length > 0){
                     try {
-                        raise(Integer.parseInt(params[0]));
+                        bet(Integer.parseInt(params[0]) + currentBet);
                     } catch (NumberFormatException e) {
                         infoBadParameter(nick);
                     }
@@ -352,9 +356,13 @@ public class TexasPoker extends CardGame{
                     infoNoParameter(nick);
                 }
             }
-        } else if (command.equals("fc") || command.equals("fcheck") || command.equals("fcall")){
+        } else if (command.equals("fc") || command.equals("fca") || command.equals("fcall")){
             if (isForceCommandAllowed(user, nick)){
-                checkCall();
+                call();
+            }
+        } else if (command.equals("fx") || command.equals("fch") || command.equals("fcheck")){
+            if (isForceCommandAllowed(user, nick)){
+                check();
             }
         } else if (command.equals("ff") || command.equals("ffold")){
             if (isForceCommandAllowed(user, nick)){
@@ -702,9 +710,9 @@ public class TexasPoker extends CardGame{
 							}
 						}
 						// If there is only one player who hasn't folded,
-						// force check/call on that remaining player (whose turn it must be)
+						// force check on that remaining player (whose turn it must be)
 						if (getNumberNotFolded() == 1){
-							checkCall();
+							call();
 						}
 					}
 				}
@@ -952,7 +960,11 @@ public class TexasPoker extends CardGame{
 		}
 		return numberCanBet;
 	}
-	public void bet (int amount) {
+	/**
+     * Processes a bet command.
+     * @param amount the amount to bet
+     */
+    public void bet (int amount) {
 		cancelIdleOutTask();
 		PokerPlayer p = (PokerPlayer) currentPlayer;
 		int total;
@@ -962,6 +974,7 @@ public class TexasPoker extends CardGame{
 			total = amount;
 		}
 		
+        // A bet that's an all-in
 		if (total == p.getCash()){
 			if (currentBet < total || topBettor == null){
 				currentBet = total;
@@ -971,95 +984,96 @@ public class TexasPoker extends CardGame{
             p.setAllIn(true);
             showAllIn(p);
 			continueRound();
+        // A bet that's larger than a player's stack
 		} else if (total > p.getCash()) {
-			bot.sendNotice(p.getNick(), "Not enough cash.");
+			infoInsufficientFunds(p.getNick());
 			setIdleOutTask();
+        // A bet that's lower than the current bet
 		} else if (total < currentBet) {
-			bot.sendNotice(p.getNick(), "Bet too low. Current bet is $" + formatNumber(currentBet)+".");
+            infoBetTooLow(p.getNick());
 			setIdleOutTask();
+        // A bet that's equivalent to a call or check
 		} else if (total == currentBet){
-			p.setBet(total);
 			if (topBettor == null){
 				topBettor = p;
 			}
-            if (total == 0){
+            if (total == 0 || p.getBet() == total){
                 showCheck(p);
             } else {
+                p.setBet(total);
                 showCall(p);
             }
 			continueRound();
+        // A bet that's lower than the minimum raise
 		} else if ((total-currentBet) < minRaise){
-			bot.sendNotice(p.getNick(), "Minimum raise is $" + formatNumber(minRaise) + ".");
+            infoRaiseTooLow(p.getNick());
 			setIdleOutTask();
+        // A valid bet thats greater than the currentBet
 		} else {
 			p.setBet(total);
-			currentBet = total;
 			topBettor = p;
-            showRaise(p);
-			continueRound();
-		}
-	}
-	public void raise (int amount) {
-		cancelIdleOutTask();
-		PokerPlayer p = (PokerPlayer) currentPlayer;
-		int total = amount + currentBet;
-		
-		if (total == p.getCash()){
-            if (currentBet < total || topBettor == null){
-				currentBet = total;
-				topBettor = p;
-			}
-			p.setBet(total);
-            p.setAllIn(true);
-            showAllIn(p);
-			continueRound();
-		} else if (total > p.getCash()) {
-			bot.sendNotice(p.getNick(), "Not enough cash");
-			setIdleOutTask();
-		} else if (amount == 0) {
-			p.setBet(total);
-			if (topBettor == null){
-				topBettor = p;
-			}
-            if (total == 0){
-                showCheck(p);
+            if (currentBet == 0){
+                showBet(p);
             } else {
-                showCall(p);
+                showRaise(p);
             }
-			continueRound();
-		} else if (amount < minRaise) {
-			bot.sendNotice(p.getNick(), "Minimum raise is " + formatNumber(minRaise) + ".");
-			setIdleOutTask();
-		} else {
-			p.setBet(total);			
-			currentBet = total;
-			topBettor = p;
-            showRaise(p);
+            currentBet = total;
 			continueRound();
 		}
 	}
-	public void checkCall(){
+    /**
+     * Processes a check command.
+     * Only allow a player to check when the currentBet is 0 or if the player
+     * has already committed the required amount to pot.
+     */
+    public void check(){
+        cancelIdleOutTask();
+        PokerPlayer p = (PokerPlayer) currentPlayer;
+        
+        if (currentBet == 0 || p.getBet() == currentBet){
+            if (topBettor == null){
+                topBettor = p;
+            }
+			showCheck(p);
+            continueRound();
+		} else {
+            infoNoChecking(p.getNick());
+            setIdleOutTask();
+        }
+    }
+	/**
+     * Processes a call command.
+     * A player's bet will be matched to the currentBet. If a player's stack
+     * is less than the currentBet, the player will move all-in.
+     */
+    public void call(){
 		cancelIdleOutTask();
 		PokerPlayer p = (PokerPlayer) currentPlayer;
 		int total = Math.min(p.getCash(), currentBet);
         
         if (topBettor == null){
-            currentBet = total;
 			topBettor = p;
-		}
-		p.setBet(total);
+		}		
 		
+        // A call that's an all-in to match the currentBet
         if (total == p.getCash()){
             p.setAllIn(true);
             showAllIn(p);
-        } else if (total == 0){
+        // A check
+        } else if (total == 0 || p.getBet() == total){
 			showCheck(p);
+        // A call
 		} else {
+            p.setBet(total);
 			showCall(p);
 		}
 		continueRound();
 	}
-	public void fold(){
+	/**
+     * Process a fold command.
+     * The folding player is removed from all pots.
+     */
+    public void fold(){
 		cancelIdleOutTask();
 		PokerPlayer p = (PokerPlayer) currentPlayer;
 		p.setFold(true);
@@ -1077,7 +1091,11 @@ public class TexasPoker extends CardGame{
 		}
 		continueRound();
 	}
-	public void addBetsToPot(){
+	/**
+     * Adds the bets during a round of betting to the pot.
+     * If no pot exists, a new one is created. Sidepots are created as necessary.
+     */
+    public void addBetsToPot(){
 		PokerPlayer p;
 		while(currentBet != 0){
 			int lowBet = currentBet;
@@ -1223,8 +1241,13 @@ public class TexasPoker extends CardGame{
 	public void showTurn(Player p) {
         PokerPlayer pp = (PokerPlayer) p;
 		bot.sendMessage(channel, p.getNickStr()+"'s turn. " + p.getNick()+" in for $" + formatNumber(pp.getBet()) + 
-                ". Stack: $" + formatNumber(p.getCash()-pp.getBet()) + ". Current bet: $" + formatNumber(currentBet) + ".");
+                ". Stack: $" + formatNumber(p.getCash()-pp.getBet()) + ". " + "Current bet: "+Colors.BOLD+"$" + 
+                formatNumber(currentBet) + Colors.BOLD);
 	}
+    public void showBet(PokerPlayer p){
+        bot.sendMessage(channel, p.getNickStr()+" bets $" + formatNumber(p.getBet())+
+					". Stack: $" + formatNumber(p.getCash() - p.getBet()));
+    }
     public void showRaise(PokerPlayer p){
         bot.sendMessage(channel, p.getNickStr()+" has raised to $" + formatNumber(p.getBet())+
 					". Stack: $" + formatNumber(p.getCash() - p.getBet()));
@@ -1245,7 +1268,7 @@ public class TexasPoker extends CardGame{
 		bot.sendMessage(channel, p.getNickStr()+" has folded. Stack: $" + formatNumber(p.getCash()-p.getBet()));
 	}
 	public void showPlayerResult(PokerPlayer p){
-		bot.sendMessage(channel, p.getNickStr() + ": "+ p.getPokerHand().getName()+", " + p.getPokerHand() + " (" + p.getHand() + ")");
+		bot.sendMessage(channel, p.getNickStr() + " (" + p.getHand() + ")" + ": "+ p.getPokerHand().getName()+", " + p.getPokerHand() );
 	}
 	public void showResults(){
 		ArrayList<PokerPlayer> players;
@@ -1263,6 +1286,7 @@ public class TexasPoker extends CardGame{
                 showPlayerResult(p);
             }
         }
+        // Find the winner(s) from each pot
 		for (int ctr = 0; ctr < pots.size(); ctr++){
             winners = 1;
 			currentPot = pots.get(ctr);
@@ -1295,11 +1319,15 @@ public class TexasPoker extends CardGame{
 			bot.sendMessage(p.getNick(), "Your hand is " + h + ".");
 		}
 	}
-	public void infoBetTooLow(String nick, int min){
-        bot.sendNotice(nick, "Minimum bet is $" + formatNumber(min) + ". Try again.");
+    @Override
+    public void infoBetTooLow(String nick){
+        bot.sendNotice(nick, "Bet too low. Current bet is $" + formatNumber(currentBet)+".");
     }
-	public void infoMustAllIn(String nick){
-        bot.sendNotice(nick, "You must go all in or fold. Try again.");
+	public void infoRaiseTooLow(String nick){
+        bot.sendNotice(nick, "Minimum raise is $" + formatNumber(getMinBet()) + ". Try again.");
+    }
+    public void infoNoChecking(String nick){
+        bot.sendNotice(nick, "Current bet is $" + formatNumber(currentBet) + ". You must call or raise.");
     }
 	public void infoNoCommunity(String nick){
 		bot.sendNotice(nick, "No community cards have been dealt yet.");
