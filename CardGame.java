@@ -1277,9 +1277,7 @@ public abstract class CardGame{
         bot.sendNotice(nick, "Maximum bet is $"+formatNumber(max)+". Try again.");
     }
 	public void infoPlayerBankrupt(String nick) {
-		Player p = findJoined(nick);
-		bot.sendNotice(nick, "You've lost all your money. Please wait " 
-						+ respawnTime/60 + " minute(s) for a loan.");
+		bot.sendNotice(nick, "You've lost all your money. Please wait " + respawnTime/60 + " minute(s) for a loan.");
 	}
     public void infoGameCommandHelp(String nick, String command){
         bot.sendNotice(nick, getCommandHelp(command));
