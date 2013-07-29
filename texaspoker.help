@@ -1,0 +1,14 @@
+go=Usage: go | Alias: start | Starts a new round of Texas Hold'em Poker if there are sufficient players.
+join=Usage: join | Alias: j | Joins the game. If a game is in progress, you'll be added to a waiting list and automatically added to the next round.
+quit=Usage: quit | Alias: q, leave, l | Leaves the current game if joined, or the waiting list if on the waiting list.
+bet=Usage: bet <value> | Alias: b | Commits the specified amount to the pot.
+raise=Usage: raise <value> | Alias: r | Raises the current bet by the specified amount.
+check=Usage: check | Alias: x, ch | Equivalent to a bet of 0.
+call=Usage: call | Alias: c, ca | Matches your bet to that of the current bet.
+fold=Usage: fold | Alias: f | Forfeits your hand and bets.
+community=Usage: community | Alias: comm | Shows the current community cards that have been dealt.
+hand=Usage: hand | Alias: | Tells you your current hand.
+turn=Usage: turn | Alias: | Shows whose turn it is at present.
+cash=Usage: cash <nick> | Alias: | Shows the current cash amount for the specified player. Shows your own cash amount if no nick is provided.
+debt=Usage: debt <nick> | Alias: | Shows the current debt amount for the specified player. Shows your own debt amount if no nick is provided.
+netcash=Usage: netcash <nick> | Alias: net | Shows the current net cash for the specified player. Shows your own net cash amount if no nick is provided. Net cash is the difference between cash and debt.

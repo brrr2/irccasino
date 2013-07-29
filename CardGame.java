@@ -39,7 +39,7 @@ public abstract class CardGame{
 			game.startRound();
 		}
 	}
-    /* Idle task for card games */
+    /* Idle task for removing idle players */
 	public static class IdleOutTask extends TimerTask {
 		private Player player;
 		private CardGame game;
@@ -57,6 +57,7 @@ public abstract class CardGame{
 			}
 		}
 	}
+    /* Respawn task for giving loans after bankruptcies */
 	public static class RespawnTask extends TimerTask {
 		Player player;
 		CardGame game;
@@ -80,7 +81,7 @@ public abstract class CardGame{
     protected PircBotX bot; //bot handling the game
     protected ExampleBot parentListener; //ListenerAdapter that is receiving commands
     protected Channel channel; //channel where game is being played
-    protected String gameName, iniFile;
+    protected String gameName, iniFile, helpFile;
     protected ArrayList<Player> joined, blacklist, waitlist;
     protected CardDeck deck;
     protected Player currentPlayer;
@@ -224,7 +225,11 @@ public abstract class CardGame{
         } else if (command.equals("grules")) {
             infoGameRules(nick);
         } else if (command.equals("ghelp")) {
-            infoGameHelp(nick);
+            if (params.length == 0){
+                infoGameHelp(nick);
+            } else {
+                infoGameCommandHelp(nick, params[0].toLowerCase());
+            }
         } else if (command.equals("gcommands")) {
             infoGameCommands(nick);
         } else if (command.equals("game")) {
@@ -1273,14 +1278,13 @@ public abstract class CardGame{
     }
 	public void infoPlayerBankrupt(String nick) {
 		Player p = findJoined(nick);
-		if (p.isSimple()) {
-			bot.sendNotice(nick, "You've lost all your money. Please wait " 
+		bot.sendNotice(nick, "You've lost all your money. Please wait " 
 						+ respawnTime/60 + " minute(s) for a loan.");
-		} else {
-			bot.sendMessage(nick, "You've lost all your money. Please wait "
-						+ respawnTime/60 + " minute(s) for a loan.");
-		}
 	}
+    public void infoGameCommandHelp(String nick, String command){
+        bot.sendNotice(nick, getCommandHelp(command));
+    }
+    
     /* Reveals cards from the card deck */
     public void infoDeckCards(String nick, char type, int num){
         if (num < 1){
@@ -1313,15 +1317,15 @@ public abstract class CardGame{
     	return Colors.BOLD + gameName + Colors.BOLD;
     }
 	public String getGameHelpStr() {
-		return "For help on " + getGameNameStr() + ", visit Wikipedia. "
-				+ "For game commands, type .gcommands. For house rules, type .grules.";
+		return "For game commands, type .gcommands. For house rules, type .grules. "+
+                "For help on individual commands, type .ghelp <command>.";
 	}
     abstract public String getGameRulesStr();
     abstract public String getGameCommandStr();
     public static String formatNumber(int n){
     	return String.format("%,d", n);
     }
-    public static String getPlayerListString(ArrayList<? extends Player> playerList){
+    protected static String getPlayerListString(ArrayList<? extends Player> playerList){
         String outStr;
         int size = playerList.size();
         if (size == 0){
@@ -1339,5 +1343,37 @@ public abstract class CardGame{
             }
         }
         return outStr;
+    }
+
+    /**
+     * Searches the help file for data on the specified command.
+     * @param command
+     * @return the help data for the command
+     */
+    protected String getCommandHelp(String command){
+        try {		
+            BufferedReader in = new BufferedReader(new FileReader(helpFile));
+            StringTokenizer st;
+            String c="",d="";
+            boolean found = false;
+            while (in.ready()){
+                st = new StringTokenizer(in.readLine(), "=");
+                c = st.nextToken();
+                d = st.nextToken();
+                if (c.equals(command)){
+                    found = true;
+                    break;
+                }
+            }
+            in.close();
+            if (found){
+                return d;
+            } else {
+                return "Help for \'"+command+"\' not found!";
+            }
+        } catch (IOException e) {
+			bot.log("Error reading from help file!");
+            return "Error reading from help file!";
+		}
     }
 }

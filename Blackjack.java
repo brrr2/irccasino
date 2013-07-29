@@ -104,6 +104,7 @@ public class Blackjack extends CardGame {
         idleShuffleTask = null;
         maxPlayers = Integer.MAX_VALUE;
         iniFile = "blackjack.ini";
+        helpFile = "blackjack.help";
 	}
 
     @Override

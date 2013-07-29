@@ -95,6 +95,7 @@ public class TexasPoker extends CardGame{
 		topBettor = null;
         maxPlayers = 22;
         iniFile = "texaspoker.ini";
+        helpFile = "texaspoker.help";
 	}
 	
     /* Command management method */

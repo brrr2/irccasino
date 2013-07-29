@@ -285,6 +285,11 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
                             tpgame = null;
                         }
                         bot.getListenerManager().removeListener(this);
+                        try {
+                            Thread.sleep(2000);
+                        } catch(InterruptedException ex) {
+                            Thread.currentThread().interrupt();
+                        }
                         bot.shutdown();
                     }
                 } else {
