@@ -111,6 +111,9 @@ public class Blackjack extends CardGame {
         String nick = user.getNick();
         String hostmask = user.getHostmask();
 
+        /* Check if it's a common command */
+        super.processCommand(user, command, params);
+        
         /* Parsing commands from the channel */
         if (command.equals("join") || command.equals("j")){
             if (parentListener.tpgame != null && 
@@ -121,8 +124,6 @@ public class Blackjack extends CardGame {
             } else {
                 join(nick, hostmask);
             }
-        } else if (command.equals("leave") || command.equals("quit") || command.equals("l") || command.equals("q")){
-            leave(nick);
         } else if (command.equals("start") || command.equals("go")){
             if (isStartAllowed(nick)) {
                 cancelIdleShuffleTask();
@@ -232,76 +233,8 @@ public class Blackjack extends CardGame {
             if (isCountAllowed(nick)){
                 showNumDiscards();
             }
-        } else if (command.equals("simple")) {
-            if (!isJoined(nick)) {
-                infoNotJoined(nick);
-            } else {
-                togglePlayerSimple(nick);
-            }
-        } else if (command.equals("stats")){
-            if (isInProgress()){
-                infoWaitRoundEnd(nick);
-            } else {
-                showGameStats();
-            }
-        } else if (command.equals("cash")) {
-            if (params.length > 0){
-                showPlayerCash(params[0]);
-            } else {
-                showPlayerCash(nick);
-            }
-        } else if (command.equals("netcash") || command.equals("net")) {
-            if (params.length > 0){
-                showPlayerNetCash(params[0]);
-            } else {
-                showPlayerNetCash(nick);
-            }
-        } else if (command.equals("debt")) {
-            if (params.length > 0){
-                showPlayerDebt(params[0]);
-            } else {
-                showPlayerDebt(nick);
-            }
-        } else if (command.equals("bankrupts")) {
-            if (params.length > 0){
-                showPlayerBankrupts(params[0]);
-            } else {
-                showPlayerBankrupts(nick);
-            }
-        } else if (command.equals("rounds")) {
-            if (params.length > 0){
-                showPlayerRounds(params[0]);
-            } else {
-                showPlayerRounds(nick);
-            }
-        } else if (command.equals("player") || command.equals("p")){
-            if (params.length > 0){
-                showPlayerAllStats(params[0]);
-            } else {
-                showPlayerAllStats(nick);
-            }
-        } else if (command.equals("paydebt") ) {
-            if (!isJoined(nick)) {
-                infoNotJoined(nick);
-            } else if (isInProgress()) {
-                infoWaitRoundEnd(nick);
-            } else {
-                if (params.length > 0){
-                    try {
-                        payPlayerDebt(nick, Integer.parseInt(params[0]));
-                    } catch (NumberFormatException e) {
-                        infoBadParameter(nick);
-                    }
-                } else {
-                    infoNoParameter(nick);
-                }
-            }
         } else if (command.equals("players")) {
             showPlayers();
-        } else if (command.equals("waitlist")) {
-            showWaitlist();
-        } else if (command.equals("blacklist")) {
-            showBlacklist();
         } else if (command.equals("house")) {
             if (isInProgress()) {
                 infoWaitRoundEnd(nick);
@@ -316,34 +249,6 @@ public class Blackjack extends CardGame {
                     showHouseStat(shoeDecks);
                 }
             }
-        } else if (command.equals("top")) {
-            if (isInProgress()) {
-                infoWaitRoundEnd(nick);
-            } else {
-                if (params.length > 1){
-                    try {
-                        showTopPlayers(params[1].toLowerCase(), Integer.parseInt(params[0]));
-                    } catch (IllegalArgumentException e) {
-                        infoBadParameter(nick);
-                    }
-                } else if (params.length == 1){
-                    try {
-                        showTopPlayers("cash", Integer.parseInt(params[0]));
-                    } catch (IllegalArgumentException e) {
-                        infoBadParameter(nick);
-                    }
-                } else {
-                    showTopPlayers("cash", 5);
-                }
-            }
-        } else if (command.equals("grules")) {
-            infoGameRules(nick);
-        } else if (command.equals("ghelp")) {
-            infoGameHelp(nick);
-        } else if (command.equals("gcommands")) {
-            infoGameCommands(nick);
-        } else if (command.equals("game")) {
-            showGameName();
         } else if (command.equals("numdecks") || command.equals("ndecks")) {
             if (isCountAllowed(nick)){
                 showNumDecks();
@@ -367,21 +272,19 @@ public class Blackjack extends CardGame {
                     while(it.hasNext()){
                         User u = it.next();
                         if (u.getNick().toLowerCase().equals(fNick.toLowerCase())){
-                            join(u.getNick(), u.getHostmask());
+                            // Check if fNick is joined in another game
+                            if (parentListener.tpgame != null && 
+                                (parentListener.tpgame.isJoined(fNick) || parentListener.tpgame.isWaitlisted(fNick))){
+                                bot.sendNotice(user, u.getNick()+" is already joined in "+parentListener.tpgame.getGameNameStr()+"!");
+                            } else if (parentListener.tpgame != null && parentListener.tpgame.isBlacklisted(fNick)){
+                                bot.sendNotice(user, u.getNick()+" is bankrupt and cannot join!");
+                            } else {
+                                join(u.getNick(), u.getHostmask());
+                            }
                             return;
                         }
                     }
                     infoNickNotFound(nick,fNick);
-                } else {
-                    infoNoParameter(nick);
-                }
-            }
-        } else if (command.equals("fl") || command.equals("fq") || command.equals("fquit") || command.equals("fleave")){
-            if (!channel.isOp(user)) {
-                infoOpsOnly(nick);
-            } else {
-                if (params.length > 0){
-                    leave(params[0]);
                 } else {
                     infoNoParameter(nick);
                 }
@@ -430,60 +333,10 @@ public class Blackjack extends CardGame {
                     infoNoParameter(nick);
                 }
             }
-        } else if (command.equals("cards") || command.equals("discards")){
-            if (isOpCommandAllowed(user, nick)){
-                if (params.length > 0){
-                    try {
-                        int num = Integer.parseInt(params[0]);
-                        if (command.equals("cards") && deck.getNumberCards() > 0){
-                            infoDeckCards(nick, 'c', num);
-                        } else if (command.equals("discards") && deck.getNumberDiscards() > 0){
-                            infoDeckCards(nick, 'd', num);
-                        } else {
-                            bot.sendNotice(nick, "Empty!");
-                        }
-                    } catch (IllegalArgumentException e){
-                        infoBadParameter(nick);
-                    }
-                } else {
-                    infoNoParameter(nick);
-                }
-            }
         } else if (command.equals("shuffle")){
             if (isOpCommandAllowed(user, nick)){
                 cancelIdleShuffleTask();
                 shuffleShoe();
-            }
-        } else if (command.equals("reload")){
-            if (isOpCommandAllowed(user, nick)){
-                cancelIdleShuffleTask();
-                loadSettings();
-                showReloadSettings();
-            }
-        } else if (command.equals("set")){
-            if (isOpCommandAllowed(user, nick)){
-                if (params.length > 1){
-                    try {
-                        setSetting(params);
-                        showUpdateSetting(params[0]);
-                    } catch (IllegalArgumentException e) {
-                        infoBadParameter(nick);
-                    }
-                } else {
-                    infoNoParameter(nick);
-                }
-            }
-        } else if (command.equals("get")) {
-            if (isOpCommandAllowed(user, nick)){
-                if (params.length > 0){
-                    try {
-                        showSetting(params[0], getSetting(params[0]));
-                    } catch (IllegalArgumentException e) {
-                        infoBadParameter(nick);
-                    }
-                } else {
-                    infoNoParameter(nick);
-                }
             }
         } else if (command.equals("test1")){
             bot.sendMessage(channel, "No test implemented yet.");
@@ -1005,16 +858,6 @@ public class Blackjack extends CardGame {
 		if (!isStage2(nick)){
 		} else if (!(currentPlayer == findJoined(nick))) {
 			infoNotTurn(nick);
-		} else {
-            return true;
-        }
-        return false;
-	}
-	private boolean isOpCommandAllowed(User user, String nick){
-		if (!channel.isOp(user)) {
-			infoOpsOnly(nick);
-		} else if (isInProgress()) {
-			infoWaitRoundEnd(nick);
 		} else {
             return true;
         }

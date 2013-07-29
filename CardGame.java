@@ -126,7 +126,166 @@ public abstract class CardGame{
      * @param command The command that was issued.
      * @param params A list of parameters that were passed along.
      */
-    abstract public void processCommand(User user, String command, String[] params);
+    public void processCommand(User user, String command, String[] params){
+        String nick = user.getNick();
+        
+        /* Common commands for all games that can be called at anytime or have 
+         * the same permissions. */
+        if (command.equals("leave") || command.equals("quit") || command.equals("l") || command.equals("q")){
+            leave(nick);
+        } else if (command.equals("cash")) {
+            if (params.length > 0){
+                showPlayerCash(params[0]);
+            } else {
+                showPlayerCash(nick);
+            }
+        } else if (command.equals("netcash") || command.equals("net")) {
+            if (params.length > 0){
+                showPlayerNetCash(params[0]);
+            } else {
+                showPlayerNetCash(nick);
+            }
+        } else if (command.equals("debt")) {
+            if (params.length > 0){
+                showPlayerDebt(params[0]);
+            } else {
+                showPlayerDebt(nick);
+            }
+        } else if (command.equals("bankrupts")) {
+            if (params.length > 0){
+                showPlayerBankrupts(params[0]);
+            } else {
+                showPlayerBankrupts(nick);
+            }
+        } else if (command.equals("rounds")) {
+            if (params.length > 0){
+                showPlayerRounds(params[0]);
+            } else {
+                showPlayerRounds(nick);
+            }
+        } else if (command.equals("player") || command.equals("p")){
+            if (params.length > 0){
+                showPlayerAllStats(params[0]);
+            } else {
+                showPlayerAllStats(nick);
+            }
+        } else if (command.equals("paydebt") ) {
+            if (!isJoined(nick)) {
+                infoNotJoined(nick);
+            } else if (isInProgress()) {
+                infoWaitRoundEnd(nick);
+            } else {
+                if (params.length > 0){
+                    try {
+                        payPlayerDebt(nick, Integer.parseInt(params[0]));
+                    } catch (NumberFormatException e) {
+                        infoBadParameter(nick);
+                    }
+                } else {
+                    infoNoParameter(nick);
+                }
+            }
+        } else if (command.equals("waitlist")) {
+            showWaitlist();
+        } else if (command.equals("blacklist")) {
+            showBlacklist();
+        } else if (command.equals("top")) {
+            if (isInProgress()) {
+                infoWaitRoundEnd(nick);
+            } else {
+                if (params.length > 1){
+                    try {
+                        showTopPlayers(params[1].toLowerCase(), Integer.parseInt(params[0]));
+                    } catch (IllegalArgumentException e) {
+                        infoBadParameter(nick);
+                    }
+                } else if (params.length == 1){
+                    try {
+                        showTopPlayers("cash", Integer.parseInt(params[0]));
+                    } catch (IllegalArgumentException e) {
+                        infoBadParameter(nick);
+                    }
+                } else {
+                    showTopPlayers("cash", 5);
+                }
+            }
+        } else if (command.equals("simple")) {
+            if (!isJoined(nick)) {
+                infoNotJoined(nick);
+            } else {
+                togglePlayerSimple(nick);
+            }
+        } else if (command.equals("stats")){
+            if (isInProgress()) {
+                infoWaitRoundEnd(nick);
+            } else {
+                showGameStats();
+            }
+        } else if (command.equals("grules")) {
+            infoGameRules(nick);
+        } else if (command.equals("ghelp")) {
+            infoGameHelp(nick);
+        } else if (command.equals("gcommands")) {
+            infoGameCommands(nick);
+        } else if (command.equals("game")) {
+            showGameName();
+        // Op Commands
+        } else if (command.equals("fl") || command.equals("fq") || command.equals("fquit") || command.equals("fleave")){
+            if (!channel.isOp(user)) {
+                infoOpsOnly(nick);
+            } else {
+                if (params.length > 0){
+                    leave(params[0]);
+                } else {
+                    infoNoParameter(nick);
+                }
+            }
+        } else if (command.equals("cards") || command.equals("discards")) {
+            if (isOpCommandAllowed(user, nick)){
+                if (params.length > 0){
+                    try {
+                        int num = Integer.parseInt(params[0]);
+                        if (command.equals("cards") && deck.getNumberCards() > 0) {
+                            infoDeckCards(nick, 'c', num);
+                        } else if (command.equals("discards") && deck.getNumberDiscards() > 0) {
+                            infoDeckCards(nick, 'd', num);
+                        } else {
+                            bot.sendNotice(nick, "Empty!");
+                        }
+                    } catch (IllegalArgumentException e) {
+                        infoBadParameter(nick);
+                    }
+                } else {
+                    infoNoParameter(nick);
+                }
+            }
+        } else if (command.equals("set")){
+            if (isOpCommandAllowed(user, nick)){
+                if (params.length > 1){
+                    try {
+                        setSetting(params);
+                        showUpdateSetting(params[0]);
+                    } catch (IllegalArgumentException e) {
+                        infoBadParameter(nick);
+                    }
+                } else {
+                    infoNoParameter(nick);
+                }
+            }
+        } else if (command.equals("get")) {
+            if (isOpCommandAllowed(user, nick)){
+                if (params.length > 0){
+                    try {
+                        showSetting(params[0], getSetting(params[0]));
+                    } catch (IllegalArgumentException e) {
+                        infoBadParameter(nick);
+                    }
+                } else {
+                    infoNoParameter(nick);
+                }
+            }
+        }
+    }
     
     /**
      * Processes a user join event in the channel where the game is running.
@@ -297,6 +456,16 @@ public abstract class CardGame{
             idleOutTimer.purge();
         }
     }
+    public boolean isOpCommandAllowed(User user, String nick){
+		if (!channel.isOp(user)) {
+			infoOpsOnly(nick);
+		} else if (isInProgress()) {
+			infoWaitRoundEnd(nick);
+		} else {
+            return true;
+        }
+        return false;
+	}
     
     /* 
      * Player management methods 

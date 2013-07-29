@@ -102,7 +102,10 @@ public class TexasPoker extends CardGame{
     public void processCommand(User user, String command, String[] params){
         String nick = user.getNick();
         String hostmask = user.getHostmask();
-
+        
+        /* Check if it's a common command */
+        super.processCommand(user, command, params);
+        
         /* Parsing commands from the channel */
         if (command.equals("join") || command.equals("j")) {
             if (parentListener.bjgame != null &&
@@ -113,10 +116,8 @@ public class TexasPoker extends CardGame{
             } else{
                 join(nick, hostmask);
             }
-        } else if (command.equals("leave") || command.equals("quit") || command.equals("l") || command.equals("q")) {
-            leave(nick);
         } else if (command.equals("start") || command.equals("go")) {
-            if (isStartCommandAllowed(nick)){
+            if (isStartAllowed(nick)){
                 setInProgress(true);
                 showStartRound();
                 setStartRoundTask();
@@ -188,109 +189,12 @@ public class TexasPoker extends CardGame{
             } else {
                 showTurn(currentPlayer);
             }
-        } else if (command.equals("simple")) {
-            if (!isJoined(nick)) {
-                infoNotJoined(nick);
-            } else {
-                togglePlayerSimple(nick);
-            }
-        } else if (command.equals("stats")){
-            if (isInProgress()) {
-                infoWaitRoundEnd(nick);
-            } else {
-                showGameStats();
-            }
-        } else if (command.equals("cash")) {
-            if (params.length > 0){
-                showPlayerCash(params[0]);
-            } else {
-                showPlayerCash(nick);
-            }
-        } else if (command.equals("netcash") || command.equals("net")) {
-            if (params.length > 0){
-                showPlayerNetCash(params[0]);
-            } else {
-                showPlayerNetCash(nick);
-            }
-        } else if (command.equals("debt")) {
-            if (params.length > 0){
-                showPlayerDebt(params[0]);
-            } else {
-                showPlayerDebt(nick);
-            }
-        } else if (command.equals("bankrupts")) {
-            if (params.length > 0){
-                showPlayerBankrupts(params[0]);
-            } else {
-                showPlayerBankrupts(nick);
-            }
-        } else if (command.equals("rounds")) {
-            if (params.length > 0){
-                showPlayerRounds(params[0]);
-            } else {
-                showPlayerRounds(nick);
-            }
-        } else if (command.equals("player") || command.equals("p")){
-            if (params.length > 0){
-                showPlayerAllStats(params[0]);
-            } else {
-                showPlayerAllStats(nick);
-            }
-        } else if (command.equals("paydebt") ) {
-            if (!isJoined(nick)) {
-                infoNotJoined(nick);
-            } else if (isInProgress()) {
-                infoWaitRoundEnd(nick);
-            } else {
-                if (params.length > 0){
-                    try {
-                        payPlayerDebt(nick, Integer.parseInt(params[0]));
-                    } catch (NumberFormatException e) {
-                        infoBadParameter(nick);
-                    }
-                } else {
-                    infoNoParameter(nick);
-                }
-            }
         } else if (command.equals("players")) {
             if (isInProgress()){
                 showTablePlayers();
             } else {
                 showPlayers();
             }
-        } else if (command.equals("waitlist")) {
-            showWaitlist();
-        } else if (command.equals("blacklist")) {
-            showBlacklist();
-        } else if (command.equals("top")) {
-            if (isInProgress()) {
-                infoWaitRoundEnd(nick);
-            } else {
-                if (params.length > 1){
-                    try {
-                        showTopPlayers(params[1].toLowerCase(), Integer.parseInt(params[0]));
-                    } catch (IllegalArgumentException e) {
-                        infoBadParameter(nick);
-                    }
-                } else if (params.length == 1){
-                    try {
-                        showTopPlayers("cash", Integer.parseInt(params[0]));
-                    } catch (IllegalArgumentException e) {
-                        infoBadParameter(nick);
-                    }
-                } else {
-                    showTopPlayers("cash", 5);
-                }
-            }
-        } else if (command.equals("grules")) {
-            infoGameRules(nick);
-        } else if (command.equals("ghelp")) {
-            infoGameHelp(nick);
-        } else if (command.equals("gcommands")) {
-            infoGameCommands(nick);
-        } else if (command.equals("game")) {
-            showGameName();
-
         /* Op commands */
         } else if (command.equals("fstart") || command.equals("fgo")){
             if (isForceStartAllowed(user,nick)){
@@ -309,7 +213,15 @@ public class TexasPoker extends CardGame{
                     while(it.hasNext()){
                         User u = it.next();
                         if (u.getNick().toLowerCase().equals(fNick.toLowerCase())){
-                            join(u.getNick(), u.getHostmask());
+                            // Check if fNick is joined in another game
+                            if (parentListener.bjgame != null &&
+                                (parentListener.bjgame.isJoined(fNick) || parentListener.bjgame.isWaitlisted(fNick))){
+                                bot.sendNotice(user, u.getNick()+" is already joined in "+parentListener.bjgame.getGameNameStr()+"!");
+                            } else if (parentListener.bjgame != null && parentListener.bjgame.isBlacklisted(fNick)){
+                                bot.sendNotice(user, u.getNick()+" is bankrupt and cannot join!");
+                            } else{
+                                join(u.getNick(), u.getHostmask());
+                            }
                             return;
                         }
                     }
@@ -318,18 +230,8 @@ public class TexasPoker extends CardGame{
                     infoNoParameter(nick);
                 }
             }
-        } else if (command.equals("fl") || command.equals("fq") || command.equals("fquit") || command.equals("fleave")){
-            if (!channel.isOp(user)) {
-                infoOpsOnly(nick);
-            } else {
-                if (params.length > 0){
-                    leave(params[0]);
-                } else {
-                    infoNoParameter(nick);
-                }
-            }
         } else if (command.equals("fb") || command.equals("fbet")){
-            if (isForceCommandAllowed(user, nick)){
+            if (isForcePlayAllowed(user, nick)){
                 if (params.length > 0){
                     try {
                         bet(Integer.parseInt(params[0]));
@@ -341,11 +243,11 @@ public class TexasPoker extends CardGame{
                 }
             }
         } else if (command.equals("fa") || command.equals("fallin")){
-            if (isForceCommandAllowed(user, nick)){
+            if (isForcePlayAllowed(user, nick)){
                 bet(Integer.MAX_VALUE);
             }
         } else if (command.equals("fr") || command.equals("fraise")){
-            if (isForceCommandAllowed(user, nick)){
+            if (isForcePlayAllowed(user, nick)){
                 if (params.length > 0){
                     try {
                         bet(Integer.parseInt(params[0]) + currentBet);
@@ -357,65 +259,21 @@ public class TexasPoker extends CardGame{
                 }
             }
         } else if (command.equals("fc") || command.equals("fca") || command.equals("fcall")){
-            if (isForceCommandAllowed(user, nick)){
+            if (isForcePlayAllowed(user, nick)){
                 call();
             }
         } else if (command.equals("fx") || command.equals("fch") || command.equals("fcheck")){
-            if (isForceCommandAllowed(user, nick)){
+            if (isForcePlayAllowed(user, nick)){
                 check();
             }
         } else if (command.equals("ff") || command.equals("ffold")){
-            if (isForceCommandAllowed(user, nick)){
+            if (isForcePlayAllowed(user, nick)){
                 fold();
-            }
-        } else if (command.equals("cards") || command.equals("discards")) {
-            if (isOpCommandAllowed(user, nick)){
-                if (params.length > 0){
-                    try {
-                        int num = Integer.parseInt(params[0]);
-                        if (command.equals("cards") && deck.getNumberCards() > 0) {
-                            infoDeckCards(nick, 'c', num);
-                        } else if (command.equals("discards") && deck.getNumberDiscards() > 0) {
-                            infoDeckCards(nick, 'd', num);
-                        } else {
-                            bot.sendNotice(nick, "Empty!");
-                        }
-                    } catch (IllegalArgumentException e) {
-                        infoBadParameter(nick);
-                    }
-                } else {
-                    infoNoParameter(nick);
-                }
             }
         } else if (command.equals("reload")) {
             if (isOpCommandAllowed(user, nick)){
                 loadSettings();
                 showReloadSettings();
-            }
-        } else if (command.equals("set")) {
-            if (isOpCommandAllowed(user, nick)){
-                if (params.length > 1){
-                    try {
-                        setSetting(params);
-                        showUpdateSetting(params[0]);
-                    } catch (IllegalArgumentException e) {
-                        infoBadParameter(nick);
-                    }
-                } else {
-                    infoNoParameter(nick);
-                }
-            }
-        } else if (command.equals("get")) {
-            if (isOpCommandAllowed(user, nick)){
-                if (params.length > 0){
-                    try {
-                        showSetting(params[0], getSetting(params[0]));
-                    } catch (IllegalArgumentException e) {
-                        infoBadParameter(nick);
-                    }
-                } else {
-                    infoNoParameter(nick);
-                }
             }
         } else if (command.equals("test1")){
             if (isOpCommandAllowed(user, nick)){
@@ -710,7 +568,7 @@ public class TexasPoker extends CardGame{
 							}
 						}
 						// If there is only one player who hasn't folded,
-						// force check on that remaining player (whose turn it must be)
+						// force call on that remaining player (whose turn it must be)
 						if (getNumberNotFolded() == 1){
 							call();
 						}
@@ -755,7 +613,7 @@ public class TexasPoker extends CardGame{
 	}
     
     /* Game command logic checking methods */
-    public boolean isStartCommandAllowed(String nick){
+    public boolean isStartAllowed(String nick){
         if (!isJoined(nick)) {
             infoNotJoined(nick);
         } else if (isInProgress()) {
@@ -791,17 +649,7 @@ public class TexasPoker extends CardGame{
         }
         return false;
     }
-    public boolean isOpCommandAllowed(User user, String nick){
-		if (!channel.isOp(user)) {
-			infoOpsOnly(nick);
-		} else if (isInProgress()) {
-			infoWaitRoundEnd(nick);
-		} else {
-            return true;
-        }
-        return false;
-	}
-    public boolean isForceCommandAllowed(User user, String nick){
+    public boolean isForcePlayAllowed(User user, String nick){
         if (!channel.isOp(user)) {
 			infoOpsOnly(nick);
 		} else if (!isInProgress()) {
