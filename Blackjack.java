@@ -339,6 +339,12 @@ public class Blackjack extends CardGame {
                 cancelIdleShuffleTask();
                 shuffleShoe();
             }
+        } else if (command.equals("reload")){
+            if (isOpCommandAllowed(user, nick)){
+                cancelIdleShuffleTask();
+                loadSettings();
+                showReloadSettings();
+            }
         } else if (command.equals("test1")){
             bot.sendMessage(channel, "No test implemented yet.");
         }
