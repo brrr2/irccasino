@@ -1315,7 +1315,7 @@ public abstract class CardGame{
     	return Colors.BOLD + gameName + Colors.BOLD;
     }
 	public String getGameHelpStr() {
-		return "For game commands, type .gcommands. For house rules, type .grules. "+
+		return "For a list of game commands, type .gcommands. For house rules, type .grules. "+
                 "For help on individual commands, type .ghelp <command>.";
 	}
     abstract public String getGameRulesStr();
@@ -1352,15 +1352,17 @@ public abstract class CardGame{
         try {		
             BufferedReader in = new BufferedReader(new FileReader(helpFile));
             StringTokenizer st;
-            String c="",d="";
+            String c,d="";
             boolean found = false;
             while (in.ready()){
                 st = new StringTokenizer(in.readLine(), "=");
-                c = st.nextToken();
-                d = st.nextToken();
-                if (c.equals(command)){
-                    found = true;
-                    break;
+                if (st.countTokens() == 2){
+                    c = st.nextToken();
+                    d = st.nextToken();
+                    if (c.equals(command)){
+                        found = true;
+                        break;
+                    }
                 }
             }
             in.close();
