@@ -907,6 +907,7 @@ public class TexasPoker extends CardGame{
         // A call that's an all-in to match the currentBet
         if (total == p.getCash()){
             p.setAllIn(true);
+            p.setBet(total);
             showAllIn(p);
         // A check
         } else if (total == 0 || p.getBet() == total){
