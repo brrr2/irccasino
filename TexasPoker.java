@@ -65,7 +65,7 @@ public class TexasPoker extends CardGame{
 		}
 	}
 	
-	private int stage, currentBet, minRaise, minBet;
+	private int stage, currentBet, minRaise;
 	private ArrayList<PokerPot> pots;
 	private PokerPot currentPot;
 	private PokerPlayer dealer, smallBlind, bigBlind, topBettor;
@@ -93,7 +93,6 @@ public class TexasPoker extends CardGame{
 		smallBlind = null;
 		bigBlind = null;
 		topBettor = null;
-        maxPlayers = 22;
         iniFile = "texaspoker.ini";
         helpFile = "texaspoker.help";
 	}
@@ -277,46 +276,77 @@ public class TexasPoker extends CardGame{
                 showReloadSettings();
             }
         } else if (command.equals("test1")){
+            // 1. Test if game will properly determine winner of 2-5 players
             if (isOpCommandAllowed(user, nick)){
-                // 1. Test if game will properly determine winner of two hands
-                Hand h1 = new Hand();
-                Hand h2 = new Hand();
-                PokerHand ph1 = new PokerHand();
-                PokerHand ph2 = new PokerHand();
-                Hand comm = new Hand();
-                for (int ctr=0; ctr<2; ctr++){
-                    dealCard(h1);
-                    dealCard(h2);
-                }
-                for (int ctr=0; ctr<5; ctr++){
-                    dealCard(comm);
-                }
-                ph1.addAll(comm);
-                ph1.addAll(h1);
-                ph2.addAll(comm);
-                ph2.addAll(h2);
-                bot.sendMessage(channel, "Hand 1: "+h1.toString());
-                bot.sendMessage(channel, "Hand 2: "+h2.toString());
-                bot.sendMessage(channel, "Community: "+comm.toString());
-                Collections.sort(ph1.getAllCards());
-                Collections.reverse(ph1.getAllCards());
-                Collections.sort(ph2.getAllCards());
-                Collections.reverse(ph2.getAllCards());
-                ph1.getValue();
-                ph2.getValue();
-                bot.sendMessage(channel, "Hand 1, "+ph1.getName()+": " + ph1);
-                bot.sendMessage(channel, "Hand 2, "+ph2.getName()+": " + ph2);
-                if (ph1.compareTo(ph2) > 0){
-                    bot.sendMessage(channel, "Hand 1 wins");
-                } else if (ph1.compareTo(ph2) < 0){
-                    bot.sendMessage(channel, "Hand 2 wins");
+                if (params.length > 0){
+                    try {
+                        ArrayList<PokerPlayer> peeps = new ArrayList<PokerPlayer>();
+                        PokerPlayer p;
+                        PokerHand ph;
+                        int winners = 1;
+                        int number = Integer.parseInt(params[0]);
+                        if (number > 5 || number < 2){
+                            throw new NumberFormatException();
+                        }
+                        // Generate new players
+                        for (int ctr=0; ctr < number; ctr++){
+                            p = new PokerPlayer(ctr+1+"", "");
+                            peeps.add(p);
+                            dealHand(p);                            
+                            bot.sendMessage(channel, "Player "+p.getNickStr()+": "+p.getHand().toString());
+                        }
+                        // Generate community cards
+                        Hand comm = new Hand();
+                        for (int ctr=0; ctr<5; ctr++){
+                            dealCard(comm);
+                        }
+                        bot.sendMessage(channel, "Community: "+comm.toString());
+                        // Propagate poker hands
+                        for (int ctr=0; ctr < number; ctr++){
+                            p = peeps.get(ctr);
+                            ph = p.getPokerHand();
+                            ph.addAll(p.getHand());
+                            ph.addAll(comm);
+                            Collections.sort(ph.getAllCards());
+                            Collections.reverse(ph.getAllCards());
+                            ph.getValue();
+                        }
+                        // Sort hands in descending order
+                        Collections.sort(peeps);
+                        Collections.reverse(peeps);
+                        // Determine number of winners
+                        for (int ctr=1; ctr < peeps.size(); ctr++){
+                            if (peeps.get(0).compareTo(peeps.get(ctr)) == 0){
+                                winners++;
+                            } else {
+                                break;
+                            }
+                        }
+                        // Output poker hands with winners listed
+                        for (int ctr=0; ctr < winners; ctr++){
+                            p = peeps.get(ctr);
+                            ph = p.getPokerHand();
+                            bot.sendMessage(channel, "Player "+p.getNickStr()+
+                                    " ("+p.getHand()+"), "+ph.getName()+": " + ph+" (WINNER)");
+                        }
+                        for (int ctr=winners; ctr < peeps.size(); ctr++){
+                            p = peeps.get(ctr);
+                            ph = p.getPokerHand();
+                            bot.sendMessage(channel, "Player "+p.getNickStr()+
+                                    " ("+p.getHand()+"), "+ph.getName()+": " + ph);
+                        }
+                        // Discard and shuffle
+                        for (int ctr=0; ctr < number; ctr++){
+                            deck.addToDiscard(peeps.get(ctr).getHand().getAllCards());
+                        }
+                        deck.addToDiscard(comm.getAllCards());
+                        deck.refillDeck();
+                    } catch (NumberFormatException e) {
+                        infoBadParameter(nick);
+                    }
                 } else {
-                    bot.sendMessage(channel, "Draw");
-                }
-                deck.addToDiscard(h1.getAllCards());
-                deck.addToDiscard(h2.getAllCards());
-                deck.addToDiscard(comm.getAllCards());
-                deck.refillDeck();
+                    infoNoParameter(nick);
+                }                
             }
         } else if (command.equals("test2")){	
             // 2. Test if arbitrary hands will be scored properly
@@ -348,15 +378,7 @@ public class TexasPoker extends CardGame{
             }
         }
     }
-    
-    /* Accessor methods */
-	public void setMinBet(int value){
-    	minBet = value;
-    }
-    public int getMinBet(){
-    	return minBet;
-    }
-	
+
     /* Game management methods */
     @Override
 	public void addPlayer(String nick, String hostmask) {
@@ -528,7 +550,7 @@ public class TexasPoker extends CardGame{
 		stage = 0;
 		currentBet = 0;
 		currentPot = null;
-		minRaise = minBet;
+		minRaise = getMinBet();
 		pots.clear();
 		currentPlayer = null;
 		bigBlind = null;
@@ -607,10 +629,14 @@ public class TexasPoker extends CardGame{
 		bigBlind = (PokerPlayer) getPlayerAfter(smallBlind);
 	}
 	public void setBlindBets(){
-		currentBet = Math.min(minRaise, smallBlind.getCash());
-		smallBlind.setBet(currentBet);
-		currentBet = Math.min(currentBet+minRaise, bigBlind.getCash());
-		bigBlind.setBet(currentBet);
+        // Set the small blind to minimum raise or the player's cash, 
+        // whichever is less.
+		smallBlind.setBet(Math.min(minRaise, smallBlind.getCash()));
+		// Set the big blind to minimum raise + small blind or the player's 
+        // cash, whichever is less.
+        bigBlind.setBet(Math.min(smallBlind.getBet()+minRaise, bigBlind.getCash()));
+        // Set the current bet to the bigger of the two blinds.
+        currentBet = Math.max(smallBlind.getBet(), bigBlind.getBet());
 	}
     
     /* Game command logic checking methods */
@@ -674,6 +700,8 @@ public class TexasPoker extends CardGame{
 			setRespawnTime(Integer.parseInt(value));
 		} else if (setting.equals("minbet")){
 			setMinBet(Integer.parseInt(value));
+		} else if (setting.equals("maxplayers")){
+			setMaxPlayers(Integer.parseInt(value));
 		} else {
 			throw new IllegalArgumentException();
 		}
@@ -689,6 +717,8 @@ public class TexasPoker extends CardGame{
 			return getRespawnTime()+"";
 		} else if (param.equals("minbet")){
 			return getMinBet()+"";
+		} else if (param.equals("maxplayers")){
+			return getMaxPlayers()+"";
 		} else {
 			throw new IllegalArgumentException();
 		}
@@ -708,25 +738,28 @@ public class TexasPoker extends CardGame{
 				name = st.nextToken();
 				value = st.nextToken();
 				if (name.equals("idle")) {
-					idleOutTime = Integer.parseInt(value);
+					setIdleOutTime(Integer.parseInt(value));
 				} else if (name.equals("cash")) {
-					newcash = Integer.parseInt(value);
+					setNewCash(Integer.parseInt(value));
 				} else if (name.equals("respawn")) {
-					respawnTime = Integer.parseInt(value);
+					setRespawnTime(Integer.parseInt(value));
 				} else if (name.equals("minbet")) {
-					minBet = Integer.parseInt(value);
-					minRaise = minBet;
+					setMinBet(Integer.parseInt(value));
+					minRaise = getMinBet();
+				} else if (name.equals("maxplayers")) {
+					setMaxPlayers(Integer.parseInt(value));
 				}
 			}
 			in.close();
 		} catch (IOException e) {
 			/* load defaults if texaspoker.ini is not found */
 			bot.log("texaspoker.ini not found! Creating new texaspoker.ini...");
-			newcash = 1000;
-			idleOutTime = 60;
-			respawnTime = 600;
-			minBet = 5;
-			minRaise = minBet;
+			setNewCash(1000);
+			setIdleOutTime(60);
+			setRespawnTime(600);
+            setMaxPlayers(22);
+			setMinBet(5);
+			minRaise = getMinBet();
 			saveSettings();
 		}
 	}
@@ -736,15 +769,17 @@ public class TexasPoker extends CardGame{
 			PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("texaspoker.ini")));
 			out.println("#Settings");
 			out.println("#Number of seconds before a player idles out");
-			out.println("idle=" + idleOutTime);
+			out.println("idle=" + getIdleOutTime());
 			out.println("#Initial amount given to new and bankrupt players");
-			out.println("cash=" + newcash);
+			out.println("cash=" + getNewCash());
 			out.println("#Number of seconds before a bankrupt player is allowed to join again");
-			out.println("respawn=" + respawnTime);
+			out.println("respawn=" + getRespawnTime());
 			out.println("#Minimum betting increment");
-			out.println("minbet=" + minBet);
+			out.println("minbet=" + getMinBet());
+            out.println("#The maximum number of players allowed to join a game");
+			out.println("maxplayers=" + getMaxPlayers());
 			out.close();
-		} catch (IOException f) {
+		} catch (IOException e) {
 			bot.log("Error creating texaspoker.ini!");
 		}
     }
@@ -902,8 +937,8 @@ public class TexasPoker extends CardGame{
         
         if (topBettor == null){
 			topBettor = p;
-		}		
-		
+		}
+        
         // A call that's an all-in to match the currentBet
         if (total == p.getCash()){
             p.setAllIn(true);
@@ -1185,7 +1220,8 @@ public class TexasPoker extends CardGame{
 	
 	@Override
 	public String getGameRulesStr() {
-		return "This is no limit Texas Hold'em Poker. $" + getMinBet() + " minimum bet/raise.";
+		return "This is no limit Texas Hold'em Poker. Minimum bet/raise is $" + 
+                getMinBet() + " or your stack, whichever is lower.";
 	}
 	@Override
 	public String getGameCommandStr() {

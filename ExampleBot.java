@@ -290,7 +290,7 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
                         } catch(InterruptedException ex) {
                             Thread.currentThread().interrupt();
                         }
-                        bot.shutdown();
+                        bot.shutdown(true);
                     }
                 } else {
                     bot.getListenerManager().removeListener(this);

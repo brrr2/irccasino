@@ -142,17 +142,31 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
 	}
 	@Override
 	public String toString(){
+        String out;
         switch (this.getValue()) {
-            case 8: return toString(0,5);
-            case 7: return toString(0,4)+"/"+toString(4,5);
-            case 6: return toString(0,5);
-            case 5: return toString(0,5);
-            case 4: return toString(0,5);
-            case 3: return toString(0,3)+"/"+toString(3,5);
-            case 2: return toString(0,4)+"/"+toString(4,5);
-            case 1: return toString(0,2)+"/"+toString(2,5);
-            default: return toString(0,5);
+            // Royal flush, straight flush, full house, flush, straight, high card
+            case 9: case 8: case 6: case 5: case 4: case 0: 
+                out = toString(0,5);
+                break;
+            case 7: // 4 of a kind
+                out = toString(0,4)+"/"+toString(4,5);
+                break;
+            case 3: // 3 of a kind
+                out = toString(0,3)+"/"+toString(3,5);
+                break;
+            case 2: // 2 pairs
+                out = toString(0,4)+"/"+toString(4,5);
+                break;
+            case 1: // 1 pair
+                out = toString(0,2)+"/"+toString(2,5);
+                break;
+            default:
+                out = "";
         }
+        if (this.getSize() > 5){
+            out += "||"+toString(5, this.getSize());
+        }
+        return out;
 	}
 
 	/*

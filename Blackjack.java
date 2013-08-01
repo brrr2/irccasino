@@ -79,7 +79,7 @@ public class Blackjack extends CardGame {
 	
 	private BlackjackPlayer dealer;
 	private boolean insuranceBets, countEnabled, holeEnabled;
-	private int shoeDecks, idleShuffleTime;
+	private int shufflePoint, shoeDecks, idleShuffleTime;
 	private Timer idleShuffleTimer;	
 	private ArrayList<HouseStat> stats;
     private IdleShuffleTask idleShuffleTask;
@@ -102,7 +102,6 @@ public class Blackjack extends CardGame {
 		loadSettings();
 		insuranceBets = false;
         idleShuffleTask = null;
-        maxPlayers = Integer.MAX_VALUE;
         iniFile = "blackjack.ini";
         helpFile = "blackjack.help";
 	}
@@ -227,13 +226,23 @@ public class Blackjack extends CardGame {
                         getHiLo() + "/" + getRed7() + "/" + getZen());
             }
         } else if (command.equals("numcards") || command.equals("ncards")) {
-            if (isCountAllowed(nick)){
+            if (!isJoined(nick)) {
+                infoNotJoined(nick);
+            } else if (isInProgress()) {
+                infoWaitRoundEnd(nick);
+            } else {
                 showNumCards();
             }
         } else if (command.equals("numdiscards") || command.equals("ndiscards")) {
-            if (isCountAllowed(nick)){
+            if (!isJoined(nick)) {
+                infoNotJoined(nick);
+            } else if (isInProgress()) {
+                infoWaitRoundEnd(nick);
+            } else {
                 showNumDiscards();
             }
+        } else if (command.equals("numdecks") || command.equals("ndecks")) {
+            showNumDecks();
         } else if (command.equals("players")) {
             showPlayers();
         } else if (command.equals("house")) {
@@ -249,10 +258,6 @@ public class Blackjack extends CardGame {
                 } else {
                     showHouseStat(shoeDecks);
                 }
-            }
-        } else if (command.equals("numdecks") || command.equals("ndecks")) {
-            if (isCountAllowed(nick)){
-                showNumDecks();
             }
         /* Op commands */
         } else if (command.equals("fstart") || command.equals("fgo")){
@@ -375,6 +380,12 @@ public class Blackjack extends CardGame {
 	public int getIdleShuffleTime() {
 		return idleShuffleTime;
 	}
+    public void setShufflePoint(int value){
+        shufflePoint = value;
+    }
+    public int getShufflePoint(){
+        return shufflePoint;
+    }
     public boolean hasInsuranceBets() {
 		return insuranceBets;
 	}
@@ -409,6 +420,12 @@ public class Blackjack extends CardGame {
 			setCountEnabled(Boolean.parseBoolean(value));
 		} else if (setting.equals("hole")) {
 			setHoleEnabled(Boolean.parseBoolean(value));
+		} else if (setting.equals("minbet")) {
+			setMinBet(Integer.parseInt(value));
+		} else if (setting.equals("shufflepoint")) {
+			setShufflePoint(Integer.parseInt(value));
+		} else if (setting.equals("maxplayers")) {
+			setMaxPlayers(Integer.parseInt(value));
 		} else {
 			throw new IllegalArgumentException();
 		}
@@ -430,6 +447,12 @@ public class Blackjack extends CardGame {
 			return isCountEnabled()+"";
 		} else if (param.equals("hole")) {
 			return isHoleEnabled()+"";
+		} else if (param.equals("minbet")) {
+			return getMinBet()+"";
+		} else if (param.equals("shufflepoint")) {
+			return getShufflePoint()+"";
+		} else if (param.equals("maxplayers")) {
+			return getMaxPlayers()+"";
 		} else {
 			throw new IllegalArgumentException();
 		}
@@ -449,39 +472,48 @@ public class Blackjack extends CardGame {
 				name = st.nextToken();
 				value = st.nextToken();
 				if (name.equals("decks")) {
-					shoeDecks = Integer.parseInt(value);
+					setShoeDecks(Integer.parseInt(value));
 				} else if (name.equals("idle")) {
-					idleOutTime = Integer.parseInt(value);
+					setIdleOutTime(Integer.parseInt(value));
 				} else if (name.equals("idleshuffle")) {
-					idleShuffleTime = Integer.parseInt(value);
+					setIdleShuffleTime(Integer.parseInt(value));
 				} else if (name.equals("cash")) {
-					newcash = Integer.parseInt(value);
+					setNewCash(Integer.parseInt(value));
 				} else if (name.equals("respawn")) {
-					respawnTime = Integer.parseInt(value);
+					setRespawnTime(Integer.parseInt(value));
 				} else if (name.equals("count")) {
-					countEnabled = Boolean.parseBoolean(value);
-				} else if (name.equals("hole")) {
-					holeEnabled = Boolean.parseBoolean(value);
-				}
+					setCountEnabled(Boolean.parseBoolean(value));
+				} else if (name.equals("hole")){
+					setHoleEnabled(Boolean.parseBoolean(value));
+				} else if (name.equals("minbet")){
+                    setMinBet(Integer.parseInt(value));
+                } else if (name.equals("shufflepoint")){
+                    setShufflePoint(Integer.parseInt(value));
+                } else if (name.equals("maxplayers")){
+                    setMaxPlayers(Integer.parseInt(value));
+                }
 			}
 			in.close();
 		} catch (IOException e) {
 			/* load defaults if blackjack.ini is not found */
 			bot.log("blackjack.ini not found! Creating new blackjack.ini...");
-			shoeDecks = 4;
-			newcash = 1000;
-			idleOutTime = 60;
-			respawnTime = 600;
-			idleShuffleTime = 300;
-			countEnabled = true;
-			holeEnabled = false;
+			setShoeDecks(8);
+			setNewCash(1000);
+			setIdleOutTime(60);
+			setRespawnTime(600);
+			setIdleShuffleTime(300);
+			setCountEnabled(true);
+			setHoleEnabled(false);
+            setMaxPlayers(15);
+            setMinBet(5);
+            setShufflePoint(10);
 			saveSettings();
 		}
-		deck = new CardDeck(shoeDecks);
+		deck = new CardDeck(getShoeDecks());
 		deck.shuffleCards();
-		house = getHouseStat(shoeDecks);
+		house = getHouseStat(getShoeDecks());
 		if (house == null) {
-			house = new HouseStat(shoeDecks, 0, 0);
+			house = new HouseStat(getShoeDecks(), 0, 0);
 			stats.add(house);
 		}
 	}
@@ -491,20 +523,26 @@ public class Blackjack extends CardGame {
 			PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("blackjack.ini")));
 			out.println("#Settings");
 			out.println("#Number of decks in the dealer's shoe");
-			out.println("decks=" + shoeDecks);
+			out.println("decks=" + getShoeDecks());
 			out.println("#Number of seconds before a player idles out");
-			out.println("idle=" + idleOutTime);
+			out.println("idle=" + getIdleOutTime());
 			out.println("#Number of seconds of idleness after a round ends before the deck is shuffled");
-			out.println("idleshuffle=" + idleShuffleTime);
+			out.println("idleshuffle=" + getIdleShuffleTime());
 			out.println("#Initial amount given to new and bankrupt players");
-			out.println("cash=" + newcash);
+			out.println("cash=" + getNewCash());
 			out.println("#Number of seconds before a bankrupt player is allowed to join again");
-			out.println("respawn=" + respawnTime);
+			out.println("respawn=" + getRespawnTime());
 			out.println("#Whether card counting functions are enabled");
-			out.println("count=" + countEnabled);
+			out.println("count=" + isCountEnabled());
 			out.println("#Whether player hands are shown with a hole card in the main channel");
-			out.println("hole=" + holeEnabled);
-			out.close();
+			out.println("hole=" + isHoleEnabled());
+            out.println("#The minimum bet required to see a hand");
+			out.println("minbet=" + getMinBet());
+            out.println("#The number of cards remaining in the shoe when the discards are shuffled back");
+			out.println("shufflepoint=" + getShufflePoint());
+			out.println("#The maximum number of players allowed to join the game.");
+			out.println("maxplayers=" + getMaxPlayers());
+            out.close();
 		} catch (IOException e) {
 			bot.log("Error creating blackjack.ini!");
 		}
@@ -920,6 +958,14 @@ public class Blackjack extends CardGame {
 	}
 
 	/* Card management methods for Blackjack */
+    @Override
+    public void dealCard(Hand h) {
+		h.add(deck.takeCard());
+		if (deck.getNumberCards() == shufflePoint) {
+			showDeckEmpty();
+			deck.refillDeck();
+		}
+	}
 	public void shuffleShoe() {
 		deck.refillDeck();
 		showShuffleShoe();
@@ -960,7 +1006,7 @@ public class Blackjack extends CardGame {
 		if (amount > p.getCash()) {
 			infoBetTooHigh(p.getNick(), p.getCash());
 			setIdleOutTask();
-		} else if (amount <= 0) {
+		} else if (amount < getMinBet() && amount < p.getCash()) {
 			infoBetTooLow(p.getNick());
 			setIdleOutTask();
 		} else {
@@ -1292,7 +1338,7 @@ public class Blackjack extends CardGame {
 	}
     @Override
 	public void showDeckEmpty() {
-		bot.sendMessage(channel, "The dealer's shoe is empty. Refilling the dealer's shoe with discards...");
+		bot.sendMessage(channel, "Merging the discards back into the shoe and shuffling...");
 	}
 	public void showProperBet(BlackjackPlayer p) {
 		bot.sendMessage(channel, p.getNickStr() + " bets $"
@@ -1549,10 +1595,13 @@ public class Blackjack extends CardGame {
 	/* Formatted strings */
 	@Override
 	public String getGameRulesStr() {
-		return "Dealer stands on soft 17. The dealer's shoe has " + deck.getNumberDecks() +
-				" deck(s) of cards. Discards are shuffled back into the shoe when the shoe " +
-                " becomes depleted. Regular wins are paid out at 1:1 and blackjacks are paid "+
-                "out at 3:2. Insurance wins are paid out at 2:1";
+		return "Dealer stands on soft 17. The dealer's shoe has " + 
+                deck.getNumberDecks() + " deck(s) of cards. Discards are " +
+                "merged back into the shoe and the shoe is shuffled when " +
+                getShufflePoint() + " card(s) remain in the shoe. Regular " + 
+                "wins are paid out at 1:1 and blackjacks are paid out at 3:2. " +
+                "Insurance wins are paid out at 2:1. Minimum bet is $" + 
+                getMinBet() + " or your stack, whichever is lower.";
 	}
 	@Override
 	public String getGameCommandStr() {

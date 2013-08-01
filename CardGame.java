@@ -88,7 +88,7 @@ public abstract class CardGame{
     protected boolean inProgress, betting;
     protected Timer idleOutTimer, startRoundTimer, respawnTimer;
     protected IdleOutTask idleOutTask;
-    protected int idleOutTime, respawnTime, newcash, maxPlayers;
+    private int idleOutTime, respawnTime, newCash, maxPlayers, minBet;
     private StartRoundTask startRoundTask;
     private ArrayList<RespawnTask> respawnTasks;
     
@@ -354,16 +354,28 @@ public abstract class CardGame{
     	return respawnTime;
     }
     public void setNewCash(int value){
-    	newcash = value;
+    	newCash = value;
     }
     public int getNewCash(){
-    	return newcash;
+    	return newCash;
     }
     public Channel getChannel(){
         return channel;
     }
     public String getGameName(){
         return gameName;
+    }
+    public void setMinBet(int value){
+        minBet = value;
+    }
+    public int getMinBet(){
+        return minBet;
+    }
+    public void setMaxPlayers(int value){
+        maxPlayers = value;
+    }
+    public int getMaxPlayers(){
+        return maxPlayers;
     }
     
     /* 
@@ -937,17 +949,9 @@ public abstract class CardGame{
     /* Generic card management methods */
 	public void burnCard(){
 		deck.addToDiscard(deck.takeCard());
-        if (deck.getNumberCards() == 0) {
-			showDeckEmpty();
-			deck.refillDeck();
-		}
 	}
     public void dealCard(Hand h) {
 		h.add(deck.takeCard());
-		if (deck.getNumberCards() == 0) {
-			showDeckEmpty();
-			deck.refillDeck();
-		}
 	}
     
     /* 
@@ -1271,7 +1275,7 @@ public abstract class CardGame{
         bot.sendNotice(nick,"Bad parameter(s). Try again.");
     }
     public void infoBetTooLow(String nick){
-        bot.sendNotice(nick, "Minimum bet is $1. Try again.");
+        bot.sendNotice(nick, "Minimum bet is $"+formatNumber(getMinBet())+". Try again.");
     }
     public void infoBetTooHigh(String nick, int max){
         bot.sendNotice(nick, "Maximum bet is $"+formatNumber(max)+". Try again.");
