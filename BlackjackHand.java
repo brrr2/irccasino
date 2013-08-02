@@ -69,12 +69,13 @@ public class BlackjackHand extends Hand implements Comparable<BlackjackHand>{
     
     /**
      * Determines if a BlackjackHand is a pair.
-     * Useful when determining if splitting is possible.
+     * Useful when determining if splitting is possible. Pairs are determined
+     * by their blackjack values.
      * 
      * @return true if the hand is a pair
      */
     public boolean isPair() {
-		return getSize() > 2 && get(0).getFace().equals(get(1).getFace());
+		return getSize() == 2 && get(0).getBlackjackValue() == get(1).getBlackjackValue();
 	}
     
     /**

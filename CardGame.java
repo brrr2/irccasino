@@ -86,9 +86,9 @@ public abstract class CardGame{
     protected Player currentPlayer;
     protected boolean inProgress, betting;
     protected Timer idleOutTimer, startRoundTimer, respawnTimer;
-    protected IdleOutTask idleOutTask;
     private String gameName, iniFile, helpFile;
     private int idleOutTime, respawnTime, newCash, maxPlayers, minBet;
+    private IdleOutTask idleOutTask;
     private StartRoundTask startRoundTask;
     private ArrayList<RespawnTask> respawnTasks;
     
@@ -1348,6 +1348,9 @@ public abstract class CardGame{
     abstract public String getGameCommandStr();
     public static String formatNumber(int n){
     	return String.format("%,d", n);
+    }
+    public static String formatHeader(String str){
+        return Colors.BOLD + Colors.YELLOW + str + Colors.NORMAL;
     }
     protected static String getPlayerListString(ArrayList<? extends Player> playerList){
         String outStr;

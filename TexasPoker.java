@@ -1102,8 +1102,8 @@ public class TexasPoker extends CardGame{
         PokerPlayer p;
         StringBuilder msg = new StringBuilder();
         // Append community cards to StringBuilder
-        String str = Colors.BOLD+Colors.YELLOW + ",01 Community Cards: " + 
-                Colors.NORMAL + " " + community.toString() + " ";
+        String str = formatHeader(",01 Community Cards: ") + " " + 
+                    community.toString() + " ";
         msg.append(str);
         
         // Append existing pots to StringBuilder
@@ -1175,7 +1175,7 @@ public class TexasPoker extends CardGame{
 		PokerPlayer p;
         int winners;
         // Show introduction to end results
-        bot.sendMessage(channel, Colors.BOLD+Colors.YELLOW + ",01 Results: " + Colors.NORMAL);
+        bot.sendMessage(channel, formatHeader(",01 Results: "));
         players = pots.get(0).getPlayers();
         Collections.sort(players);
 		Collections.reverse(players);

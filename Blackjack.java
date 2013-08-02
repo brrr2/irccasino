@@ -1305,11 +1305,11 @@ public class Blackjack extends CardGame {
 	}
 	public void showPlayerHand(BlackjackPlayer p, BlackjackHand h, boolean forceNoHole) {
 		if (forceNoHole){
-			bot.sendMessage(channel, p.getNickStr() + ": " + h.toString(0));
+			bot.sendMessage(channel, p.getNickStr() + ": " + h.toString());
 		} else if (isHoleEnabled() || p.isDealer()) {
 			bot.sendMessage(channel, p.getNickStr() + ": " + h.toString(1));
 		} else {
-			bot.sendMessage(channel, p.getNickStr() + ": " + h.toString(0));
+			bot.sendMessage(channel, p.getNickStr() + ": " + h.toString());
 		}
 	}
 	public void showPlayerHand(BlackjackPlayer p, BlackjackHand h, int handIndex) {
@@ -1318,7 +1318,7 @@ public class Blackjack extends CardGame {
 					+ h.toString(1));
 		} else {
 			bot.sendMessage(channel, p.getNickStr() + "-" + handIndex + ": "
-					+ h.toString(0));
+					+ h.toString());
 		}
 	}
 	public void showPlayerHandWithBet(BlackjackPlayer p, BlackjackHand h, int handIndex) {
@@ -1328,18 +1328,8 @@ public class Blackjack extends CardGame {
 							+ ", bet: $" + formatNumber(h.getBet()));
 		} else {
 			bot.sendMessage(channel,
-					p.getNickStr() + "-" + handIndex + ": " + h.toString(0)
+					p.getNickStr() + "-" + handIndex + ": " + h.toString()
 							+ ", bet: $" + formatNumber(h.getBet()));
-		}
-	}
-	@Override
-	public void showPlayerRounds(String nick) {
-		int rounds = getPlayerStat(nick, "bjrounds");
-		if (rounds != Integer.MIN_VALUE) {
-			bot.sendMessage(channel, nick + " has played " + rounds
-					+ " round(s) of " + getGameNameStr() + ".");
-		} else {
-			bot.sendMessage(channel, "No data found for " + nick + ".");
 		}
 	}
     @Override
@@ -1422,31 +1412,36 @@ public class Blackjack extends CardGame {
             bot.sendMessage(channel, p.getNickStr() + "-" + index + " has blackjack!");
         }
 	}
-	public void showTableHands(boolean dealing) {
+	/**
+     * Displays the dealt hands of the players and the dealer.
+     * @param dealing
+     */
+    public void showTableHands(boolean dealing) {
 		BlackjackPlayer p;
-		BlackjackHand h;
         if (dealing){
-            bot.sendMessage(channel, Colors.BOLD + Colors.YELLOW + ",01 Dealing Table... "	+ Colors.NORMAL);
+            bot.sendMessage(channel, formatHeader(",01 Dealing Table... "));
         } else {
-            bot.sendMessage(channel, Colors.BOLD + Colors.YELLOW + ",01 Table: " + Colors.NORMAL);
+            bot.sendMessage(channel, formatHeader(",01 Table: "));
         }
 		for (int ctr = 0; ctr < getNumberJoined(); ctr++) {
 			p = (BlackjackPlayer) getJoined(ctr);
 			for (int ctr2 = 0; ctr2 < p.getNumberHands(); ctr2++){
-				h = p.getHand(ctr2);
 				if (p.hasSplit()) {
-					showPlayerHand(p, h, ctr2+1);
+					showPlayerHand(p, p.getHand(ctr2), ctr2+1);
 				} else {
-					showPlayerHand(p, h, false);
+					showPlayerHand(p, p.getHand(ctr2), false);
 				}
 			}
 		}
 		showPlayerHand(dealer, dealer.getHand(), false);
 	}
-	public void showResults() {
+	/**
+     * Displays the final results of the round.
+     */
+    public void showResults() {
 		BlackjackPlayer p;
 		BlackjackHand h;
-		bot.sendMessage(channel, Colors.BOLD+Colors.YELLOW + ",01 Results: " + Colors.NORMAL);
+		bot.sendMessage(channel, formatHeader(",01 Results: "));
 		showDealerResult();
 		for (int ctr = 0; ctr < getNumberJoined(); ctr++) {
 			p = (BlackjackPlayer) getJoined(ctr);
@@ -1463,9 +1458,11 @@ public class Blackjack extends CardGame {
 			}
 		}
 	}
-	public void showInsuranceResults() {
+	/**
+     * Displays the results of any insurance bets.
+     */
+    public void showInsuranceResults() {
 		BlackjackPlayer p;
-
 		bot.sendMessage(channel, Colors.BOLD+Colors.YELLOW + ",01 Insurance Results: " + Colors.NORMAL);
 		if (dealer.getHand().isBlackjack()) {
 			bot.sendMessage(channel, dealer.getNickStr() + " had blackjack.");
@@ -1481,18 +1478,27 @@ public class Blackjack extends CardGame {
 			}
 		}
 	}
-	public void showDealerResult() {
+	/**
+     * Displays the result of the dealer's hand.
+     */
+    public void showDealerResult() {
 		BlackjackHand dHand = dealer.getHand();
-		String outStr = dealer.getNickStr();
+		String outStr; 
 		if (dHand.isBlackjack()) {
-			outStr += " has blackjack (";
+			outStr = dealer.getNickStr() + " has blackjack (";
 		} else {
-			outStr += " has " + dHand.calcSum() + " (";
+			outStr = dealer.getNickStr() + " has " + dHand.calcSum() + " (";
 		}
-		outStr += dHand.toString(0) + ").";
+		outStr += dHand.toString() + ").";
 		bot.sendMessage(channel, outStr);
 	}
-	public void showPlayerResult(BlackjackPlayer p, BlackjackHand h, int index) {
+	/**
+     * Displays the result of a player's hand.
+     * @param p the player to show
+     * @param h the player's hand of which the results are to be shown
+     * @param index the hand index if the player has split
+     */
+    public void showPlayerResult(BlackjackPlayer p, BlackjackHand h, int index) {
 		String outStr, nickStr;
 		if (index > 0){
 			nickStr = p.getNickStr() + "-" + index;
@@ -1502,27 +1508,35 @@ public class Blackjack extends CardGame {
 		int result = h.compareTo(dealer.getHand());
 		int sum = h.calcSum();
 		if (p.hasSurrendered()) {
-			outStr = getSurrenderStr()+": ";
-			outStr += nickStr+" has "+sum+" ("+h.toString(0)+").";
-		} else if (result == 2) {
-			outStr = getWinStr()+": ";
-			outStr += nickStr+" has blackjack ("+h.toString(0)+") and wins $";
-			outStr += formatNumber(calcBlackjackPayout(h)) + ".";
-		} else if (result == 1) {
-			outStr = getWinStr()+": ";
-			outStr += nickStr+" has "+sum+" ("+h.toString(0)+") and wins $";
-			outStr += formatNumber(calcWinPayout(h))+".";
-		} else if (result == 0) {
-			outStr = getPushStr()+": "+nickStr+" has "+sum+" ("+h.toString(0)+") ";
-			outStr += "and the $" + formatNumber(h.getBet()) + " bet is returned.";
+			outStr = getSurrenderStr() + ": " + nickStr + " has " + sum + 
+                    " (" + h.toString() + ").";
 		} else {
-			outStr = getLossStr()+": ";
-			outStr += nickStr+" has "+sum+" ("+h.toString(0)+").";
-		}
+            switch (result) {
+                case 2: // Blackjack win
+                    outStr = getWinStr() + ": " + nickStr + " has blackjack (" + 
+                            h.toString()+") and wins $" +
+                            formatNumber(calcBlackjackPayout(h)) + "."; break;
+                case 1: // Regular win
+                    outStr = getWinStr() + ": " + nickStr + " has " + sum +" (" +
+                            h.toString() + ") and wins $" + 
+                            formatNumber(calcWinPayout(h)) + ".";  break;
+                case 0: // Push
+                    outStr = getPushStr() + ": " + nickStr + " has " +sum + 
+                            " (" + h.toString() + ") " + "and the $" + 
+                            formatNumber(h.getBet()) + " bet is returned."; break;
+                default: // Loss
+                    outStr = getLossStr() + ": " + nickStr+" has " + sum + 
+                            " (" + h.toString()+").";
+            }
+        }
 		outStr += " Stack: $" + formatNumber(p.getCash());
 		bot.sendMessage(channel, outStr);
 	}
-	public void showPlayerInsuranceResult(BlackjackPlayer p) {
+	/**
+     * Displays the result a player's insurance bet.
+     * @param p a player who has made an insurance bet
+     */
+    public void showPlayerInsuranceResult(BlackjackPlayer p) {
 		String outStr;		
 		if (dealer.getHand().isBlackjack()) {
 			outStr = getWinStr()+": " + p.getNickStr() + " wins $"
