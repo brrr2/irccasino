@@ -51,17 +51,17 @@ public class BlackjackPlayer extends Player{
     public BlackjackHand getHand(int num){
     	return hands.get(num);
     }
+    public BlackjackHand getHand(){
+    	return hands.get(currentIndex);
+    }
+    public BlackjackHand getNextHand(){
+    	return getHand(++currentIndex);
+    }
     public int getCurrentIndex(){
     	return currentIndex;
     }
     public void resetCurrentIndex(){
     	currentIndex = 0;
-    }
-    public BlackjackHand getCurrentHand(){
-    	return hands.get(currentIndex);
-    }
-    public BlackjackHand getNextHand(){
-    	return getHand(++currentIndex);
     }
     public int getNumberHands(){
     	return hands.size();
@@ -117,7 +117,7 @@ public class BlackjackPlayer extends Player{
      */
     public void splitHand(){
     	BlackjackHand tHand = new BlackjackHand();
-    	BlackjackHand cHand = getCurrentHand();
+    	BlackjackHand cHand = getHand();
     	tHand.add(cHand.get(1));
     	cHand.remove(1);
     	

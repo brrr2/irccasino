@@ -81,13 +81,13 @@ public abstract class CardGame{
     protected PircBotX bot; //bot handling the game
     protected ExampleBot parentListener; //ListenerAdapter that is receiving commands
     protected Channel channel; //channel where game is being played
-    protected String gameName, iniFile, helpFile;
     protected ArrayList<Player> joined, blacklist, waitlist;
     protected CardDeck deck;
     protected Player currentPlayer;
     protected boolean inProgress, betting;
     protected Timer idleOutTimer, startRoundTimer, respawnTimer;
     protected IdleOutTask idleOutTask;
+    private String gameName, iniFile, helpFile;
     private int idleOutTime, respawnTime, newCash, maxPlayers, minBet;
     private StartRoundTask startRoundTask;
     private ArrayList<RespawnTask> respawnTasks;
@@ -362,6 +362,9 @@ public abstract class CardGame{
     public Channel getChannel(){
         return channel;
     }
+    public void setGameName(String name){
+        gameName = name;
+    }
     public String getGameName(){
         return gameName;
     }
@@ -377,6 +380,18 @@ public abstract class CardGame{
     public int getMaxPlayers(){
         return maxPlayers;
     }
+    public void setIniFile(String file){
+        iniFile = file;
+    }
+    public String getIniFile(){
+        return iniFile;
+    }
+    public void setHelpFile(String file){
+        helpFile = file;
+    }
+    public String getHelpFile(){
+        return helpFile;
+    }
     
     /* 
      * Game management methods
@@ -388,10 +403,10 @@ public abstract class CardGame{
     abstract public void endGame();
     abstract public void resetGame();
     abstract public void leave(String nick);
-    abstract public void setSetting(String[] params);
-    abstract public String getSetting(String param);
-    abstract public void loadSettings();
-    abstract public void saveSettings();
+    abstract protected void setSetting(String[] params);
+    abstract protected String getSetting(String param);
+    abstract protected void loadSettings();
+    abstract protected void saveSettings();
 	public void join(String nick, String hostmask) {
         if (getNumberJoined() == maxPlayers){
             infoMaxPlayers(nick);
@@ -699,7 +714,7 @@ public abstract class CardGame{
      * @param stat the statistic's name
      * @return the desired statistic
      */
-    public int getPlayerStat(String nick, String stat){
+    protected int getPlayerStat(String nick, String stat){
         if (isJoined(nick) || isBlacklisted(nick)){
             Player p = findJoined(nick);
             if (p == null){
@@ -729,7 +744,7 @@ public abstract class CardGame{
      * @param stat the statistic's name
      * @return the desired statistic or Integer.MIN_VALUE if not found
      */
-    public int loadPlayerStat(String nick, String stat){
+    protected int loadPlayerStat(String nick, String stat){
     	try {
         	ArrayList<String> nicks = new ArrayList<String>();
             ArrayList<Integer> stacks = new ArrayList<Integer>();
@@ -772,7 +787,7 @@ public abstract class CardGame{
      * 
      * @param p the Player to find
      */
-    public void loadPlayerData(Player p) {
+    protected void loadPlayerData(Player p) {
 		try {
 			boolean found = false;
 			ArrayList<String> nicks = new ArrayList<String>();
@@ -822,7 +837,7 @@ public abstract class CardGame{
      * 
      * @param p the Player to save
      */
-    public void savePlayerData(Player p){
+    protected void savePlayerData(Player p){
 		boolean found = false;
 		ArrayList<String> nicks = new ArrayList<String>();
 		ArrayList<Integer> stacks = new ArrayList<Integer>();
@@ -874,7 +889,7 @@ public abstract class CardGame{
 			bot.log("Error writing to players.txt!");
 		}
 	}
-    public void checkPlayerFile(){
+    protected final void checkPlayerFile(){
     	try {
     		BufferedReader out = new BufferedReader(new FileReader("players.txt"));
     		out.close();
@@ -947,9 +962,16 @@ public abstract class CardGame{
     }
     
     /* Generic card management methods */
-	public void burnCard(){
+	/**
+     * Takes a card from the deck and adds it to the discard pile.
+     */
+    public void burnCard(){
 		deck.addToDiscard(deck.takeCard());
 	}
+    /**
+     * Takes a card from the deck and adds it to the specified hand.
+     * @param h
+     */
     public void dealCard(Hand h) {
 		h.add(deck.takeCard());
 	}
@@ -1354,7 +1376,7 @@ public abstract class CardGame{
      */
     protected String getCommandHelp(String command){
         try {		
-            BufferedReader in = new BufferedReader(new FileReader(helpFile));
+            BufferedReader in = new BufferedReader(new FileReader(getHelpFile()));
             StringTokenizer st;
             String c,d="";
             boolean found = false;
@@ -1376,8 +1398,8 @@ public abstract class CardGame{
                 return "Help for \'"+command+"\' not found!";
             }
         } catch (IOException e) {
-			bot.log("Error reading from help file!");
-            return "Error reading from help file!";
+			bot.log("Error reading from "+getHelpFile()+"!");
+            return "Error reading from "+getHelpFile()+"!";
 		}
     }
 }

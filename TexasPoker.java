@@ -80,10 +80,12 @@ public class TexasPoker extends CardGame{
 	 */
 	public TexasPoker(PircBotX parent, Channel gameChannel, ExampleBot eb){
 		super(parent, gameChannel, eb);
-		gameName = "Texas Hold'em Poker";
-		deck = new CardDeck();
-		deck.shuffleCards();
+        setGameName("Texas Hold'em Poker");
+        setIniFile("texaspoker.ini");
+        setHelpFile("texaspoker.help");
 		loadSettings();
+        deck = new CardDeck();
+		deck.shuffleCards();
 		pots = new ArrayList<PokerPot>();
 		community = new Hand();
 		stage = 0;
@@ -93,8 +95,6 @@ public class TexasPoker extends CardGame{
 		smallBlind = null;
 		bigBlind = null;
 		topBettor = null;
-        iniFile = "texaspoker.ini";
-        helpFile = "texaspoker.help";
 	}
 	
     /* Command management method */
@@ -689,7 +689,7 @@ public class TexasPoker extends CardGame{
 	
     /* Game settings management */
 	@Override
-	public void setSetting(String[] params) {
+	protected void setSetting(String[] params) {
 		String setting = params[0].toLowerCase();
 		String value = params[1];
 		if (setting.equals("idle")) {
@@ -708,7 +708,7 @@ public class TexasPoker extends CardGame{
 		saveSettings();
 	}
 	@Override
-	public String getSetting(String param) {
+	protected String getSetting(String param) {
 		if (param.equals("idle")) {
 			return getIdleOutTime()+"";
 		} else if (param.equals("cash")) {
@@ -724,9 +724,9 @@ public class TexasPoker extends CardGame{
 		}
 	}
 	@Override
-	public void loadSettings() {
+	protected final void loadSettings() {
 		try {
-			BufferedReader in = new BufferedReader(new FileReader("texaspoker.ini"));
+			BufferedReader in = new BufferedReader(new FileReader(getIniFile()));
 			String str, name, value;
 			StringTokenizer st;
 			while (in.ready()) {
@@ -753,7 +753,7 @@ public class TexasPoker extends CardGame{
 			in.close();
 		} catch (IOException e) {
 			/* load defaults if texaspoker.ini is not found */
-			bot.log("texaspoker.ini not found! Creating new texaspoker.ini...");
+			bot.log(getIniFile()+" not found! Creating new "+getIniFile()+"...");
 			setNewCash(1000);
 			setIdleOutTime(60);
 			setRespawnTime(600);
@@ -764,9 +764,9 @@ public class TexasPoker extends CardGame{
 		}
 	}
 	@Override
-	public void saveSettings() {
+	protected void saveSettings() {
 		try {
-			PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("texaspoker.ini")));
+			PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(getIniFile())));
 			out.println("#Settings");
 			out.println("#Number of seconds before a player idles out");
 			out.println("idle=" + getIdleOutTime());
@@ -780,11 +780,14 @@ public class TexasPoker extends CardGame{
 			out.println("maxplayers=" + getMaxPlayers());
 			out.close();
 		} catch (IOException e) {
-			bot.log("Error creating texaspoker.ini!");
+			bot.log("Error creating "+getIniFile()+"!");
 		}
     }
 	
     /* Card management methods for Texas Hold'em Poker */
+    /**
+     * Deals cards to the community hand.
+     */
     public void dealCommunity(){
 		if (stage == 1) {
 			for (int ctr = 1; ctr <= 3; ctr++){
@@ -794,13 +797,18 @@ public class TexasPoker extends CardGame{
 			dealCard(community);
 		}
 	}
-	public void dealHand(PokerPlayer p) {
-		Hand h = p.getHand();
-		for (int ctr2 = 0; ctr2 < 2; ctr2++) {
-            dealCard(h);
-		}
+	/**
+     * Deals two cards to the specified player.
+     * @param p the player to be dealt to
+     */
+    public void dealHand(PokerPlayer p) {
+		dealCard(p.getHand());
+        dealCard(p.getHand());
 	}
-	public void dealTable() {
+	/**
+     * Deals hands to everybody at the table.
+     */
+    public void dealTable() {
 		PokerPlayer p;
 		for (int ctr = 0; ctr < getNumberJoined(); ctr++) {
 			p = (PokerPlayer) getJoined(ctr);
@@ -808,13 +816,20 @@ public class TexasPoker extends CardGame{
 			infoPlayerHand(p, p.getHand());
 		}
 	}
+    /**
+     * Discards a player's hand into the discard pile.
+     * @param p the player whose hand is to be discarded
+     */
     public void discardPlayerHand(PokerPlayer p) {
 		if (p.hasHand()) {
 			deck.addToDiscard(p.getHand().getAllCards());
 			p.resetHand();
 		}
 	}
-	public void discardCommunity(){
+	/**
+     * Discards the community cards into the discard pile.
+     */
+    public void discardCommunity(){
         if (community.getSize() > 0){
             deck.addToDiscard(community.getAllCards());
             community.clear();
