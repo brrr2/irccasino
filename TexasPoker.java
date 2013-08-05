@@ -522,11 +522,9 @@ public class TexasPoker extends CardGame{
 	@Override
 	public void endGame() {
 		cancelStartRoundTask();
-        startRoundTimer.cancel();
 		cancelIdleOutTask();
-        idleOutTimer.cancel();
 		cancelRespawnTasks();
-		respawnTimer.cancel();
+		gameTimer.cancel();
 		saveSettings();
 		devoiceAll();
 		joined.clear();
@@ -1102,7 +1100,7 @@ public class TexasPoker extends CardGame{
         PokerPlayer p;
         StringBuilder msg = new StringBuilder();
         // Append community cards to StringBuilder
-        String str = formatHeader(",01 Community Cards: ") + " " + 
+        String str = formatHeader(" Community Cards: ") + " " + 
                     community.toString() + " ";
         msg.append(str);
         
@@ -1175,7 +1173,7 @@ public class TexasPoker extends CardGame{
 		PokerPlayer p;
         int winners;
         // Show introduction to end results
-        bot.sendMessage(channel, formatHeader(",01 Results: "));
+        bot.sendMessage(channel, formatHeader(" Results: "));
         players = pots.get(0).getPlayers();
         Collections.sort(players);
 		Collections.reverse(players);
@@ -1212,7 +1210,15 @@ public class TexasPoker extends CardGame{
 	}
 	
     /* Private messages to players */
-	public void infoPlayerHand(PokerPlayer p, Hand h) {
+	/**
+     * Informs a player of his hand.
+     * The information is sent by notice if simple is true and by message if
+     * simple is false.
+     * 
+     * @param p the player
+     * @param h the hand
+     */
+    public void infoPlayerHand(PokerPlayer p, Hand h) {
 		if (p.isSimple()) {
 			bot.sendNotice(p.getNick(), "Your hand is " + h + ".");
 		} else {

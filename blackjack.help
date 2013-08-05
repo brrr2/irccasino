@@ -36,6 +36,7 @@ paydebt=Usage: paydebt <amount> | Alias: | Takes the specified amount from your 
 numdecks=Usage: numdecks | Alias: ndecks | Shows the number of decks used for this shoe.
 ndecks=Usage: ndecks | Alias: numdecks | Shows the number of decks used for this shoe.
 numcards=Usage: numcards | Alias: ncards | Shows the number of cards remaining in the shoe.
+ncards=Usage: ncards | Alias: numcards | Shows the number of cards remaining in the shoe.
 numdiscards=Usage: numdiscards | Alias: ndiscards | Shows the number of cards that have been played.
 ndiscards=Usage: ndiscards | Alias: numdiscards | Shows the number of cards that have been played.
 hilo=Usage: hilo | Alias: hc | Shows the current Hi-lo count.

@@ -52,9 +52,9 @@ public class Player {
     public String getNick(){
     	if (dealer){
     		return "Dealer";
-    	} else {
+        } else {
     		return nick;
-    	}
+        }
     }
     public boolean isBankrupt(){
         return cash == 0;

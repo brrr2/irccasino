@@ -85,7 +85,7 @@ public abstract class CardGame{
     protected CardDeck deck;
     protected Player currentPlayer;
     protected boolean inProgress, betting;
-    protected Timer idleOutTimer, startRoundTimer, respawnTimer;
+    protected Timer gameTimer;
     private String gameName, iniFile, helpFile;
     private int idleOutTime, respawnTime, newCash, maxPlayers, minBet;
     private IdleOutTask idleOutTask;
@@ -108,9 +108,7 @@ public abstract class CardGame{
         blacklist = new ArrayList<Player>();
         waitlist = new ArrayList<Player>();
         respawnTasks = new ArrayList<RespawnTask>();
-        idleOutTimer = new Timer("IdleOutTimer");
-        startRoundTimer = new Timer("StartRoundTimer");
-        respawnTimer = new Timer("RespawnTimer");
+        gameTimer = new Timer("Game Timer");
         startRoundTask = null;
         idleOutTask = null;
         inProgress = false;
@@ -447,7 +445,7 @@ public abstract class CardGame{
     }
     public void setRespawnTask(Player p) {
 		RespawnTask task = new RespawnTask(p, this);
-		respawnTimer.schedule(task, respawnTime*1000);
+		gameTimer.schedule(task, respawnTime*1000);
 		respawnTasks.add(task);
 	}
 	public void cancelRespawnTasks() {
@@ -456,7 +454,7 @@ public abstract class CardGame{
             respawnTasks.get(ctr).cancel();
         }
         respawnTasks.clear();
-        respawnTimer.purge();
+        gameTimer.purge();
         // Fast-track loans
 		for (int ctr = 0; ctr < getNumberBlacklisted(); ctr++){
 			p = getBlacklisted(ctr);
@@ -470,22 +468,22 @@ public abstract class CardGame{
 	}
     public void setStartRoundTask(){
         startRoundTask = new StartRoundTask(this);
-    	startRoundTimer.schedule(startRoundTask, 5000);
+    	gameTimer.schedule(startRoundTask, 5000);
     }
     public void cancelStartRoundTask(){
         if (startRoundTask != null){
             startRoundTask.cancel();
-            startRoundTimer.purge();
+            gameTimer.purge();
         }
     }
 	public void setIdleOutTask() {
         idleOutTask = new IdleOutTask(currentPlayer, this);
-		idleOutTimer.schedule(idleOutTask, idleOutTime*1000);
+		gameTimer.schedule(idleOutTask, idleOutTime*1000);
 	}
     public void cancelIdleOutTask() {
         if (idleOutTask != null){
             idleOutTask.cancel();
-            idleOutTimer.purge();
+            gameTimer.purge();
         }
     }
     public boolean isOpCommandAllowed(User user, String nick){
@@ -631,6 +629,14 @@ public abstract class CardGame{
             return null;
         }
     }
+    /**
+     * Toggles a player's "simple" status.
+     * Players with "simple" set to true will have game information sent via
+     * notice. Players with "simple" set to false will have game information sent
+     * via message.
+     * 
+     * @param nick the player's nick
+     */
     public void togglePlayerSimple(String nick){
         Player p = findJoined(nick);
         p.setSimple(!p.isSimple());
@@ -640,6 +646,12 @@ public abstract class CardGame{
             bot.sendMessage(nick, "Game info will now be messaged to you.");
         }
     }
+    /**
+     * Pays off the specified amount of a player's debt from cash.
+     * 
+     * @param nick the player's nick
+     * @param amount the amount to pay
+     */
     public void payPlayerDebt(String nick, int amount){
     	Player p = findJoined(nick);
     	if (amount <= 0){
@@ -1350,7 +1362,7 @@ public abstract class CardGame{
     	return String.format("%,d", n);
     }
     public static String formatHeader(String str){
-        return Colors.BOLD + Colors.YELLOW + str + Colors.NORMAL;
+        return Colors.BOLD + Colors.YELLOW + ",01" + str + Colors.NORMAL;
     }
     protected static String getPlayerListString(ArrayList<? extends Player> playerList){
         String outStr;

@@ -32,6 +32,7 @@ import org.pircbotx.User;
 import org.pircbotx.cap.SASLCapHandler;
 import org.pircbotx.hooks.ListenerAdapter;
 import org.pircbotx.hooks.events.*;
+import org.pircbotx.hooks.managers.ThreadedListenerManager;
 
 public class ExampleBot extends ListenerAdapter<PircBotX> {
     /* A PircBotX bot that also logs to a file */
@@ -40,6 +41,7 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
         public FileLogBot(String fileName){
             super();
             logFile = fileName;
+            setMessageDelay(750);
         }
         
         @Override
@@ -62,7 +64,7 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
     public String configFile;
 	public String botNick, password, network;
     public ArrayList<String> channelList;
-	public static char commandChar = '.';
+	public char commandChar = '.';
     
     public ExampleBot(){
         channelList = new ArrayList<String>();
@@ -73,8 +75,10 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
     
 	public static void main(String[] args) throws Exception {
         ExampleBot eb = new ExampleBot();
+        ThreadedListenerManager manager = new ThreadedListenerManager();
+        manager.addListener(eb);
 	    bot = new FileLogBot("log.txt");
-        bot.getListenerManager().addListener(eb);
+        bot.setListenerManager(manager);
 	    bot.setVerbose(true);
 	    bot.setAutoNickChange(true);
 	    bot.setCapEnabled(true);
@@ -87,7 +91,11 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
         bot.connect(eb.network);
 	}
 	
-    public void loadConfig(String configFile){
+    /**
+     * Loads configuration file for this bot.
+     * @param configFile file path of the configuration file
+     */
+    public final void loadConfig(String configFile){
         try {
 			BufferedReader in = new BufferedReader(new FileReader(configFile));
 			String str, name, value;
@@ -232,6 +240,14 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
         }
     }
     
+    /**
+     * Processes commands for this bot.
+     * 
+     * @param channel the originating channel of the command
+     * @param user the user who gave the command
+     * @param command the command
+     * @param params the parameters after the command
+     */
     public void processCommand(Channel channel, User user, String command, String[] params){
         if (channel.isOp(user)){
             if (command.equals("blackjack") || command.equals("bj")) {

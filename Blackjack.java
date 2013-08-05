@@ -80,7 +80,6 @@ public class Blackjack extends CardGame {
 	private BlackjackPlayer dealer;
 	private boolean insuranceBets, countEnabled, holeEnabled;
 	private int shufflePoint, shoeDecks, idleShuffleTime;
-	private Timer idleShuffleTimer;	
 	private ArrayList<HouseStat> stats;
     private IdleShuffleTask idleShuffleTask;
 	private HouseStat house;
@@ -99,7 +98,6 @@ public class Blackjack extends CardGame {
         setHelpFile("blackjack.help");
 		dealer = new BlackjackPlayer(bot.getNick(),"",true);
 		stats = new ArrayList<HouseStat>();
-        idleShuffleTimer = new Timer("IdleShuffleTimer");
 		loadHouseStats();
 		loadSettings();
 		insuranceBets = false;
@@ -549,7 +547,7 @@ public class Blackjack extends CardGame {
 	}
 
 	/* House stats management */
-	public void loadHouseStats() {
+	public final void loadHouseStats() {
 		try {
 			BufferedReader in = new BufferedReader(new FileReader("housestats.txt"));
 			String str;
@@ -814,13 +812,10 @@ public class Blackjack extends CardGame {
 	@Override
 	public void endGame() {
 		cancelStartRoundTask();
-        startRoundTimer.cancel();
 		cancelIdleOutTask();
-        idleOutTimer.cancel();
 		cancelIdleShuffleTask();
-        idleShuffleTimer.cancel();
 		cancelRespawnTasks();
-        respawnTimer.cancel();
+        gameTimer.cancel();
 		saveHouseStats();
 		saveSettings();
 		devoiceAll();
@@ -841,7 +836,14 @@ public class Blackjack extends CardGame {
 		setInsuranceBets(false);
 		currentPlayer = null;
 	}
-	public void resetPlayer(BlackjackPlayer p) {
+	/**
+     * Resets a BlackjackPlayer back to default values.
+     * This method is called at the end of a Blackjack round for each player in
+     * preparation for the following round.
+     * 
+     * @param p the player
+     */
+    public void resetPlayer(BlackjackPlayer p) {
 		discardPlayerHand(p);
 		p.resetCurrentIndex();
 		p.clearInitialBet();
@@ -851,12 +853,12 @@ public class Blackjack extends CardGame {
 	}
 	public void setIdleShuffleTask() {
         idleShuffleTask = new IdleShuffleTask(this);
-		idleShuffleTimer.schedule(idleShuffleTask, idleShuffleTime*1000);
+		gameTimer.schedule(idleShuffleTask, idleShuffleTime*1000);
 	}
 	public void cancelIdleShuffleTask() {
         if (idleShuffleTask != null){
             idleShuffleTask.cancel();
-            idleShuffleTimer.purge();
+            gameTimer.purge();
         }
 	}
     
@@ -1419,9 +1421,9 @@ public class Blackjack extends CardGame {
     public void showTableHands(boolean dealing) {
 		BlackjackPlayer p;
         if (dealing){
-            bot.sendMessage(channel, formatHeader(",01 Dealing Table... "));
+            bot.sendMessage(channel, formatHeader(" Dealing Table... "));
         } else {
-            bot.sendMessage(channel, formatHeader(",01 Table: "));
+            bot.sendMessage(channel, formatHeader(" Table: "));
         }
 		for (int ctr = 0; ctr < getNumberJoined(); ctr++) {
 			p = (BlackjackPlayer) getJoined(ctr);
@@ -1441,7 +1443,7 @@ public class Blackjack extends CardGame {
     public void showResults() {
 		BlackjackPlayer p;
 		BlackjackHand h;
-		bot.sendMessage(channel, formatHeader(",01 Results: "));
+		bot.sendMessage(channel, formatHeader(" Results: "));
 		showDealerResult();
 		for (int ctr = 0; ctr < getNumberJoined(); ctr++) {
 			p = (BlackjackPlayer) getJoined(ctr);
@@ -1463,7 +1465,7 @@ public class Blackjack extends CardGame {
      */
     public void showInsuranceResults() {
 		BlackjackPlayer p;
-		bot.sendMessage(channel, Colors.BOLD+Colors.YELLOW + ",01 Insurance Results: " + Colors.NORMAL);
+		bot.sendMessage(channel, formatHeader(" Insurance Results: "));
 		if (dealer.getHand().isBlackjack()) {
 			bot.sendMessage(channel, dealer.getNickStr() + " had blackjack.");
 		} else {
@@ -1533,7 +1535,7 @@ public class Blackjack extends CardGame {
 		bot.sendMessage(channel, outStr);
 	}
 	/**
-     * Displays the result a player's insurance bet.
+     * Displays the result of a player's insurance bet.
      * @param p a player who has made an insurance bet
      */
     public void showPlayerInsuranceResult(BlackjackPlayer p) {
@@ -1582,7 +1584,16 @@ public class Blackjack extends CardGame {
 	public void infoAlreadyInsured(String nick) {
 		bot.sendNotice(nick, "You have already made an insurance bet.");
 	}
-	public void infoPlayerHand(BlackjackPlayer p, BlackjackHand h) {
+    
+	/**
+     * Informs the player of his hand and the bet on that hand.
+     * The information is sent by notice if simple is true and by message if
+     * simple is false.
+     * 
+     * @param p the player
+     * @param h the hand
+     */
+    public void infoPlayerHand(BlackjackPlayer p, BlackjackHand h) {
 		if (p.isSimple()) {
 			bot.sendNotice(p.getNick(), 
 					"Your current hand is " + h.toString(0) + " with a bet of $"+
@@ -1593,14 +1604,32 @@ public class Blackjack extends CardGame {
                     formatNumber(h.getBet())+".");
 		}
 	}
-	public void infoPlayerSum(BlackjackPlayer p, BlackjackHand h) {
+    
+	/**
+     * Informs the player of the sum of his hand.
+     * The information is sent by notice if simple is true and by message if
+     * simple is false.
+     * 
+     * @param p the player
+     * @param h the hand
+     */
+    public void infoPlayerSum(BlackjackPlayer p, BlackjackHand h) {
 		if (p.isSimple()) {
 			bot.sendNotice(p.getNick(), "Hand sum is " + h.calcSum() + ".");
 		} else {
 			bot.sendMessage(p.getNick(), "Hand sum is " + h.calcSum() + ".");
 		}
 	}
-	public void infoPlayerBet(BlackjackPlayer p, BlackjackHand h) {
+    
+	/**
+     * Informs a player of the bet on his hand.
+     * The information is sent by notice, if simple is true and by message if
+     * simple is false.
+     * 
+     * @param p the player
+     * @param h the hand
+     */
+    public void infoPlayerBet(BlackjackPlayer p, BlackjackHand h) {
 		String outStr = "You have bet $"+ formatNumber(h.getBet())+ " on this hand.";
 		outStr += ".";
 		if (p.isSimple()) {
