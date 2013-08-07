@@ -905,7 +905,7 @@ public class TexasPoker extends CardGame{
 		} else if ((total-currentBet) < minRaise){
             infoRaiseTooLow(p.getNick());
 			setIdleOutTask();
-        // A valid bet thats greater than the currentBet
+        // A valid bet that is greater than the currentBet
 		} else {
 			p.setBet(total);
 			topBettor = p;
@@ -915,6 +915,7 @@ public class TexasPoker extends CardGame{
                 showRaise(p);
             }
             currentBet = total;
+            minRaise = total - currentBet;
 			continueRound();
 		}
 	}
