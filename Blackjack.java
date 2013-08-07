@@ -804,10 +804,10 @@ public class Blackjack extends CardGame {
                 
                 // Bankrupts
 				if (p.isBankrupt()) {
-                    // Make a withdrawal if the player has a positive account
-                    if (p.getAccount() > 0){
-                        int amount = Math.min(p.getAccount(), getNewCash());
-                        p.accountTransfer(-amount);
+                    // Make a withdrawal if the player has a positive bankroll
+                    if (p.getBank() > 0){
+                        int amount = Math.min(p.getBank(), getNewCash());
+                        p.bankTransfer(-amount);
                         savePlayerData(p);
                         infoAutoWithdraw(p.getNick(),amount);
                         // Check if the player has quit
@@ -815,7 +815,7 @@ public class Blackjack extends CardGame {
                             removeJoined(p);
                             ctr--;
                         }
-                    // Give penalty to players with no cash in their account
+                    // Give penalty to players with no cash in their bankroll
                     } else {
                         p.incrementBankrupts();
                         blacklist.add(p);
@@ -1697,7 +1697,7 @@ public class Blackjack extends CardGame {
 	@Override
 	public String getGameCommandStr() {
 		return "go, join, quit, bet, hit, stand, doubledown, surrender, insure, " +
-               "split, table, turn, sum, hand, allhands, cash, netcash, account, " +
+               "split, table, turn, sum, hand, allhands, cash, netcash, bank, " +
                "transfer, deposit, withdraw, bankrupts, rounds, player, " +
                "numdecks, numcards, numdiscards, hilo, " +
                "zen, red7, count, simple, players, stats, house, waitlist, "+

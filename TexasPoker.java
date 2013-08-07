@@ -493,10 +493,10 @@ public class TexasPoker extends CardGame{
                 
                 // Bankrupts
 				if (p.isBankrupt()) {
-                    // Make a withdrawal if the player has a positive account
-                    if (p.getAccount() > 0){
-                        int amount = Math.min(p.getAccount(), getNewCash());
-                        p.accountTransfer(-amount);
+                    // Make a withdrawal if the player has a positive bank
+                    if (p.getBank() > 0){
+                        int amount = Math.min(p.getBank(), getNewCash());
+                        p.bankTransfer(-amount);
                         savePlayerData(p);
                         infoAutoWithdraw(p.getNick(),amount);
                         // Check if the player has quit
@@ -504,7 +504,7 @@ public class TexasPoker extends CardGame{
                             removeJoined(p);
                             ctr--;
                         }
-                    // Give penalty to players with no cash in their account
+                    // Give penalty to players with no cash in their bank
                     } else {
                         p.incrementBankrupts();
                         blacklist.add(p);
@@ -1254,7 +1254,7 @@ public class TexasPoker extends CardGame{
 	@Override
 	public String getGameCommandStr() {
 		return "go, join, quit, bet, check, call, raise, fold, community, turn, " +
-               "hand, cash, netcash, account, transfer, deposit, withdraw, " + 
+               "hand, cash, netcash, bank, transfer, deposit, withdraw, " + 
                "bankrupts, rounds, player, players, waitlist, blacklist, top, " +
                "simple, stats, game, ghelp, grules, gcommands";
 	}

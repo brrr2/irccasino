@@ -23,7 +23,7 @@ import org.pircbotx.*;
 
 public class Player {
     protected boolean simple, dealer;
-    protected int cash, account, bankrupts, rounds;
+    protected int cash, bank, bankrupts, rounds;
     protected boolean quit;
     protected String nick, hostmask;
     
@@ -41,7 +41,7 @@ public class Player {
         this.dealer = dealer;
         this.hostmask = hostmask;
         cash = 0;
-        account = 0;
+        bank = 0;
         bankrupts = 0;
         rounds = 0;
         simple = true;
@@ -110,21 +110,21 @@ public class Player {
     public int getCash(){
         return cash;
     }
-    public void setAccount(int amount){
-    	account = amount;
+    public void setBank(int amount){
+    	bank = amount;
     }
     public void addDebt(int amount){
-    	account -= amount;
+    	bank -= amount;
     }
-    public int getAccount(){
-    	return account;
+    public int getBank(){
+    	return bank;
     }
-    public void accountTransfer(int amount){
-    	account += amount;
+    public void bankTransfer(int amount){
+    	bank += amount;
     	cash -= amount;
     }
     public int getNetCash(){
-        return cash + account;
+        return cash + bank;
     }
     
     /* Formatted string representations */
