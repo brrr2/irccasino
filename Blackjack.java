@@ -141,6 +141,10 @@ public class Blackjack extends CardGame {
                     infoNoParameter(nick);
                 }
             }
+        } else if (command.equals("allin") || command.equals("a")){
+            if (isStage1PlayerTurn(nick)){
+                bet(currentPlayer.getCash());
+            }
         } else if (command.equals("hit") || command.equals("h")) {
             if (isStage2PlayerTurn(nick)){
                 hit();
@@ -304,6 +308,10 @@ public class Blackjack extends CardGame {
                 } else {
                     infoNoParameter(nick);
                 }
+            }
+        } else if (command.equals("fallin") || command.equals("fa")){
+            if (isForceBetAllowed(user, nick)){
+                bet(currentPlayer.getCash());
             }
         } else if (command.equals("fhit") || command.equals("fh")) {
             if (isForcePlayAllowed(user, nick)){
@@ -1046,11 +1054,13 @@ public class Blackjack extends CardGame {
 
 	/* Blackjack gameplay methods */
 	private void bet(int amount) {
-		cancelIdleOutTask();
+		cancelIdleOutTask();    
 		BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
-		if (amount > p.getCash()) {
+        // Check if amount is greater than the player's stack
+        if (amount > p.getCash()) {
 			infoBetTooHigh(p.getNick(), p.getCash());
 			setIdleOutTask();
+        // Check if the amount is less than minimum bet
 		} else if (amount < getMinBet() && amount < p.getCash()) {
 			infoBetTooLow(p.getNick());
 			setIdleOutTask();
@@ -1670,7 +1680,13 @@ public class Blackjack extends CardGame {
 	/* Formatted strings */
 	@Override
 	public String getGameRulesStr() {
-		return "Dealer stands on soft 17. The dealer's shoe has " + 
+        String str;
+        if (isSoft17Hit()){
+            str = "Dealer hits on soft 17. ";
+        } else {
+            str = "Dealer stands on soft 17. ";
+        }
+		return  str + "The dealer's shoe has " + 
                 deck.getNumberDecks() + " deck(s) of cards. Discards are " +
                 "merged back into the shoe and the shoe is shuffled when " +
                 getShufflePoint() + " card(s) remain in the shoe. Regular " + 

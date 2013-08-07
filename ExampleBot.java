@@ -301,11 +301,9 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
                             tpgame.endGame();
                             tpgame = null;
                         }
-                        //bot.getListenerManager().removeListener(this);
                         bot.quitServer("Bye!");
                     }
                 } else {
-                    //bot.getListenerManager().removeListener(this);
                     bot.quitServer("Bye!");
                 }
             }

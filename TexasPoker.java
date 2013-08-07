@@ -160,7 +160,7 @@ public class TexasPoker extends CardGame{
             }
         } else if (command.equals("allin") || command.equals("a")){
             if (isPlayerTurn(nick)){
-                bet(Integer.MAX_VALUE);
+                bet(currentPlayer.getCash());
             }
         } else if (command.equals("community") || command.equals("comm")){
             if (!isJoined(nick)) {
@@ -244,7 +244,7 @@ public class TexasPoker extends CardGame{
             }
         } else if (command.equals("fa") || command.equals("fallin")){
             if (isForcePlayAllowed(user, nick)){
-                bet(Integer.MAX_VALUE);
+                bet(currentPlayer.getCash());
             }
         } else if (command.equals("fr") || command.equals("fraise")){
             if (isForcePlayAllowed(user, nick)){
@@ -561,7 +561,6 @@ public class TexasPoker extends CardGame{
 		stage = 0;
 		currentBet = 0;
 		currentPot = null;
-		minRaise = getMinBet();
 		pots.clear();
 		currentPlayer = null;
 		bigBlind = null;
@@ -642,12 +641,13 @@ public class TexasPoker extends CardGame{
 	public void setBlindBets(){
         // Set the small blind to minimum raise or the player's cash, 
         // whichever is less.
-		smallBlind.setBet(Math.min(minRaise, smallBlind.getCash()));
+		smallBlind.setBet(Math.min(getMinBet(), smallBlind.getCash()));
 		// Set the big blind to minimum raise + small blind or the player's 
         // cash, whichever is less.
-        bigBlind.setBet(Math.min(smallBlind.getBet()+minRaise, bigBlind.getCash()));
+        bigBlind.setBet(Math.min(getMinBet()*2, bigBlind.getCash()));
         // Set the current bet to the bigger of the two blinds.
         currentBet = Math.max(smallBlind.getBet(), bigBlind.getBet());
+        minRaise = currentBet;
 	}
     
     /* Game command logic checking methods */
@@ -756,7 +756,6 @@ public class TexasPoker extends CardGame{
 					setRespawnTime(Integer.parseInt(value));
 				} else if (name.equals("minbet")) {
 					setMinBet(Integer.parseInt(value));
-					minRaise = getMinBet();
 				} else if (name.equals("maxplayers")) {
 					setMaxPlayers(Integer.parseInt(value));
 				}
@@ -770,7 +769,6 @@ public class TexasPoker extends CardGame{
 			setRespawnTime(600);
             setMaxPlayers(22);
 			setMinBet(5);
-			minRaise = getMinBet();
 			saveSettings();
 		}
 	}
@@ -877,58 +875,52 @@ public class TexasPoker extends CardGame{
     public void bet (int amount) {
 		cancelIdleOutTask();
 		PokerPlayer p = (PokerPlayer) currentPlayer;
-		int total;
-		if (amount == Integer.MAX_VALUE){
-			total = p.getCash();
-		} else {
-			total = amount;
-		}
 		
         // A bet that's an all-in
-		if (total == p.getCash()){
-			if (currentBet < total || topBettor == null){
-				currentBet = total;
+		if (amount == p.getCash()){
+			if (currentBet < amount || topBettor == null){
+				currentBet = amount;
 				topBettor = p;
 			}
-            p.setBet(total);
+            p.setBet(amount);
             p.setAllIn(true);
             showAllIn(p);
 			continueRound();
         // A bet that's larger than a player's stack
-		} else if (total > p.getCash()) {
+		} else if (amount > p.getCash()) {
 			infoInsufficientFunds(p.getNick());
 			setIdleOutTask();
         // A bet that's lower than the current bet
-		} else if (total < currentBet) {
+		} else if (amount < currentBet) {
             infoBetTooLow(p.getNick());
 			setIdleOutTask();
         // A bet that's equivalent to a call or check
-		} else if (total == currentBet){
+		} else if (amount == currentBet){
 			if (topBettor == null){
 				topBettor = p;
 			}
-            if (total == 0 || p.getBet() == total){
+            if (amount == 0 || p.getBet() == amount){
                 showCheck(p);
             } else {
-                p.setBet(total);
+                p.setBet(amount);
                 showCall(p);
             }
 			continueRound();
         // A bet that's lower than the minimum raise
-		} else if ((total-currentBet) < minRaise){
+		} else if ((amount-currentBet) < minRaise){
             infoRaiseTooLow(p.getNick());
 			setIdleOutTask();
-        // A valid bet thats greater than the currentBet
+        // A valid bet that's greater than the currentBet
 		} else {
-			p.setBet(total);
+			p.setBet(amount);
 			topBettor = p;
             if (currentBet == 0){
                 showBet(p);
             } else {
                 showRaise(p);
             }
-            currentBet = total;
-            minRaise = total - currentBet;
+            minRaise = amount - currentBet;
+            currentBet = amount;
 			continueRound();
 		}
 	}
@@ -1244,7 +1236,7 @@ public class TexasPoker extends CardGame{
         bot.sendNotice(nick, "Bet too low. Current bet is $" + formatNumber(currentBet)+".");
     }
 	public void infoRaiseTooLow(String nick){
-        bot.sendNotice(nick, "Minimum raise is $" + formatNumber(getMinBet()) + ". Try again.");
+        bot.sendNotice(nick, "Minimum raise is $" + formatNumber(minRaise) + ". Try again.");
     }
     public void infoNoChecking(String nick){
         bot.sendNotice(nick, "Current bet is $" + formatNumber(currentBet) + ". You must call or raise.");
@@ -1255,8 +1247,9 @@ public class TexasPoker extends CardGame{
 	
 	@Override
 	public String getGameRulesStr() {
-		return "This is no limit Texas Hold'em Poker. Minimum bet/raise is $" + 
-                getMinBet() + " or your stack, whichever is lower.";
+		return "This is no limit Texas Hold'em Poker. Blind bets are set at $" + 
+                formatNumber(getMinBet()) + "/$" + formatNumber(getMinBet()*2) + 
+                " or your stack, whichever is lower.";
 	}
 	@Override
 	public String getGameCommandStr() {
