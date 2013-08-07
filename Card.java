@@ -49,7 +49,7 @@ public class Card implements Comparable<Card>{
             try {
                 num = Integer.parseInt(getFace());
             } catch (NumberFormatException e) {
-                return 10;
+                num = 10;
             }
         }
 		return num;

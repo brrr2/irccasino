@@ -78,7 +78,7 @@ public class Blackjack extends CardGame {
 	}
 	
 	private BlackjackPlayer dealer;
-	private boolean insuranceBets, countEnabled, holeEnabled;
+	private boolean insuranceBets, countEnabled, holeEnabled, soft17hit;
 	private int shufflePoint, shoeDecks, idleShuffleTime;
 	private ArrayList<HouseStat> stats;
     private IdleShuffleTask idleShuffleTask;
@@ -384,6 +384,12 @@ public class Blackjack extends CardGame {
     public int getShufflePoint(){
         return shufflePoint;
     }
+    public void setSoft17Hit(boolean value){
+        soft17hit = value;
+    }
+    public boolean isSoft17Hit(){
+        return soft17hit;
+    }
     public boolean hasInsuranceBets() {
 		return insuranceBets;
 	}
@@ -424,6 +430,8 @@ public class Blackjack extends CardGame {
 			setShufflePoint(Integer.parseInt(value));
 		} else if (setting.equals("maxplayers")) {
 			setMaxPlayers(Integer.parseInt(value));
+        } else if (setting.equals("soft17hit")) {
+            setSoft17Hit(Boolean.parseBoolean(value));
 		} else {
 			throw new IllegalArgumentException();
 		}
@@ -451,6 +459,8 @@ public class Blackjack extends CardGame {
 			return getShufflePoint()+"";
 		} else if (param.equals("maxplayers")) {
 			return getMaxPlayers()+"";
+        } else if (param.equals("soft17hit")) {
+            return isSoft17Hit()+"";
 		} else {
 			throw new IllegalArgumentException();
 		}
@@ -489,6 +499,8 @@ public class Blackjack extends CardGame {
                     setShufflePoint(Integer.parseInt(value));
                 } else if (name.equals("maxplayers")){
                     setMaxPlayers(Integer.parseInt(value));
+                } else if (name.equals("soft17hit")){
+                    setSoft17Hit(Boolean.parseBoolean(value));
                 }
 			}
 			in.close();
@@ -505,6 +517,7 @@ public class Blackjack extends CardGame {
             setMaxPlayers(15);
             setMinBet(5);
             setShufflePoint(10);
+            setSoft17Hit(false);
 			saveSettings();
 		}
 		deck = new CardDeck(getShoeDecks());
@@ -538,8 +551,10 @@ public class Blackjack extends CardGame {
 			out.println("minbet=" + getMinBet());
             out.println("#The number of cards remaining in the shoe when the discards are shuffled back");
 			out.println("shufflepoint=" + getShufflePoint());
-			out.println("#The maximum number of players allowed to join the game.");
+			out.println("#The maximum number of players allowed to join the game");
 			out.println("maxplayers=" + getMaxPlayers());
+            out.println("#Whether or not the dealer hits on soft 17");
+			out.println("soft17hit=" + isSoft17Hit());
             out.close();
 		} catch (IOException e) {
 			bot.log("Error creating "+getIniFile()+"!");
@@ -753,7 +768,7 @@ public class Blackjack extends CardGame {
 			dHand = dealer.getHand();
 			showPlayerHand(dealer, dHand, true);
 			if (needDealerHit()) {
-				while (dHand.calcSum() < 17) {
+				while (dHand.calcSum() < 17 || (dHand.isSoft17() && isSoft17Hit())) {
 					dealCard(dHand);
 					showPlayerHand(dealer, dHand, true);
 				}
@@ -781,12 +796,25 @@ public class Blackjack extends CardGame {
                 
                 // Bankrupts
 				if (p.isBankrupt()) {
-					p.incrementBankrupts();
-					blacklist.add(p);
-					infoPlayerBankrupt(p.getNick());
-					removeJoined(p.getNick());
-					setRespawnTask(p);
-					ctr--;
+                    // Make a withdrawal if the player has a positive account
+                    if (p.getAccount() > 0){
+                        int amount = Math.min(p.getAccount(), getNewCash());
+                        p.accountTransfer(-amount);
+                        savePlayerData(p);
+                        infoAutoWithdraw(p.getNick(),amount);
+                        // Check if the player has quit
+                        if (p.hasQuit()){
+                            removeJoined(p);
+                            ctr--;
+                        }
+                    // Give penalty to players with no cash in their account
+                    } else {
+                        p.incrementBankrupts();
+                        blacklist.add(p);
+                        removeJoined(p);
+                        setRespawnTask(p);
+                        ctr--;
+                    }
                 // Quitters
 				} else if (p.hasQuit()) {
 					removeJoined(p.getNick());
@@ -1652,10 +1680,10 @@ public class Blackjack extends CardGame {
 	}
 	@Override
 	public String getGameCommandStr() {
-		return "go, join, quit, bet, hit, stand, "+
-               "doubledown, surrender, insure, split, table, turn, sum, hand, "+
-               "allhands, cash, netcash, debt, paydebt, bankrupts, rounds, player, "+
-               "numdecks, numcards, numdiscards, hilo, "+
+		return "go, join, quit, bet, hit, stand, doubledown, surrender, insure, " +
+               "split, table, turn, sum, hand, allhands, cash, netcash, account, " +
+               "transfer, deposit, withdraw, bankrupts, rounds, player, " +
+               "numdecks, numcards, numdiscards, hilo, " +
                "zen, red7, count, simple, players, stats, house, waitlist, "+
                "blacklist, top, game, ghelp, grules, gcommands";
 	}

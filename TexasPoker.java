@@ -493,15 +493,28 @@ public class TexasPoker extends CardGame{
                 
                 // Bankrupts
 				if (p.isBankrupt()) {
-					p.incrementBankrupts();
-					blacklist.add(p);
-					infoPlayerBankrupt(p.getNick());
-                    removeJoined(p.getNick());
-                    setRespawnTask(p);
-                    ctr--;
+                    // Make a withdrawal if the player has a positive account
+                    if (p.getAccount() > 0){
+                        int amount = Math.min(p.getAccount(), getNewCash());
+                        p.accountTransfer(-amount);
+                        savePlayerData(p);
+                        infoAutoWithdraw(p.getNick(),amount);
+                        // Check if the player has quit
+                        if (p.hasQuit()){
+                            removeJoined(p);
+                            ctr--;
+                        }
+                    // Give penalty to players with no cash in their account
+                    } else {
+                        p.incrementBankrupts();
+                        blacklist.add(p);
+                        removeJoined(p);
+                        setRespawnTask(p);
+                        ctr--;
+                    }
                 // Quitters
 				} else if (p.hasQuit()) {
-					removeJoined(p.getNick());
+					removeJoined(p);
 					ctr--;
                 // Remaining players
 				} else {
@@ -905,7 +918,7 @@ public class TexasPoker extends CardGame{
 		} else if ((total-currentBet) < minRaise){
             infoRaiseTooLow(p.getNick());
 			setIdleOutTask();
-        // A valid bet that is greater than the currentBet
+        // A valid bet thats greater than the currentBet
 		} else {
 			p.setBet(total);
 			topBettor = p;
@@ -1247,9 +1260,9 @@ public class TexasPoker extends CardGame{
 	}
 	@Override
 	public String getGameCommandStr() {
-		return "go, join, quit, bet, check, call, " +
-               "raise, fold, community, turn, hand, cash, netcash, " + 
-			   "debt, paydebt, bankrupts, rounds, player, players, waitlist, " +
-               "blacklist, top, simple, stats, game, ghelp, grules, gcommands";
+		return "go, join, quit, bet, check, call, raise, fold, community, turn, " +
+               "hand, cash, netcash, account, transfer, deposit, withdraw, " + 
+               "bankrupts, rounds, player, players, waitlist, blacklist, top, " +
+               "simple, stats, game, ghelp, grules, gcommands";
 	}
 }

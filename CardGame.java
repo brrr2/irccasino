@@ -81,11 +81,11 @@ public abstract class CardGame{
     protected PircBotX bot; //bot handling the game
     protected ExampleBot parentListener; //ListenerAdapter that is receiving commands
     protected Channel channel; //channel where game is being played
-    protected ArrayList<Player> joined, blacklist, waitlist;
-    protected CardDeck deck;
-    protected Player currentPlayer;
+    protected ArrayList<Player> joined, blacklist, waitlist; //Player lists
+    protected CardDeck deck; //the deck of cards
+    protected Player currentPlayer; //stores the player whose turn it is
     protected boolean inProgress, betting;
-    protected Timer gameTimer;
+    protected Timer gameTimer; //All TimerTasks are scheduled on this Timer
     private String gameName, iniFile, helpFile;
     private int idleOutTime, respawnTime, newCash, maxPlayers, minBet;
     private IdleOutTask idleOutTask;
@@ -144,11 +144,11 @@ public abstract class CardGame{
             } else {
                 showPlayerNetCash(nick);
             }
-        } else if (command.equals("debt")) {
+        } else if (command.equals("account")) {
             if (params.length > 0){
-                showPlayerDebt(params[0]);
+                showPlayerAccount(params[0]);
             } else {
-                showPlayerDebt(nick);
+                showPlayerAccount(nick);
             }
         } else if (command.equals("bankrupts")) {
             if (params.length > 0){
@@ -168,7 +168,7 @@ public abstract class CardGame{
             } else {
                 showPlayerAllStats(nick);
             }
-        } else if (command.equals("paydebt") ) {
+        } else if (command.equals("withdraw")){
             if (!isJoined(nick)) {
                 infoNotJoined(nick);
             } else if (isInProgress()) {
@@ -176,7 +176,23 @@ public abstract class CardGame{
             } else {
                 if (params.length > 0){
                     try {
-                        payPlayerDebt(nick, Integer.parseInt(params[0]));
+                        transfer(nick, -Integer.parseInt(params[0]));
+                    } catch (NumberFormatException e) {
+                        infoBadParameter(nick);
+                    }
+                } else {
+                    infoNoParameter(nick);
+                }
+            }
+        } else if (command.equals("transfer") || command.equals("deposit")) {
+            if (!isJoined(nick)) {
+                infoNotJoined(nick);
+            } else if (isInProgress()) {
+                infoWaitRoundEnd(nick);
+            } else {
+                if (params.length > 0){
+                    try {
+                        transfer(nick, Integer.parseInt(params[0]));
                     } catch (NumberFormatException e) {
                         infoBadParameter(nick);
                     }
@@ -444,8 +460,11 @@ public abstract class CardGame{
         return betting;
     }
     public void setRespawnTask(Player p) {
+        // Calculate extra time penalty for players with debt
+        int penalty = Math.max(-p.getAccount()/1000 * 60, 0);
+        infoPlayerBankrupt(p.getNick(), penalty);
 		RespawnTask task = new RespawnTask(p, this);
-		gameTimer.schedule(task, respawnTime*1000);
+		gameTimer.schedule(task, (respawnTime+penalty)*1000);
 		respawnTasks.add(task);
 	}
 	public void cancelRespawnTasks() {
@@ -647,27 +666,40 @@ public abstract class CardGame{
         }
     }
     /**
-     * Pays off the specified amount of a player's debt from cash.
+     * Transfers the specified amount from a player's stack to his account.
+     * A negative amount indicates a withdrawal. A positive amount indicates
+     * a deposit.
      * 
      * @param nick the player's nick
-     * @param amount the amount to pay
+     * @param amount the amount to transfer
      */
-    public void payPlayerDebt(String nick, int amount){
+    public void transfer(String nick, int amount){
     	Player p = findJoined(nick);
-    	if (amount <= 0){
-    		infoPaymentTooLow(nick);
-    	} else if (amount > p.getDebt()){
-    		infoPaymentTooHigh(nick, p.getDebt());
-    	} else if (amount > p.getCash()){
-    		infoInsufficientFunds(nick);
-    	} else if (amount == p.getCash()){
-    		infoPaymentWillBankrupt(nick);
+        // Ignore a transfer of $0
+        if (amount == 0){
+            infoNoTransaction(nick);
+        // Disallow withdrawals for accounts with insufficient funds
+        } else if (amount < 0 && p.getAccount() < -amount){
+    		infoNoWithdrawal(nick);
+        } else if (amount > 0 && amount > p.getCash()){
+            infoNoDepositCash(nick);
+        // Disallow deposits that leave the player with $0 cash
+        } else if (amount > 0 && amount == p.getCash()){
+    		infoNoDepositBankrupt(nick);
     	} else {
-    		p.payDebt(amount);
+    		p.accountTransfer(amount);
             savePlayerData(p);
-    		showPlayerDebtPayment(p, amount);
+            if (amount > 0){
+                showPlayerDeposit(p, amount);
+            } else {
+                showPlayerWithdraw(p, -amount);
+            }
     	}
     }
+    /**
+     * Devoices all players joined in a game and saves their data.
+     * This method only needs to be called when a game is shutdown.
+     */
     public void devoiceAll(){
     	Player p;
         for (int ctr=0; ctr<getNumberJoined(); ctr++){
@@ -692,11 +724,11 @@ public abstract class CardGame{
 	    	ArrayList<String> nicks = new ArrayList<String>();
 	        ArrayList<Integer> stacks = new ArrayList<Integer>();
 	        ArrayList<Integer> bankrupts = new ArrayList<Integer>();
-	        ArrayList<Integer> debts = new ArrayList<Integer>();
+	        ArrayList<Integer> accounts = new ArrayList<Integer>();
 	        ArrayList<Integer> bjrounds = new ArrayList<Integer>();
 	        ArrayList<Integer> tprounds = new ArrayList<Integer>();
 	        ArrayList<Boolean> simples = new ArrayList<Boolean>();
-	    	loadPlayerFile(nicks, stacks, debts, bankrupts, bjrounds, tprounds, simples);
+	    	loadPlayerFile(nicks, stacks, accounts, bankrupts, bjrounds, tprounds, simples);
 	    	int total = 0, numLines = nicks.size();
             if (gameName.equals("Blackjack")){
                 for (int ctr = 0; ctr < numLines; ctr++){
@@ -734,8 +766,8 @@ public abstract class CardGame{
             }
             if (stat.equals("cash")){
                 return p.getCash();
-            } else if (stat.equals("debt")){
-                return p.getDebt();
+            } else if (stat.equals("account")){
+                return p.getAccount();
             } else if (stat.equals("bankrupts")){
                 return p.getBankrupts();
             } else if (stat.equals("bjrounds") || stat.equals("tprounds")){
@@ -761,18 +793,18 @@ public abstract class CardGame{
         	ArrayList<String> nicks = new ArrayList<String>();
             ArrayList<Integer> stacks = new ArrayList<Integer>();
             ArrayList<Integer> bankrupts = new ArrayList<Integer>();
-            ArrayList<Integer> debts = new ArrayList<Integer>();
+            ArrayList<Integer> accounts = new ArrayList<Integer>();
             ArrayList<Integer> bjrounds = new ArrayList<Integer>();
             ArrayList<Integer> tprounds = new ArrayList<Integer>();
             ArrayList<Boolean> simples = new ArrayList<Boolean>();
-        	loadPlayerFile(nicks, stacks, debts, bankrupts, bjrounds, tprounds, simples);
+        	loadPlayerFile(nicks, stacks, accounts, bankrupts, bjrounds, tprounds, simples);
         	int numLines = nicks.size();
         	for (int ctr = 0; ctr < numLines; ctr++){
         		if (nick.toLowerCase().equals(nicks.get(ctr).toLowerCase())){
         			if (stat.equals("cash")){
         				return stacks.get(ctr);
-        			} else if (stat.equals("debt")){
-        				return debts.get(ctr);
+        			} else if (stat.equals("account")){
+        				return accounts.get(ctr);
         			} else if (stat.equals("bankrupts")){
         				return bankrupts.get(ctr);
         			} else if (stat.equals("bjrounds")){
@@ -780,7 +812,7 @@ public abstract class CardGame{
         			} else if (stat.equals("tprounds")){
         				return tprounds.get(ctr);
         			} else if (stat.equals("netcash")){
-        				return stacks.get(ctr)-debts.get(ctr);
+        				return stacks.get(ctr)+accounts.get(ctr);
         			} else if (stat.equals("exists")){
         				return 1;
         			}
@@ -805,11 +837,11 @@ public abstract class CardGame{
 			ArrayList<String> nicks = new ArrayList<String>();
 			ArrayList<Integer> stacks = new ArrayList<Integer>();
 			ArrayList<Integer> bankrupts = new ArrayList<Integer>();
-			ArrayList<Integer> debts = new ArrayList<Integer>();
+			ArrayList<Integer> accounts = new ArrayList<Integer>();
 			ArrayList<Integer> bjrounds = new ArrayList<Integer>();
 			ArrayList<Integer> tprounds = new ArrayList<Integer>();
 			ArrayList<Boolean> simples = new ArrayList<Boolean>();
-			loadPlayerFile(nicks, stacks, debts, bankrupts, bjrounds, tprounds, simples);
+			loadPlayerFile(nicks, stacks, accounts, bankrupts, bjrounds, tprounds, simples);
 			int numLines = nicks.size();
 			for (int ctr = 0; ctr < numLines; ctr++) {
 				if (p.getNick().toLowerCase().equals(nicks.get(ctr).toLowerCase())) {
@@ -818,7 +850,7 @@ public abstract class CardGame{
 					} else {
 						p.setCash(stacks.get(ctr));
 					}
-					p.setDebt(debts.get(ctr));
+					p.setAccount(accounts.get(ctr));
 					p.setBankrupts(bankrupts.get(ctr));
                     if (gameName.equals("Blackjack")){
                         p.setRounds(bjrounds.get(ctr));
@@ -832,7 +864,7 @@ public abstract class CardGame{
 			}
 			if (!found) {
 				p.setCash(getNewCash());
-				p.setDebt(0);
+				p.setAccount(0);
 				p.setBankrupts(0);
 				p.setRounds(0);
 				p.setSimple(true);
@@ -853,19 +885,19 @@ public abstract class CardGame{
 		boolean found = false;
 		ArrayList<String> nicks = new ArrayList<String>();
 		ArrayList<Integer> stacks = new ArrayList<Integer>();
-		ArrayList<Integer> debts = new ArrayList<Integer>();
+		ArrayList<Integer> accounts = new ArrayList<Integer>();
 		ArrayList<Integer> bankrupts = new ArrayList<Integer>();
 		ArrayList<Integer> bjrounds = new ArrayList<Integer>();
 		ArrayList<Integer> tprounds = new ArrayList<Integer>();
 		ArrayList<Boolean> simples = new ArrayList<Boolean>();
 		int numLines;
 		try {
-			loadPlayerFile(nicks, stacks, debts, bankrupts, bjrounds, tprounds, simples);
+			loadPlayerFile(nicks, stacks, accounts, bankrupts, bjrounds, tprounds, simples);
 			numLines = nicks.size();
 			for (int ctr = 0; ctr < numLines; ctr++) {
 				if (p.getNick().toLowerCase().equals(nicks.get(ctr).toLowerCase())) {
 					stacks.set(ctr, p.getCash());
-					debts.set(ctr, p.getDebt());
+					accounts.set(ctr, p.getAccount());
 					bankrupts.set(ctr, p.getBankrupts());
                     if (gameName.equals("Blackjack")){
                         bjrounds.set(ctr, p.getRounds());
@@ -880,7 +912,7 @@ public abstract class CardGame{
 			if (!found) {
 				nicks.add(p.getNick());
 				stacks.add(p.getCash());
-				debts.add(p.getDebt());
+				accounts.add(p.getAccount());
 				bankrupts.add(p.getBankrupts());
                 if (gameName.equals("Blackjack")){
                     bjrounds.add(p.getRounds());
@@ -896,7 +928,7 @@ public abstract class CardGame{
 		}
 
 		try {
-			savePlayerFile(nicks, stacks, debts, bankrupts, bjrounds, tprounds, simples);
+			savePlayerFile(nicks, stacks, accounts, bankrupts, bjrounds, tprounds, simples);
 		} catch (IOException e) {
 			bot.log("Error writing to players.txt!");
 		}
@@ -921,7 +953,7 @@ public abstract class CardGame{
      * 
      * @param nicks
      * @param stacks
-     * @param debts
+     * @param accounts
      * @param bankrupts
      * @param bjrounds
      * @param tprounds
@@ -929,7 +961,7 @@ public abstract class CardGame{
      * @throws IOException
      */
     public static void loadPlayerFile(ArrayList<String> nicks, ArrayList<Integer> stacks,
-    							ArrayList<Integer> debts, ArrayList<Integer> bankrupts, 
+    							ArrayList<Integer> accounts, ArrayList<Integer> bankrupts, 
     							ArrayList<Integer> bjrounds, ArrayList<Integer> tprounds,
     							ArrayList<Boolean> simples) throws IOException {
     	BufferedReader in = new BufferedReader(new FileReader("players.txt"));
@@ -938,7 +970,7 @@ public abstract class CardGame{
             st = new StringTokenizer(in.readLine());
             nicks.add(st.nextToken());
             stacks.add(Integer.parseInt(st.nextToken()));
-            debts.add(Integer.parseInt(st.nextToken()));
+            accounts.add(Integer.parseInt(st.nextToken()));
             bankrupts.add(Integer.parseInt(st.nextToken()));
             bjrounds.add(Integer.parseInt(st.nextToken()));
             tprounds.add(Integer.parseInt(st.nextToken()));
@@ -952,7 +984,7 @@ public abstract class CardGame{
      * 
      * @param nicks
      * @param stacks
-     * @param debts
+     * @param accounts
      * @param bankrupts
      * @param bjrounds
      * @param tprounds
@@ -960,13 +992,13 @@ public abstract class CardGame{
      * @throws IOException
      */
     public static void savePlayerFile(ArrayList<String> nicks, ArrayList<Integer> stacks,
-								ArrayList<Integer> debts, ArrayList<Integer> bankrupts, 
+								ArrayList<Integer> accounts, ArrayList<Integer> bankrupts, 
 								ArrayList<Integer> bjrounds, ArrayList<Integer> tprounds,
 								ArrayList<Boolean> simples) throws IOException {
     	int numLines = nicks.size();
     	PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("players.txt")));
         for (int ctr = 0; ctr<numLines; ctr++){
-            out.println(nicks.get(ctr)+" "+stacks.get(ctr)+" "+debts.get(ctr)+
+            out.println(nicks.get(ctr)+" "+stacks.get(ctr)+" "+accounts.get(ctr)+
             			" "+bankrupts.get(ctr)+" "+bjrounds.get(ctr)+" "+
             			tprounds.get(ctr)+" "+simples.get(ctr));
         }
@@ -1006,7 +1038,7 @@ public abstract class CardGame{
      */
     public void showPlayerAllStats(String nick){
         int cash = getPlayerStat(nick, "cash");
-        int debt = getPlayerStat(nick, "debt");
+        int account = getPlayerStat(nick, "account");
         int net = getPlayerStat(nick, "netcash");
         int bankrupts = getPlayerStat(nick, "bankrupts");
         int rounds = 0;
@@ -1016,8 +1048,8 @@ public abstract class CardGame{
             rounds = getPlayerStat(nick, "tprounds");
         }
         if (cash != Integer.MIN_VALUE) {
-            bot.sendMessage(channel, nick+" | Cash: $"+formatNumber(cash)+" | Debt: $"+
-                    formatNumber(debt)+" | Net: $"+formatNumber(net)+" | Bankrupts: "+
+            bot.sendMessage(channel, nick+" | Cash: $"+formatNumber(cash)+" | Account: $"+
+                    formatNumber(account)+" | Net: $"+formatNumber(net)+" | Bankrupts: "+
                     formatNumber(bankrupts)+" | Rounds: "+formatNumber(rounds));
         } else {
             bot.sendMessage(channel, "No data found for " + nick + ".");
@@ -1039,11 +1071,11 @@ public abstract class CardGame{
 			ArrayList<String> nicks = new ArrayList<String>();
 			ArrayList<Integer> stacks = new ArrayList<Integer>();
 			ArrayList<Integer> bankrupts = new ArrayList<Integer>();
-			ArrayList<Integer> debts = new ArrayList<Integer>();
+			ArrayList<Integer> accounts = new ArrayList<Integer>();
 			ArrayList<Integer> bjrounds = new ArrayList<Integer>();
 			ArrayList<Integer> tprounds = new ArrayList<Integer>();
 			ArrayList<Boolean> simples = new ArrayList<Boolean>();
-			loadPlayerFile(nicks, stacks, debts, bankrupts, bjrounds, tprounds, simples);
+			loadPlayerFile(nicks, stacks, accounts, bankrupts, bjrounds, tprounds, simples);
 			ArrayList<Integer> test = new ArrayList<Integer>();
             int length = Math.min(n, nicks.size());
 			String title = Colors.BLACK + ",08Top " + length;
@@ -1051,15 +1083,15 @@ public abstract class CardGame{
 			if (stat.equals("cash")) {
 				test = stacks;
 				title += " Cash:";
-			} else if (stat.equals("debt")) {
-				test = debts;
-				title += " Debt:";
+			} else if (stat.equals("account")) {
+				test = accounts;
+				title += " Account:";
 			} else if (stat.equals("bankrupts")) {
 				test = bankrupts;
 				title += " Bankrupts:";
 			} else if (stat.equals("net") || stat.equals("netcash")) {
 				for (int ctr = 0; ctr < nicks.size(); ctr++) {
-					test.add(stacks.get(ctr) - debts.get(ctr));
+					test.add(stacks.get(ctr) + accounts.get(ctr));
 				}
 				title += " Net Cash:";
 			} else if (stat.equals("rounds")) {
@@ -1184,10 +1216,14 @@ public abstract class CardGame{
         	bot.sendMessage(channel, "No data found for "+nick+".");
         }
     }
-    public void showPlayerDebt(String nick){
-    	int debt = getPlayerStat(nick, "debt");
-    	if (debt != Integer.MIN_VALUE){
-        	bot.sendMessage(channel, nick+" has $"+formatNumber(debt)+" in debt.");
+    public void showPlayerAccount(String nick){
+    	int account = getPlayerStat(nick, "account");
+    	if (account != Integer.MIN_VALUE){
+            if (account < 0){
+                bot.sendMessage(channel, nick+" has $"+formatNumber(account)+" in debt.");
+            } else {
+                bot.sendMessage(channel, nick+" has $"+formatNumber(account)+" in the bank.");
+            }
         } else {
         	bot.sendMessage(channel, "No data found for "+nick+".");
         }
@@ -1214,8 +1250,11 @@ public abstract class CardGame{
 			bot.sendMessage(channel, "No data found for " + nick + ".");
 		}
 	} 
-    public void showPlayerDebtPayment(Player p, int amount){
-    	bot.sendMessage(channel, p.getNickStr()+" has made a debt payment of $"+formatNumber(amount)+". "+p.getNickStr()+"'s debt is now $"+formatNumber(p.getDebt())+".");
+    public void showPlayerDeposit(Player p, int amount){
+        bot.sendMessage(channel, p.getNickStr()+" has made a deposit of $"+formatNumber(amount)+". Cash: $"+formatNumber(p.getCash())+". Account: $"+formatNumber(p.getAccount())+".");
+    }    
+    public void showPlayerWithdraw(Player p, int amount){
+        bot.sendMessage(channel, p.getNickStr()+" has made a withdrawal of $"+formatNumber(amount)+". Cash: $"+formatNumber(p.getCash())+". Account: $"+formatNumber(p.getAccount())+".");
     }
     public void showSeparator() {
 		bot.sendMessage(channel, Colors.BOLD+ "------------------------------------------------------------------");
@@ -1287,6 +1326,18 @@ public abstract class CardGame{
     	bot.sendNotice(nick, "You have changed nicks while joined. Your old nick will be removed " +
     			"and your new nick will be joined, if possible.");
     }
+    public void infoNoTransaction(String nick){
+        bot.sendNotice(nick, "Invalid transaction!");
+    }
+    public void infoNoWithdrawal(String nick){
+        bot.sendNotice(nick, "Your account contains insufficient funds for this transaction.");
+    }
+    public void infoNoDepositCash(String nick){
+        bot.sendNotice(nick, "You do not have that much cash. Try again.");
+    }
+    public void infoNoDepositBankrupt(String nick){
+        bot.sendNotice(nick, "You cannot go bankrupt making a deposit. Try again.");
+    }
     public void infoPaymentTooLow(String nick){
     	bot.sendNotice(nick, "Minimum payment is $1. Try again.");
     }
@@ -1297,7 +1348,7 @@ public abstract class CardGame{
     	bot.sendNotice(nick, "You cannot go bankrupt trying to pay off your debt. Try again.");
     }
     public void infoInsufficientFunds(String nick){
-    	bot.sendNotice(nick, "Insufficient funds. Try again.");
+    	bot.sendNotice(nick, "Insufficient funds.");
     }
     public void infoNickNotFound(String nick, String searchNick){
     	bot.sendNotice(nick, searchNick + " was not found.");
@@ -1314,9 +1365,16 @@ public abstract class CardGame{
     public void infoBetTooHigh(String nick, int max){
         bot.sendNotice(nick, "Maximum bet is $"+formatNumber(max)+". Try again.");
     }
-	public void infoPlayerBankrupt(String nick) {
-		bot.sendNotice(nick, "You've lost all your money. Please wait " + respawnTime/60 + " minute(s) for a loan.");
-	}
+    public void infoAutoWithdraw(String nick, int amount){
+        bot.sendNotice(nick, "You make a withdrawal of $" + formatNumber(amount) + " to replenish your empty stack.");
+    }
+	public void infoPlayerBankrupt(String nick, int penalty) {
+        if ((respawnTime+penalty) % 60 == 0){
+            bot.sendNotice(nick, "You've lost all your money. Please wait " + (respawnTime+penalty)/60 + " minute(s) for a loan.");
+        } else {
+            bot.sendNotice(nick, "You've lost all your money. Please wait " + String.format("%.1f", (respawnTime+penalty)/60.) + " minutes for a loan.");
+        }
+    }
     public void infoGameCommandHelp(String nick, String command){
         bot.sendNotice(nick, getCommandHelp(command));
     }

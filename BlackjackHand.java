@@ -79,6 +79,32 @@ public class BlackjackHand extends Hand implements Comparable<BlackjackHand>{
 	}
     
     /**
+     * Determines if a hand is a soft 17.
+     * Used for determining if the dealer needs to hit if the game has been set
+     * for the dealer to hit on soft 17.
+     * 
+     * @return true if the hand is a soft 17
+     */
+    public boolean isSoft17(){
+        if (calcSum() == 17){
+            //Recalculate with aces valued at 1 and check if the sum is lower than 17
+            int sum=0;
+            Card card;
+            for (int ctr = 0; ctr < getSize(); ctr++) {
+                card = get(ctr);
+                if (card.getFace().equals("A")){
+                    sum += 1;
+                } else {
+                    sum += get(ctr).getBlackjackValue();
+                }
+            }
+            return sum < 17;
+        } else {
+            return false;
+        }
+    }
+    
+    /**
      * Calculates the highest non-busting sum of a BlackjackHand.
      * The highest non-busting sum is returned whenever possible.
      * 

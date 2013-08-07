@@ -40,6 +40,7 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
         public String logFile;
         public FileLogBot(String fileName){
             super();
+            version = "Casino Bot using PircBotX";
             logFile = fileName;
             setMessageDelay(750);
         }
@@ -54,7 +55,7 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
                 out.println(System.currentTimeMillis() + " " + line);
                 out.close();
             } catch(IOException e) {
-                bot.log("Error: unable to write to "+logFile);
+                System.err.println("Error: unable to write to "+logFile);
             }
         }
     }
@@ -300,17 +301,12 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
                             tpgame.endGame();
                             tpgame = null;
                         }
-                        bot.getListenerManager().removeListener(this);
-                        try {
-                            Thread.sleep(2000);
-                        } catch(InterruptedException ex) {
-                            Thread.currentThread().interrupt();
-                        }
-                        bot.shutdown(true);
+                        //bot.getListenerManager().removeListener(this);
+                        bot.quitServer("Bye!");
                     }
                 } else {
-                    bot.getListenerManager().removeListener(this);
-                    bot.shutdown();
+                    //bot.getListenerManager().removeListener(this);
+                    bot.quitServer("Bye!");
                 }
             }
         }
