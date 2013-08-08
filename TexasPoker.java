@@ -878,8 +878,11 @@ public class TexasPoker extends CardGame{
 		
         // A bet that's an all-in
 		if (amount == p.getCash()){
-			if (currentBet < amount || topBettor == null){
-				currentBet = amount;
+			if (amount > currentBet || topBettor == null){
+				if (amount - currentBet > minRaise){
+                    minRaise = amount - currentBet;
+                }
+                currentBet = amount;
 				topBettor = p;
 			}
             p.setBet(amount);
