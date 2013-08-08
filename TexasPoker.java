@@ -421,9 +421,13 @@ public class TexasPoker extends CardGame{
             currentPlayer = getPlayerAfter(currentPlayer);
 			p = (PokerPlayer) currentPlayer;
 		}
-        /* If we reach the firstPlayer or topBettor, then we should deal
-         * community cards. */
+        
+        /* If we reach the firstPlayer or topBettor, then we have reached the
+         * end of a round of betting and we should deal community cards. */
         if (currentPlayer == topBettor || currentPlayer == firstPlayer) {
+            // Reset minimum raise
+            minRaise = getMinBet();
+            // Add bets from this round of betting to the pot
 			addBetsToPot();
 			stage++;
 			
@@ -641,13 +645,13 @@ public class TexasPoker extends CardGame{
 	public void setBlindBets(){
         // Set the small blind to minimum raise or the player's cash, 
         // whichever is less.
-		smallBlind.setBet(Math.min(getMinBet(), smallBlind.getCash()));
+		smallBlind.setBet(Math.min(getMinBet()/2, smallBlind.getCash()));
 		// Set the big blind to minimum raise + small blind or the player's 
         // cash, whichever is less.
-        bigBlind.setBet(Math.min(getMinBet()*2, bigBlind.getCash()));
+        bigBlind.setBet(Math.min(getMinBet(), bigBlind.getCash()));
         // Set the current bet to the bigger of the two blinds.
         currentBet = Math.max(smallBlind.getBet(), bigBlind.getBet());
-        minRaise = currentBet;
+        minRaise = getMinBet();
 	}
     
     /* Game command logic checking methods */
@@ -768,7 +772,7 @@ public class TexasPoker extends CardGame{
 			setIdleOutTime(60);
 			setRespawnTime(600);
             setMaxPlayers(22);
-			setMinBet(5);
+			setMinBet(10);
 			saveSettings();
 		}
 	}
@@ -783,7 +787,7 @@ public class TexasPoker extends CardGame{
 			out.println("cash=" + getNewCash());
 			out.println("#Number of seconds before a bankrupt player is allowed to join again");
 			out.println("respawn=" + getRespawnTime());
-			out.println("#Minimum betting increment");
+			out.println("#Minimum bet (big blind), preferably an even number");
 			out.println("minbet=" + getMinBet());
             out.println("#The maximum number of players allowed to join a game");
 			out.println("maxplayers=" + getMaxPlayers());
@@ -1251,7 +1255,7 @@ public class TexasPoker extends CardGame{
 	@Override
 	public String getGameRulesStr() {
 		return "This is no limit Texas Hold'em Poker. Blind bets are set at $" + 
-                formatNumber(getMinBet()) + "/$" + formatNumber(getMinBet()*2) + 
+                formatNumber(getMinBet()/2) + "/$" + formatNumber(getMinBet()) + 
                 " or your stack, whichever is lower.";
 	}
 	@Override
