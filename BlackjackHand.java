@@ -19,7 +19,12 @@
 
 package irccasino;
 
+/**
+ * Extends Hand with extra blackjack-related methods.
+ * @author Yizhe Shen
+ */
 public class BlackjackHand extends Hand implements Comparable<BlackjackHand>{
+    /** Stores the bet on the BlackjackHand. */
 	private int bet;
 
 	/**
@@ -32,18 +37,41 @@ public class BlackjackHand extends Hand implements Comparable<BlackjackHand>{
 	}
 	
 	/* Blackjack specific methods */
-	public void setBet(int amount){
+	/**
+     * Sets the bet on this Hand to the specified amount.
+     * @param amount the amount to set
+     */
+    public void setBet(int amount){
     	bet = amount;
     }
+    
+    /**
+     * Adds the specified amount to the existing bet.
+     * @param amount the amount to add
+     */
     public void addBet(int amount){
         bet += amount;
     }
+    
+    /**
+     * Returns the bet on this Hand.
+     * @return the bet on this Hand.
+     */
     public int getBet(){
         return bet;
     }
+    
+    /**
+     * Clears the bet on this Hand.
+     */
     public void clearBet(){
         bet = 0;
     }
+    
+    /**
+     * Returns whether or not this Hand has been hit.
+     * @return true if only contains 2 cards
+     */
     public boolean hasHit(){
 		return getSize() != 2;
 	}
@@ -57,6 +85,7 @@ public class BlackjackHand extends Hand implements Comparable<BlackjackHand>{
     public boolean isBlackjack() {
 		return calcSum() == 21 && getSize() == 2;
 	}
+    
 	/**
      * Determines if a hand is bust.
      * If the sum is greater than 21 then it is bust.
@@ -99,9 +128,8 @@ public class BlackjackHand extends Hand implements Comparable<BlackjackHand>{
                 }
             }
             return sum < 17;
-        } else {
-            return false;
         }
+        return false;
     }
     
     /**
@@ -132,8 +160,20 @@ public class BlackjackHand extends Hand implements Comparable<BlackjackHand>{
 		return sum;
 	}
     
+    /**
+     * Compares this BlackjackHand to another based on sum.
+     * A blackjack is greater than all BlackjackHands except for another
+     * blackjack. This method is usually only called when comparing a player's
+     * hand to the dealer's.
+     * 
+     * @param h the BlackjackHand to compare
+     * @return -1 if this hand's sum is less or bust, zero for a push, or 1 
+     * if this hand's sum is greater
+     * @throws NullPointerException if the specified BlackjackHand is null
+     */
     @Override
     public int compareTo(BlackjackHand h) {
+        if (h == null) throw new NullPointerException();
 		int sum = calcSum(), hsum = h.calcSum();
 		boolean BJ = isBlackjack();
 		boolean hBJ = h.isBlackjack();

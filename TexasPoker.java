@@ -212,7 +212,7 @@ public class TexasPoker extends CardGame{
                     Iterator<User> it = chanUsers.iterator();
                     while(it.hasNext()){
                         User u = it.next();
-                        if (u.getNick().toLowerCase().equals(fNick.toLowerCase())){
+                        if (u.getNick().equalsIgnoreCase(fNick)){
                             // Check if fNick is joined in another game
                             if (parentListener.bjgame != null &&
                                 (parentListener.bjgame.isJoined(fNick) || parentListener.bjgame.isWaitlisted(fNick))){

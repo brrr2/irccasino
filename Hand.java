@@ -22,7 +22,12 @@ package irccasino;
 import java.util.ArrayList;
 import org.pircbotx.Colors;
 
+/**
+ * An object that represents a hand of cards.
+ * @author Yizhe Shen
+ */
 public class Hand {
+    /** An ArrayList of Card representing the Hand. */
 	protected ArrayList<Card> cards;
 	
 	/**
@@ -33,38 +38,88 @@ public class Hand {
 	}
 	
 	/* Accessor methods */
-	public void add(Card card){
+	/**
+     * Adds the specified card to the hand.
+     * @param card the card to add
+     */
+    public void add(Card card){
 		cards.add(card);
 	}
-	public void add(Card card, int index){
+    
+	/**
+     * Adds the specified card to the hand at the specified index
+     * @param card the card to add
+     * @param index the index location to add the card
+     */
+    public void add(Card card, int index){
 		cards.add(index, card);
 	}
-	public void addAll(ArrayList<Card> cardList){
+    
+	/**
+     * Adds the cardList to the end of this Hand.
+     * @param cardList an ArrayList of cards
+     */
+    public void addAll(ArrayList<Card> cardList){
 		if (cardList.size() > 0){
 			cards.addAll(cardList);
 		}
 	}
-	public void addAll(Hand hand){
+    
+	/**
+     * Adds the cards from another hand to the end of this Hand.
+     * @param hand the Hand to add
+     */
+    public void addAll(Hand hand){
 		if (hand.getSize() > 0){
 			cards.addAll(hand.getAllCards());
 		}
 	}
-	public void remove(int index){
+    
+	/**
+     * Removes the Card from this hand at the specified index.
+     * @param index the index of the Card to remove
+     */
+    public void remove(int index){
 		cards.remove(index);
 	}
-	public void remove(Card c){
+    
+	/**
+     * Removes the specified Card from this hand.
+     * @param c the Card to remove
+     */
+    public void remove(Card c){
 		cards.remove(c);
 	}
-	public Card get(int index){
+    
+	/**
+     * Returns the Card at the specified index.
+     * @param index the index of the Card
+     * @return the desired Card
+     */
+    public Card get(int index){
 		return cards.get(index);
 	}
-	public ArrayList<Card> getAllCards(){
+    
+	/**
+     * Returns the all Cards in the Hand in an ArrayList.
+     * @return an ArrayList of Cards
+     */
+    public ArrayList<Card> getAllCards(){
 		return cards;
 	}
-	public void clear(){
+    
+	/**
+     * Empties the cards ArrayList.
+     */
+    public void clear(){
 		cards.clear();
 	}
-	public int getSize(){
+    
+	/**
+     * Returns the number of Cards in this Hand.
+     * @return the number of Cards
+     */
+    public int getSize(){
 		return cards.size();
 	}
     
@@ -84,11 +139,15 @@ public class Hand {
 		return h;
 	}
 	
-    /* Default toString returns all cards in the hand face-up */
-	@Override
+	/**
+     * Default toString returns all cards in the hand face-up.
+     * @return string representation of the cards in the hand all face-up
+     */
+    @Override
     public String toString(){
         return toString(0,getSize());
     }
+    
 	/**
      * Gets a string representation of the hand with hidden cards.
      * User can specify how many of the cards are hidden.
@@ -107,6 +166,7 @@ public class Hand {
         }
         return outStr.substring(0, outStr.length()-1)+Colors.NORMAL;
     }
+    
     /**
      * Gets an index-select string representation of the hand.
      * A space-delimited string of cards starting from start and excluding end.

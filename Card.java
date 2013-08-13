@@ -21,11 +21,19 @@ package irccasino;
 
 import org.pircbotx.Colors;
 
+/**
+ * An object that represents a card. 
+ * @author Yizhe Shen
+ */
 public class Card implements Comparable<Card>{
-    private String suit, face;
+    /** The card's suit. */
+    private String suit;
+    /** The card's face. */
+    private String face;
     
     /**
      * Creates a new Card with suit and face.
+     * 
      * @param s Card suit.
      * @param f Card face.
      */
@@ -35,12 +43,29 @@ public class Card implements Comparable<Card>{
     }
     
     /* Accessor methods */
+    /**
+     * Returns the card's face.
+     * 
+     * @return the card's face
+     */
     public String getFace(){
         return face;
     }
+    
+    /**
+     * Returns the card's suit.
+     * 
+     * @return the card's suit
+     */
     public String getSuit(){
         return suit;
     }
+    
+    /**
+     * Returns the blackjack value of this card.
+     * 
+     * @return 10 for face card, 11 for ace or the parsed Integer of the face
+     */
     public int getBlackjackValue() {
 		int num;
         if (face.equals("A")){
@@ -54,6 +79,13 @@ public class Card implements Comparable<Card>{
         }
 		return num;
 	}
+    
+    /**
+     * Returns the index in the static array CardDeck.faces that matches this
+     * card's face.
+     * 
+     * @return the index or -1 if not found
+     */
     public int getFaceValue(){
     	for (int ctr=0; ctr < CardDeck.faces.length; ctr++){
     		if (face.equals(CardDeck.faces[ctr])){
@@ -62,6 +94,13 @@ public class Card implements Comparable<Card>{
     	}
     	return -1;
     }
+    
+    /**
+     * Returns the index in the static array CardDeck.suits that matches this
+     * card's suit.
+     * 
+     * @return the index or -1 if not found
+     */
     public int getSuitValue(){
     	for (int ctr=0; ctr < CardDeck.suits.length; ctr++){
     		if (suit.equals(CardDeck.suits[ctr])){
@@ -71,9 +110,17 @@ public class Card implements Comparable<Card>{
     	return -1;
     }
     
-    /* Compares using face value, then suit */
+    /** 
+     * Compares this Card to another by face value, then by suit value. 
+     * 
+     * @param c the Card to compare
+     * @return -1 if face value is less or if equal, suit value is less, 0 if
+     * suit value and face value are equal, 1 if face value is greater or if 
+     * equal, suit value is greater
+     */
     @Override
     public int compareTo(Card c){
+        if (c == null) throw new NullPointerException();
     	int valueDiff = getFaceValue() - c.getFaceValue();
     	int suitDiff = getSuitValue() - c.getSuitValue();
     	if (valueDiff == 0){
@@ -83,7 +130,12 @@ public class Card implements Comparable<Card>{
     	}
     }
     
-    /* String representation of the card with IRC color formatting */
+    /**
+     * String representation of the card with IRC color formatting.
+     * Gives the card a colour based on suit and adds a white background.
+     * 
+     * @return a IRC colour formatted string with the card's face and suit
+     */
     @Override
     public String toString(){
         String color;

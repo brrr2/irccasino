@@ -82,6 +82,7 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
         bot.setListenerManager(manager);
 	    bot.setVerbose(true);
 	    bot.setAutoNickChange(true);
+        bot.setAutoReconnect(true);
 	    bot.setCapEnabled(true);
         bot.setName(eb.botNick);
         bot.setLogin("bot");

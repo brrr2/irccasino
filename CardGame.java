@@ -583,7 +583,7 @@ public abstract class CardGame{
         Iterator<User> it = users.iterator();
         while(it.hasNext()){
         	user = it.next();
-            if (user.getNick().toLowerCase().equals(nick.toLowerCase())){
+            if (user.getNick().equalsIgnoreCase(nick)){
                 return user;
             }
         }
@@ -592,7 +592,7 @@ public abstract class CardGame{
     public Player findJoined(String nick){
     	for (int ctr=0; ctr< getNumberJoined(); ctr++){
     		Player p = getJoined(ctr);
-            if (p.getNick().toLowerCase().equals(nick.toLowerCase())){
+            if (p.getNick().equalsIgnoreCase(nick)){
                 return p;
             }  
         }
@@ -601,7 +601,7 @@ public abstract class CardGame{
     public Player findWaitlisted(String nick){
     	for (int ctr=0; ctr< getNumberWaitlisted(); ctr++){
     		Player p = getWaitlisted(ctr);
-    		if (p.getNick().toLowerCase().equals(nick.toLowerCase())){
+    		if (p.getNick().equalsIgnoreCase(nick)){
                 return p;
             }  
         }
@@ -610,7 +610,7 @@ public abstract class CardGame{
     public Player findBlacklisted(String nick){
     	for (int ctr=0; ctr< getNumberBlacklisted(); ctr++){
     		Player p = getBlacklisted(ctr);
-    		if (p.getNick().toLowerCase().equals(nick.toLowerCase())){
+    		if (p.getNick().equalsIgnoreCase(nick)){
             	return p;
             }  
         }
@@ -800,7 +800,7 @@ public abstract class CardGame{
         	loadPlayerFile(nicks, stacks, banks, bankrupts, bjrounds, tprounds, simples);
         	int numLines = nicks.size();
         	for (int ctr = 0; ctr < numLines; ctr++){
-        		if (nick.toLowerCase().equals(nicks.get(ctr).toLowerCase())){
+        		if (nick.equalsIgnoreCase(nicks.get(ctr))){
         			if (stat.equals("cash")){
         				return stacks.get(ctr);
         			} else if (stat.equals("bank")){
@@ -844,7 +844,7 @@ public abstract class CardGame{
 			loadPlayerFile(nicks, stacks, banks, bankrupts, bjrounds, tprounds, simples);
 			int numLines = nicks.size();
 			for (int ctr = 0; ctr < numLines; ctr++) {
-				if (p.getNick().toLowerCase().equals(nicks.get(ctr).toLowerCase())) {
+				if (p.getNick().equalsIgnoreCase(nicks.get(ctr))) {
 					if (stacks.get(ctr) <= 0) {
 						p.setCash(getNewCash());
 					} else {
@@ -895,7 +895,7 @@ public abstract class CardGame{
 			loadPlayerFile(nicks, stacks, banks, bankrupts, bjrounds, tprounds, simples);
 			numLines = nicks.size();
 			for (int ctr = 0; ctr < numLines; ctr++) {
-				if (p.getNick().toLowerCase().equals(nicks.get(ctr).toLowerCase())) {
+				if (p.getNick().equalsIgnoreCase(nicks.get(ctr))) {
 					stacks.set(ctr, p.getCash());
 					banks.set(ctr, p.getBank());
 					bankrupts.set(ctr, p.getBankrupts());

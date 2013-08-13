@@ -279,7 +279,7 @@ public class Blackjack extends CardGame {
                     Iterator<User> it = chanUsers.iterator();
                     while(it.hasNext()){
                         User u = it.next();
-                        if (u.getNick().toLowerCase().equals(fNick.toLowerCase())){
+                        if (u.getNick().equalsIgnoreCase(fNick)){
                             // Check if fNick is joined in another game
                             if (parentListener.tpgame != null && 
                                 (parentListener.tpgame.isJoined(fNick) || parentListener.tpgame.isWaitlisted(fNick))){

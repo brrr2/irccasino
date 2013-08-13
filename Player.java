@@ -49,6 +49,10 @@ public class Player {
     }
     
     /* Player info methods */
+    /**
+     * Returns the player's nick or "Dealer" if the player is in the dealer role.
+     * @return the player's name
+     */
     public String getNick(){
     	if (dealer){
     		return "Dealer";
@@ -56,6 +60,10 @@ public class Player {
     		return nick;
         }
     }
+    /**
+     * Returns whether or not the player has any cash.
+     * @return true if cash is 0
+     */
     public boolean isBankrupt(){
         return cash == 0;
     }
@@ -101,33 +109,69 @@ public class Player {
     }
     
     /* Methods for cash manipulation */
+    /**
+     * Sets the player's stack to the specified amount.
+     * @param amount the amount to set
+     */
     public void setCash(int amount){
         cash = amount;
     }
+    /**
+     * Adds the specified amount to a player's stack.
+     * @param amount the amount to add
+     */
     public void addCash(int amount){
         cash += amount;
     }
+    /**
+     * Returns the player's stack.
+     * @return the player's stack
+     */
     public int getCash(){
         return cash;
     }
+    /**
+     * Sets the player's bank to the specified amount.
+     * @param amount the amount to set
+     */
     public void setBank(int amount){
     	bank = amount;
     }
+    /**
+     * Subtracts the specified amount from the player's bank.
+     * @param amount the amount to subtract.
+     */
     public void addDebt(int amount){
     	bank -= amount;
     }
+    /**
+     * Returns the amount the player has stored in bank.
+     * @return the bank amount
+     */
     public int getBank(){
     	return bank;
     }
+    /**
+     * Transfers the specified amount from cash into bank.
+     * @param amount the amount to transfer
+     */
     public void bankTransfer(int amount){
     	bank += amount;
     	cash -= amount;
     }
+    /**
+     * Returns the total amount of stack and bank for the player.
+     * @return cash plus bank
+     */
     public int getNetCash(){
         return cash + bank;
     }
     
     /* Formatted string representations */
+    /**
+     * Returns the player's nick formatted in IRC bold.
+     * @return the bold-formatted nick
+     */
     public String getNickStr(){
     	return Colors.BOLD+getNick()+Colors.BOLD;
     }
