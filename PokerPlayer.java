@@ -19,11 +19,21 @@
 
 package irccasino;
 
+/**
+ * Extends the Player class for players playing Poker games.
+ * @author Yizhe Shen
+ */
 public class PokerPlayer extends Player implements Comparable<PokerPlayer> {
-	private Hand hand;
+	/** The player's cards. */
+    private Hand hand;
+    /** The player's cards plus any community cards. */
 	private PokerHand pHand;
+    /** The player's bet. */
 	private int bet;
-	private boolean fold, allIn;
+    /** The player's fold status. */
+	private boolean fold;
+    /** The player's all-in status. */
+    private boolean allIn;
 	
 	/**
      * Creates a new PokerPlayer.
@@ -41,50 +51,117 @@ public class PokerPlayer extends Player implements Comparable<PokerPlayer> {
         bet = 0;
     }
 
-	public boolean hasHand(){
+	/**
+     * Returns whether the player has cards in his Hand.
+     * @return true if player has any cards
+     */
+    public boolean hasHand(){
 		return (hand.getSize() > 0);
 	}
-	public PokerHand getPokerHand(){
+    
+	/**
+     * Returns the player's PokerHand.
+     * This includes the player's Hand and any community cards.
+     * @return the player's PokerHand
+     */
+    public PokerHand getPokerHand(){
 		return pHand;
 	}
-	public Hand getHand(){
+    
+	/**
+     * Returns the player's Hand.
+     * @return the player's Hand.
+     */
+    public Hand getHand(){
 		return hand;
 	}
-	public void resetHand(){
+    
+	/**
+     * Clears the cards in the player's Hand and PokerHand.
+     */
+    public void resetHand(){
 		hand.clear();
 		pHand.clear();
 		pHand.resetValue();
 	}
 	
-	public void setBet(int b){
+	/**
+     * Sets the player's bet to the specified amount.
+     * @param b the amount to bet
+     */
+    public void setBet(int b){
 		bet = b;
 	}
+    
+    /**
+     * Adds the specified amount to the player's bet.
+     * @param b the amount to add to the bet
+     */
 	public void addBet(int b){
 		bet += b;
 	}
+    
+    /**
+     * Returns the player's bet.
+     * @return the player's bet
+     */
     public int getBet(){
     	return bet;
     }
+    
+    /**
+     * Whether or not the player has made a bet.
+     * @return true if bet is greater than 0
+     */
     public boolean hasBet(){
     	return bet > 0;
     }
+    
+    /**
+     * Sets the player's bet to 0.
+     */
     public void clearBet(){
     	bet = 0;
     }
     
+    /**
+     * Sets the player's fold status to the specified status.
+     * @param b the new status
+     */
     public void setFold(boolean b){
     	fold = b;
     }
+    
+    /**
+     * Whether or not the player has folded.
+     * @return true if player has folded
+     */
     public boolean hasFolded(){
     	return fold;
     }
+    
+    /**
+     * Sets the player's all-in status to the specified value.
+     * @param b the new status
+     */
     public void setAllIn(boolean b){
         allIn = b;
     }
+    
+    /**
+     * Whether or not the player has gone all in.
+     * @return true if the player has gone all in
+     */
     public boolean hasAllIn(){
         return allIn;
     }
     
+    /**
+     * Compares this PokerPlayer to another based on their PokerHand.
+     * Returns the same value as a comparison of the players' PokerHands.
+     * @param p the PokerPlayer to compare
+     * @return the result of the comparison of the players' PokerHands
+     */
     @Override
     public int compareTo(PokerPlayer p){
     	return this.getPokerHand().compareTo(p.getPokerHand());

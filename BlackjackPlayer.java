@@ -21,10 +21,20 @@ package irccasino;
 
 import java.util.*;
 
+/**
+ * Extends the Player class for players playing Blackjack.
+ * @author Yizhe Shen
+ */
 public class BlackjackPlayer extends Player{
+    /** The index of the player's current BlackjackHand. */
 	private int currentIndex;
+    /** ArrayList containing the player's BlackjackHands. */
 	private ArrayList<BlackjackHand> hands;
-	private int initialBet, insureBet;
+    /** Stores the player's initial bet. */
+	private int initialBet;
+    /** Stores the player's insurance bet. */
+    private int insureBet;
+    /** The player's surrender status. */
 	private boolean surrender;
 	
 	/**
@@ -33,7 +43,7 @@ public class BlackjackPlayer extends Player{
 	 * 
 	 * @param nick IRC user's nick.
      * @param hostmask IRC user's hostmask.
-	 * @param d Whether or not player is dealer.
+	 * @param dealer Whether or not player is dealer.
 	 */
     public BlackjackPlayer(String nick, String hostmask, boolean dealer){
         super(nick, hostmask, dealer);
@@ -45,70 +55,164 @@ public class BlackjackPlayer extends Player{
     }
     
     /* Blackjack-specific card/hand manipulation methods */
+    /**
+     * Adds a new hand to the ArrayList of BlackjackHands.
+     */
     public void addHand(){
     	hands.add(new BlackjackHand());
     }
+    
+    /**
+     * Gets the BlackjackHand at the specified index.
+     * @param num the specified index
+     * @return the BlackjackHand at the index
+     */
     public BlackjackHand getHand(int num){
     	return hands.get(num);
     }
+    
+    /**
+     * Gets the player's current BlackjackHand.
+     * @return the BlackjackHand at the current index
+     */
     public BlackjackHand getHand(){
     	return hands.get(currentIndex);
     }
+    
+    /**
+     * Increments the current index in order to get the next hand.
+     * @return the BlackjackHand at the incremented index
+     */
     public BlackjackHand getNextHand(){
     	return getHand(++currentIndex);
     }
+    
+    /**
+     * The index of the player's current BlackjackHand.
+     * @return the current index
+     */
     public int getCurrentIndex(){
     	return currentIndex;
     }
+    
+    /**
+     * Resets the current index back to the player's first hand.
+     */
     public void resetCurrentIndex(){
     	currentIndex = 0;
     }
+    
+    /**
+     * Returns the number BlackjackHands the player has.
+     * @return the number of BlackjackHands
+     */
     public int getNumberHands(){
     	return hands.size();
     }
+    
+    /**
+     * Whether or not the player has any BlackjackHands.
+     * @return true if the player has any BlackjackHands
+     */
     public boolean hasHands(){
         return hands.size() > 0;
     }
+    
+    /**
+     * Clears all of the player's hands.
+     */
     public void resetHands(){
     	hands.clear();
     }
     
     /* Betting and gameplay methods */
+    /**
+     * Sets the player's initial bet to the specified amount.
+     * @param b the amount
+     */
     public void setInitialBet(int b){
     	initialBet = b;
     }
+    
+    /**
+     * Returns the player's initial bet.
+     * @return the player's initial bet
+     */
     public int getInitialBet(){
     	return initialBet;
     }
+    
+    /**
+     * Whether or not the player has made an initial bet.
+     * @return true if initialBet is greater than 0
+     */
     public boolean hasInitialBet(){
     	return initialBet > 0;
     }
+    
+    /**
+     * Resets the player's initial bet to 0.
+     */
     public void clearInitialBet(){
     	initialBet = 0;
     }
+    
+    /**
+     * Whether or not the player has made an insurance bet.
+     * @return true if insureBet is greater than 0
+     */
     public boolean hasInsured(){
     	return (insureBet > 0);
     }
+    
+    /**
+     * Sets the player's insurance bet to the specified amount.
+     * @param amount the amount
+     */
     public void setInsureBet(int amount){
     	insureBet = amount;
     }
+    
+    /**
+     * Resets the player's insurance bet to 0.
+     */
     public void clearInsureBet(){
     	insureBet = 0;
     }
+    
+    /**
+     * Returns the player's insurance bet.
+     * @return the player's insurance bet
+     */
     public int getInsureBet(){
     	return insureBet;
     }
+    
+    /**
+     * Sets the player's surrender status to the specified status.
+     * @param b the new status
+     */
 	public void setSurrender(boolean b){
 		surrender = b;
 	}
+    
+    /**
+     * Whether or not the player has surrendered.
+     * @return true if the player has surrendered.
+     */
 	public boolean hasSurrendered(){
 		return surrender;
 	}
     
     /* Methods related to splitting hands */
+    /**
+     * Whether or not the player has split his initial hand.
+     * @return true if hands contains more than one BlackjackHand
+     */
     public boolean hasSplit(){
     	return hands.size() > 1;
     }
+    
     /**
      * Splits a BlackjackHand into two BlackjackHands.
      * Creates a new BlackjackHand and gives it the second card of the original.
@@ -123,5 +227,4 @@ public class BlackjackPlayer extends Player{
     	
     	hands.add(currentIndex+1, tHand);
     }
-    
 }
