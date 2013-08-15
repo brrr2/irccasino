@@ -24,7 +24,7 @@ import org.pircbotx.*;
 /**
  * A player class with common methods and members for all types of players.
  * It serves as a template and should not be directly instantiated.
- * @author Yizhe
+ * @author Yizhe Shen
  */
 public abstract class Player {
     /** Stores the player's simple status. */
