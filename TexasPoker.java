@@ -446,6 +446,8 @@ public class TexasPoker extends CardGame {
 
 	@Override
 	public void continueRound() {
+		boolean allIn = true;
+
 		// Store currentPlayer as firstPlayer and find the next player
 		Player firstPlayer = currentPlayer;
 		currentPlayer = getPlayerAfter(currentPlayer);
@@ -458,6 +460,10 @@ public class TexasPoker extends CardGame {
 		 */
 		while ((p.hasFolded() || p.hasAllIn()) && currentPlayer != firstPlayer
 				&& currentPlayer != topBettor) {
+			// If one player is not all in set flag to false
+			if (!p.hasAllIn()) {
+				allIn = false;
+			}
 			currentPlayer = getPlayerAfter(currentPlayer);
 			p = (PokerPlayer) currentPlayer;
 		}
@@ -474,6 +480,15 @@ public class TexasPoker extends CardGame {
 				endRound();
 				// Otherwise, deal community cards
 			} else {
+				// If all players are all in show hole cards
+				if (allIn) {
+					ArrayList<PokerPlayer> players;
+					players = pots.get(0).getPlayers();
+					for (int ctr = 0; ctr < players.size(); ctr++) {
+						p = players.get(ctr);
+						showPlayerResult(p);
+					}
+				}
 				// Burn a card before turn and river
 				if (stage != 1) {
 					burnCard();
