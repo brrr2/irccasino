@@ -409,16 +409,19 @@ public class TexasPoker extends CardGame{
 	}
 	@Override
 	public void continueRound() {
-        // Store currentPlayer as firstPlayer and find the next player
-        Player firstPlayer = currentPlayer;
+		// Store currentPlayer as firstPlayer and find the next player
+		Player firstPlayer = currentPlayer;
 		currentPlayer = getPlayerAfter(currentPlayer);
 		PokerPlayer p = (PokerPlayer) currentPlayer;
 
-        /* Look for a player who can bet that is not the firstPlayer or the topBettor.
-         * If we reach the firstPlayer or topBettor then stop looking. */
-        while ((p.hasFolded() || p.hasAllIn()) && currentPlayer != firstPlayer 
-                && currentPlayer != topBettor){
-            currentPlayer = getPlayerAfter(currentPlayer);
+		/*
+		 * Look for a player who can bet that is not the firstPlayer or the
+		 * topBettor. If we reach the firstPlayer or topBettor then stop
+		 * looking.
+		 */
+		while ((p.hasFolded() || p.hasAllIn()) && currentPlayer != firstPlayer
+				&& currentPlayer != topBettor) {
+			currentPlayer = getPlayerAfter(currentPlayer);
 			p = (PokerPlayer) currentPlayer;
 		}
         
@@ -436,8 +439,28 @@ public class TexasPoker extends CardGame{
 				endRound();
             // Otherwise, deal community cards
 			} else {
-                // Burn a card before turn and river
-				if (stage != 1){
+                /* 
+                * If fewer than two players can bet and there are more
+                * than 1 non-folded player remaining, only show hands once
+                * before dealing the rest of the community cards.
+                */
+               if (getNumberCanBet() < 2 && getNumberNotFolded() > 1 && currentPlayer == topBettor) {
+                   ArrayList<PokerPlayer> players;
+                   players = pots.get(0).getPlayers();
+                   String showdownStr = formatHeader(" Showdown: ") + " ";
+                   for (int ctr = 0; ctr < players.size(); ctr++) {
+                       p = players.get(ctr);
+                       showdownStr += p.getNickStr() + " (" + p.getHand() + ")";
+                       if (ctr < players.size()-1){
+                           showdownStr += ", ";
+                       }
+                   }
+                   bot.sendMessage(channel, showdownStr);
+                   // Add a little delay for dramatic effect
+                   try { Thread.sleep(5000); } catch (InterruptedException e){}
+               }
+				// Burn a card before turn and river
+				if (stage != 1) {
 					burnCard();
 				}
 				dealCommunity();
@@ -464,11 +487,8 @@ public class TexasPoker extends CardGame{
 	@Override
 	public void endRound() {
 		PokerPlayer p;
-		if (currentPot != null){
-			pots.add(currentPot);
-		}
-		
-        // Check if anybody left during post-start waiting period
+
+		// Check if anybody left during post-start waiting period
 		if (getNumberJoined() > 1 && pots.size() > 0) {
 			// Give all non-folded players the community cards
 			for (int ctr = 0; ctr < getNumberJoined(); ctr++){
@@ -1013,21 +1033,23 @@ public class TexasPoker extends CardGame{
             // Create a new pot if none exists
 			if (currentPot == null){
 				currentPot = new PokerPot();
+                pots.add(currentPot);
 			} else {
-                // Determine if anybody is still in the game, but has not contributed
-                // any bets in the latest round of betting, thus requiring a new pot
-                for (int ctr = 0; ctr < currentPot.getNumberPlayers(); ctr++){
-                    p = currentPot.getPlayer(ctr);
-                    if (p.getBet() == 0 && currentBet != 0 && !p.hasFolded() && 
-                        currentPot.hasPlayer(p)){
+				// Determine if anybody is still in the game, but has not
+				// contributed any bets in the latest round of betting, 
+                // thus requiring a new pot
+				for (int ctr = 0; ctr < currentPot.getNumberPlayers(); ctr++) {
+					p = currentPot.getPlayer(ctr);
+					if (p.getBet() == 0 && currentBet != 0 && !p.hasFolded()
+							&& currentPot.hasPlayer(p)) {
+						currentPot = new PokerPot();
                         pots.add(currentPot);
-                        currentPot = new PokerPot();
-                        break;
-                    }
-                }
-            }
-            // Determine the lowest non-zero bet from a non-folded player
-			for (int ctr = 0; ctr < getNumberJoined(); ctr++){
+						break;
+					}
+				}
+			}
+			// Determine the lowest non-zero bet from a non-folded player
+			for (int ctr = 0; ctr < getNumberJoined(); ctr++) {
 				p = (PokerPlayer) getJoined(ctr);
 				if (p.getBet() < lowBet && p.getBet() != 0 && !p.hasFolded()){
 					lowBet = p.getBet();
@@ -1055,10 +1077,9 @@ public class TexasPoker extends CardGame{
 				}
 			}
 			currentBet -= lowBet;
-            // If there is any currentBet left over, that means we have to create
-            // a new sidepot.
-			if (currentBet != 0){
-				pots.add(currentPot);
+			// If there is any currentBet left over, that means we have to
+			// create a new sidepot, so we set currentPot to null.
+			if (currentBet != 0) {
 				currentPot = null;
 			}
 		}
@@ -1119,20 +1140,14 @@ public class TexasPoker extends CardGame{
         
         // Append existing pots to StringBuilder
 		for (int ctr = 0; ctr < pots.size(); ctr++){
-            if (currentPot != pots.get(ctr)){
-                str = Colors.YELLOW+",01Pot #"+(ctr+1)+": "+Colors.GREEN+",01$"+formatNumber(pots.get(ctr).getPot())+Colors.NORMAL+" ";
-                msg.append(str);
-            }
+            str = Colors.YELLOW+",01Pot #"+(ctr+1)+": "+Colors.GREEN+",01$"+formatNumber(pots.get(ctr).getPot())+Colors.NORMAL+" ";
+            msg.append(str);
         }
-
-        // Append current pot to StringBuilder
-        str = Colors.YELLOW+",01Pot #"+(pots.size()+1)+": "+Colors.GREEN+",01$"+formatNumber(currentPot.getPot())+Colors.NORMAL+" ";
-        msg.append(str);
         
         // Append remaining non-folded players
         int notFolded = getNumberNotFolded();
         int count = 0;
-        str = "("+Colors.BOLD+notFolded+Colors.BOLD+" players: ";;
+        str = "("+Colors.BOLD+notFolded+Colors.BOLD+" players: ";
         for (int ctr = 0; ctr < getNumberJoined(); ctr++){
 			p = (PokerPlayer) getJoined(ctr);
             if (!p.hasFolded()){

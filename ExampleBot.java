@@ -42,7 +42,7 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
             super();
             version = "Casino Bot using PircBotX";
             logFile = fileName;
-            setMessageDelay(750);
+            setMessageDelay(1000);
         }
         
         @Override
@@ -76,7 +76,7 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
     
 	public static void main(String[] args) throws Exception {
         ExampleBot eb = new ExampleBot();
-        ThreadedListenerManager manager = new ThreadedListenerManager();
+        ThreadedListenerManager<FileLogBot> manager = new ThreadedListenerManager<FileLogBot>();
         manager.addListener(eb);
 	    bot = new FileLogBot("log.txt");
         bot.setListenerManager(manager);
@@ -184,10 +184,10 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
             processCommand(channel, user, command, params);
             
             // Process any game command if a game has been instantiated
-            if (bjgame != null && bjgame.getChannel() == channel){
+            if (bjgame != null && bjgame.getChannel().equals(channel)){
                 bjgame.processCommand(user, command, params);
             }
-            if (tpgame != null && tpgame.getChannel() == channel){
+            if (tpgame != null && tpgame.getChannel().equals(channel)){
                 tpgame.processCommand(user, command, params);
             }
         }
@@ -203,10 +203,10 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
     @Override
     public void onJoin(JoinEvent<PircBotX> event){
         Channel channel = event.getChannel();
-        if (bjgame != null && bjgame.getChannel() == channel){
+        if (bjgame != null && bjgame.getChannel().equals(channel)){
             bjgame.processJoin(event.getUser());
         }
-        if (tpgame != null && tpgame.getChannel() == channel){
+        if (tpgame != null && tpgame.getChannel().equals(channel)){
             tpgame.processJoin(event.getUser());
         }
     }
@@ -214,10 +214,10 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
     @Override
     public void onPart(PartEvent<PircBotX> event){
         Channel channel = event.getChannel();
-        if (bjgame != null && bjgame.getChannel() == channel){
+        if (bjgame != null && bjgame.getChannel().equals(channel)){
             bjgame.processQuit(event.getUser());
         }
-        if (tpgame != null && tpgame.getChannel() == channel){
+        if (tpgame != null && tpgame.getChannel().equals(channel)){
             tpgame.processQuit(event.getUser());
         }
     }
@@ -253,7 +253,7 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
     public void processCommand(Channel channel, User user, String command, String[] params){
         if (channel.isOp(user)){
             if (command.equals("blackjack") || command.equals("bj")) {
-                if (tpgame != null && tpgame.getChannel() == channel){
+                if (tpgame != null && tpgame.getChannel().equals(channel)){
                     bot.sendMessage(channel, "Currently running "+tpgame.getGameNameStr()+" in this channel.");
                 } else if (bjgame != null) {
                     bot.sendMessage(channel, bjgame.getGameNameStr()+" is already running in "+bjgame.getChannel().getName());
@@ -262,7 +262,7 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
                     bjgame.showGameStart();
                 }
             } else if (command.equals("texaspoker") || command.equals("tp")) {
-                if (bjgame != null && bjgame.getChannel() == channel){
+                if (bjgame != null && bjgame.getChannel().equals(channel)){
                     bot.sendMessage(channel, "Currently running "+bjgame.getGameNameStr()+" in this channel.");
                 } else if (tpgame != null) {
                     bot.sendMessage(channel, tpgame.getGameNameStr()+" is already running in "+tpgame.getChannel().getName());
@@ -271,7 +271,7 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
                     tpgame.showGameStart();
                 }
             } else if (command.equals("endgame")) {
-                if (bjgame != null && channel == bjgame.getChannel()){
+                if (bjgame != null && bjgame.getChannel().equals(channel)){
                     if (bjgame.isInProgress()){
                         bot.sendMessage(channel, "Please wait for the current round to finish.");
                     } else {
@@ -279,7 +279,7 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
                         bjgame = null;
                     }
                 }
-                if (tpgame != null && tpgame.getChannel() == channel){
+                if (tpgame != null && tpgame.getChannel().equals(channel)){
                     if (tpgame.isInProgress()){
                         bot.sendMessage(channel, "Please wait for the current round to finish.");
                     } else {
