@@ -12,19 +12,20 @@ To run as a standalone bot:
 3. Add the PircBotX library to the build/compile path for the project.
 4. Set the project to run ExampleBot.java.
 5. Copy the .help files to the run directory.
-6. Create the file "irccasino.conf" in the run directory for the project with the following contents (The program will automatically generate this file, if it cannot be found and it will be propagated with default values. By default, it will connect to Freenode to the channel ##ExampleBot with the nick ExampleBot.):
+6. Create the file "irccasino.conf" in the run directory for the project with the following contents (The program will automatically generate this file if it cannot be found and it will be propagated with default values. By default, it will connect to Freenode to the channel ##ExampleBot with the nick ExampleBot.):
     nick=bot nick
     password=SASL password
     network=IRC network
     channel=IRC channels (comma delimited)
-7. Give the bot Op status in the channel.
-8. While as Op, type ".texaspoker" or ".blackjack" to start the desired game.
+7. Run the project.
+8. Give the bot Op status in the channel it has joined.
+9. While as Op, type ".texaspoker" or ".blackjack" to start the desired game.
 
 To include in an existing project:
 1. Download irccasino and include it in the Source Packages of the existing project.
-2. Create instances of Blackjack.java or TexasPoker.java with the proper constructor parameters as desired.
-3. Pass the necessary events to the games' processMessage, processJoin, processQuit, and processNickChange methods.
-4. See ExampleBot.java for an example.
-5. Copy the .help files to the run directory.
+2. Copy the .help files to the run directory.
+3. Create instances of Blackjack.java or TexasPoker.java with the proper constructor parameters as desired.
+4. Pass the necessary parameters to the games' processMessage, processJoin, processQuit, and processNickChange methods.
+5. See ExampleBot.java for an example.
 
 For more information, visit the project wiki page on GitHub.
