@@ -456,8 +456,8 @@ public class TexasPoker extends CardGame{
                        }
                    }
                    bot.sendMessage(channel, showdownStr);
-                   // Add a little delay for dramatic effect
-                   try { Thread.sleep(5000); } catch (InterruptedException e){}
+                   // Add a 10 second delay for dramatic effect
+                   try { Thread.sleep(10000); } catch (InterruptedException e){}
                }
 				// Burn a card before turn and river
 				if (stage != 1) {
@@ -729,6 +729,8 @@ public class TexasPoker extends CardGame{
 		String value = params[1];
 		if (setting.equals("idle")) {
 			setIdleOutTime(Integer.parseInt(value));
+        } else if (setting.equals("idlewarning")) {
+            setIdleWarningTime(Integer.parseInt(value));
 		} else if (setting.equals("cash")) {
 			setNewCash(Integer.parseInt(value));
 		} else if (setting.equals("respawn")) {
@@ -746,6 +748,8 @@ public class TexasPoker extends CardGame{
 	protected String getSetting(String param) {
 		if (param.equals("idle")) {
 			return getIdleOutTime()+"";
+        } else if (param.equals("idlewarning")) {
+            return getIdleWarningTime()+"";
 		} else if (param.equals("cash")) {
 			return getNewCash()+"";
 		} else if (param.equals("respawn")) {
@@ -774,6 +778,8 @@ public class TexasPoker extends CardGame{
 				value = st.nextToken();
 				if (name.equals("idle")) {
 					setIdleOutTime(Integer.parseInt(value));
+                } else if (name.equals("idlewarning")){
+                    setIdleWarningTime(Integer.parseInt(value));
 				} else if (name.equals("cash")) {
 					setNewCash(Integer.parseInt(value));
 				} else if (name.equals("respawn")) {
@@ -790,6 +796,7 @@ public class TexasPoker extends CardGame{
 			bot.log(getIniFile()+" not found! Creating new "+getIniFile()+"...");
 			setNewCash(1000);
 			setIdleOutTime(60);
+            setIdleWarningTime(45);
 			setRespawnTime(600);
             setMaxPlayers(22);
 			setMinBet(10);
@@ -803,6 +810,8 @@ public class TexasPoker extends CardGame{
 			out.println("#Settings");
 			out.println("#Number of seconds before a player idles out");
 			out.println("idle=" + getIdleOutTime());
+            out.println("#Number of seconds before a player is given a warning for idling");
+			out.println("idlewarning=" + getIdleWarningTime());
 			out.println("#Initial amount given to new and bankrupt players");
 			out.println("cash=" + getNewCash());
 			out.println("#Number of seconds before a bankrupt player is allowed to join again");
@@ -1166,7 +1175,7 @@ public class TexasPoker extends CardGame{
     @Override
 	public void showTurn(Player p) {
         PokerPlayer pp = (PokerPlayer) p;
-		bot.sendMessage(channel, p.getNickStr()+"'s turn. " + p.getNick()+" in for $" + formatNumber(pp.getBet()) + 
+		bot.sendMessage(channel, p.getNickStr()+"'s turn. Committed: $" + formatNumber(pp.getBet()) + 
                 ". Stack: $" + formatNumber(p.getCash()-pp.getBet()) + ". " + "Current bet: "+Colors.BOLD+"$" + 
                 formatNumber(currentBet) + Colors.BOLD);
 	}
@@ -1179,15 +1188,15 @@ public class TexasPoker extends CardGame{
 					". Stack: $" + formatNumber(p.getCash() - p.getBet()));
     }
     public void showAllIn(PokerPlayer p){
-        bot.sendMessage(channel, p.getNickStr()+" has gone all in! " + p.getNick() + " in for $"+
+        bot.sendMessage(channel, p.getNickStr()+" has gone all in! Committed: $"+
                         formatNumber(p.getBet())+". Stack: $" + formatNumber(p.getCash()-p.getBet()));
     }
     public void showCall(PokerPlayer p){
-        bot.sendMessage(channel, p.getNickStr() + " has called. " + p.getNick() + " in for $" +
+        bot.sendMessage(channel, p.getNickStr() + " has called. Committed: $" +
 					formatNumber(p.getBet()) + ". Stack: $" + formatNumber(p.getCash()-p.getBet()));
     }
     public void showCheck(PokerPlayer p){
-        bot.sendMessage(channel, p.getNickStr()+" has checked. " + p.getNick()+" in for $" +
+        bot.sendMessage(channel, p.getNickStr()+" has checked. Committed: $" +
 					formatNumber(p.getBet()) + ". Stack: $" + formatNumber(p.getCash()-p.getBet()));
     }
 	public void showFold(PokerPlayer p){
