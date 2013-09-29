@@ -85,7 +85,7 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
         bot.setAutoReconnect(true);
 	    bot.setCapEnabled(true);
         bot.setName(eb.botNick);
-        bot.setLogin("bot");
+        bot.setLogin(eb.botNick);
         
 		if (eb.password != null){
             bot.getCapHandlers().add(new SASLCapHandler(eb.botNick, eb.password));

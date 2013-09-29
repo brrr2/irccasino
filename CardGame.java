@@ -57,6 +57,24 @@ public abstract class CardGame{
 			}
 		}
 	}
+    /* Idle warning task for reminding players they are about to idle out */
+    public static class IdleWarningTask extends TimerTask {
+        private Player player;
+		private CardGame game;
+		public IdleWarningTask(Player p, CardGame g) {
+			player = p;
+			game = g;
+		}
+        
+        @Override
+        public void run(){
+            if (game.isInProgress() && player == game.getCurrentPlayer()) {
+				game.bot.sendMessage(game.channel, player.getNickStr()
+						+ ": You will idle out in " + (game.getIdleOutTime() - game.getIdleWarningTime()) 
+                        + " seconds. Please make your move.");
+			}
+        }
+    }
     /* Respawn task for giving loans after bankruptcies */
 	public static class RespawnTask extends TimerTask {
 		Player player;
@@ -87,8 +105,9 @@ public abstract class CardGame{
     protected boolean inProgress, betting;
     protected Timer gameTimer; //All TimerTasks are scheduled on this Timer
     private String gameName, iniFile, helpFile;
-    private int idleOutTime, respawnTime, newCash, maxPlayers, minBet;
+    private int idleOutTime, idleWarningTime, respawnTime, newCash, maxPlayers, minBet;
     private IdleOutTask idleOutTask;
+    private IdleWarningTask idleWarningTask;
     private StartRoundTask startRoundTask;
     private ArrayList<RespawnTask> respawnTasks;
     
@@ -111,6 +130,7 @@ public abstract class CardGame{
         gameTimer = new Timer("Game Timer");
         startRoundTask = null;
         idleOutTask = null;
+        idleWarningTask = null;
         inProgress = false;
         betting = false;
         currentPlayer = null;
@@ -361,6 +381,12 @@ public abstract class CardGame{
     public int getIdleOutTime(){
     	return idleOutTime;
     }
+    public void setIdleWarningTime(int value){
+        idleWarningTime = value;
+    }
+    public int getIdleWarningTime(){
+        return idleWarningTime;
+    }
     public void setRespawnTime(int value){
     	respawnTime = value;
     }
@@ -496,11 +522,16 @@ public abstract class CardGame{
         }
     }
 	public void setIdleOutTask() {
+        if (idleWarningTime < idleOutTime) {
+            idleWarningTask = new IdleWarningTask(currentPlayer, this);
+            gameTimer.schedule(idleWarningTask, idleWarningTime*1000);
+        }
         idleOutTask = new IdleOutTask(currentPlayer, this);
 		gameTimer.schedule(idleOutTask, idleOutTime*1000);
 	}
     public void cancelIdleOutTask() {
         if (idleOutTask != null){
+            idleWarningTask.cancel();
             idleOutTask.cancel();
             gameTimer.purge();
         }

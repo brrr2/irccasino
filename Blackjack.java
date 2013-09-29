@@ -422,6 +422,8 @@ public class Blackjack extends CardGame {
 			}
 		} else if (setting.equals("idle")) {
 			setIdleOutTime(Integer.parseInt(value));
+        } else if (setting.equals("idlewarning")) {
+            setIdleWarningTime(Integer.parseInt(value));
 		} else if (setting.equals("idleshuffle")) {
 			setIdleShuffleTime(Integer.parseInt(value));
 		} else if (setting.equals("cash")) {
@@ -451,6 +453,8 @@ public class Blackjack extends CardGame {
 			return getShoeDecks()+"";
 		} else if (param.equals("idle")) {
 			return getIdleOutTime()+"";
+		} else if (param.equals("idlewarning")) {
+            return getIdleWarningTime()+"";
 		} else if (param.equals("idleshuffle")) {
 			return getIdleShuffleTime()+"";
 		} else if (param.equals("cash")) {
@@ -491,6 +495,8 @@ public class Blackjack extends CardGame {
 					setShoeDecks(Integer.parseInt(value));
 				} else if (name.equals("idle")) {
 					setIdleOutTime(Integer.parseInt(value));
+                } else if (name.equals("idlewarning")) {
+                    setIdleWarningTime(Integer.parseInt(value));
 				} else if (name.equals("idleshuffle")) {
 					setIdleShuffleTime(Integer.parseInt(value));
 				} else if (name.equals("cash")) {
@@ -518,6 +524,7 @@ public class Blackjack extends CardGame {
 			setShoeDecks(8);
 			setNewCash(1000);
 			setIdleOutTime(60);
+            setIdleWarningTime(45);
 			setRespawnTime(600);
 			setIdleShuffleTime(300);
 			setCountEnabled(true);
@@ -545,6 +552,8 @@ public class Blackjack extends CardGame {
 			out.println("decks=" + getShoeDecks());
 			out.println("#Number of seconds before a player idles out");
 			out.println("idle=" + getIdleOutTime());
+            out.println("#Number of seconds before a player is given a warning for idling");
+			out.println("idlewarning=" + getIdleWarningTime());
 			out.println("#Number of seconds of idleness after a round ends before the deck is shuffled");
 			out.println("idleshuffle=" + getIdleShuffleTime());
 			out.println("#Initial amount given to new and bankrupt players");
