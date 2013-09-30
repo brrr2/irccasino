@@ -1156,7 +1156,7 @@ public class TexasPoker extends CardGame{
         // Append remaining non-folded players
         int notFolded = getNumberNotFolded();
         int count = 0;
-        str = "("+Colors.BOLD+notFolded+Colors.BOLD+" players: ";;
+        str = "("+Colors.BOLD+notFolded+Colors.BOLD+" players: ";
         for (int ctr = 0; ctr < getNumberJoined(); ctr++){
 			p = (PokerPlayer) getJoined(ctr);
             if (!p.hasFolded()){
