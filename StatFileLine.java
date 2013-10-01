@@ -18,27 +18,29 @@
 */
 package irccasino;
 
+import java.util.HashMap;
+
 public class StatFileLine{
+    private HashMap<String,Integer> statsMap;
     private String nick;
-    private int stack;
-    private int bankrupts;
-    private int bank;
-    private int bjrounds;
-    private int tprounds;
     private boolean simple;
     
     public StatFileLine(){
-        this("",0,0,0,0,0,true);
+        this("",0,0,0,0,0,0,0,true);
     }
     
-    public StatFileLine(String nick, int stack, int bank, int bankrupts, 
-            int bjrounds, int tprounds, boolean simple){
+    public StatFileLine(String nick, int cash, int bank, int bankrupts, 
+            int bjwinnings, int bjrounds, int tpwinnings, int tprounds,
+            boolean simple){
+        statsMap = new HashMap<String,Integer>();
         this.nick = nick;
-        this.stack = stack;
-        this.bankrupts = bankrupts;
-        this.bank = bank;
-        this.bjrounds = bjrounds;
-        this.tprounds = tprounds;
+        statsMap.put("cash", cash);
+        statsMap.put("bank", bank);
+        statsMap.put("bankrupts", bankrupts);
+        statsMap.put("bjwinnings", bjwinnings);
+        statsMap.put("bjrounds", bjrounds);
+        statsMap.put("tpwinnings", tpwinnings);
+        statsMap.put("tprounds", tprounds);
         this.simple = simple;
     }
     
@@ -50,44 +52,12 @@ public class StatFileLine{
         nick = value;
     }
     
-    public int getStack(){
-        return stack;
+    public int getStat(String stat){
+        return statsMap.get(stat);
     }
     
-    public void setStack(int value){
-        stack = value;
-    }
-    
-    public int getBankrupts(){
-        return bankrupts;
-    }
-    
-    public void setBankrupts(int value){
-        bankrupts = value;
-    }
-    
-    public int getBank(){
-        return bank;
-    }
-    
-    public void setBank(int value){
-        bank = value;
-    }
-    
-    public int getBJRounds(){
-        return bjrounds;
-    }
-    
-    public void setBJRounds(int value){
-        bjrounds = value;
-    }
-    
-    public int getTPRounds(){
-        return tprounds;
-    }
-    
-    public void setTPRounds(int value){
-        tprounds = value;
+    public void setStat(String stat, int value){
+        statsMap.put(stat, value);
     }
     
     public boolean getSimple(){
@@ -100,7 +70,9 @@ public class StatFileLine{
     
     @Override
     public String toString(){
-        return nick + " " + stack + " " + bank + " " + bankrupts + " " +
-                bjrounds + " " + tprounds + " " + simple;
+        return getNick() + " " + getStat("cash") + " " + getStat("bank") + 
+                " " + getStat("bankrupts") + " " + getStat("bjwinnings") + 
+                " " + getStat("bjrounds") + " " + getStat("tpwinnings") + 
+                " " + getStat("tprounds") + " " + getSimple();
     }
 }

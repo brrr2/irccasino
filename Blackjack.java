@@ -1062,6 +1062,13 @@ public class Blackjack extends CardGame {
 	}
 
 	/* Blackjack gameplay methods */
+    
+    /**
+     * Sets the initial bet for the current player to see a hand.
+     * The game then moves on to the next hand, player or phase.
+     * 
+     * @param amount the bet on the hand
+     */
 	private void bet(int amount) {
 		cancelIdleOutTask();    
 		BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
@@ -1076,6 +1083,7 @@ public class Blackjack extends CardGame {
 		} else {
 			p.setInitialBet(amount);
 			p.addCash(-1 * amount);
+            p.addWinnings(-1 * amount);
 			house.addCash(amount);
 			showProperBet(p);
 			currentPlayer = getNextPlayer();
@@ -1090,10 +1098,20 @@ public class Blackjack extends CardGame {
 			}
 		}
 	}
+    
+    /**
+     * Lets the current Player stand.
+     * The game then moves on to the next hand, player or phase.
+     */
 	private void stay() {
 		cancelIdleOutTask();
 		continueRound();
 	}
+    
+    /**
+     * Gives the current Player's hand an additional card.
+     * Checks if the hand is now bust.
+     */
 	private void hit() {
 		cancelIdleOutTask();
 		BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
@@ -1106,6 +1124,11 @@ public class Blackjack extends CardGame {
 			setIdleOutTask();
 		}
 	}
+    
+    /**
+     * Gives the current Player's hand an additional card and doubles the bet
+     * on the hand. The game then moves on to the next hand, player or phase.
+     */
 	private void doubleDown() {
 		cancelIdleOutTask();
 		BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
@@ -1118,6 +1141,7 @@ public class Blackjack extends CardGame {
 			setIdleOutTask();
 		} else {			
 			p.addCash(-1 * h.getBet());
+            p.addWinnings(-1 * h.getBet());
 			house.addCash(h.getBet());
 			h.addBet(h.getBet());
 			showDoubleDown(p, h);
@@ -1126,6 +1150,11 @@ public class Blackjack extends CardGame {
 			continueRound();
 		}
 	}
+    
+    /**
+     * Lets the current Player surrender his hand and receive back half the 
+     * bet on that hand. The game then moves on to the hand, player or phase.
+     */
 	private void surrender() {
 		cancelIdleOutTask();
 		BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
@@ -1138,12 +1167,19 @@ public class Blackjack extends CardGame {
 			setIdleOutTask();
 		} else {
 			p.addCash(calcHalf(p.getInitialBet()));
+            p.addWinnings(calcHalf(p.getInitialBet()));
 			house.addCash(-1 * calcHalf(p.getInitialBet()));
 			p.setSurrender(true);
 			showSurrender(p);
 			continueRound();
 		}
 	}
+    
+    /**
+     * Sets the insurance bet for the current Player's hand.
+     * 
+     * @param amount the insurance bet
+     */
 	private void insure(int amount) {
 		cancelIdleOutTask();
 		BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
@@ -1166,11 +1202,17 @@ public class Blackjack extends CardGame {
 			setInsuranceBets(true);
 			p.setInsureBet(amount);
 			p.addCash(-1 * amount);
+            p.addWinnings(-1 * amount);
 			house.addCash(amount);
 			showInsure(p);
 		}
 		setIdleOutTask();
 	}
+    
+    /**
+     * Lets the current Player split the current hand into two hands, each
+     * with its own bet.
+     */
 	private void split() {
 		cancelIdleOutTask();
 		BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
@@ -1183,6 +1225,7 @@ public class Blackjack extends CardGame {
 			setIdleOutTask();
 		} else {
 			p.addCash(-1 * cHand.getBet());
+            p.addWinnings(-1 * cHand.getBet());
 			house.addCash(cHand.getBet());
 			p.splitHand();
 			dealCard(cHand);
@@ -1255,11 +1298,13 @@ public class Blackjack extends CardGame {
             default:
         }
         p.addCash(payout);
+        p.addWinnings(payout);
         house.addCash(-1*payout);
 	}
 	private void payPlayerInsurance(BlackjackPlayer p){
 		if (dealer.getHand().isBlackjack()) {
 			p.addCash(calcInsurancePayout(p));
+            p.addWinnings(calcInsurancePayout(p));
 			house.addCash(-1*calcInsurancePayout(p));
 		}
 	}
@@ -1707,9 +1752,9 @@ public class Blackjack extends CardGame {
 	public String getGameCommandStr() {
 		return "go, join, quit, bet, hit, stand, doubledown, surrender, insure, " +
                "split, table, turn, sum, hand, allhands, cash, netcash, bank, " +
-               "transfer, deposit, withdraw, bankrupts, rounds, player, " +
-               "numdecks, numcards, numdiscards, hilo, " +
-               "zen, red7, count, simple, players, stats, house, waitlist, "+
+               "transfer, deposit, withdraw, bankrupts, winnings, rounds, " +
+               "player, numdecks, numcards, numdiscards, hilo, zen, red7, " +
+               "count, simple, players, stats, house, waitlist, "+
                "blacklist, top, game, ghelp, grules, gcommands";
 	}
 	private static String getWinStr(){

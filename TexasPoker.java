@@ -1073,10 +1073,12 @@ public class TexasPoker extends CardGame{
                         int bet = Math.min(p.getBet(), lowBet);
                         currentPot.addPot(bet);
                         p.addCash(-1*bet);
+                        p.addWinnings(-1*bet);
                         p.addBet(-1*bet);
                     } else {
                         currentPot.addPot(lowBet);
                         p.addCash(-1*lowBet);
+                        p.addWinnings(-1*lowBet);
                         p.addBet(-1*lowBet);
                     }
                     // Ensure a non-folded player is included in this pot
@@ -1239,6 +1241,7 @@ public class TexasPoker extends CardGame{
 			for (int ctr2=0; ctr2<winners; ctr2++){
 				p = players.get(ctr2);
 				p.addCash(currentPot.getPot()/winners);
+                p.addWinnings(currentPot.getPot()/winners);
                 bot.sendMessage(channel, Colors.YELLOW+",01 Pot #" + (ctr+1) + ": " + Colors.NORMAL + " " + 
                     p.getNickStr() + " wins $" + formatNumber(currentPot.getPot()/winners) + 
                     ". Stack: $" + formatNumber(p.getCash())+ " (" + getPlayerListString(currentPot.getPlayers()) + ")");
@@ -1286,7 +1289,7 @@ public class TexasPoker extends CardGame{
 	public String getGameCommandStr() {
 		return "go, join, quit, bet, check, call, raise, fold, community, turn, " +
                "hand, cash, netcash, bank, transfer, deposit, withdraw, " + 
-               "bankrupts, rounds, player, players, waitlist, blacklist, top, " +
-               "simple, stats, game, ghelp, grules, gcommands";
+               "bankrupts, winnings, rounds, player, players, waitlist, " +
+               "blacklist, top, simple, stats, game, ghelp, grules, gcommands";
 	}
 }
