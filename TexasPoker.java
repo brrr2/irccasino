@@ -160,7 +160,7 @@ public class TexasPoker extends CardGame{
             }
         } else if (command.equals("allin") || command.equals("a")){
             if (isPlayerTurn(nick)){
-                bet(currentPlayer.getCash());
+                bet(currentPlayer.get("cash"));
             }
         } else if (command.equals("community") || command.equals("comm")){
             if (!isJoined(nick)) {
@@ -244,7 +244,7 @@ public class TexasPoker extends CardGame{
             }
         } else if (command.equals("fa") || command.equals("fallin")){
             if (isForcePlayAllowed(user, nick)){
-                bet(currentPlayer.getCash());
+                bet(currentPlayer.get("cash"));
             }
         } else if (command.equals("fr") || command.equals("fraise")){
             if (isForcePlayAllowed(user, nick)){
@@ -513,13 +513,13 @@ public class TexasPoker extends CardGame{
              */
 			for (int ctr = 0; ctr < getNumberJoined(); ctr++){
 				p = (PokerPlayer) getJoined(ctr);
-				p.incrementRounds();
+				p.increment("tprounds");
                 
                 // Bankrupts
-				if (p.isBankrupt()) {
+				if (!p.has("cash")) {
                     // Make a withdrawal if the player has a positive bank
-                    if (p.getBank() > 0){
-                        int amount = Math.min(p.getBank(), getNewCash());
+                    if (p.get("bank") > 0){
+                        int amount = Math.min(p.get("bank"), getNewCash());
                         p.bankTransfer(-amount);
                         savePlayerData(p);
                         infoAutoWithdraw(p.getNick(),amount);
@@ -530,7 +530,7 @@ public class TexasPoker extends CardGame{
                         }
                     // Give penalty to players with no cash in their bank
                     } else {
-                        p.incrementBankrupts();
+                        p.increment("bankrupts");
                         blacklist.add(p);
                         removeJoined(p);
                         setRespawnTask(p);
@@ -665,12 +665,12 @@ public class TexasPoker extends CardGame{
 	public void setBlindBets(){
         // Set the small blind to minimum raise or the player's cash, 
         // whichever is less.
-		smallBlind.setBet(Math.min(getMinBet()/2, smallBlind.getCash()));
+		smallBlind.set("bet", Math.min(getMinBet()/2, smallBlind.get("cash")));
 		// Set the big blind to minimum raise + small blind or the player's 
         // cash, whichever is less.
-        bigBlind.setBet(Math.min(getMinBet(), bigBlind.getCash()));
+        bigBlind.set("bet", Math.min(getMinBet(), bigBlind.get("cash")));
         // Set the current bet to the bigger of the two blinds.
-        currentBet = Math.max(smallBlind.getBet(), bigBlind.getBet());
+        currentBet = Math.max(smallBlind.get("bet"), bigBlind.get("bet"));
         minRaise = getMinBet();
 	}
     
@@ -910,7 +910,7 @@ public class TexasPoker extends CardGame{
 		PokerPlayer p = (PokerPlayer) currentPlayer;
 		
         // A bet that's an all-in
-		if (amount == p.getCash()){
+		if (amount == p.get("cash")){
 			if (amount > currentBet || topBettor == null){
 				if (amount - currentBet > minRaise){
                     minRaise = amount - currentBet;
@@ -918,12 +918,12 @@ public class TexasPoker extends CardGame{
                 currentBet = amount;
 				topBettor = p;
 			}
-            p.setBet(amount);
+            p.set("bet", amount);
             p.setAllIn(true);
             showAllIn(p);
 			continueRound();
         // A bet that's larger than a player's stack
-		} else if (amount > p.getCash()) {
+		} else if (amount > p.get("cash")) {
 			infoInsufficientFunds(p.getNick());
 			setIdleOutTask();
         // A bet that's lower than the current bet
@@ -935,10 +935,10 @@ public class TexasPoker extends CardGame{
 			if (topBettor == null){
 				topBettor = p;
 			}
-            if (amount == 0 || p.getBet() == amount){
+            if (amount == 0 || p.get("bet") == amount){
                 showCheck(p);
             } else {
-                p.setBet(amount);
+                p.set("bet", amount);
                 showCall(p);
             }
 			continueRound();
@@ -948,7 +948,7 @@ public class TexasPoker extends CardGame{
 			setIdleOutTask();
         // A valid bet that's greater than the currentBet
 		} else {
-			p.setBet(amount);
+			p.set("bet", amount);
 			topBettor = p;
             if (currentBet == 0){
                 showBet(p);
@@ -969,7 +969,7 @@ public class TexasPoker extends CardGame{
         cancelIdleOutTask();
         PokerPlayer p = (PokerPlayer) currentPlayer;
         
-        if (currentBet == 0 || p.getBet() == currentBet){
+        if (currentBet == 0 || p.get("bet") == currentBet){
             if (topBettor == null){
                 topBettor = p;
             }
@@ -988,23 +988,23 @@ public class TexasPoker extends CardGame{
     public void call(){
 		cancelIdleOutTask();
 		PokerPlayer p = (PokerPlayer) currentPlayer;
-		int total = Math.min(p.getCash(), currentBet);
+		int total = Math.min(p.get("cash"), currentBet);
         
         if (topBettor == null){
 			topBettor = p;
 		}
         
         // A call that's an all-in to match the currentBet
-        if (total == p.getCash()){
+        if (total == p.get("cash")){
             p.setAllIn(true);
-            p.setBet(total);
+            p.set("bet", total);
             showAllIn(p);
         // A check
-        } else if (total == 0 || p.getBet() == total){
+        } else if (total == 0 || p.get("bet") == total){
 			showCheck(p);
         // A call
 		} else {
-            p.setBet(total);
+            p.set("bet", total);
 			showCall(p);
 		}
 		continueRound();
@@ -1049,7 +1049,7 @@ public class TexasPoker extends CardGame{
                 // thus requiring a new pot
 				for (int ctr = 0; ctr < currentPot.getNumberPlayers(); ctr++) {
 					p = currentPot.getPlayer(ctr);
-					if (p.getBet() == 0 && currentBet != 0 && !p.hasFolded()
+					if (p.get("bet") == 0 && currentBet != 0 && !p.hasFolded()
 							&& currentPot.hasPlayer(p)) {
 						currentPot = new PokerPot();
                         pots.add(currentPot);
@@ -1060,26 +1060,26 @@ public class TexasPoker extends CardGame{
 			// Determine the lowest non-zero bet from a non-folded player
 			for (int ctr = 0; ctr < getNumberJoined(); ctr++) {
 				p = (PokerPlayer) getJoined(ctr);
-				if (p.getBet() < lowBet && p.getBet() != 0 && !p.hasFolded()){
-					lowBet = p.getBet();
+				if (p.get("bet") < lowBet && p.get("bet") != 0 && !p.hasFolded()){
+					lowBet = p.get("bet");
 				}
 			}
             // Subtract lowBet from each player's bet and add to pot. For folded
             // players, the min of their bet and lowBet is contributed.
 			for (int ctr = 0; ctr < getNumberJoined(); ctr++){
 				p = (PokerPlayer) getJoined(ctr);
-				if (p.getBet() != 0){
+				if (p.get("bet") != 0){
                     if (p.hasFolded()){
-                        int bet = Math.min(p.getBet(), lowBet);
+                        int bet = Math.min(p.get("bet"), lowBet);
                         currentPot.addPot(bet);
-                        p.addCash(-1*bet);
-                        p.addWinnings(-1*bet);
-                        p.addBet(-1*bet);
+                        p.add("cash", -1 * bet);
+                        p.add("tpwinnings", -1 * bet);
+                        p.add("bet", -1 * bet);
                     } else {
                         currentPot.addPot(lowBet);
-                        p.addCash(-1*lowBet);
-                        p.addWinnings(-1*lowBet);
-                        p.addBet(-1*lowBet);
+                        p.add("cash", -1 * lowBet);
+                        p.add("tpwinnings", -1 * lowBet);
+                        p.add("bet", -1 * lowBet);
                     }
                     // Ensure a non-folded player is included in this pot
                     if (!p.hasFolded() && !currentPot.hasPlayer(p)){
@@ -1176,33 +1176,32 @@ public class TexasPoker extends CardGame{
 	}
     @Override
 	public void showTurn(Player p) {
-        PokerPlayer pp = (PokerPlayer) p;
-		bot.sendMessage(channel, p.getNickStr()+"'s turn. Committed: $" + formatNumber(pp.getBet()) + 
-                ". Stack: $" + formatNumber(p.getCash()-pp.getBet()) + ". " + "Current bet: "+Colors.BOLD+"$" + 
+		bot.sendMessage(channel, p.getNickStr()+"'s turn. Committed: $" + formatNumber(p.get("bet")) + 
+                ". Stack: $" + formatNumber(p.get("cash")-p.get("bet")) + ". " + "Current bet: "+Colors.BOLD+"$" + 
                 formatNumber(currentBet) + Colors.BOLD);
 	}
-    public void showBet(PokerPlayer p){
-        bot.sendMessage(channel, p.getNickStr()+" bets $" + formatNumber(p.getBet())+
-					". Stack: $" + formatNumber(p.getCash() - p.getBet()));
+    public void showBet(Player p){
+        bot.sendMessage(channel, p.getNickStr()+" bets $" + formatNumber(p.get("bet"))+
+					". Stack: $" + formatNumber(p.get("cash") - p.get("bet")));
     }
-    public void showRaise(PokerPlayer p){
-        bot.sendMessage(channel, p.getNickStr()+" has raised to $" + formatNumber(p.getBet())+
-					". Stack: $" + formatNumber(p.getCash() - p.getBet()));
+    public void showRaise(Player p){
+        bot.sendMessage(channel, p.getNickStr()+" has raised to $" + formatNumber(p.get("bet"))+
+					". Stack: $" + formatNumber(p.get("cash") - p.get("bet")));
     }
-    public void showAllIn(PokerPlayer p){
+    public void showAllIn(Player p){
         bot.sendMessage(channel, p.getNickStr()+" has gone all in! Committed: $"+
-                        formatNumber(p.getBet())+". Stack: $" + formatNumber(p.getCash()-p.getBet()));
+                        formatNumber(p.get("bet"))+". Stack: $" + formatNumber(p.get("cash")-p.get("bet")));
     }
-    public void showCall(PokerPlayer p){
+    public void showCall(Player p){
         bot.sendMessage(channel, p.getNickStr() + " has called. Committed: $" +
-					formatNumber(p.getBet()) + ". Stack: $" + formatNumber(p.getCash()-p.getBet()));
+					formatNumber(p.get("bet")) + ". Stack: $" + formatNumber(p.get("cash")-p.get("bet")));
     }
-    public void showCheck(PokerPlayer p){
+    public void showCheck(Player p){
         bot.sendMessage(channel, p.getNickStr()+" has checked. Committed: $" +
-					formatNumber(p.getBet()) + ". Stack: $" + formatNumber(p.getCash()-p.getBet()));
+					formatNumber(p.get("bet")) + ". Stack: $" + formatNumber(p.get("cash")-p.get("bet")));
     }
-	public void showFold(PokerPlayer p){
-		bot.sendMessage(channel, p.getNickStr()+" has folded. Stack: $" + formatNumber(p.getCash()-p.getBet()));
+	public void showFold(Player p){
+		bot.sendMessage(channel, p.getNickStr()+" has folded. Stack: $" + formatNumber(p.get("cash")-p.get("bet")));
 	}
 	public void showPlayerResult(PokerPlayer p){
 		bot.sendMessage(channel, p.getNickStr() + " (" + p.getHand() + ")" + ": "+ p.getPokerHand().getName()+", " + p.getPokerHand() );
@@ -1240,11 +1239,11 @@ public class TexasPoker extends CardGame{
             // Output winners
 			for (int ctr2=0; ctr2<winners; ctr2++){
 				p = players.get(ctr2);
-				p.addCash(currentPot.getPot()/winners);
-                p.addWinnings(currentPot.getPot()/winners);
+				p.add("cash", currentPot.getPot()/winners);
+                p.add("tpwinnings", currentPot.getPot()/winners);
                 bot.sendMessage(channel, Colors.YELLOW+",01 Pot #" + (ctr+1) + ": " + Colors.NORMAL + " " + 
                     p.getNickStr() + " wins $" + formatNumber(currentPot.getPot()/winners) + 
-                    ". Stack: $" + formatNumber(p.getCash())+ " (" + getPlayerListString(currentPot.getPlayers()) + ")");
+                    ". Stack: $" + formatNumber(p.get("cash"))+ " (" + getPlayerListString(currentPot.getPlayers()) + ")");
 			}
 		}
 	}

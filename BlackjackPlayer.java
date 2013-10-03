@@ -30,10 +30,6 @@ public class BlackjackPlayer extends Player{
 	private int currentIndex;
     /** ArrayList containing the player's BlackjackHands. */
 	private ArrayList<BlackjackHand> hands;
-    /** Stores the player's initial bet. */
-	private int initialBet;
-    /** Stores the player's insurance bet. */
-    private int insureBet;
     /** The player's surrender status. */
 	private boolean surrender;
 	
@@ -48,10 +44,10 @@ public class BlackjackPlayer extends Player{
     public BlackjackPlayer(String nick, String hostmask, boolean dealer){
         super(nick, hostmask, dealer);
         hands = new ArrayList<BlackjackHand>();
+        statsMap.put("initialbet", 0);
+        statsMap.put("insurebet", 0);
         currentIndex = 0;
-        initialBet = 0;
         surrender = false;
-		insureBet = 0;
     }
     
     /* Blackjack-specific card/hand manipulation methods */
@@ -123,69 +119,6 @@ public class BlackjackPlayer extends Player{
      */
     public void resetHands(){
     	hands.clear();
-    }
-    
-    /* Betting and gameplay methods */
-    /**
-     * Sets the player's initial bet to the specified amount.
-     * @param b the amount
-     */
-    public void setInitialBet(int b){
-    	initialBet = b;
-    }
-    
-    /**
-     * Returns the player's initial bet.
-     * @return the player's initial bet
-     */
-    public int getInitialBet(){
-    	return initialBet;
-    }
-    
-    /**
-     * Whether or not the player has made an initial bet.
-     * @return true if initialBet is greater than 0
-     */
-    public boolean hasInitialBet(){
-    	return initialBet > 0;
-    }
-    
-    /**
-     * Resets the player's initial bet to 0.
-     */
-    public void clearInitialBet(){
-    	initialBet = 0;
-    }
-    
-    /**
-     * Whether or not the player has made an insurance bet.
-     * @return true if insureBet is greater than 0
-     */
-    public boolean hasInsured(){
-    	return (insureBet > 0);
-    }
-    
-    /**
-     * Sets the player's insurance bet to the specified amount.
-     * @param amount the amount
-     */
-    public void setInsureBet(int amount){
-    	insureBet = amount;
-    }
-    
-    /**
-     * Resets the player's insurance bet to 0.
-     */
-    public void clearInsureBet(){
-    	insureBet = 0;
-    }
-    
-    /**
-     * Returns the player's insurance bet.
-     * @return the player's insurance bet
-     */
-    public int getInsureBet(){
-    	return insureBet;
     }
     
     /**

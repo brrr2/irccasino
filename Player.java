@@ -19,6 +19,7 @@
 
 package irccasino;
 
+import java.util.HashMap;
 import org.pircbotx.*;
 
 /**
@@ -26,21 +27,11 @@ import org.pircbotx.*;
  * It serves as a template and should not be directly instantiated.
  * @author Yizhe Shen
  */
-public abstract class Player {
+public abstract class Player extends Stats{
     /** Stores the player's simple status. */
     protected boolean simple;
     /** Stores the player's dealer status. */
     protected boolean dealer;
-    /** Stores the player's stack. */
-    protected int cash;
-    /** Stores the player's bankroll. */
-    protected int bank;
-    /** Stores the number of times the player has gone bankrupt. */
-    protected int bankrupts;
-    /** Stores the number of rounds the player has played. */
-    protected int rounds;
-    /** Stores the amount won by the player. */
-    protected int winnings;
     /** Stores the player's quit status. */
     protected boolean quit;
     /** Stores the player's nick. */
@@ -61,11 +52,14 @@ public abstract class Player {
     	this.nick = nick;
         this.dealer = dealer;
         this.hostmask = hostmask;
-        cash = 0;
-        bank = 0;
-        bankrupts = 0;
-        rounds = 0;
-        winnings = 0;
+        statsMap = new HashMap<String,Integer>();
+        statsMap.put("cash", 0);
+        statsMap.put("bank", 0);
+        statsMap.put("bankrupts", 0);
+        statsMap.put("bjrounds", 0);
+        statsMap.put("bjwinnings", 0);
+        statsMap.put("tprounds", 0);
+        statsMap.put("tpwinnings", 0);
         simple = true;
         quit = false;
     }
@@ -82,15 +76,6 @@ public abstract class Player {
         } else {
     		return nick;
         }
-    }
-    
-    /**
-     * Returns whether or not the Player has any cash in his stack.
-     * 
-     * @return true if cash is 0
-     */
-    public boolean isBankrupt(){
-        return cash == 0;
     }
     
     /**
@@ -129,84 +114,6 @@ public abstract class Player {
     	return quit;
     }
     
-    /* Stats keeping */
-    /**
-     * Sets the number of bankrupts for the Player.
-     * 
-     * @param c the number of bankrupts
-     */
-    public void setBankrupts(int c){
-    	bankrupts = c;
-    }
-    
-    /**
-     * Returns the number of bankrupts for the Player.
-     * 
-     * @return the number of bankrupts
-     */
-    public int getBankrupts(){
-    	return bankrupts;
-    }
-    
-    /**
-     * Increments the number of bankrupts for the Player.
-     */
-    public void incrementBankrupts(){
-    	bankrupts++;
-    }
-    
-    /**
-     * Returns the number of rounds played for the Player.
-     * 
-     * @return the number of rounds played
-     */
-    public int getRounds(){
-    	return rounds;
-    }
-    
-    /**
-     * Sets the number of rounds played for the Player.
-     * 
-     * @param value the number of rounds
-     */
-    public void setRounds(int value){
-    	rounds = value;
-    }
-     
-    /**
-     * Increments the number of rounds played for the Player.
-     */
-    public void incrementRounds(){
-    	rounds++;
-    }
-    
-    /**
-     * Returns the number of rounds won for the Player.
-     * 
-     * @return the number of wins
-     */
-    public int getWinnings(){
-        return winnings;
-    }
-    
-    /**
-     * Sets the number of rounds won for the Player.
-     * 
-     * @param value the number of wins
-     */
-    public void setWinnings(int value){
-        winnings = value;
-    }
-    
-    /**
-     * Adds the specified amount to the Player's winnings.
-     * 
-     * @param amount the amount to add
-     */
-    public void addWinnings(int amount){
-        winnings += amount;
-    }
-
     /**
      * Returns the simple status of the Player.
      * If simple is true, then game information is sent via notices. If simple
@@ -227,59 +134,12 @@ public abstract class Player {
         simple = s;
     }
     
-    /* Methods for cash manipulation */
-    /**
-     * Sets the player's stack to the specified amount.
-     * 
-     * @param amount the amount to set
-     */
-    public void setCash(int amount){
-        cash = amount;
-    }
-    
-    /**
-     * Adds the specified amount to a player's stack.
-     * 
-     * @param amount the amount to add
-     */
-    public void addCash(int amount){
-        cash += amount;
-    }
-    
-    /**
-     * Returns the player's stack.
-     * 
-     * @return the player's stack
-     */
-    public int getCash(){
-        return cash;
-    }
-    
-    /**
-     * Sets the player's bank to the specified amount.
-     * 
-     * @param amount the amount to set
-     */
-    public void setBank(int amount){
-    	bank = amount;
-    }
-    
-    /**
-     * Subtracts the specified amount from the player's bank.
-     * 
-     * @param amount the amount to subtract.
-     */
-    public void addDebt(int amount){
-    	bank -= amount;
-    }
-    
-    /**
-     * Returns the amount the player has stored in bank.
-     * 
-     * @return the bank amount
-     */
-    public int getBank(){
-    	return bank;
+    @Override
+    public int get(String stat){
+        if (stat.equals("netcash")){
+            return statsMap.get("cash") + statsMap.get("bank");
+        }
+        return statsMap.get(stat);
     }
     
     /**
@@ -288,17 +148,8 @@ public abstract class Player {
      * @param amount the amount to transfer
      */
     public void bankTransfer(int amount){
-    	bank += amount;
-    	cash -= amount;
-    }
-    
-    /**
-     * Returns the total amount of stack and bank for the player.
-     * 
-     * @return cash plus bank
-     */
-    public int getNetCash(){
-        return cash + bank;
+        add("bank", amount);
+        add("cash", -1 * amount);
     }
     
     /**

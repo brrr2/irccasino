@@ -20,8 +20,7 @@ package irccasino;
 
 import java.util.HashMap;
 
-public class StatFileLine{
-    private HashMap<String,Integer> statsMap;
+public class StatFileLine extends Stats{
     private String nick;
     private boolean simple;
     
@@ -52,14 +51,6 @@ public class StatFileLine{
         nick = value;
     }
     
-    public int getStat(String stat){
-        return statsMap.get(stat);
-    }
-    
-    public void setStat(String stat, int value){
-        statsMap.put(stat, value);
-    }
-    
     public boolean getSimple(){
         return simple;
     }
@@ -69,10 +60,18 @@ public class StatFileLine{
     }
     
     @Override
+    public int get(String stat){
+        if (stat.equals("netcash")){
+            return statsMap.get("cash") + statsMap.get("bank");
+        }
+        return statsMap.get(stat);
+    }
+    
+    @Override
     public String toString(){
-        return getNick() + " " + getStat("cash") + " " + getStat("bank") + 
-                " " + getStat("bankrupts") + " " + getStat("bjwinnings") + 
-                " " + getStat("bjrounds") + " " + getStat("tpwinnings") + 
-                " " + getStat("tprounds") + " " + getSimple();
+        return getNick() + " " + get("cash") + " " + get("bank") + 
+                " " + get("bankrupts") + " " + get("bjwinnings") + 
+                " " + get("bjrounds") + " " + get("tpwinnings") + 
+                " " + get("tprounds") + " " + getSimple();
     }
 }
