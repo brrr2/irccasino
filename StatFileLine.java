@@ -61,7 +61,9 @@ public class StatFileLine extends Stats{
     
     @Override
     public int get(String stat){
-        if (stat.equals("netcash")){
+        if (stat.equals("exists")){
+            return 1;
+        } else if (stat.equals("netcash")){
             return statsMap.get("cash") + statsMap.get("bank");
         }
         return statsMap.get(stat);

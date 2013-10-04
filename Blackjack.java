@@ -42,7 +42,7 @@ public class Blackjack extends CardGame {
 		}
 	}
 	/* Nested class to store statistics, based on number of decks used, for the house */
-	public class HouseStat extends Stats {
+	private class HouseStat extends Stats {
 		public HouseStat() {
 			this(0, 0, 0);
 		}
@@ -65,7 +65,7 @@ public class Blackjack extends CardGame {
 	private BlackjackPlayer dealer;
 	private boolean insuranceBets, countEnabled, holeEnabled, soft17hit;
 	private int shufflePoint, shoeDecks, idleShuffleTime;
-	private ArrayList<HouseStat> stats;
+	private ArrayList<HouseStat> houseStatsList;
     private IdleShuffleTask idleShuffleTask;
 	private HouseStat house;
 
@@ -82,7 +82,7 @@ public class Blackjack extends CardGame {
         setIniFile("blackjack.ini");
         setHelpFile("blackjack.help");
 		dealer = new BlackjackPlayer(bot.getNick(),"",true);
-		stats = new ArrayList<HouseStat>();
+		houseStatsList = new ArrayList<HouseStat>();
 		loadHouseStats();
 		loadSettings();
 		insuranceBets = false;
@@ -255,18 +255,16 @@ public class Blackjack extends CardGame {
                 setStartRoundTask();
             }
         } else if (command.equals("fstop")){
+            // Use only as last resort. Data will be lost.
             if (isForceStopAllowed(user,nick)){
                 BlackjackPlayer p;
                 cancelIdleOutTask();
-                if (getNumberJoined() >= 1) {
-                    for (int ctr = 0; ctr < getNumberJoined(); ctr++) {
-                        p = (BlackjackPlayer) getJoined(ctr);
-                        resetPlayer(p);
-                    }
+                for (int ctr = 0; ctr < getNumberJoined(); ctr++) {
+                    p = (BlackjackPlayer) getJoined(ctr);
+                    resetPlayer(p);
                 }
                 resetGame();
                 showEndRound();
-                showSeparator();
                 setInProgress(false);
             }
         } else if (command.equals("fj") || command.equals("fjoin")){
@@ -418,7 +416,7 @@ public class Blackjack extends CardGame {
 			house = getHouseStat(getShoeDecks());
 			if (house == null) {
 				house = new HouseStat(getShoeDecks(), 0, 0);
-				stats.add(house);
+				houseStatsList.add(house);
 			}
 		} else if (setting.equals("idle")) {
 			setIdleOutTime(Integer.parseInt(value));
@@ -540,7 +538,7 @@ public class Blackjack extends CardGame {
 		house = getHouseStat(getShoeDecks());
 		if (house == null) {
 			house = new HouseStat(getShoeDecks(), 0, 0);
-			stats.add(house);
+			houseStatsList.add(house);
 		}
 	}
 	@Override
@@ -587,29 +585,26 @@ public class Blackjack extends CardGame {
 			StringTokenizer st;
 			while (in.ready()) {
 				str = in.readLine();
-				if (str.startsWith("#")) {
-					if (str.contains("blackjack")) {
-						while (in.ready()) {
-							str = in.readLine();
-							if (str.startsWith("#")) {
-								break;
-							}
-							st = new StringTokenizer(str);
-							ndecks = Integer.parseInt(st.nextToken());
-							nrounds = Integer.parseInt(st.nextToken());
-							cash = Integer.parseInt(st.nextToken());
-							stats.add(new HouseStat(ndecks, nrounds, cash));
-						}
-						break;
-					}
+				if (str.startsWith("#blackjack")) {
+                    while (in.ready()) {
+                        str = in.readLine();
+                        if (str.startsWith("#")) {
+                            break;
+                        }
+                        st = new StringTokenizer(str);
+                        ndecks = Integer.parseInt(st.nextToken());
+                        nrounds = Integer.parseInt(st.nextToken());
+                        cash = Integer.parseInt(st.nextToken());
+                        houseStatsList.add(new HouseStat(ndecks, nrounds, cash));
+                    }
+                    break;
 				}
 			}
 			in.close();
 		} catch (IOException e) {
 			bot.log("housestats.txt not found! Creating new housestats.txt...");
 			try {
-				PrintWriter out = new PrintWriter(new BufferedWriter(
-						new FileWriter("housestats.txt")));
+				PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("housestats.txt")));
 				out.close();
 			} catch (IOException f) {
 				bot.log("Error creating housestats.txt!");
@@ -624,11 +619,15 @@ public class Blackjack extends CardGame {
 			BufferedReader in = new BufferedReader(new FileReader("housestats.txt"));
 			String str;
 			while (in.ready()) {
+                //Add all lines until we find blackjack lines
 				str = in.readLine();
 				lines.add(str);
 				if (str.startsWith("#blackjack")) {
 					found = true;
+                    /* Store the index where blackjack stats go so they can be 
+                     * overwritten. */
 					index = lines.size();
+                    //Skip existing blackjack lines but add all the rest
 					while (in.ready()) {
 						str = in.readLine();
 						if (str.startsWith("#")) {
@@ -647,10 +646,10 @@ public class Blackjack extends CardGame {
 			lines.add("#blackjack");
 			index = lines.size();
 		}
-		for (int ctr = 0; ctr < stats.size(); ctr++) {
-			lines.add(index, stats.get(ctr).get("decks") + " "
-					+ stats.get(ctr).get("rounds") + " "
-					+ stats.get(ctr).get("cash"));
+		for (int ctr = 0; ctr < houseStatsList.size(); ctr++) {
+			lines.add(index, houseStatsList.get(ctr).get("decks") + " "
+					+ houseStatsList.get(ctr).get("rounds") + " "
+					+ houseStatsList.get(ctr).get("cash"));
 		}
 		try {
 			PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("housestats.txt")));
@@ -664,8 +663,8 @@ public class Blackjack extends CardGame {
 	}
 	public HouseStat getHouseStat(int numDecks) {
 		HouseStat hs;
-		for (int ctr = 0; ctr < stats.size(); ctr++) {
-			hs = stats.get(ctr);
+		for (int ctr = 0; ctr < houseStatsList.size(); ctr++) {
+			hs = houseStatsList.get(ctr);
 			if (hs.get("decks") == numDecks) {
 				return hs;
 			}
@@ -674,15 +673,15 @@ public class Blackjack extends CardGame {
 	}
 	public int getTotalRounds(){
 		int total=0;
-		for (int ctr=0; ctr<stats.size(); ctr++){
-			total += stats.get(ctr).get("rounds");
+		for (int ctr=0; ctr < houseStatsList.size(); ctr++){
+			total += houseStatsList.get(ctr).get("rounds");
 		}
 		return total;
 	}
 	public int getTotalHouse(){
 		int total=0;
-		for (int ctr=0; ctr<stats.size(); ctr++){
-			total += stats.get(ctr).get("cash");
+		for (int ctr=0; ctr < houseStatsList.size(); ctr++){
+			total += houseStatsList.get(ctr).get("cash");
 		}
 		return total;
 	}
@@ -842,12 +841,12 @@ public class Blackjack extends CardGame {
                 }
 				resetPlayer(p);
 			}
+            saveHouseStats();
 		} else {
 			showNoPlayers();
 		}
 		resetGame();
 		showEndRound();
-		showSeparator();
         setInProgress(false);
 		mergeWaitlist();
 		if (deck.getNumberDiscards() > 0) {
@@ -861,8 +860,6 @@ public class Blackjack extends CardGame {
 		cancelIdleShuffleTask();
 		cancelRespawnTasks();
         gameTimer.cancel();
-		saveHouseStats();
-		saveSettings();
 		devoiceAll();
 		joined.clear();
 		waitlist.clear();
@@ -1383,7 +1380,6 @@ public class Blackjack extends CardGame {
 	@Override
 	public void showGameStats(){
 		int totalPlayers, totalRounds, totalHouse;
-		saveHouseStats();
 		totalPlayers = getTotalPlayers();
 		totalRounds = getTotalRounds();
 		totalHouse = getTotalHouse();
@@ -1762,9 +1758,9 @@ public class Blackjack extends CardGame {
 	public String getGameCommandStr() {
 		return "go, join, quit, bet, hit, stand, doubledown, surrender, insure, " +
                "split, table, turn, sum, hand, allhands, cash, netcash, bank, " +
-               "transfer, deposit, withdraw, bankrupts, winnings, rounds, " +
-               "player, numdecks, numcards, numdiscards, hilo, zen, red7, " +
-               "count, simple, players, stats, house, waitlist, "+
+               "transfer, deposit, withdraw, bankrupts, winnings, winrate, " +
+               "rounds, player, numdecks, numcards, numdiscards, hilo, zen, " +
+               "red7, count, simple, players, stats, house, waitlist, " +
                "blacklist, top, game, ghelp, grules, gcommands";
 	}
 	private static String getWinStr(){

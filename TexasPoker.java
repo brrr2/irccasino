@@ -30,7 +30,7 @@ import org.pircbotx.*;
 
 public class TexasPoker extends CardGame{
     /* A pot class to handle bets and payouts in Texas Hold'em Poker. */
-	public class PokerPot {
+	private class PokerPot {
 		private ArrayList<PokerPlayer> players;
 		private int pot;
 		
@@ -64,12 +64,30 @@ public class TexasPoker extends CardGame{
 			return players.size();
 		}
 	}
+    
+    /* Nested class to store statistics, based on number of decks used, for the house */
+	private class HouseStat extends Stats {
+		public HouseStat() {
+			this(0);
+		}
+        
+		public HouseStat(int a) {
+            statsMap = new HashMap<String,Integer>();
+            statsMap.put("biggestpot", a);
+		}
+        
+        @Override
+		public String toString() {
+			return "Biggest pot: $" + formatNumber(get("biggestpot")) + ".";
+		}
+	}
 	
 	private int stage, currentBet, minRaise;
 	private ArrayList<PokerPot> pots;
 	private PokerPot currentPot;
 	private PokerPlayer dealer, smallBlind, bigBlind, topBettor;
 	private Hand community;
+    private HouseStat house;
 	
 	/**
 	 * Constructor for TexasPoker, subclass of CardGame
@@ -83,6 +101,8 @@ public class TexasPoker extends CardGame{
         setGameName("Texas Hold'em Poker");
         setIniFile("texaspoker.ini");
         setHelpFile("texaspoker.help");
+        house = new HouseStat();
+        loadHouseStats();
 		loadSettings();
         deck = new CardDeck();
 		deck.shuffleCards();
@@ -201,6 +221,19 @@ public class TexasPoker extends CardGame{
                 setInProgress(true);
                 showStartRound();
                 setStartRoundTask();
+            }
+        } else if (command.equals("fstop")){
+            // Use only as last resort. Data will be lost.
+            if (isForceStopAllowed(user,nick)){
+                PokerPlayer p;
+                cancelIdleOutTask();
+                for (int ctr = 0; ctr < getNumberJoined(); ctr++) {
+                    p = (PokerPlayer) getJoined(ctr);
+                    resetPlayer(p);
+                }
+                resetGame();
+                showEndRound();
+                setInProgress(false);
             }
         } else if (command.equals("fj") || command.equals("fjoin")){
             if (!channel.isOp(user)) {
@@ -549,10 +582,8 @@ public class TexasPoker extends CardGame{
 		} else {
 			showNoPlayers();
 		}
-		
 		resetGame();
 		showEndRound();
-		showSeparator();
         setInProgress(false);
 		mergeWaitlist();
 	}
@@ -562,7 +593,6 @@ public class TexasPoker extends CardGame{
 		cancelIdleOutTask();
 		cancelRespawnTasks();
 		gameTimer.cancel();
-		saveSettings();
 		devoiceAll();
 		joined.clear();
 		waitlist.clear();
@@ -711,6 +741,16 @@ public class TexasPoker extends CardGame{
         }
         return false;
     }
+    public boolean isForceStopAllowed(User user, String nick){
+        if (!channel.isOp(user)) {
+			infoOpsOnly(nick);
+		} else if (!isInProgress()) {
+            infoNotStarted(nick);
+        } else {
+            return true;
+        }
+        return false;
+    }
     public boolean isForcePlayAllowed(User user, String nick){
         if (!channel.isOp(user)) {
 			infoOpsOnly(nick);
@@ -826,6 +866,86 @@ public class TexasPoker extends CardGame{
 		}
     }
 	
+    /* House stats management */
+	public final void loadHouseStats() {
+		try {
+			BufferedReader in = new BufferedReader(new FileReader("housestats.txt"));
+			String str;
+			int biggestpot;
+			StringTokenizer st;
+			while (in.ready()) {
+				str = in.readLine();
+				if (str.startsWith("#texaspoker")) {
+                    while (in.ready()) {
+                        str = in.readLine();
+                        if (str.startsWith("#")) {
+                            break;
+                        }
+                        st = new StringTokenizer(str);
+                        biggestpot = Integer.parseInt(st.nextToken());
+                        house.set("biggestpot", biggestpot);
+                    }
+                    break;
+				}
+			}
+			in.close();
+		} catch (IOException e) {
+			bot.log("housestats.txt not found! Creating new housestats.txt...");
+			try {
+				PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("housestats.txt")));
+				out.close();
+			} catch (IOException f) {
+				bot.log("Error creating housestats.txt!");
+			}
+		}
+	}
+	public void saveHouseStats() {
+		boolean found = false;
+		int index = 0;
+		ArrayList<String> lines = new ArrayList<String>();
+		try {
+			BufferedReader in = new BufferedReader(new FileReader("housestats.txt"));
+			String str;
+			while (in.ready()) {
+                //Add all lines until we find texaspoker lines
+				str = in.readLine();
+				lines.add(str);
+				if (str.startsWith("#texaspoker")) {
+					found = true;
+                    /* Store the index where texaspoker stats go so they can be 
+                     * overwritten. */
+					index = lines.size();
+                    //Skip existing texaspoker lines but add all the rest
+					while (in.ready()) {
+						str = in.readLine();
+						if (str.startsWith("#")) {
+							lines.add(str);
+							break;
+						}
+					}
+				}
+			}
+			in.close();
+		} catch (IOException e) {
+			/* housestats.txt is not found */
+			bot.log("Error reading housestats.txt!");
+		}
+		if (!found) {
+			lines.add("#texaspoker");
+			index = lines.size();
+		}
+        lines.add(index, house.get("biggestpot")+"");
+		try {
+			PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("housestats.txt")));
+			for (int ctr = 0; ctr < lines.size(); ctr++) {
+				out.println(lines.get(ctr));
+			}
+			out.close();
+		} catch (IOException e) {
+			bot.log("Error writing to housestats.txt!");
+		}
+	}
+    
     /* Card management methods for Texas Hold'em Poker */
     /**
      * Deals cards to the community hand.
@@ -1102,14 +1222,14 @@ public class TexasPoker extends CardGame{
 		int totalPlayers;
 		totalPlayers = getTotalPlayers();
         if (totalPlayers == 1){
-            bot.sendMessage(channel, formatNumber(totalPlayers)+" player has played " +	getGameNameStr()+".");
+            bot.sendMessage(channel, formatNumber(totalPlayers)+" player has played " +	getGameNameStr()+". " + house);
         } else {
-            bot.sendMessage(channel, formatNumber(totalPlayers)+" players have played " +	getGameNameStr()+".");
+            bot.sendMessage(channel, formatNumber(totalPlayers)+" players have played " + getGameNameStr()+". " + house);
         }
 	}
 	public void showTablePlayers(){
 		PokerPlayer p;
-        String msg = Colors.BOLD+getNumberJoined()+Colors.BOLD+" players: ";
+        String msg = formatBold(getNumberJoined()+"") + " players: ";
         String nickColor = "";
 		for (int ctr = 0; ctr < getNumberJoined(); ctr++){
 			p = (PokerPlayer) getJoined(ctr);
@@ -1245,6 +1365,12 @@ public class TexasPoker extends CardGame{
                     p.getNickStr() + " wins $" + formatNumber(currentPot.getPot()/winners) + 
                     ". Stack: $" + formatNumber(p.get("cash"))+ " (" + getPlayerListString(currentPot.getPlayers()) + ")");
 			}
+            
+            // Check if it's the biggest pot
+            if (house.get("biggestpot") < currentPot.getPot()){
+                house.set("biggestpot", currentPot.getPot());
+                saveHouseStats();
+            }
 		}
 	}
 	
@@ -1288,7 +1414,8 @@ public class TexasPoker extends CardGame{
 	public String getGameCommandStr() {
 		return "go, join, quit, bet, check, call, raise, fold, community, turn, " +
                "hand, cash, netcash, bank, transfer, deposit, withdraw, " + 
-               "bankrupts, winnings, rounds, player, players, waitlist, " +
-               "blacklist, top, simple, stats, game, ghelp, grules, gcommands";
+               "bankrupts, winnings, winrate, rounds, player, players, " +
+               "waitlist, blacklist, top, simple, stats, game, ghelp, " +
+               "grules, gcommands";
 	}
 }

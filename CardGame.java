@@ -182,6 +182,12 @@ public abstract class CardGame{
             } else {
                 showPlayerWinnings(nick);
             }
+        } else if (command.equals("winrate")) {
+            if (params.length > 0){
+                showPlayerWinRate(params[0]);
+            } else {
+                showPlayerWinRate(nick);
+            }
         } else if (command.equals("rounds")) {
             if (params.length > 0){
                 showPlayerRounds(params[0]);
@@ -798,11 +804,7 @@ public abstract class CardGame{
             if (p == null){
                 p = findBlacklisted(nick);
             }
-            if (stat.equals("exists")){
-                return 1;
-            } else {
-                return p.get(stat);
-            }
+            return p.get(stat);
         }
         return loadPlayerStat(nick, stat);
     }
@@ -824,11 +826,7 @@ public abstract class CardGame{
         	for (int ctr = 0; ctr < numLines; ctr++){
                 statLine = statList.get(ctr);
         		if (nick.equalsIgnoreCase(statLine.getNick())){
-                    if (stat.equals("exists")){
-        				return 1;
-        			} else {
-        				return statLine.get(stat);
-        			}
+                    return statLine.get(stat);
                 }
         	}
             return Integer.MIN_VALUE;
@@ -874,13 +872,6 @@ public abstract class CardGame{
 			}
 			if (!found) {
 				p.set("cash", getNewCash());
-				p.set("bank", 0);
-				p.set("bankrupts", 0);
-                p.set("bjwinnings", 0);
-				p.set("bjrounds", 0);
-                p.set("tpwinnings", 0);
-				p.set("tprounds", 0);
-				p.setSimple(true);
 				infoNewPlayer(p.getNick());
 			}
 		} catch (IOException e) {
@@ -1202,7 +1193,7 @@ public abstract class CardGame{
         bot.sendMessage(channel, "Starting another round of "+getGameNameStr()+" in 5 seconds...");
     }
     public void showEndRound(){
-        bot.sendMessage(channel, "End of "+getGameNameStr()+" round. Type .go for a new round.");
+        bot.sendMessage(channel, formatBold("----------") + " End of " + getGameNameStr() + " round. Type .go for a new round. " + formatBold("----------"));
     }
     public void showNumDecks(){
 		bot.sendMessage(channel, "This game of "+getGameNameStr()+" is using "+deck.getNumberDecks()+" deck(s) of cards.");
@@ -1272,6 +1263,27 @@ public abstract class CardGame{
         if (winnings != Integer.MIN_VALUE) {
 			bot.sendMessage(channel, nick + " has won $" + winnings + " in " + getGameNameStr() + ".");
 		} else {
+			bot.sendMessage(channel, "No data found for " + nick + ".");
+		}
+    }
+    public void showPlayerWinRate(String nick){
+        double winnings = 0;
+        double rounds = 0;
+        if (gameName.equals("Blackjack")){
+            winnings = (double) getPlayerStat(nick, "bjwinnings");
+            rounds = (double) getPlayerStat(nick, "bjrounds");
+        } else if (gameName.equals("Texas Hold'em Poker")){
+            winnings = (double) getPlayerStat(nick, "tpwinnings");
+            rounds = (double) getPlayerStat(nick, "tprounds");
+        }
+        
+        if (rounds != Integer.MIN_VALUE) {
+            if (rounds == 0){
+                bot.sendMessage(channel, nick + " has not played any rounds of " + getGameNameStr() + ".");
+            } else {
+                bot.sendMessage(channel, nick + " has won $" + formatDecimal(winnings/rounds) + " per round in " + getGameNameStr() + ".");
+            }    
+        } else {
 			bot.sendMessage(channel, "No data found for " + nick + ".");
 		}
     }
@@ -1455,11 +1467,17 @@ public abstract class CardGame{
 	}
     abstract public String getGameRulesStr();
     abstract public String getGameCommandStr();
+    public static String formatDecimal(double n){
+        return String.format("%.2f", n);
+    }
     public static String formatNumber(int n){
     	return String.format("%,d", n);
     }
     public static String formatHeader(String str){
         return Colors.BOLD + Colors.YELLOW + ",01" + str + Colors.NORMAL;
+    }
+    public static String formatBold(String str){
+        return Colors.BOLD + str + Colors.BOLD;
     }
     protected static String getPlayerListString(ArrayList<? extends Player> playerList){
         String outStr;
