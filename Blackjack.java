@@ -1761,7 +1761,7 @@ public class Blackjack extends CardGame {
                "transfer, deposit, withdraw, bankrupts, winnings, winrate, " +
                "rounds, player, numdecks, numcards, numdiscards, hilo, zen, " +
                "red7, count, simple, players, stats, house, waitlist, " +
-               "blacklist, top, game, ghelp, grules, gcommands";
+               "blacklist, rank, top, game, ghelp, grules, gcommands";
 	}
 	private static String getWinStr(){
     	return Colors.GREEN+",01"+" WIN "+Colors.NORMAL;

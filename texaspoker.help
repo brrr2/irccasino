@@ -43,6 +43,7 @@ players=Usage: players | Alias: | Shows the current players who have joined the 
 waitlist=Usage: waitlist | Alias: | Shows the current players on the waiting list.
 blacklist=Usage: blacklist | Alias: | Shows the players who are currently bankrupt.
 stats=Usage: stats | Alias: | Shows the current overall statistics for the game.
+rank=Usage: rank <statistic> <nick> | Alias: | Shows the rank of the player in the specified statistic. Shows your own rank if no nick is specified.
 top=Usage: top <number> <statistic> | Alias: | Shows the specified number of top players ranked in descending order based on the specified statistic.
 game=Usage: game | Alias: | Shows the name of the game currently being played.
 ghelp=Usage: ghelp <command> | Alias: | Tells you the help commands or help for the specified command.

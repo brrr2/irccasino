@@ -90,7 +90,12 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
 		if (eb.password != null){
             bot.getCapHandlers().add(new SASLCapHandler(eb.botNick, eb.password));
         }
-        bot.connect(eb.network);
+        
+        try {
+            bot.connect(eb.network);
+        } catch (Exception e){
+            System.out.println("Error: " + e);
+        }
 	}
 	
     /**

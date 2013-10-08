@@ -475,23 +475,27 @@ public class TexasPoker extends CardGame{
                 /* 
                 * If fewer than two players can bet and there are more
                 * than 1 non-folded player remaining, only show hands once
-                * before dealing the rest of the community cards.
+                * before dealing the rest of the community cards. Adds a
+                * 10-second delay in between each line.
                 */
-               if (getNumberCanBet() < 2 && getNumberNotFolded() > 1 && currentPlayer == topBettor) {
-                   ArrayList<PokerPlayer> players;
-                   players = pots.get(0).getPlayers();
-                   String showdownStr = formatHeader(" Showdown: ") + " ";
-                   for (int ctr = 0; ctr < players.size(); ctr++) {
-                       p = players.get(ctr);
-                       showdownStr += p.getNickStr() + " (" + p.getHand() + ")";
-                       if (ctr < players.size()-1){
-                           showdownStr += ", ";
-                       }
-                   }
-                   bot.sendMessage(channel, showdownStr);
+                if (getNumberCanBet() < 2 && getNumberNotFolded() > 1) {
+                    if (currentPlayer == topBettor){
+                        ArrayList<PokerPlayer> players;
+                        players = pots.get(0).getPlayers();
+                        String showdownStr = formatHeader(" Showdown: ") + " ";
+                        for (int ctr = 0; ctr < players.size(); ctr++) {
+                            p = players.get(ctr);
+                            showdownStr += p.getNickStr() + " (" + p.getHand() + ")";
+                            if (ctr < players.size()-1){
+                                showdownStr += ", ";
+                            }
+                        }
+                        bot.sendMessage(channel, showdownStr);
+                    }
+                   
                    // Add a 10 second delay for dramatic effect
                    try { Thread.sleep(10000); } catch (InterruptedException e){}
-               }
+                }
 				// Burn a card before turn and river
 				if (stage != 1) {
 					burnCard();
@@ -1415,7 +1419,7 @@ public class TexasPoker extends CardGame{
 		return "go, join, quit, bet, check, call, raise, fold, community, turn, " +
                "hand, cash, netcash, bank, transfer, deposit, withdraw, " + 
                "bankrupts, winnings, winrate, rounds, player, players, " +
-               "waitlist, blacklist, top, simple, stats, game, ghelp, " +
+               "waitlist, blacklist, rank, top, simple, stats, game, ghelp, " +
                "grules, gcommands";
 	}
 }

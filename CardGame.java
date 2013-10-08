@@ -236,6 +236,26 @@ public abstract class CardGame{
             showWaitlist();
         } else if (command.equals("blacklist")) {
             showBlacklist();
+        } else if (command.equals("rank")) {
+            if (isInProgress()) {
+                infoWaitRoundEnd(nick);
+            } else {
+                if (params.length > 1){
+                    try {
+                        showPlayerRank(params[1].toLowerCase(), params[0].toLowerCase());
+                    } catch (IllegalArgumentException e) {
+                        infoBadParameter(nick);
+                    }
+                } else if (params.length == 1){
+                    try {
+                        showPlayerRank(nick, params[0].toLowerCase());
+                    } catch (IllegalArgumentException e) {
+                        infoBadParameter(nick);
+                    }
+                } else {
+                    showPlayerRank(nick, "cash");
+                }
+            }
         } else if (command.equals("top")) {
             if (isInProgress()) {
                 infoWaitRoundEnd(nick);
@@ -1045,6 +1065,106 @@ public abstract class CardGame{
         } else {
             bot.sendMessage(channel, "No data found for " + nick + ".");
         }
+    }
+    /**
+     * Outputs the a player's rank given a nick and stat name.
+     * 
+     * @param nick player's nick
+     * @param stat the stat name
+     */
+    public void showPlayerRank(String nick, String stat){
+        if (getPlayerStat(nick, "exists") != 1){
+            bot.sendMessage(channel, "No data found for "+nick+".");
+            return;
+        }
+        
+        int highIndex, rank = 0;
+        try {
+            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
+			loadPlayerFile(statList);
+            ArrayList<String> nicks = new ArrayList<String>();
+			ArrayList<Integer> test = new ArrayList<Integer>();
+            int length = statList.size();
+			String line = Colors.BLACK + ",08";
+            
+            for (int ctr = 0; ctr < statList.size(); ctr++) {
+                nicks.add(statList.get(ctr).getNick());
+            }
+            
+			if (stat.equals("cash")) {
+                for (int ctr = 0; ctr < statList.size(); ctr++) {
+					test.add(statList.get(ctr).get(stat));
+				}
+				line += "Cash: ";
+			} else if (stat.equals("bank")) {
+				for (int ctr = 0; ctr < statList.size(); ctr++) {
+					test.add(statList.get(ctr).get(stat));
+				}
+				line += "Bank: ";
+			} else if (stat.equals("bankrupts")) {
+				for (int ctr = 0; ctr < statList.size(); ctr++) {
+					test.add(statList.get(ctr).get(stat));
+				}
+				line += "Bankrupts: ";
+			} else if (stat.equals("net") || stat.equals("netcash")) {
+				for (int ctr = 0; ctr < nicks.size(); ctr++) {
+					test.add(statList.get(ctr).get("netcash"));
+				}
+				line += "Net Cash: ";
+            } else if (stat.equals("winnings")){
+                if (gameName.equals("Blackjack")){
+                    for (int ctr = 0; ctr < statList.size(); ctr++) {
+                        test.add(statList.get(ctr).get("bjwinnings"));
+                    }
+                    line += "Blackjack Winnings: ";
+                } else if (gameName.equals("Texas Hold'em Poker")){
+                    for (int ctr = 0; ctr < statList.size(); ctr++) {
+                        test.add(statList.get(ctr).get("tpwinnings"));
+                    }
+                    line += "Texas Hold'em Winnings: ";
+                }
+			} else if (stat.equals("rounds")) {
+                if (gameName.equals("Blackjack")){
+                    for (int ctr = 0; ctr < statList.size(); ctr++) {
+                        test.add(statList.get(ctr).get("bjrounds"));
+                    }
+                    line += "Blackjack Rounds: ";
+                } else if (gameName.equals("Texas Hold'em Poker")){
+                    for (int ctr = 0; ctr < statList.size(); ctr++) {
+                        test.add(statList.get(ctr).get("tprounds"));
+                    }
+                    line += "Texas Hold'em Rounds: ";
+                }
+			} else {
+				throw new IllegalArgumentException();
+			}
+            
+            // Find the player with the highest value, add to output string and remove.
+            // Repeat n times or for the length of the list.
+			for (int ctr = 1; ctr <= length; ctr++){
+				highIndex = 0;
+                rank++;
+				for (int ctr2 = 0; ctr2 < nicks.size(); ctr2++) {
+					if (test.get(ctr2) > test.get(highIndex)) {
+						highIndex = ctr2;
+					}
+				}
+                if (nick.equalsIgnoreCase(nicks.get(highIndex))){
+                    if (stat.equals("rounds") || stat.equals("bankrupts")) {
+                        line += "#" + rank + " " + Colors.WHITE + ",04 " + nick + " " + formatNumber(test.get(highIndex)) + " ";
+                    } else {
+                        line += "#" + rank + " " + Colors.WHITE + ",04 " + nick + " $" + formatNumber(test.get(highIndex)) + " ";
+                    }
+                    break;
+                } else {
+                    nicks.remove(highIndex);
+                    test.remove(highIndex);
+                }
+			}
+			bot.sendMessage(channel, line);
+		} catch (IOException e) {
+			bot.log("Error reading players.txt!");
+		}
     }
 	 /**
      * Outputs the top N players for a given statistic.
