@@ -104,6 +104,7 @@ public abstract class CardGame{
     protected Player currentPlayer; //stores the player whose turn it is
     protected boolean inProgress, betting;
     protected Timer gameTimer; //All TimerTasks are scheduled on this Timer
+    private boolean endRound;
     private String gameName, iniFile, helpFile;
     private int idleOutTime, idleWarningTime, respawnTime, newCash, maxPlayers, minBet;
     private IdleOutTask idleOutTask;
@@ -132,6 +133,7 @@ public abstract class CardGame{
         idleOutTask = null;
         idleWarningTask = null;
         inProgress = false;
+        endRound = false;
         betting = false;
         currentPlayer = null;
         checkPlayerFile();
@@ -463,6 +465,12 @@ public abstract class CardGame{
     }
     public String getHelpFile(){
         return helpFile;
+    }
+    public void setEndRound(boolean value){
+        endRound = value;
+    }
+    public boolean isEndRound(){
+        return endRound;
     }
     
     /* 

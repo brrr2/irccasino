@@ -303,6 +303,10 @@ public class TexasPoker extends CardGame{
             if (isForcePlayAllowed(user, nick)){
                 fold();
             }
+        } else if (command.equals("shuffle")){
+            if (isOpCommandAllowed(user, nick)){
+                shuffleDeck();
+            }
         } else if (command.equals("reload")) {
             if (isOpCommandAllowed(user, nick)){
                 loadSettings();
@@ -523,6 +527,7 @@ public class TexasPoker extends CardGame{
 	}
 	@Override
 	public void endRound() {
+        setEndRound(true);
 		PokerPlayer p;
 
 		// Check if anybody left during post-start waiting period
@@ -589,6 +594,7 @@ public class TexasPoker extends CardGame{
 		resetGame();
 		showEndRound();
         setInProgress(false);
+        setEndRound(false);
 		mergeWaitlist();
 	}
 	@Override
@@ -637,6 +643,10 @@ public class TexasPoker extends CardGame{
                  * not been set yet. */
                 if (currentPlayer == null){
                     removeJoined(p);
+                // Check if it is already in the endRound stage
+                } else if (isEndRound()){
+                    p.setQuit(true);
+                    bot.sendNotice(p.getNick(), "You will be removed at the end of the round.");
                 // Force the player to fold if it is his turn
                 } else if (p == currentPlayer){
                     p.setQuit(true);
@@ -1000,6 +1010,13 @@ public class TexasPoker extends CardGame{
             deck.addToDiscard(community.getAllCards());
             community.clear();
         }
+	}
+    /**
+     * Merges the discards and shuffles the deck.
+     */
+    public void shuffleDeck() {
+		deck.refillDeck();
+		showShuffleDeck();
 	}
 	
     /* Texas Hold'em Poker gameplay methods */
@@ -1376,6 +1393,9 @@ public class TexasPoker extends CardGame{
                 saveHouseStats();
             }
 		}
+	}
+    public void showShuffleDeck() {
+		bot.sendMessage(channel, "The deck has been shuffled.");
 	}
 	
     /* Private messages to players */

@@ -725,6 +725,10 @@ public class Blackjack extends CardGame {
 					} else {
 						removeJoined(p);
 					}
+                // Check if it is already in the endRound stage
+                } else if (isEndRound()){
+                    p.setQuit(true);
+                    bot.sendNotice(p.getNick(), "You will be removed at the end of the round.");
                 // If in the card-playing phase
 				} else {
                     bot.sendNotice(p.getNick(), "You will be removed at the end of the round.");
@@ -775,8 +779,10 @@ public class Blackjack extends CardGame {
 	}
 	@Override
 	public void endRound() {
+        setEndRound(true);
 		BlackjackPlayer p;
 		BlackjackHand dHand;
+        
 		if (getNumberJoined() >= 1) {
 			house.increment("rounds");
 			// Make dealer decisions
@@ -848,6 +854,7 @@ public class Blackjack extends CardGame {
 		resetGame();
 		showEndRound();
         setInProgress(false);
+        setEndRound(false);
 		mergeWaitlist();
 		if (deck.getNumberDiscards() > 0) {
 			setIdleShuffleTask();
