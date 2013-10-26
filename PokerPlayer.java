@@ -28,8 +28,6 @@ public class PokerPlayer extends Player implements Comparable<PokerPlayer> {
     private Hand hand;
     /** The player's cards plus any community cards. */
 	private PokerHand pHand;
-    /** The player's bet. */
-	private int bet;
     /** The player's fold status. */
 	private boolean fold;
     /** The player's all-in status. */
@@ -44,11 +42,11 @@ public class PokerPlayer extends Player implements Comparable<PokerPlayer> {
      */
     public PokerPlayer(String nick, String hostmask){
         super(nick, hostmask, false);
+        statsMap.put("bet", 0);
         hand = new Hand();
         pHand = new PokerHand();
         fold = false;
         allIn = false;
-        bet = 0;
     }
 
 	/**
@@ -84,45 +82,6 @@ public class PokerPlayer extends Player implements Comparable<PokerPlayer> {
 		pHand.clear();
 		pHand.resetValue();
 	}
-	
-	/**
-     * Sets the player's bet to the specified amount.
-     * @param b the amount to bet
-     */
-    public void setBet(int b){
-		bet = b;
-	}
-    
-    /**
-     * Adds the specified amount to the player's bet.
-     * @param b the amount to add to the bet
-     */
-	public void addBet(int b){
-		bet += b;
-	}
-    
-    /**
-     * Returns the player's bet.
-     * @return the player's bet
-     */
-    public int getBet(){
-    	return bet;
-    }
-    
-    /**
-     * Whether or not the player has made a bet.
-     * @return true if bet is greater than 0
-     */
-    public boolean hasBet(){
-    	return bet > 0;
-    }
-    
-    /**
-     * Sets the player's bet to 0.
-     */
-    public void clearBet(){
-    	bet = 0;
-    }
     
     /**
      * Sets the player's fold status to the specified status.

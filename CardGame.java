@@ -86,8 +86,8 @@ public abstract class CardGame{
 		@Override
 		public void run() {
 			ArrayList<RespawnTask> tasks = game.getRespawnTasks();
-			player.setCash(game.getNewCash());
-			player.addDebt(game.getNewCash());
+			player.set("cash", game.getNewCash());
+			player.add("bank", -game.getNewCash());
 			game.bot.sendMessage(game.channel, player.getNickStr() + " has been loaned $"
 							+ formatNumber(game.getNewCash()) + ". Please bet responsibly.");
 			game.savePlayerData(player);
@@ -104,6 +104,7 @@ public abstract class CardGame{
     protected Player currentPlayer; //stores the player whose turn it is
     protected boolean inProgress, betting;
     protected Timer gameTimer; //All TimerTasks are scheduled on this Timer
+    private boolean endRound;
     private String gameName, iniFile, helpFile;
     private int idleOutTime, idleWarningTime, respawnTime, newCash, maxPlayers, minBet;
     private IdleOutTask idleOutTask;
@@ -132,6 +133,7 @@ public abstract class CardGame{
         idleOutTask = null;
         idleWarningTask = null;
         inProgress = false;
+        endRound = false;
         betting = false;
         currentPlayer = null;
         checkPlayerFile();
@@ -175,6 +177,18 @@ public abstract class CardGame{
                 showPlayerBankrupts(params[0]);
             } else {
                 showPlayerBankrupts(nick);
+            }
+        } else if (command.equals("winnings")) {
+            if (params.length > 0){
+                showPlayerWinnings(params[0]);
+            } else {
+                showPlayerWinnings(nick);
+            }
+        } else if (command.equals("winrate")) {
+            if (params.length > 0){
+                showPlayerWinRate(params[0]);
+            } else {
+                showPlayerWinRate(nick);
             }
         } else if (command.equals("rounds")) {
             if (params.length > 0){
@@ -224,6 +238,26 @@ public abstract class CardGame{
             showWaitlist();
         } else if (command.equals("blacklist")) {
             showBlacklist();
+        } else if (command.equals("rank")) {
+            if (isInProgress()) {
+                infoWaitRoundEnd(nick);
+            } else {
+                if (params.length > 1){
+                    try {
+                        showPlayerRank(params[1].toLowerCase(), params[0].toLowerCase());
+                    } catch (IllegalArgumentException e) {
+                        infoBadParameter(nick);
+                    }
+                } else if (params.length == 1){
+                    try {
+                        showPlayerRank(nick, params[0].toLowerCase());
+                    } catch (IllegalArgumentException e) {
+                        infoBadParameter(nick);
+                    }
+                } else {
+                    showPlayerRank(nick, "cash");
+                }
+            }
         } else if (command.equals("top")) {
             if (isInProgress()) {
                 infoWaitRoundEnd(nick);
@@ -432,6 +466,12 @@ public abstract class CardGame{
     public String getHelpFile(){
         return helpFile;
     }
+    public void setEndRound(boolean value){
+        endRound = value;
+    }
+    public boolean isEndRound(){
+        return endRound;
+    }
     
     /* 
      * Game management methods
@@ -487,7 +527,7 @@ public abstract class CardGame{
     }
     public void setRespawnTask(Player p) {
         // Calculate extra time penalty for players with debt
-        int penalty = Math.max(-p.getBank()/1000 * 60, 0);
+        int penalty = Math.max(-1 * p.get("bank") / 1000 * 60, 0);
         infoPlayerBankrupt(p.getNick(), penalty);
 		RespawnTask task = new RespawnTask(p, this);
 		gameTimer.schedule(task, (respawnTime+penalty)*1000);
@@ -503,8 +543,8 @@ public abstract class CardGame{
         // Fast-track loans
 		for (int ctr = 0; ctr < getNumberBlacklisted(); ctr++){
 			p = getBlacklisted(ctr);
-			p.setCash(getNewCash());
-			p.addDebt(getNewCash());
+			p.set("cash", getNewCash());
+			p.add("bank", -getNewCash());
             savePlayerData(p);
 		}
 	}
@@ -710,12 +750,12 @@ public abstract class CardGame{
         if (amount == 0){
             infoNoTransaction(nick);
         // Disallow withdrawals for bankrolls with insufficient funds
-        } else if (amount < 0 && p.getBank() < -amount){
+        } else if (amount < 0 && p.get("bank") < -amount){
     		infoNoWithdrawal(nick);
-        } else if (amount > 0 && amount > p.getCash()){
+        } else if (amount > 0 && amount > p.get("cash")){
             infoNoDepositCash(nick);
         // Disallow deposits that leave the player with $0 cash
-        } else if (amount > 0 && amount == p.getCash()){
+        } else if (amount > 0 && amount == p.get("cash")){
     		infoNoDepositBankrupt(nick);
     	} else {
     		p.bankTransfer(amount);
@@ -754,20 +794,18 @@ public abstract class CardGame{
     public int getTotalPlayers(){
     	try {
             ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
-            StatFileLine statLine;
 	    	loadPlayerFile(statList);
 	    	int total = 0, numLines = statList.size();
+            
             if (gameName.equals("Blackjack")){
                 for (int ctr = 0; ctr < numLines; ctr++){
-                    statLine = statList.get(ctr);
-                    if (statLine.getBJRounds() > 0){
+                    if (statList.get(ctr).get("bjrounds") > 0){
                         total++;
                     }
                 }
             } else if (gameName.equals("Texas Hold'em Poker")){
                 for (int ctr = 0; ctr < numLines; ctr++){
-                    statLine = statList.get(ctr);
-                    if (statLine.getTPRounds() > 0){
+                    if (statList.get(ctr).get("tprounds") > 0){
                         total++;
                     }
                 }
@@ -778,6 +816,7 @@ public abstract class CardGame{
 		 	return 0;
     	}
     }
+    
     /**
      * Returns the specified statistic for a nick.
      * If a player is already joined or blacklisted, the value is read from the
@@ -793,22 +832,11 @@ public abstract class CardGame{
             if (p == null){
                 p = findBlacklisted(nick);
             }
-            if (stat.equals("cash")){
-                return p.getCash();
-            } else if (stat.equals("bank")){
-                return p.getBank();
-            } else if (stat.equals("bankrupts")){
-                return p.getBankrupts();
-            } else if (stat.equals("bjrounds") || stat.equals("tprounds")){
-                return p.getRounds();
-            } else if (stat.equals("netcash")){
-                return p.getNetCash();
-            } else if (stat.equals("exists")){
-                return 1;
-            }
+            return p.get(stat);
         }
         return loadPlayerStat(nick, stat);
     }
+    
     /**
      * Searches players.txt for a specific player's statistic.
      * If the player or statistic is not found, Integer.MIN_VALUE is returned.
@@ -826,21 +854,7 @@ public abstract class CardGame{
         	for (int ctr = 0; ctr < numLines; ctr++){
                 statLine = statList.get(ctr);
         		if (nick.equalsIgnoreCase(statLine.getNick())){
-        			if (stat.equals("cash")){
-        				return statLine.getStack();
-        			} else if (stat.equals("bank")){
-        				return statLine.getBank();
-        			} else if (stat.equals("bankrupts")){
-        				return statLine.getBankrupts();
-        			} else if (stat.equals("bjrounds")){
-        				return statLine.getBJRounds();
-        			} else if (stat.equals("tprounds")){
-        				return statLine.getTPRounds();
-        			} else if (stat.equals("netcash")){
-        				return statLine.getStack() + statLine.getBank();
-        			} else if (stat.equals("exists")){
-        				return 1;
-        			}
+                    return statLine.get(stat);
                 }
         	}
             return Integer.MIN_VALUE;
@@ -849,6 +863,7 @@ public abstract class CardGame{
         	return Integer.MIN_VALUE;
         }
     }
+    
     /**
      * Loads a Player's data from players.txt.
      * If a matching nick is found then all statistics are loaded. Otherwise,
@@ -867,35 +882,31 @@ public abstract class CardGame{
 			for (int ctr = 0; ctr < numLines; ctr++) {
                 statLine = statList.get(ctr);
 				if (p.getNick().equalsIgnoreCase(statLine.getNick())) {
-					if (statLine.getStack() <= 0) {
-						p.setCash(getNewCash());
+					if (statLine.get("cash") <= 0) {
+						p.set("cash", getNewCash());
 					} else {
-						p.setCash(statLine.getStack());
+						p.set("cash", statLine.get("cash"));
 					}
-					p.setBank(statLine.getBank());
-					p.setBankrupts(statLine.getBankrupts());
-                    if (gameName.equals("Blackjack")){
-                        p.setRounds(statLine.getBJRounds());
-                    } else if (gameName.equals("Texas Hold'em Poker")){
-                        p.setRounds(statLine.getTPRounds());
-                    }
+					p.set("bank", statLine.get("bank"));
+					p.set("bankrupts", statLine.get("bankrupts"));
+                    p.set("bjwinnings", statLine.get("bjwinnings"));
+                    p.set("bjrounds", statLine.get("bjrounds"));
+                    p.set("tpwinnings", statLine.get("tpwinnings"));
+                    p.set("tprounds", statLine.get("tprounds"));
 					p.setSimple(statLine.getSimple());
 					found = true;
 					break;
 				}
 			}
 			if (!found) {
-				p.setCash(getNewCash());
-				p.setBank(0);
-				p.setBankrupts(0);
-				p.setRounds(0);
-				p.setSimple(true);
+				p.set("cash", getNewCash());
 				infoNewPlayer(p.getNick());
 			}
 		} catch (IOException e) {
 			bot.log("Error reading players.txt!");
 		}
 	}
+    
 	/**
      * Saves a Player's data into players.txt.
      * If a matching nick is found, the existing data is overwritten. Otherwise,
@@ -915,29 +926,25 @@ public abstract class CardGame{
 			for (int ctr = 0; ctr < numLines; ctr++) {
                 statLine = statList.get(ctr);
 				if (p.getNick().equalsIgnoreCase(statLine.getNick())) {
-					statLine.setStack(p.getCash());
-					statLine.setBank(p.getBank());
-					statLine.setBankrupts(p.getBankrupts());
-                    if (gameName.equals("Blackjack")){
-                        statLine.setBJRounds(p.getRounds());
-                    } else if (gameName.equals("Texas Hold'em Poker")){
-                        statLine.setTPRounds(p.getRounds());
-                    }
+					statLine.set("cash", p.get("cash"));
+					statLine.set("bank", p.get("bank"));
+					statLine.set("bankrupts", p.get("bankrupts"));
+                    statLine.set("bjwinnings", p.get("bjwinnings"));
+                    statLine.set("bjrounds", p.get("bjrounds"));
+                    statLine.set("tpwinnings", p.get("tpwinnings"));
+                    statLine.set("tprounds", p.get("tprounds"));
 					statLine.setSimple(p.isSimple());
 					found = true;
                     break;
 				}
 			}
 			if (!found) {
-                if (gameName.equals("Blackjack")){
-                    statLine = new StatFileLine(p.getNick(), p.getCash(), p.getBank(), 
-                                    p.getBankrupts(), p.getRounds(), 0, p.isSimple());
-                    statList.add(statLine);
-                } else if (gameName.equals("Texas Hold'em Poker")){
-                    statLine = new StatFileLine(p.getNick(), p.getCash(), p.getBank(), 
-                                    p.getBankrupts(), 0, p.getRounds(), p.isSimple());
-                    statList.add(statLine);
-                }
+                statLine = new StatFileLine(p.getNick(), p.get("cash"), 
+                                p.get("bank"), p.get("bankrupts"), 
+                                p.get("bjwinnings"), p.get("bjrounds"), 
+                                p.get("tpwinnings"), p.get("tprounds"),
+                                p.isSimple());
+                statList.add(statLine);
 			}
 		} catch (IOException e) {
 			bot.log("Error reading players.txt!");
@@ -949,6 +956,7 @@ public abstract class CardGame{
 			bot.log("Error writing to players.txt!");
 		}
 	}
+    
     protected final void checkPlayerFile(){
     	try {
     		BufferedReader out = new BufferedReader(new FileReader("players.txt"));
@@ -963,6 +971,7 @@ public abstract class CardGame{
         	}
         }
     }
+    
     /**
      * Loads players.txt.
      * Reads the file's contents into an ArrayList of StatFileLine.
@@ -972,7 +981,7 @@ public abstract class CardGame{
      */
     public static void loadPlayerFile(ArrayList<StatFileLine> statList) throws IOException {
         String nick;
-        int stack, bank, bankrupts, bjrounds, tprounds;
+        int cash, bank, bankrupts, bjwinnings, bjrounds, tpwinnings, tprounds;
         boolean simple;
         
     	BufferedReader in = new BufferedReader(new FileReader("players.txt"));
@@ -980,16 +989,20 @@ public abstract class CardGame{
         while (in.ready()){
             st = new StringTokenizer(in.readLine());
             nick = st.nextToken();
-            stack = Integer.parseInt(st.nextToken());
+            cash = Integer.parseInt(st.nextToken());
             bank = Integer.parseInt(st.nextToken());
             bankrupts = Integer.parseInt(st.nextToken());
+            bjwinnings = Integer.parseInt(st.nextToken());
             bjrounds = Integer.parseInt(st.nextToken());
+            tpwinnings = Integer.parseInt(st.nextToken());
             tprounds = Integer.parseInt(st.nextToken());
             simple = Boolean.parseBoolean(st.nextToken());
-            statList.add(new StatFileLine(nick, stack, bank, bankrupts, bjrounds, tprounds, simple));
+            statList.add(new StatFileLine(nick, cash, bank, bankrupts, bjwinnings, 
+                                        bjrounds, tpwinnings, tprounds, simple));
         }
         in.close();
     }
+    
     /**
      * Saves data to players.txt.
      * Saves an ArrayList of StatFileLine to the file.
@@ -1043,19 +1056,123 @@ public abstract class CardGame{
         int bank = getPlayerStat(nick, "bank");
         int net = getPlayerStat(nick, "netcash");
         int bankrupts = getPlayerStat(nick, "bankrupts");
+        int winnings = 0;
         int rounds = 0;
         if (gameName.equals("Blackjack")){
+            winnings = getPlayerStat(nick, "bjwinnings");
             rounds = getPlayerStat(nick, "bjrounds");
         } else if (gameName.equals("Texas Hold'em Poker")){
+            winnings = getPlayerStat(nick, "tpwinnings");
             rounds = getPlayerStat(nick, "tprounds");
         }
         if (cash != Integer.MIN_VALUE) {
             bot.sendMessage(channel, nick+" | Cash: $"+formatNumber(cash)+" | Bank: $"+
                     formatNumber(bank)+" | Net: $"+formatNumber(net)+" | Bankrupts: "+
-                    formatNumber(bankrupts)+" | Rounds: "+formatNumber(rounds));
+                    formatNumber(bankrupts)+" | Winnings: $"+formatNumber(winnings)+
+                    " | Rounds: "+formatNumber(rounds));
         } else {
             bot.sendMessage(channel, "No data found for " + nick + ".");
         }
+    }
+    /**
+     * Outputs the a player's rank given a nick and stat name.
+     * 
+     * @param nick player's nick
+     * @param stat the stat name
+     */
+    public void showPlayerRank(String nick, String stat){
+        if (getPlayerStat(nick, "exists") != 1){
+            bot.sendMessage(channel, "No data found for "+nick+".");
+            return;
+        }
+        
+        int highIndex, rank = 0;
+        try {
+            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
+			loadPlayerFile(statList);
+            ArrayList<String> nicks = new ArrayList<String>();
+			ArrayList<Integer> test = new ArrayList<Integer>();
+            int length = statList.size();
+			String line = Colors.BLACK + ",08";
+            
+            for (int ctr = 0; ctr < statList.size(); ctr++) {
+                nicks.add(statList.get(ctr).getNick());
+            }
+            
+			if (stat.equals("cash")) {
+                for (int ctr = 0; ctr < statList.size(); ctr++) {
+					test.add(statList.get(ctr).get(stat));
+				}
+				line += "Cash: ";
+			} else if (stat.equals("bank")) {
+				for (int ctr = 0; ctr < statList.size(); ctr++) {
+					test.add(statList.get(ctr).get(stat));
+				}
+				line += "Bank: ";
+			} else if (stat.equals("bankrupts")) {
+				for (int ctr = 0; ctr < statList.size(); ctr++) {
+					test.add(statList.get(ctr).get(stat));
+				}
+				line += "Bankrupts: ";
+			} else if (stat.equals("net") || stat.equals("netcash")) {
+				for (int ctr = 0; ctr < nicks.size(); ctr++) {
+					test.add(statList.get(ctr).get("netcash"));
+				}
+				line += "Net Cash: ";
+            } else if (stat.equals("winnings")){
+                if (gameName.equals("Blackjack")){
+                    for (int ctr = 0; ctr < statList.size(); ctr++) {
+                        test.add(statList.get(ctr).get("bjwinnings"));
+                    }
+                    line += "Blackjack Winnings: ";
+                } else if (gameName.equals("Texas Hold'em Poker")){
+                    for (int ctr = 0; ctr < statList.size(); ctr++) {
+                        test.add(statList.get(ctr).get("tpwinnings"));
+                    }
+                    line += "Texas Hold'em Winnings: ";
+                }
+			} else if (stat.equals("rounds")) {
+                if (gameName.equals("Blackjack")){
+                    for (int ctr = 0; ctr < statList.size(); ctr++) {
+                        test.add(statList.get(ctr).get("bjrounds"));
+                    }
+                    line += "Blackjack Rounds: ";
+                } else if (gameName.equals("Texas Hold'em Poker")){
+                    for (int ctr = 0; ctr < statList.size(); ctr++) {
+                        test.add(statList.get(ctr).get("tprounds"));
+                    }
+                    line += "Texas Hold'em Rounds: ";
+                }
+			} else {
+				throw new IllegalArgumentException();
+			}
+            
+            // Find the player with the highest value, add to output string and remove.
+            // Repeat n times or for the length of the list.
+			for (int ctr = 1; ctr <= length; ctr++){
+				highIndex = 0;
+                rank++;
+				for (int ctr2 = 0; ctr2 < nicks.size(); ctr2++) {
+					if (test.get(ctr2) > test.get(highIndex)) {
+						highIndex = ctr2;
+					}
+				}
+                if (nick.equalsIgnoreCase(nicks.get(highIndex))){
+                    if (stat.equals("rounds") || stat.equals("bankrupts")) {
+                        line += "#" + rank + " " + Colors.WHITE + ",04 " + nick + " " + formatNumber(test.get(highIndex)) + " ";
+                    } else {
+                        line += "#" + rank + " " + Colors.WHITE + ",04 " + nick + " $" + formatNumber(test.get(highIndex)) + " ";
+                    }
+                    break;
+                } else {
+                    nicks.remove(highIndex);
+                    test.remove(highIndex);
+                }
+			}
+			bot.sendMessage(channel, line);
+		} catch (IOException e) {
+			bot.log("Error reading players.txt!");
+		}
     }
 	 /**
      * Outputs the top N players for a given statistic.
@@ -1085,35 +1202,47 @@ public abstract class CardGame{
             
 			if (stat.equals("cash")) {
                 for (int ctr = 0; ctr < statList.size(); ctr++) {
-					test.add(statList.get(ctr).getStack());
+					test.add(statList.get(ctr).get(stat));
 				}
 				title += " Cash:";
 			} else if (stat.equals("bank")) {
 				for (int ctr = 0; ctr < statList.size(); ctr++) {
-					test.add(statList.get(ctr).getBank());
+					test.add(statList.get(ctr).get(stat));
 				}
 				title += " Bank:";
 			} else if (stat.equals("bankrupts")) {
 				for (int ctr = 0; ctr < statList.size(); ctr++) {
-					test.add(statList.get(ctr).getBankrupts());
+					test.add(statList.get(ctr).get(stat));
 				}
 				title += " Bankrupts:";
 			} else if (stat.equals("net") || stat.equals("netcash")) {
 				for (int ctr = 0; ctr < nicks.size(); ctr++) {
-					test.add(statList.get(ctr).getStack() + statList.get(ctr).getBank());
+					test.add(statList.get(ctr).get("netcash"));
 				}
 				title += " Net Cash:";
+            } else if (stat.equals("winnings")){
+                if (gameName.equals("Blackjack")){
+                    for (int ctr = 0; ctr < statList.size(); ctr++) {
+                        test.add(statList.get(ctr).get("bjwinnings"));
+                    }
+                    title += " Blackjack Winnings:";
+                } else if (gameName.equals("Texas Hold'em Poker")){
+                    for (int ctr = 0; ctr < statList.size(); ctr++) {
+                        test.add(statList.get(ctr).get("tpwinnings"));
+                    }
+                    title += " Texas Hold'em Winnings:";
+                }
 			} else if (stat.equals("rounds")) {
                 if (gameName.equals("Blackjack")){
                     for (int ctr = 0; ctr < statList.size(); ctr++) {
-                        test.add(statList.get(ctr).getBJRounds());
+                        test.add(statList.get(ctr).get("bjrounds"));
                     }
                     title += " Blackjack Rounds:";
                 } else if (gameName.equals("Texas Hold'em Poker")){
                     for (int ctr = 0; ctr < statList.size(); ctr++) {
-                        test.add(statList.get(ctr).getTPRounds());
+                        test.add(statList.get(ctr).get("tprounds"));
                     }
-                    title += " Texas Hold'em Poker Rounds:";
+                    title += " Texas Hold'em Rounds:";
                 }
 			} else {
 				throw new IllegalArgumentException();
@@ -1170,7 +1299,7 @@ public abstract class CardGame{
         bot.sendMessage(channel, p.getNickStr()+" has joined the game. Players: "+Colors.BOLD+getNumberJoined());
     }
     public void showLeave(Player p){
-    	if (p.isBankrupt()){
+    	if (!p.has("cash")){
     		bot.sendMessage(channel, p.getNickStr()+" has gone bankrupt and left the game. Players: "+Colors.BOLD+getNumberJoined());
     	} else {
     		bot.sendMessage(channel, p.getNickStr()+" has left the game. Players: "+Colors.BOLD+getNumberJoined());
@@ -1192,7 +1321,7 @@ public abstract class CardGame{
         bot.sendMessage(channel, "Starting another round of "+getGameNameStr()+" in 5 seconds...");
     }
     public void showEndRound(){
-        bot.sendMessage(channel, "End of "+getGameNameStr()+" round. Type .go for a new round.");
+        bot.sendMessage(channel, formatBold("----------") + " End of " + getGameNameStr() + " round. Type .go for a new round. " + formatBold("----------"));
     }
     public void showNumDecks(){
 		bot.sendMessage(channel, "This game of "+getGameNameStr()+" is using "+deck.getNumberDecks()+" deck(s) of cards.");
@@ -1251,6 +1380,41 @@ public abstract class CardGame{
         	bot.sendMessage(channel, "No data found for "+nick+".");
         }
     }
+    public void showPlayerWinnings(String nick){
+        int winnings = 0;
+        if (gameName.equals("Blackjack")){
+            winnings = getPlayerStat(nick, "bjwinnings");
+        } else if (gameName.equals("Texas Hold'em Poker")){
+            winnings = getPlayerStat(nick, "tpwinnings");
+        }
+        
+        if (winnings != Integer.MIN_VALUE) {
+			bot.sendMessage(channel, nick + " has won $" + winnings + " in " + getGameNameStr() + ".");
+		} else {
+			bot.sendMessage(channel, "No data found for " + nick + ".");
+		}
+    }
+    public void showPlayerWinRate(String nick){
+        double winnings = 0;
+        double rounds = 0;
+        if (gameName.equals("Blackjack")){
+            winnings = (double) getPlayerStat(nick, "bjwinnings");
+            rounds = (double) getPlayerStat(nick, "bjrounds");
+        } else if (gameName.equals("Texas Hold'em Poker")){
+            winnings = (double) getPlayerStat(nick, "tpwinnings");
+            rounds = (double) getPlayerStat(nick, "tprounds");
+        }
+        
+        if (rounds != Integer.MIN_VALUE) {
+            if (rounds == 0){
+                bot.sendMessage(channel, nick + " has not played any rounds of " + getGameNameStr() + ".");
+            } else {
+                bot.sendMessage(channel, nick + " has won $" + formatDecimal(winnings/rounds) + " per round in " + getGameNameStr() + ".");
+            }    
+        } else {
+			bot.sendMessage(channel, "No data found for " + nick + ".");
+		}
+    }
     public void showPlayerRounds(String nick){
         int rounds = 0;
         if (gameName.equals("Blackjack")){
@@ -1266,10 +1430,10 @@ public abstract class CardGame{
 		}
 	} 
     public void showPlayerDeposit(Player p, int amount){
-        bot.sendMessage(channel, p.getNickStr()+" has made a deposit of $"+formatNumber(amount)+". Cash: $"+formatNumber(p.getCash())+". Bank: $"+formatNumber(p.getBank())+".");
+        bot.sendMessage(channel, p.getNickStr()+" has made a deposit of $"+formatNumber(amount)+". Cash: $"+formatNumber(p.get("cash"))+". Bank: $"+formatNumber(p.get("bank"))+".");
     }    
     public void showPlayerWithdraw(Player p, int amount){
-        bot.sendMessage(channel, p.getNickStr()+" has made a withdrawal of $"+formatNumber(amount)+". Cash: $"+formatNumber(p.getCash())+". Bank: $"+formatNumber(p.getBank())+".");
+        bot.sendMessage(channel, p.getNickStr()+" has made a withdrawal of $"+formatNumber(amount)+". Cash: $"+formatNumber(p.get("cash"))+". Bank: $"+formatNumber(p.get("bank"))+".");
     }
     public void showSeparator() {
 		bot.sendMessage(channel, Colors.BOLD+ "------------------------------------------------------------------");
@@ -1431,11 +1595,17 @@ public abstract class CardGame{
 	}
     abstract public String getGameRulesStr();
     abstract public String getGameCommandStr();
+    public static String formatDecimal(double n){
+        return String.format("%.2f", n);
+    }
     public static String formatNumber(int n){
     	return String.format("%,d", n);
     }
     public static String formatHeader(String str){
         return Colors.BOLD + Colors.YELLOW + ",01" + str + Colors.NORMAL;
+    }
+    public static String formatBold(String str){
+        return Colors.BOLD + str + Colors.BOLD;
     }
     protected static String getPlayerListString(ArrayList<? extends Player> playerList){
         String outStr;
