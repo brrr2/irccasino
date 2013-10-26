@@ -37,11 +37,10 @@ public abstract class Player {
     protected int bank;
     /** Stores the number of times the player has gone bankrupt. */
     protected int bankrupts;
-    /** 
-     * Stores the number of rounds the player has played in the player
-     * he is joined in.
-     */
+    /** Stores the number of rounds the player has played. */
     protected int rounds;
+    /** Stores the number of rounds the player has won. */
+    protected int wins;
     /** Stores the player's quit status. */
     protected boolean quit;
     /** Stores the player's nick. */
@@ -66,6 +65,7 @@ public abstract class Player {
         bank = 0;
         bankrupts = 0;
         rounds = 0;
+        wins = 0;
         simple = true;
         quit = false;
     }
@@ -174,10 +174,35 @@ public abstract class Player {
     }
     
     /**
+     * Returns the number of rounds won for the Player.
+     * 
+     * @return the number of wins
+     */
+    public int getWins(){
+        return wins;
+    }
+    
+    /**
+     * Sets the number of rounds won for the Player.
+     * 
+     * @param value the number of wins
+     */
+    public void setWins(int value){
+        wins = value;
+    }
+    
+    /**
      * Increments the number of rounds played for the Player.
      */
     public void incrementRounds(){
     	rounds++;
+    }
+    
+    /**
+     * Increments the number of rounds won for the Player.
+     */
+    public void incrementWins(){
+        wins++;
     }
     
     /**

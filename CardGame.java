@@ -743,6 +743,7 @@ public abstract class CardGame{
     /* Player file management methods
      * Methods for reading and saving player data.
      */
+    
     /**
      * Returns the total number of players who have played this game.
      * Counts the number of players who have played more than one round of this
@@ -752,24 +753,21 @@ public abstract class CardGame{
      */
     public int getTotalPlayers(){
     	try {
-	    	ArrayList<String> nicks = new ArrayList<String>();
-	        ArrayList<Integer> stacks = new ArrayList<Integer>();
-	        ArrayList<Integer> bankrupts = new ArrayList<Integer>();
-	        ArrayList<Integer> banks = new ArrayList<Integer>();
-	        ArrayList<Integer> bjrounds = new ArrayList<Integer>();
-	        ArrayList<Integer> tprounds = new ArrayList<Integer>();
-	        ArrayList<Boolean> simples = new ArrayList<Boolean>();
-	    	loadPlayerFile(nicks, stacks, banks, bankrupts, bjrounds, tprounds, simples);
-	    	int total = 0, numLines = nicks.size();
+            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
+            StatFileLine statLine;
+	    	loadPlayerFile(statList);
+	    	int total = 0, numLines = statList.size();
             if (gameName.equals("Blackjack")){
                 for (int ctr = 0; ctr < numLines; ctr++){
-                    if (bjrounds.get(ctr) > 0){
+                    statLine = statList.get(ctr);
+                    if (statLine.getBJRounds() > 0){
                         total++;
                     }
                 }
             } else if (gameName.equals("Texas Hold'em Poker")){
                 for (int ctr = 0; ctr < numLines; ctr++){
-                    if (tprounds.get(ctr) > 0){
+                    statLine = statList.get(ctr);
+                    if (statLine.getTPRounds() > 0){
                         total++;
                     }
                 }
@@ -821,29 +819,25 @@ public abstract class CardGame{
      */
     protected int loadPlayerStat(String nick, String stat){
     	try {
-        	ArrayList<String> nicks = new ArrayList<String>();
-            ArrayList<Integer> stacks = new ArrayList<Integer>();
-            ArrayList<Integer> bankrupts = new ArrayList<Integer>();
-            ArrayList<Integer> banks = new ArrayList<Integer>();
-            ArrayList<Integer> bjrounds = new ArrayList<Integer>();
-            ArrayList<Integer> tprounds = new ArrayList<Integer>();
-            ArrayList<Boolean> simples = new ArrayList<Boolean>();
-        	loadPlayerFile(nicks, stacks, banks, bankrupts, bjrounds, tprounds, simples);
-        	int numLines = nicks.size();
+            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
+            StatFileLine statLine;
+        	loadPlayerFile(statList);
+        	int numLines = statList.size();
         	for (int ctr = 0; ctr < numLines; ctr++){
-        		if (nick.equalsIgnoreCase(nicks.get(ctr))){
+                statLine = statList.get(ctr);
+        		if (nick.equalsIgnoreCase(statLine.getNick())){
         			if (stat.equals("cash")){
-        				return stacks.get(ctr);
+        				return statLine.getStack();
         			} else if (stat.equals("bank")){
-        				return banks.get(ctr);
+        				return statLine.getBank();
         			} else if (stat.equals("bankrupts")){
-        				return bankrupts.get(ctr);
+        				return statLine.getBankrupts();
         			} else if (stat.equals("bjrounds")){
-        				return bjrounds.get(ctr);
+        				return statLine.getBJRounds();
         			} else if (stat.equals("tprounds")){
-        				return tprounds.get(ctr);
+        				return statLine.getTPRounds();
         			} else if (stat.equals("netcash")){
-        				return stacks.get(ctr)+banks.get(ctr);
+        				return statLine.getStack() + statLine.getBank();
         			} else if (stat.equals("exists")){
         				return 1;
         			}
@@ -865,30 +859,27 @@ public abstract class CardGame{
     protected void loadPlayerData(Player p) {
 		try {
 			boolean found = false;
-			ArrayList<String> nicks = new ArrayList<String>();
-			ArrayList<Integer> stacks = new ArrayList<Integer>();
-			ArrayList<Integer> bankrupts = new ArrayList<Integer>();
-			ArrayList<Integer> banks = new ArrayList<Integer>();
-			ArrayList<Integer> bjrounds = new ArrayList<Integer>();
-			ArrayList<Integer> tprounds = new ArrayList<Integer>();
-			ArrayList<Boolean> simples = new ArrayList<Boolean>();
-			loadPlayerFile(nicks, stacks, banks, bankrupts, bjrounds, tprounds, simples);
-			int numLines = nicks.size();
+            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
+            StatFileLine statLine;
+			loadPlayerFile(statList);
+			int numLines = statList.size();
+            
 			for (int ctr = 0; ctr < numLines; ctr++) {
-				if (p.getNick().equalsIgnoreCase(nicks.get(ctr))) {
-					if (stacks.get(ctr) <= 0) {
+                statLine = statList.get(ctr);
+				if (p.getNick().equalsIgnoreCase(statLine.getNick())) {
+					if (statLine.getStack() <= 0) {
 						p.setCash(getNewCash());
 					} else {
-						p.setCash(stacks.get(ctr));
+						p.setCash(statLine.getStack());
 					}
-					p.setBank(banks.get(ctr));
-					p.setBankrupts(bankrupts.get(ctr));
+					p.setBank(statLine.getBank());
+					p.setBankrupts(statLine.getBankrupts());
                     if (gameName.equals("Blackjack")){
-                        p.setRounds(bjrounds.get(ctr));
+                        p.setRounds(statLine.getBJRounds());
                     } else if (gameName.equals("Texas Hold'em Poker")){
-                        p.setRounds(tprounds.get(ctr));
+                        p.setRounds(statLine.getTPRounds());
                     }
-					p.setSimple(simples.get(ctr));
+					p.setSimple(statLine.getSimple());
 					found = true;
 					break;
 				}
@@ -914,52 +905,46 @@ public abstract class CardGame{
      */
     protected void savePlayerData(Player p){
 		boolean found = false;
-		ArrayList<String> nicks = new ArrayList<String>();
-		ArrayList<Integer> stacks = new ArrayList<Integer>();
-		ArrayList<Integer> banks = new ArrayList<Integer>();
-		ArrayList<Integer> bankrupts = new ArrayList<Integer>();
-		ArrayList<Integer> bjrounds = new ArrayList<Integer>();
-		ArrayList<Integer> tprounds = new ArrayList<Integer>();
-		ArrayList<Boolean> simples = new ArrayList<Boolean>();
+        ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
+        StatFileLine statLine;
 		int numLines;
+        
 		try {
-			loadPlayerFile(nicks, stacks, banks, bankrupts, bjrounds, tprounds, simples);
-			numLines = nicks.size();
+			loadPlayerFile(statList);
+			numLines = statList.size();
 			for (int ctr = 0; ctr < numLines; ctr++) {
-				if (p.getNick().equalsIgnoreCase(nicks.get(ctr))) {
-					stacks.set(ctr, p.getCash());
-					banks.set(ctr, p.getBank());
-					bankrupts.set(ctr, p.getBankrupts());
+                statLine = statList.get(ctr);
+				if (p.getNick().equalsIgnoreCase(statLine.getNick())) {
+					statLine.setStack(p.getCash());
+					statLine.setBank(p.getBank());
+					statLine.setBankrupts(p.getBankrupts());
                     if (gameName.equals("Blackjack")){
-                        bjrounds.set(ctr, p.getRounds());
+                        statLine.setBJRounds(p.getRounds());
                     } else if (gameName.equals("Texas Hold'em Poker")){
-                        tprounds.set(ctr, p.getRounds());
+                        statLine.setTPRounds(p.getRounds());
                     }
-					simples.set(ctr, p.isSimple());
+					statLine.setSimple(p.isSimple());
 					found = true;
                     break;
 				}
 			}
 			if (!found) {
-				nicks.add(p.getNick());
-				stacks.add(p.getCash());
-				banks.add(p.getBank());
-				bankrupts.add(p.getBankrupts());
                 if (gameName.equals("Blackjack")){
-                    bjrounds.add(p.getRounds());
-                    tprounds.add(0);
+                    statLine = new StatFileLine(p.getNick(), p.getCash(), p.getBank(), 
+                                    p.getBankrupts(), p.getRounds(), 0, p.isSimple());
+                    statList.add(statLine);
                 } else if (gameName.equals("Texas Hold'em Poker")){
-                    bjrounds.add(0);
-                    tprounds.add(p.getRounds());
+                    statLine = new StatFileLine(p.getNick(), p.getCash(), p.getBank(), 
+                                    p.getBankrupts(), 0, p.getRounds(), p.isSimple());
+                    statList.add(statLine);
                 }
-				simples.add(p.isSimple());
 			}
 		} catch (IOException e) {
 			bot.log("Error reading players.txt!");
 		}
 
 		try {
-			savePlayerFile(nicks, stacks, banks, bankrupts, bjrounds, tprounds, simples);
+			savePlayerFile(statList);
 		} catch (IOException e) {
 			bot.log("Error writing to players.txt!");
 		}
@@ -980,58 +965,44 @@ public abstract class CardGame{
     }
     /**
      * Loads players.txt.
-     * Reads the file's contents into a set of ArrayLists.
+     * Reads the file's contents into an ArrayList of StatFileLine.
      * 
-     * @param nicks
-     * @param stacks
-     * @param banks
-     * @param bankrupts
-     * @param bjrounds
-     * @param tprounds
-     * @param simples
+     * @param statList 
      * @throws IOException
      */
-    public static void loadPlayerFile(ArrayList<String> nicks, ArrayList<Integer> stacks,
-    							ArrayList<Integer> banks, ArrayList<Integer> bankrupts, 
-    							ArrayList<Integer> bjrounds, ArrayList<Integer> tprounds,
-    							ArrayList<Boolean> simples) throws IOException {
+    public static void loadPlayerFile(ArrayList<StatFileLine> statList) throws IOException {
+        String nick;
+        int stack, bank, bankrupts, bjrounds, tprounds;
+        boolean simple;
+        
     	BufferedReader in = new BufferedReader(new FileReader("players.txt"));
         StringTokenizer st;
         while (in.ready()){
             st = new StringTokenizer(in.readLine());
-            nicks.add(st.nextToken());
-            stacks.add(Integer.parseInt(st.nextToken()));
-            banks.add(Integer.parseInt(st.nextToken()));
-            bankrupts.add(Integer.parseInt(st.nextToken()));
-            bjrounds.add(Integer.parseInt(st.nextToken()));
-            tprounds.add(Integer.parseInt(st.nextToken()));
-            simples.add(Boolean.parseBoolean(st.nextToken()));
+            nick = st.nextToken();
+            stack = Integer.parseInt(st.nextToken());
+            bank = Integer.parseInt(st.nextToken());
+            bankrupts = Integer.parseInt(st.nextToken());
+            bjrounds = Integer.parseInt(st.nextToken());
+            tprounds = Integer.parseInt(st.nextToken());
+            simple = Boolean.parseBoolean(st.nextToken());
+            statList.add(new StatFileLine(nick, stack, bank, bankrupts, bjrounds, tprounds, simple));
         }
         in.close();
     }
     /**
      * Saves data to players.txt.
-     * Saves a set of ArrayLists to players.txt.
+     * Saves an ArrayList of StatFileLine to the file.
      * 
-     * @param nicks
-     * @param stacks
-     * @param banks
-     * @param bankrupts
-     * @param bjrounds
-     * @param tprounds
-     * @param simples
+     * @param statList
      * @throws IOException
      */
-    public static void savePlayerFile(ArrayList<String> nicks, ArrayList<Integer> stacks,
-								ArrayList<Integer> banks, ArrayList<Integer> bankrupts, 
-								ArrayList<Integer> bjrounds, ArrayList<Integer> tprounds,
-								ArrayList<Boolean> simples) throws IOException {
-    	int numLines = nicks.size();
+    public static void savePlayerFile(ArrayList<StatFileLine> statList) throws IOException {
+    	int numLines = statList.size();
     	PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("players.txt")));
+        
         for (int ctr = 0; ctr<numLines; ctr++){
-            out.println(nicks.get(ctr)+" "+stacks.get(ctr)+" "+banks.get(ctr)+
-            			" "+bankrupts.get(ctr)+" "+bjrounds.get(ctr)+" "+
-            			tprounds.get(ctr)+" "+simples.get(ctr));
+            out.println(statList.get(ctr));
         }
         out.close();
     }
@@ -1097,46 +1068,59 @@ public abstract class CardGame{
         if (n < 1){
             throw new IllegalArgumentException();
         }
+        
 		int highIndex;
 		try {
-			ArrayList<String> nicks = new ArrayList<String>();
-			ArrayList<Integer> stacks = new ArrayList<Integer>();
-			ArrayList<Integer> bankrupts = new ArrayList<Integer>();
-			ArrayList<Integer> banks = new ArrayList<Integer>();
-			ArrayList<Integer> bjrounds = new ArrayList<Integer>();
-			ArrayList<Integer> tprounds = new ArrayList<Integer>();
-			ArrayList<Boolean> simples = new ArrayList<Boolean>();
-			loadPlayerFile(nicks, stacks, banks, bankrupts, bjrounds, tprounds, simples);
+            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
+			loadPlayerFile(statList);
+            ArrayList<String> nicks = new ArrayList<String>();
 			ArrayList<Integer> test = new ArrayList<Integer>();
-            int length = Math.min(n, nicks.size());
+            int length = Math.min(n, statList.size());
 			String title = Colors.BLACK + ",08Top " + length;
 			String list;
+            
+            for (int ctr = 0; ctr < statList.size(); ctr++) {
+                nicks.add(statList.get(ctr).getNick());
+            }
+            
 			if (stat.equals("cash")) {
-				test = stacks;
+                for (int ctr = 0; ctr < statList.size(); ctr++) {
+					test.add(statList.get(ctr).getStack());
+				}
 				title += " Cash:";
 			} else if (stat.equals("bank")) {
-				test = banks;
+				for (int ctr = 0; ctr < statList.size(); ctr++) {
+					test.add(statList.get(ctr).getBank());
+				}
 				title += " Bank:";
 			} else if (stat.equals("bankrupts")) {
-				test = bankrupts;
+				for (int ctr = 0; ctr < statList.size(); ctr++) {
+					test.add(statList.get(ctr).getBankrupts());
+				}
 				title += " Bankrupts:";
 			} else if (stat.equals("net") || stat.equals("netcash")) {
 				for (int ctr = 0; ctr < nicks.size(); ctr++) {
-					test.add(stacks.get(ctr) + banks.get(ctr));
+					test.add(statList.get(ctr).getStack() + statList.get(ctr).getBank());
 				}
 				title += " Net Cash:";
 			} else if (stat.equals("rounds")) {
                 if (gameName.equals("Blackjack")){
-                    test = bjrounds;
+                    for (int ctr = 0; ctr < statList.size(); ctr++) {
+                        test.add(statList.get(ctr).getBJRounds());
+                    }
                     title += " Blackjack Rounds:";
                 } else if (gameName.equals("Texas Hold'em Poker")){
-                    test = tprounds;
+                    for (int ctr = 0; ctr < statList.size(); ctr++) {
+                        test.add(statList.get(ctr).getTPRounds());
+                    }
                     title += " Texas Hold'em Poker Rounds:";
                 }
 			} else {
 				throw new IllegalArgumentException();
 			}
+            
 			list = title;
+            
             // Find the player with the highest value, add to output string and remove.
             // Repeat n times or for the length of the list.
 			for (int ctr = 1; ctr <= length; ctr++){
