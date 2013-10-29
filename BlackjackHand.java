@@ -1,7 +1,7 @@
 /*
-	Copyright (C) 2013 Yizhe Shen <brrr@live.ca>
-	
-	This file is part of irccasino.
+    Copyright (C) 2013 Yizhe Shen <brrr@live.ca>
+
+    This file is part of irccasino.
 
     irccasino is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,24 +25,24 @@ package irccasino;
  */
 public class BlackjackHand extends Hand implements Comparable<BlackjackHand>{
     /** Stores the bet on the BlackjackHand. */
-	private int bet;
+    private int bet;
 
-	/**
-	 * Creates a Blackjack hand with no initial bet.
+    /**
+     * Creates a Blackjack hand with no initial bet.
      * Initializes the bet to 0.
-	 */
-	public BlackjackHand(){
-		super();
-		bet = 0;
-	}
-	
-	/* Blackjack specific methods */
-	/**
+     */
+    public BlackjackHand(){
+        super();
+        bet = 0;
+    }
+    
+    /* Blackjack specific methods */
+    /**
      * Sets the bet on this Hand to the specified amount.
      * @param amount the amount to set
      */
     public void setBet(int amount){
-    	bet = amount;
+        bet = amount;
     }
     
     /**
@@ -73,9 +73,9 @@ public class BlackjackHand extends Hand implements Comparable<BlackjackHand>{
      * @return true if only contains 2 cards
      */
     public boolean hasHit(){
-		return getSize() != 2;
-	}
-	
+        return getSize() != 2;
+    }
+    
     /**
      * Determines if a hand is blackjack.
      * If the sum is 21 and there are only 2 cards then it is blackjack.
@@ -83,18 +83,18 @@ public class BlackjackHand extends Hand implements Comparable<BlackjackHand>{
      * @return true if the hand is blackjack
      */
     public boolean isBlackjack() {
-		return calcSum() == 21 && getSize() == 2;
-	}
+        return calcSum() == 21 && getSize() == 2;
+    }
     
-	/**
+    /**
      * Determines if a hand is bust.
      * If the sum is greater than 21 then it is bust.
      * 
      * @return true if the hand is bust
      */
     public boolean isBusted() {
-		return calcSum() > 21;
-	}
+        return calcSum() > 21;
+    }
     
     /**
      * Determines if a BlackjackHand is a pair.
@@ -104,8 +104,8 @@ public class BlackjackHand extends Hand implements Comparable<BlackjackHand>{
      * @return true if the hand is a pair
      */
     public boolean isPair() {
-		return getSize() == 2 && get(0).getBlackjackValue() == get(1).getBlackjackValue();
-	}
+        return getSize() == 2 && get(0).getBlackjackValue() == get(1).getBlackjackValue();
+    }
     
     /**
      * Determines if a hand is a soft 17.
@@ -139,17 +139,17 @@ public class BlackjackHand extends Hand implements Comparable<BlackjackHand>{
      * @return the sum of the BlackjackHand.
      */
     public int calcSum() {
-		int sum = 0, numAces = 0;
-		Card card;
-		// Add up all the cards and keep track of the number of aces
-		for (int ctr = 0; ctr < getSize(); ctr++) {
-			card = get(ctr);
-			if (card.getFace().equals("A")) {
-				numAces++;
-			}
-			sum += card.getBlackjackValue();
-		}
-		// Use the lower of each ace while the sum is greater than 21
+        int sum = 0, numAces = 0;
+        Card card;
+        // Add up all the cards and keep track of the number of aces
+        for (int ctr = 0; ctr < getSize(); ctr++) {
+            card = get(ctr);
+            if (card.getFace().equals("A")) {
+                numAces++;
+            }
+            sum += card.getBlackjackValue();
+        }
+        // Use the lower of each ace while the sum is greater than 21
         for (int ctr = 0; ctr < numAces; ctr++){
             if (sum > 21){
                 sum -= 10;
@@ -157,8 +157,8 @@ public class BlackjackHand extends Hand implements Comparable<BlackjackHand>{
                 break;
             }
         }
-		return sum;
-	}
+        return sum;
+    }
     
     /**
      * Compares this BlackjackHand to another based on sum.
@@ -173,36 +173,38 @@ public class BlackjackHand extends Hand implements Comparable<BlackjackHand>{
      */
     @Override
     public int compareTo(BlackjackHand h) {
-        if (h == null) throw new NullPointerException();
-		int sum = calcSum(), hsum = h.calcSum();
-		boolean BJ = isBlackjack();
-		boolean hBJ = h.isBlackjack();
-		if (sum > 21) {
-			return -1;
-		} else if (sum == 21) {
-			/* Different cases at 21 */
-			if (BJ && !hBJ) {
-				return 2;
-			} else if (BJ && hBJ) {
-				return 0;
-			} else if (!BJ && hBJ) {
-				return -1;
-			} else {
-				if (hsum == 21) {
-					return 0;
-				} else {
-					return 1;
-				}
-			}
-		} else {
-			/* Any case other than 21 */
-			if (hsum > 21 || hsum < sum) {
-				return 1;
-			} else if (hsum == sum) {
-				return 0;
-			} else {
-				return -1;
-			}
-		}
-	}
+        if (h == null) {
+            throw new NullPointerException();
+        }
+        int sum = calcSum(), hsum = h.calcSum();
+        boolean BJ = isBlackjack();
+        boolean hBJ = h.isBlackjack();
+        if (sum > 21) {
+            return -1;
+        } else if (sum == 21) {
+            /* Different cases at 21 */
+            if (BJ && !hBJ) {
+                return 2;
+            } else if (BJ && hBJ) {
+                return 0;
+            } else if (!BJ && hBJ) {
+                return -1;
+            } else {
+                if (hsum == 21) {
+                    return 0;
+                } else {
+                    return 1;
+                }
+            }
+        } else {
+            /* Any case other than 21 */
+            if (hsum > 21 || hsum < sum) {
+                return 1;
+            } else if (hsum == sum) {
+                return 0;
+            } else {
+                return -1;
+            }
+        }
+    }
 }

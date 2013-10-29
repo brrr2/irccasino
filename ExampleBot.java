@@ -1,7 +1,7 @@
 /*
-	Copyright (C) 2013 Yizhe Shen <brrr@live.ca>
-	
-	This file is part of irccasino.
+    Copyright (C) 2013 Yizhe Shen <brrr@live.ca>
+
+    This file is part of irccasino.
 
     irccasino is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -60,12 +60,12 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
         }
     }
     
-	public static FileLogBot bot;
-	public CardGame bjgame, tpgame;
+    public static FileLogBot bot;
+    public CardGame bjgame, tpgame;
     public String configFile;
-	public String botNick, password, network;
+    public String botNick, password, network;
     public ArrayList<String> channelList;
-	public char commandChar = '.';
+    public char commandChar = '.';
     
     public ExampleBot(){
         channelList = new ArrayList<String>();
@@ -74,20 +74,20 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
         tpgame = null;
     }
     
-	public static void main(String[] args) throws Exception {
+    public static void main(String[] args) throws Exception {
         ExampleBot eb = new ExampleBot();
         ThreadedListenerManager<FileLogBot> manager = new ThreadedListenerManager<FileLogBot>();
         manager.addListener(eb);
-	    bot = new FileLogBot("log.txt");
+        bot = new FileLogBot("log.txt");
         bot.setListenerManager(manager);
-	    bot.setVerbose(true);
-	    bot.setAutoNickChange(true);
+        bot.setVerbose(true);
+        bot.setAutoNickChange(true);
         bot.setAutoReconnect(true);
-	    bot.setCapEnabled(true);
+        bot.setCapEnabled(true);
         bot.setName(eb.botNick);
         bot.setLogin(eb.botNick);
         
-		if (eb.password != null){
+        if (eb.password != null){
             bot.getCapHandlers().add(new SASLCapHandler(eb.botNick, eb.password));
         }
         
@@ -96,7 +96,7 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
         } catch (Exception e){
             System.out.println("Error: " + e);
         }
-	}
+    }
 	
     /**
      * Loads configuration file for this bot.
@@ -104,30 +104,30 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
      */
     public final void loadConfig(String configFile){
         try {
-			BufferedReader in = new BufferedReader(new FileReader(configFile));
-			String str, name, value;
-			StringTokenizer st;
-			while (in.ready()) {
-				str = in.readLine();
-				if (str.startsWith("#")) {
-					continue;
-				}
-				st = new StringTokenizer(str, "=");
-				name = st.nextToken();
+            BufferedReader in = new BufferedReader(new FileReader(configFile));
+            String str, name, value;
+            StringTokenizer st;
+            while (in.ready()) {
+                str = in.readLine();
+                if (str.startsWith("#")) {
+                    continue;
+                }
+                st = new StringTokenizer(str, "=");
+                name = st.nextToken();
                 if (st.hasMoreTokens()){
                     value = st.nextToken();
                 } else {
                     value = null;
                 }
-				if (name.equals("nick")) {
+                if (name.equals("nick")) {
                     if (value == null){
                         botNick = "ExampleBot";
                     } else {
                         botNick = value;
                     }
-				} else if (name.equals("password")) {
-					password = value;
-				} else if (name.equals("channel")) {
+                } else if (name.equals("password")) {
+                    password = value;
+                } else if (name.equals("channel")) {
                     if (value == null){
                         channelList.add("##ExampleBot");
                     } else {
@@ -136,18 +136,18 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
                             channelList.add(st2.nextToken());
                         }
                     }
-				} else if (name.equals("network")) {
+                } else if (name.equals("network")) {
                     if (value == null){
                         network = "chat.freenode.net";
                     } else {
                         network = value;
                     }
-				}
-			}
-			in.close();
-		} catch (IOException e) {
-			/* load defaults if config file is not found */
-			bot.log(configFile+" not found! Loading default values...");
+                }
+            }
+            in.close();
+        } catch (IOException e) {
+            /* load defaults if config file is not found */
+            bot.log(configFile+" not found! Loading default values...");
             botNick = "ExampleBot";
             network = "chat.freenode.net";
             channelList.add("##ExampleBot");
@@ -170,7 +170,7 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
         }
     }
     
-	@Override
+    @Override
     public void onMessage (MessageEvent<PircBotX> event){
         String msg = event.getMessage();
         Channel channel = event.getChannel();
@@ -198,7 +198,7 @@ public class ExampleBot extends ListenerAdapter<PircBotX> {
         }
     }
 	
-	@Override
+    @Override
     public void onConnect(ConnectEvent<PircBotX> event){
         for (int ctr = 0; ctr < channelList.size(); ctr++){
             bot.joinChannel(channelList.get(ctr));

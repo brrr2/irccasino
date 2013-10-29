@@ -1,7 +1,7 @@
 /*
-	Copyright (C) 2013 Yizhe Shen <brrr@live.ca>
-	
-	This file is part of irccasino.
+    Copyright (C) 2013 Yizhe Shen <brrr@live.ca>
+
+    This file is part of irccasino.
 
     irccasino is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -67,7 +67,7 @@ public class Card implements Comparable<Card>{
      * @return 10 for face card, 11 for ace or the parsed Integer of the face
      */
     public int getBlackjackValue() {
-		int num;
+        int num;
         if (face.equals("A")){
             num = 11; // Give aces a default value of 11
         } else {
@@ -77,8 +77,8 @@ public class Card implements Comparable<Card>{
                 num = 10;
             }
         }
-		return num;
-	}
+        return num;
+    }
     
     /**
      * Returns the index in the static array CardDeck.faces that matches this
@@ -87,12 +87,12 @@ public class Card implements Comparable<Card>{
      * @return the index or -1 if not found
      */
     public int getFaceValue(){
-    	for (int ctr=0; ctr < CardDeck.faces.length; ctr++){
-    		if (face.equals(CardDeck.faces[ctr])){
-    			return ctr;
-    		}
-    	}
-    	return -1;
+        for (int ctr=0; ctr < CardDeck.faces.length; ctr++){
+            if (face.equals(CardDeck.faces[ctr])){
+                return ctr;
+            }
+        }
+        return -1;
     }
     
     /**
@@ -102,12 +102,12 @@ public class Card implements Comparable<Card>{
      * @return the index or -1 if not found
      */
     public int getSuitValue(){
-    	for (int ctr=0; ctr < CardDeck.suits.length; ctr++){
-    		if (suit.equals(CardDeck.suits[ctr])){
-    			return ctr;
-    		}
-    	}
-    	return -1;
+        for (int ctr=0; ctr < CardDeck.suits.length; ctr++){
+            if (suit.equals(CardDeck.suits[ctr])){
+                return ctr;
+            }
+        }
+        return -1;
     }
     
     /** 
@@ -120,14 +120,16 @@ public class Card implements Comparable<Card>{
      */
     @Override
     public int compareTo(Card c){
-        if (c == null) throw new NullPointerException();
-    	int valueDiff = getFaceValue() - c.getFaceValue();
-    	int suitDiff = getSuitValue() - c.getSuitValue();
-    	if (valueDiff == 0){
-    		return suitDiff;
-    	} else {
-    		return valueDiff;
-    	}
+        if (c == null) {
+            throw new NullPointerException();
+        }
+        int valueDiff = getFaceValue() - c.getFaceValue();
+        int suitDiff = getSuitValue() - c.getSuitValue();
+        if (valueDiff == 0){
+            return suitDiff;
+        } else {
+            return valueDiff;
+        }
     }
     
     /**
@@ -146,7 +148,7 @@ public class Card implements Comparable<Card>{
         } else if ( suit.equals(CardDeck.suits[2])){
             color = Colors.DARK_BLUE;
         } else {
-        	color = Colors.BLACK;
+            color = Colors.BLACK;
         }
         
         return color+",00"+face+suit;

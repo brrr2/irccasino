@@ -1,7 +1,7 @@
 /*
-	Copyright (C) 2013 Yizhe Shen <brrr@live.ca>
-	
-	This file is part of irccasino.
+    Copyright (C) 2013 Yizhe Shen <brrr@live.ca>
+
+    This file is part of irccasino.
 
     irccasino is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ public abstract class Player extends Stats{
      * @param dealer Whether or not this player is dealer
      */
     public Player(String nick, String hostmask, boolean dealer){
-    	this.nick = nick;
+        this.nick = nick;
         this.dealer = dealer;
         this.hostmask = hostmask;
         statsMap = new HashMap<String,Integer>();
@@ -71,10 +71,10 @@ public abstract class Player extends Stats{
      * @return the Player's name
      */
     public String getNick(){
-    	if (dealer){
-    		return "Dealer";
+        if (dealer){
+            return "Dealer";
         } else {
-    		return nick;
+            return nick;
         }
     }
     
@@ -84,7 +84,7 @@ public abstract class Player extends Stats{
      * @param b the new status
      */
     public void setDealer(boolean b){
-    	dealer = b;
+        dealer = b;
     }
     
     /**
@@ -102,7 +102,7 @@ public abstract class Player extends Stats{
      * @param b the new status
      */
     public void setQuit(boolean b){
-    	quit = b;
+        quit = b;
     }
     
     /**
@@ -111,7 +111,7 @@ public abstract class Player extends Stats{
      * @return true if the Player has quit
      */
     public boolean hasQuit(){
-    	return quit;
+        return quit;
     }
     
     /**
@@ -160,7 +160,7 @@ public abstract class Player extends Stats{
      * @return the bold-formatted nick
      */
     public String getNickStr(){
-    	return Colors.BOLD+getNick()+Colors.BOLD;
+        return Colors.BOLD+getNick()+Colors.BOLD;
     }
     
     /**
@@ -170,6 +170,6 @@ public abstract class Player extends Stats{
      */
     @Override
     public String toString(){
-    	return getNick() + " " + hostmask;
+        return getNick() + " " + hostmask;
     }
 }

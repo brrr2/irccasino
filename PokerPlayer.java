@@ -1,7 +1,7 @@
 /*
-	Copyright (C) 2013 Yizhe Shen <brrr@live.ca>
-	
-	This file is part of irccasino.
+    Copyright (C) 2013 Yizhe Shen <brrr@live.ca>
+
+    This file is part of irccasino.
 
     irccasino is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,16 +24,16 @@ package irccasino;
  * @author Yizhe Shen
  */
 public class PokerPlayer extends Player implements Comparable<PokerPlayer> {
-	/** The player's cards. */
+    /** The player's cards. */
     private Hand hand;
     /** The player's cards plus any community cards. */
-	private PokerHand pHand;
+    private PokerHand pHand;
     /** The player's fold status. */
-	private boolean fold;
+    private boolean fold;
     /** The player's all-in status. */
     private boolean allIn;
-	
-	/**
+    
+    /**
      * Creates a new PokerPlayer.
      * Creates the new player with the specified parameters.
      * 
@@ -49,46 +49,46 @@ public class PokerPlayer extends Player implements Comparable<PokerPlayer> {
         allIn = false;
     }
 
-	/**
+    /**
      * Returns whether the player has cards in his Hand.
      * @return true if player has any cards
      */
     public boolean hasHand(){
-		return (hand.getSize() > 0);
-	}
+        return (hand.getSize() > 0);
+    }
     
-	/**
+    /**
      * Returns the player's PokerHand.
      * This includes the player's Hand and any community cards.
      * @return the player's PokerHand
      */
     public PokerHand getPokerHand(){
-		return pHand;
-	}
+        return pHand;
+    }
     
-	/**
+    /**
      * Returns the player's Hand.
      * @return the player's Hand.
      */
     public Hand getHand(){
-		return hand;
-	}
+        return hand;
+    }
     
-	/**
+    /**
      * Clears the cards in the player's Hand and PokerHand.
      */
     public void resetHand(){
-		hand.clear();
-		pHand.clear();
-		pHand.resetValue();
-	}
+        hand.clear();
+        pHand.clear();
+        pHand.resetValue();
+    }
     
     /**
      * Sets the player's fold status to the specified status.
      * @param b the new status
      */
     public void setFold(boolean b){
-    	fold = b;
+        fold = b;
     }
     
     /**
@@ -96,7 +96,7 @@ public class PokerPlayer extends Player implements Comparable<PokerPlayer> {
      * @return true if player has folded
      */
     public boolean hasFolded(){
-    	return fold;
+        return fold;
     }
     
     /**
@@ -123,6 +123,6 @@ public class PokerPlayer extends Player implements Comparable<PokerPlayer> {
      */
     @Override
     public int compareTo(PokerPlayer p){
-    	return this.getPokerHand().compareTo(p.getPokerHand());
+        return this.getPokerHand().compareTo(p.getPokerHand());
     }
 }
