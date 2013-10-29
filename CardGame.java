@@ -69,9 +69,7 @@ public abstract class CardGame{
         @Override
         public void run(){
             if (game.isInProgress() && player == game.getCurrentPlayer()) {
-				game.bot.sendMessage(game.channel, player.getNickStr()
-						+ ": You will idle out in " + (game.getIdleOutTime() - game.getIdleWarningTime()) 
-                        + " seconds. Please make your move.");
+            	game.infoPlayerIdleWarning(player);
 			}
         }
     }
@@ -1552,6 +1550,17 @@ public abstract class CardGame{
             bot.sendNotice(nick, "You've lost all your money. Please wait " + (respawnTime+penalty)/60 + " minute(s) for a loan.");
         } else {
             bot.sendNotice(nick, "You've lost all your money. Please wait " + String.format("%.1f", (respawnTime+penalty)/60.) + " minutes for a loan.");
+        }
+    }
+	public void infoPlayerIdleWarning(Player p){
+        if (p.isSimple()) {
+            bot.sendNotice(p.getNick(), p.getNickStr()
+                + ": You will idle out in " + (getIdleOutTime() - getIdleWarningTime())
+                + " seconds. Please make your move.");
+        } else {
+            bot.sendMessage(p.getNick(), p.getNickStr()
+                + ": You will idle out in " + (getIdleOutTime() - getIdleWarningTime())
+                + " seconds. Please make your move.");
         }
     }
     public void infoGameCommandHelp(String nick, String command){
