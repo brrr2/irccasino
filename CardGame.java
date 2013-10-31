@@ -1621,7 +1621,7 @@ public abstract class CardGame{
         String outStr;
         int size = playerList.size();
         if (size == 0){
-            outStr = Colors.BOLD+"0"+Colors.BOLD+" players!";
+            outStr = Colors.BOLD+"0"+Colors.BOLD+" players";
         } else if (size == 1){
             outStr = Colors.BOLD+"1"+Colors.BOLD+" player: "+playerList.get(0).getNick();
         } else {
@@ -1631,6 +1631,25 @@ public abstract class CardGame{
                     outStr += playerList.get(ctr).getNick();
                 } else {
                     outStr += playerList.get(ctr).getNick()+", ";
+                }
+            }
+        }
+        return outStr;
+    }
+    protected static String getListString(ArrayList<String> stringList){
+        String outStr;
+        int size = stringList.size();
+        if (size == 0){
+            outStr = Colors.BOLD+"0"+Colors.BOLD+" players";
+        } else if (size == 1){
+            outStr = Colors.BOLD+"1"+Colors.BOLD+" player: " + stringList.get(0);
+        } else {
+            outStr = Colors.BOLD+size+Colors.BOLD+" players: ";
+            for (int ctr=0; ctr < size; ctr++){
+                if (ctr == size-1){
+                    outStr += stringList.get(ctr);
+                } else {
+                    outStr += stringList.get(ctr) + ", ";
                 }
             }
         }

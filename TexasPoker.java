@@ -67,18 +67,37 @@ public class TexasPoker extends CardGame{
     
     /* Nested class to store statistics, based on number of decks used, for the house */
     private class HouseStat extends Stats {
+        ArrayList<String> nicks;
         public HouseStat() {
             this(0);
         }
         
-        public HouseStat(int a) {
+        public HouseStat(int pot) {
             statsMap = new HashMap<String,Integer>();
-            statsMap.put("biggestpot", a);
+            statsMap.put("biggestpot", pot);
+            nicks = new ArrayList<String>();
+        }
+        
+        public void addNick(String nick){
+            nicks.add(nick);
+        }
+        
+        public void clearNicks(){
+            nicks.clear();
+        }
+        
+        public String getNickListString(){
+            String output = "";
+            for (int ctr = 0; ctr < nicks.size(); ctr++){
+                output += nicks.get(ctr) + " ";
+            }
+            return output.substring(0, output.length()-1);
         }
         
         @Override
         public String toString() {
-            return "Biggest pot: $" + formatNumber(get("biggestpot")) + ".";
+            return "Biggest pot: $" + formatNumber(get("biggestpot")) + " (" +
+                    getListString(nicks) + ").";
         }
     }
     
@@ -898,6 +917,9 @@ public class TexasPoker extends CardGame{
                         st = new StringTokenizer(str);
                         biggestpot = Integer.parseInt(st.nextToken());
                         house.set("biggestpot", biggestpot);
+                        while (st.hasMoreTokens()){
+                            house.addNick(st.nextToken());
+                        }
                     }
                     break;
                 }
@@ -948,7 +970,7 @@ public class TexasPoker extends CardGame{
             lines.add("#texaspoker");
             index = lines.size();
         }
-        lines.add(index, house.get("biggestpot")+"");
+        lines.add(index, house.get("biggestpot") + " " + house.getNickListString());
         try {
             PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("housestats.txt")));
             for (int ctr = 0; ctr < lines.size(); ctr++) {
@@ -1390,6 +1412,10 @@ public class TexasPoker extends CardGame{
             // Check if it's the biggest pot
             if (house.get("biggestpot") < currentPot.getPot()){
                 house.set("biggestpot", currentPot.getPot());
+                house.clearNicks();
+                for(int ctr2 = 0; ctr2 < currentPot.getNumberPlayers(); ctr2++){
+                    house.addNick(currentPot.getPlayer(ctr2).getNick());
+                }
                 saveHouseStats();
             }
         }
