@@ -172,6 +172,7 @@ public class CasinoBot extends PircBotX {
         logFile = fileName;
         bjgame = null;
         tpgame = null;
+        setMessageDelay(200);
     }
     
     @Override

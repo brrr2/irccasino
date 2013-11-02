@@ -763,10 +763,8 @@ public class Blackjack extends CardGame {
     @Override
     public void continueRound(){
         BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
-        BlackjackHand nextHand;
         if (p.getCurrentIndex() < p.getNumberHands() - 1) {
-            nextHand = p.getNextHand();
-            showPlayerHand(p, nextHand, p.getCurrentIndex() + 1);
+            p.getNextHand();
             quickEval();
         } else {
             currentPlayer = getNextPlayer();
@@ -786,22 +784,24 @@ public class Blackjack extends CardGame {
         if (getNumberJoined() >= 1) {
             house.increment("rounds");
             // Make dealer decisions
-            showTurn(dealer);
-            dHand = dealer.getHand();
-            showPlayerHand(dealer, dHand, true);
             if (needDealerHit()) {
+                showTurn(dealer);
+                dHand = dealer.getHand();
+                showPlayerHand(dealer, dHand, true);
                 while (dHand.calcSum() < 17 || (dHand.isSoft17() && isSoft17Hit())) {
+                    // Add a 1.5 second delay for dramatic effect
+                    try { Thread.sleep(1500); } catch (InterruptedException e){}
                     dealCard(dHand);
                     showPlayerHand(dealer, dHand, true);
                 }
+                // Add a 1.5 second delay for dramatic effect
+                try { Thread.sleep(1500); } catch (InterruptedException e){}
             }
-            if (dHand.isBlackjack()) {
-                showBlackjack(dealer, 0);
-            } else if (dHand.isBusted()) {
-                showBusted(dealer, 0);
-            }
+            
             // Show results
             showResults();
+            // Add a 1.5 second delay for dramatic effect
+            try { Thread.sleep(1500); } catch (InterruptedException e){}
             if (hasInsuranceBets()) {
                 showInsuranceResults();
             }
@@ -1247,7 +1247,6 @@ public class Blackjack extends CardGame {
             nHand.setBet(cHand.getBet());
             showSplitHands(p);
             showSeparator();
-            showPlayerHand(p, cHand, p.getCurrentIndex() + 1);
             quickEval();
         }
     }
@@ -1255,18 +1254,10 @@ public class Blackjack extends CardGame {
     /* Blackjack behind-the-scenes methods */
     private void quickEval() {
         BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
-        BlackjackHand h = p.getHand();
         if (p.hasSplit()) {
             showTurn(p, p.getCurrentIndex() + 1);
         } else {
             showTurn(p);
-        }
-        if (h.isBlackjack()) {
-            if (p.hasSplit()){
-                showBlackjack(p, p.getCurrentIndex() + 1);
-            } else {
-                showBlackjack(p, 0);
-            }
         }
         if (p.hasQuit()){
             stay();
@@ -1411,31 +1402,49 @@ public class Blackjack extends CardGame {
     }
     public void showPlayerHand(BlackjackPlayer p, BlackjackHand h, boolean forceNoHole) {
         if (forceNoHole){
-            bot.sendMessage(channel, p.getNickStr() + ": " + h.toString());
+            if (h.isBlackjack()) {
+                bot.sendMessage(channel, p.getNickStr() + ": " + h.toString() + " (Blackjack!)");
+            } else if (h.isBusted()) {
+                bot.sendMessage(channel, p.getNickStr() + ": " + h.toString() + " (Bust!)");
+            } else {
+                bot.sendMessage(channel, p.getNickStr() + ": " + h.toString());
+            }
         } else if (isHoleEnabled() || p.isDealer()) {
             bot.sendMessage(channel, p.getNickStr() + ": " + h.toString(1));
         } else {
-            bot.sendMessage(channel, p.getNickStr() + ": " + h.toString());
+            if (h.isBlackjack()) {
+                bot.sendMessage(channel, p.getNickStr() + ": " + h.toString() + " (Blackjack!)");
+            } else if (h.isBusted()) {
+                bot.sendMessage(channel, p.getNickStr() + ": " + h.toString() + " (Bust!)");
+            } else {
+                bot.sendMessage(channel, p.getNickStr() + ": " + h.toString());
+            }
         }
     }
     public void showPlayerHand(BlackjackPlayer p, BlackjackHand h, int handIndex) {
         if (isHoleEnabled() || p.isDealer()) {
-            bot.sendMessage(channel, p.getNickStr() + "-" + handIndex + ": "
-                            + h.toString(1));
+            bot.sendMessage(channel, p.getNickStr() + "-" + handIndex + ": " + h.toString(1));
         } else {
-            bot.sendMessage(channel, p.getNickStr() + "-" + handIndex + ": "
-                            + h.toString());
+            if (h.isBlackjack()) {
+                bot.sendMessage(channel, p.getNickStr() + "-" + handIndex + ": " + h.toString() + " (Blackjack!)");
+            } else if (h.isBusted()) {
+                bot.sendMessage(channel, p.getNickStr() + "-" + handIndex + ": " + h.toString() + " (Bust!)");
+            } else {
+                bot.sendMessage(channel, p.getNickStr() + "-" + handIndex + ": " + h.toString());
+            }
         }
     }
     public void showPlayerHandWithBet(BlackjackPlayer p, BlackjackHand h, int handIndex) {
         if (isHoleEnabled() || p.isDealer()) {
-            bot.sendMessage(channel,
-                            p.getNickStr() + "-" + handIndex + ": " + h.toString(1)
-                                            + ", bet: $" + formatNumber(h.getBet()));
+            bot.sendMessage(channel, p.getNickStr() + "-" + handIndex + ": " + h.toString(1) + ", bet: $" + formatNumber(h.getBet()));
         } else {
-            bot.sendMessage(channel,
-                            p.getNickStr() + "-" + handIndex + ": " + h.toString()
-                                            + ", bet: $" + formatNumber(h.getBet()));
+            if (h.isBlackjack()) {
+                bot.sendMessage(channel, p.getNickStr() + "-" + handIndex + ": " + h.toString() + ", bet: $" + formatNumber(h.getBet()) + " (Blackjack!)");
+            } else if (h.isBusted()) {
+                bot.sendMessage(channel, p.getNickStr() + "-" + handIndex + ": " + h.toString() + ", bet: $" + formatNumber(h.getBet()) + " (Bust!)");
+            } else {
+                bot.sendMessage(channel, p.getNickStr() + "-" + handIndex + ": " + h.toString() + ", bet: $" + formatNumber(h.getBet()));
+            }
         }
     }
     @Override
@@ -1495,13 +1504,6 @@ public class Blackjack extends CardGame {
             showPlayerHand(p, h, p.getCurrentIndex() + 1);
         } else {
             showPlayerHand(p, h, false);
-        }
-        if (h.isBusted()) {
-            if (p.hasSplit()){
-                showBusted(p, p.getCurrentIndex() + 1);
-            } else {
-                showBusted(p, 0);
-            }
         }
     }
     public void showBusted(BlackjackPlayer p, int index) {
