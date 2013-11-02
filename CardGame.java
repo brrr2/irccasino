@@ -149,7 +149,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         String msg = event.getMessage();
         
         // Parse the message if it is a command
-        if (msg.length() > 1 && msg.charAt(0) == commandChar && event.getChannel().equals(channel)){
+        if (msg.length() > 1 && msg.charAt(0) == commandChar && 
+                msg.charAt(1) != ' ' && event.getChannel().equals(channel)){
             msg = msg.substring(1);
             StringTokenizer st = new StringTokenizer(msg);
             String command = st.nextToken().toLowerCase();

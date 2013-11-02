@@ -145,7 +145,7 @@ public class Hand {
      */
     @Override
     public String toString(){
-        return toString(0,getSize());
+        return toString(0, getSize());
     }
     
     /**
@@ -156,6 +156,9 @@ public class Hand {
      * @return a String with the first numHidden cards replaced
      */
     public String toString(int numHidden){
+        if (getSize() == 0) {
+            return "<empty>";
+        }
         String hiddenBlock = Colors.DARK_BLUE+",00\uFFFD";
         String outStr= "";
         for (int ctr=0; ctr<numHidden; ctr++){
@@ -176,6 +179,9 @@ public class Hand {
      * @return a String showing the selected cards
      */
     public String toString(int start, int end){
+        if (getSize() == 0) {
+            return "<empty>";
+        }
         String outStr= "";
         int slimit = Math.max(0, start);
         int elimit = Math.min(this.getSize(), end);

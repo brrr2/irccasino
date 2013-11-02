@@ -87,6 +87,7 @@ public class Blackjack extends CardGame {
         loadSettings();
         insuranceBets = false;
         idleShuffleTask = null;
+        betting = true;
     }
 
     @Override
@@ -882,6 +883,7 @@ public class Blackjack extends CardGame {
     public void resetGame() {
         discardPlayerHand(dealer);
         setInsuranceBets(false);
+        setBetting(true);
         currentPlayer = null;
     }
     /**
