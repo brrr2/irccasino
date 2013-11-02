@@ -1,7 +1,7 @@
 /*
-	Copyright (C) 2013 Yizhe Shen <brrr@live.ca>
-	
-	This file is part of irccasino.
+    Copyright (C) 2013 Yizhe Shen <brrr@live.ca>
+
+    This file is part of irccasino.
 
     irccasino is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -44,6 +44,7 @@ public class CardDeck {
     public CardDeck(){
         this(1);
     }
+    
     /**
      * Creates a CardDeck with n sets of cards (52n cards).
      * 
@@ -63,7 +64,7 @@ public class CardDeck {
      * @return the number of sets of cards in this deck
      */
     public int getNumberDecks(){
-    	return numDecks;
+        return numDecks;
     }
     
     /**
@@ -90,7 +91,7 @@ public class CardDeck {
      * @return the cards
      */
     public ArrayList<Card> getCards(){
-    	return cards;
+        return cards;
     }
     
     /**
@@ -99,7 +100,7 @@ public class CardDeck {
      * @return the discards
      */
     public ArrayList<Card> getDiscards(){
-    	return discards;
+        return discards;
     }
     
     /* Card manipulation methods for the deck */
@@ -109,7 +110,7 @@ public class CardDeck {
      * @return the card taken
      */
     public Card takeCard(){
-    	Card temp = cards.get(0);
+        Card temp = cards.get(0);
         cards.remove(0);
         return temp;
     }
@@ -129,7 +130,7 @@ public class CardDeck {
      * @param c the Card to discard
      */
     public void addToDiscard(Card c){
-    	discards.add(c);
+        discards.add(c);
     }
     
     /**
@@ -166,20 +167,20 @@ public class CardDeck {
      * Merges the discards back into the deck and then shuffles the deck.
      */
     public void refillDeck(){
-    	mergeDiscards();
-    	shuffleCards();
+        mergeDiscards();
+        shuffleCards();
     }
     
     /**
      * Generates numDecks sets of cards.
      */
     private void makeCards(){
-    	for (int n=0; n<numDecks; n++){
-	        for (int ctr=0; ctr<suits.length; ctr++){
-	            for (int ctr2=0; ctr2<faces.length; ctr2++){
-	                cards.add(new Card(suits[ctr],faces[ctr2]));
-	            }
-	        }
-    	}
+        for (int n=0; n<numDecks; n++){
+            for (int ctr=0; ctr<suits.length; ctr++){
+                for (int ctr2=0; ctr2<faces.length; ctr2++){
+                    cards.add(new Card(suits[ctr],faces[ctr2]));
+                }
+            }
+        }
     }
 }
