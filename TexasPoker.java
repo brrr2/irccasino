@@ -111,12 +111,12 @@ public class TexasPoker extends CardGame{
     /**
      * Constructor for TexasPoker, subclass of CardGame
      * 
-     * @param parent The bot that created an instance of this ListenerAdapter
+     * @param parent The bot that uses an instance of this class
+     * @param commChar The command char
      * @param gameChannel The IRC channel in which the game is to be run.
-     * @param eb The ListenerAdapter that is listening for commands for this game
      */
-    public TexasPoker(PircBotX parent, Channel gameChannel, ExampleBot eb){
-        super(parent, gameChannel, eb);
+    public TexasPoker(CasinoBot parent, char commChar, Channel gameChannel){
+        super(parent, commChar, gameChannel);
         setGameName("Texas Hold'em Poker");
         setIniFile("texaspoker.ini");
         setHelpFile("texaspoker.help");
@@ -147,10 +147,10 @@ public class TexasPoker extends CardGame{
         
         /* Parsing commands from the channel */
         if (command.equals("join") || command.equals("j")) {
-            if (parentListener.bjgame != null &&
-                (parentListener.bjgame.isJoined(nick) || parentListener.bjgame.isWaitlisted(nick))){
-                bot.sendNotice(user, "You're already joined in "+parentListener.bjgame.getGameNameStr()+"!");
-            } else if (parentListener.bjgame != null && parentListener.bjgame.isBlacklisted(nick)){
+            if (bot.bjgame != null &&
+                (bot.bjgame.isJoined(nick) || bot.bjgame.isWaitlisted(nick))){
+                bot.sendNotice(user, "You're already joined in "+bot.bjgame.getGameNameStr()+"!");
+            } else if (bot.bjgame != null && bot.bjgame.isBlacklisted(nick)){
                 infoBlacklisted(nick);
             } else{
                 join(nick, hostmask);
@@ -266,10 +266,10 @@ public class TexasPoker extends CardGame{
                         User u = it.next();
                         if (u.getNick().equalsIgnoreCase(fNick)){
                             // Check if fNick is joined in another game
-                            if (parentListener.bjgame != null &&
-                                (parentListener.bjgame.isJoined(fNick) || parentListener.bjgame.isWaitlisted(fNick))){
-                                bot.sendNotice(user, u.getNick()+" is already joined in "+parentListener.bjgame.getGameNameStr()+"!");
-                            } else if (parentListener.bjgame != null && parentListener.bjgame.isBlacklisted(fNick)){
+                            if (bot.bjgame != null &&
+                                (bot.bjgame.isJoined(fNick) || bot.bjgame.isWaitlisted(fNick))){
+                                bot.sendNotice(user, u.getNick()+" is already joined in "+bot.bjgame.getGameNameStr()+"!");
+                            } else if (bot.bjgame != null && bot.bjgame.isBlacklisted(fNick)){
                                 bot.sendNotice(user, u.getNick()+" is bankrupt and cannot join!");
                             } else{
                                 join(u.getNick(), u.getHostmask());
@@ -636,7 +636,6 @@ public class TexasPoker extends CardGame{
         showGameEnd();
         bot = null;
         channel = null;
-        parentListener = null;
     }
     @Override
     public void resetGame() {

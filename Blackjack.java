@@ -72,12 +72,12 @@ public class Blackjack extends CardGame {
     /**
      * Class constructor for Blackjack, a subclass of CardGame.
      * 
-     * @param parent The bot that created an instance of this ListenerAdapter
+     * @param parent The bot that uses an instance of this class
+     * @param commChar The command char
      * @param gameChannel The IRC channel in which the game is to be run.
-     * @param eb The ListenerAdapter that is listening for commands for this game
      */
-    public Blackjack(PircBotX parent, Channel gameChannel, ExampleBot eb) {
-        super(parent, gameChannel, eb);
+    public Blackjack(CasinoBot parent, char commChar, Channel gameChannel) {
+        super(parent, commChar, gameChannel);
         setGameName("Blackjack");
         setIniFile("blackjack.ini");
         setHelpFile("blackjack.help");
@@ -99,10 +99,10 @@ public class Blackjack extends CardGame {
         
         /* Parsing commands from the channel */
         if (command.equals("join") || command.equals("j")){
-            if (parentListener.tpgame != null && 
-                (parentListener.tpgame.isJoined(nick) || parentListener.tpgame.isWaitlisted(nick))){
-                bot.sendNotice(user, "You're already joined in "+parentListener.tpgame.getGameNameStr()+"!");
-            } else if (parentListener.tpgame != null && parentListener.tpgame.isBlacklisted(nick)){
+            if (bot.tpgame != null && 
+                (bot.tpgame.isJoined(nick) || bot.tpgame.isWaitlisted(nick))){
+                bot.sendNotice(user, "You're already joined in "+bot.tpgame.getGameNameStr()+"!");
+            } else if (bot.tpgame != null && bot.tpgame.isBlacklisted(nick)){
                 infoBlacklisted(nick);
             } else {
                 join(nick, hostmask);
@@ -279,10 +279,10 @@ public class Blackjack extends CardGame {
                         User u = it.next();
                         if (u.getNick().equalsIgnoreCase(fNick)){
                             // Check if fNick is joined in another game
-                            if (parentListener.tpgame != null && 
-                                (parentListener.tpgame.isJoined(fNick) || parentListener.tpgame.isWaitlisted(fNick))){
-                                bot.sendNotice(user, u.getNick()+" is already joined in "+parentListener.tpgame.getGameNameStr()+"!");
-                            } else if (parentListener.tpgame != null && parentListener.tpgame.isBlacklisted(fNick)){
+                            if (bot.tpgame != null && 
+                                (bot.tpgame.isJoined(fNick) || bot.tpgame.isWaitlisted(fNick))){
+                                bot.sendNotice(user, u.getNick()+" is already joined in "+bot.tpgame.getGameNameStr()+"!");
+                            } else if (bot.tpgame != null && bot.tpgame.isBlacklisted(fNick)){
                                 bot.sendNotice(user, u.getNick()+" is bankrupt and cannot join!");
                             } else {
                                 join(u.getNick(), u.getHostmask());
@@ -877,7 +877,6 @@ public class Blackjack extends CardGame {
         showGameEnd();
         bot = null;
         channel = null;
-        parentListener = null;
     }
     @Override
     public void resetGame() {

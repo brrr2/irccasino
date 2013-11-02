@@ -26,8 +26,14 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.*;
 import org.pircbotx.*;
+import org.pircbotx.hooks.ListenerAdapter;
+import org.pircbotx.hooks.events.JoinEvent;
+import org.pircbotx.hooks.events.MessageEvent;
+import org.pircbotx.hooks.events.NickChangeEvent;
+import org.pircbotx.hooks.events.PartEvent;
+import org.pircbotx.hooks.events.QuitEvent;
 
-public abstract class CardGame{
+public abstract class CardGame extends ListenerAdapter<PircBotX> {
     /* Start round task to be performed after post-start waiting period */
     public static class StartRoundTask extends TimerTask{
         CardGame game;
@@ -95,9 +101,9 @@ public abstract class CardGame{
         }
     }
 
-    protected PircBotX bot; //bot handling the game
-    protected ExampleBot parentListener; //ListenerAdapter that is receiving commands
-    protected Channel channel; //channel where game is being played
+    protected CasinoBot bot;
+    protected Channel channel;
+    protected char commandChar;
     protected ArrayList<Player> joined, blacklist, waitlist; //Player lists
     protected CardDeck deck; //the deck of cards
     protected Player currentPlayer; //stores the player whose turn it is
@@ -115,14 +121,14 @@ public abstract class CardGame{
      * Creates a generic CardGame.
      * Not to be directly instantiated.
      * 
-     * @param parent The bot that creates an instance of this class
+     * @param parent The bot that uses an instance of this class
+     * @param commChar The command char
      * @param gameChannel The IRC channel in which the game is to be run.
-     * @param eb The ListenerAdapter that is listening for commands for this game
      */
-    public CardGame (PircBotX parent, Channel gameChannel, ExampleBot eb){
+    public CardGame (CasinoBot parent, char commChar, Channel gameChannel){
         bot = parent;
+        commandChar = commChar;
         channel = gameChannel;
-        parentListener = eb;
         joined = new ArrayList<Player>();
         blacklist = new ArrayList<Player>();
         waitlist = new ArrayList<Player>();
@@ -136,6 +142,48 @@ public abstract class CardGame{
         betting = false;
         currentPlayer = null;
         checkPlayerFile();
+    }
+    
+    @Override
+    public void onMessage(MessageEvent<PircBotX> event){
+        String msg = event.getMessage();
+        
+        // Parse the message if it is a command
+        if (msg.length() > 1 && msg.charAt(0) == commandChar && event.getChannel().equals(channel)){
+            msg = msg.substring(1);
+            StringTokenizer st = new StringTokenizer(msg);
+            String command = st.nextToken().toLowerCase();
+            String[] params = new String[st.countTokens()];
+            for (int ctr = 0; ctr < params.length; ctr++){
+                params[ctr] = st.nextToken();
+            }
+            
+            processCommand(event.getUser(), command, params);
+        }
+    }
+    
+    @Override
+    public void onJoin(JoinEvent<PircBotX> event){
+        if (event.getChannel().equals(channel)){
+            processJoin(event.getUser());
+        }
+    }
+
+    @Override
+    public void onPart(PartEvent<PircBotX> event){
+        if (event.getChannel().equals(channel)){
+            processQuit(event.getUser());
+        }
+    }
+
+    @Override
+    public void onQuit(QuitEvent<PircBotX> event){
+        processQuit(event.getUser());
+    }
+
+    @Override
+    public void onNickChange(NickChangeEvent<PircBotX> event){
+        processNickChange(event.getUser(), event.getOldNick(), event.getNewNick());
     }
     
     /* Methods that process IRC events */
