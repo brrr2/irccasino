@@ -110,6 +110,13 @@ public class Blackjack extends CardGame {
             }
         } else if (command.equals("start") || command.equals("go")){
             if (isStartAllowed(nick)) {
+                if (params.length > 0){
+                    try {
+                        setStartCount(Integer.parseInt(params[0]) - 1);
+                    } catch (NumberFormatException e) {
+                        // Do nothing and proceed
+                    }
+                }
                 cancelIdleShuffleTask();
                 setInProgress(true);
                 showStartRound();
@@ -758,6 +765,7 @@ public class Blackjack extends CardGame {
             showTurn(currentPlayer);
             setIdleOutTask();
         } else {
+            setStartCount(0);
             endRound();
         }
     }
@@ -857,7 +865,20 @@ public class Blackjack extends CardGame {
         setInProgress(false);
         setEndRound(false);
         mergeWaitlist();
-        if (deck.getNumberDiscards() > 0) {
+        // Check if any auto-starts remaining
+        if (getStartCount() > 0){
+            decStartCount();
+            if (!isInProgress()) {
+                if (getNumberJoined() > 0) {
+                    setInProgress(true);
+                    showStartRound();
+                    setStartRoundTask();
+                } else {
+                    setStartCount(0);
+                    setIdleShuffleTask();
+                }
+            }
+        } else if (deck.getNumberDiscards() > 0) {
             setIdleShuffleTask();
         }
     }

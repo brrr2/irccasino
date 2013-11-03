@@ -157,6 +157,13 @@ public class TexasPoker extends CardGame{
             }
         } else if (command.equals("start") || command.equals("go")) {
             if (isStartAllowed(nick)){
+                if (params.length > 0){
+                    try {
+                        setStartCount(Integer.parseInt(params[0]) - 1);
+                    } catch (NumberFormatException e) {
+                        // Do nothing and proceed
+                    }
+                }
                 setInProgress(true);
                 showStartRound();
                 setStartRoundTask();
@@ -452,6 +459,7 @@ public class TexasPoker extends CardGame{
     @Override
     public void startRound() {
         if (getNumberJoined() < 2){
+            setStartCount(0);
             endRound();
         } else {
             setButton();
@@ -615,6 +623,19 @@ public class TexasPoker extends CardGame{
         setInProgress(false);
         setEndRound(false);
         mergeWaitlist();
+        // Check if auto-starts remaining
+        if (getStartCount() > 0){
+            decStartCount();
+            if (!isInProgress()){
+                if (getNumberJoined() > 1) {
+                    setInProgress(true);
+                    showStartRound();
+                    setStartRoundTask();
+                } else {
+                    setStartCount(0);
+                }
+            }
+        }
     }
     @Override
     public void endGame() {

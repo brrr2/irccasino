@@ -111,7 +111,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected Timer gameTimer; //All TimerTasks are scheduled on this Timer
     private boolean endRound;
     private String gameName, iniFile, helpFile;
-    private int idleOutTime, idleWarningTime, respawnTime, newCash, maxPlayers, minBet;
+    private int idleOutTime, idleWarningTime, respawnTime, newCash, maxPlayers, minBet, startCount;
     private IdleOutTask idleOutTask;
     private IdleWarningTask idleWarningTask;
     private StartRoundTask startRoundTask;
@@ -141,6 +141,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         endRound = false;
         betting = false;
         currentPlayer = null;
+        startCount = 0;
         checkPlayerFile();
     }
     
@@ -519,6 +520,15 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     public boolean isEndRound(){
         return endRound;
+    }
+    public void setStartCount(int value){
+        startCount = value;
+    }
+    public void decStartCount(){
+        startCount--;
+    }
+    public int getStartCount(){
+        return startCount;
     }
     
     /* 
@@ -1366,7 +1376,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         bot.sendMessage(channel, "Currently running "+getGameNameStr()+".");
     }
     public void showStartRound(){
-        bot.sendMessage(channel, "Starting another round of "+getGameNameStr()+" in 5 seconds...");
+        if (getStartCount() > 0){
+            bot.sendMessage(channel, formatBold("----------") + " Starting another round of "+getGameNameStr()+" in 5 seconds... (Auto-starts: " + formatBold(getStartCount()+"") + ") " + formatBold("----------"));
+        } else {
+            bot.sendMessage(channel, formatBold("----------") + " Starting another round of "+getGameNameStr()+" in 5 seconds... " + formatBold("----------"));
+        }
     }
     public void showEndRound(){
         bot.sendMessage(channel, formatBold("----------") + " End of " + getGameNameStr() + " round. Type .go for a new round. " + formatBold("----------"));
