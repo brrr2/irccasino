@@ -21,6 +21,10 @@ package irccasino;
 
 import java.util.HashMap;
 
+/**
+ * Class to store data from stats files.
+ * @author Yizhe Shen
+ */
 public abstract class Stats {
     /** Stores the stats. */
     protected HashMap<String,Integer> statsMap;

@@ -122,6 +122,7 @@ public class TexasPoker extends CardGame{
         setHelpFile("texaspoker.help");
         house = new HouseStat();
         loadHouseStats();
+        initSettings();
         loadSettings();
         deck = new CardDeck();
         deck.shuffleCards();
@@ -159,7 +160,7 @@ public class TexasPoker extends CardGame{
             if (isStartAllowed(nick)){
                 if (params.length > 0){
                     try {
-                        setStartCount(Integer.parseInt(params[0]) - 1);
+                        setStartCount(Math.min(getSetting("autostarts") - 1, Integer.parseInt(params[0]) - 1));
                     } catch (NumberFormatException e) {
                         // Do nothing and proceed
                     }
@@ -493,7 +494,7 @@ public class TexasPoker extends CardGame{
          * end of a round of betting and we should deal community cards. */
         if (currentPlayer == topBettor || currentPlayer == firstPlayer) {
             // Reset minimum raise
-            minRaise = getMinBet();
+            minRaise = getSetting("minbet");
             // Add bets from this round of betting to the pot
             addBetsToPot();
             stage++;
@@ -588,7 +589,7 @@ public class TexasPoker extends CardGame{
                 if (!p.has("cash")) {
                     // Make a withdrawal if the player has a positive bank
                     if (p.get("bank") > 0){
-                        int amount = Math.min(p.get("bank"), getNewCash());
+                        int amount = Math.min(p.get("bank"), getSetting("cash"));
                         p.bankTransfer(-amount);
                         savePlayerData(p);
                         infoAutoWithdraw(p.getNick(),amount);
@@ -748,13 +749,13 @@ public class TexasPoker extends CardGame{
     public void setBlindBets(){
         // Set the small blind to minimum raise or the player's cash, 
         // whichever is less.
-        smallBlind.set("bet", Math.min(getMinBet()/2, smallBlind.get("cash")));
+        smallBlind.set("bet", Math.min(getSetting("minbet")/2, smallBlind.get("cash")));
         // Set the big blind to minimum raise + small blind or the player's 
         // cash, whichever is less.
-        bigBlind.set("bet", Math.min(getMinBet(), bigBlind.get("cash")));
+        bigBlind.set("bet", Math.min(getSetting("minbet"), bigBlind.get("cash")));
         // Set the current bet to the bigger of the two blinds.
         currentBet = Math.max(smallBlind.get("bet"), bigBlind.get("bet"));
-        minRaise = getMinBet();
+        minRaise = getSetting("minbet");
     }
     
     /* Game command logic checking methods */
@@ -817,84 +818,15 @@ public class TexasPoker extends CardGame{
     
     /* Game settings management */
     @Override
-    protected void setSetting(String[] params) {
-        String setting = params[0].toLowerCase();
-        String value = params[1];
-        if (setting.equals("idle")) {
-            setIdleOutTime(Integer.parseInt(value));
-        } else if (setting.equals("idlewarning")) {
-            setIdleWarningTime(Integer.parseInt(value));
-        } else if (setting.equals("cash")) {
-            setNewCash(Integer.parseInt(value));
-        } else if (setting.equals("respawn")) {
-            setRespawnTime(Integer.parseInt(value));
-        } else if (setting.equals("minbet")){
-            setMinBet(Integer.parseInt(value));
-        } else if (setting.equals("maxplayers")){
-            setMaxPlayers(Integer.parseInt(value));
-        } else {
-            throw new IllegalArgumentException();
-        }
-        saveSettings();
-    }
-    @Override
-    protected String getSetting(String param) {
-        if (param.equals("idle")) {
-            return getIdleOutTime()+"";
-        } else if (param.equals("idlewarning")) {
-            return getIdleWarningTime()+"";
-        } else if (param.equals("cash")) {
-            return getNewCash()+"";
-        } else if (param.equals("respawn")) {
-            return getRespawnTime()+"";
-        } else if (param.equals("minbet")){
-            return getMinBet()+"";
-        } else if (param.equals("maxplayers")){
-            return getMaxPlayers()+"";
-        } else {
-            throw new IllegalArgumentException();
-        }
-    }
-    @Override
-    protected final void loadSettings() {
-        try {
-            BufferedReader in = new BufferedReader(new FileReader(getIniFile()));
-            String str, name, value;
-            StringTokenizer st;
-            while (in.ready()) {
-                str = in.readLine();
-                if (str.startsWith("#")) {
-                    continue;
-                }
-                st = new StringTokenizer(str, "=");
-                name = st.nextToken();
-                value = st.nextToken();
-                if (name.equals("idle")) {
-                    setIdleOutTime(Integer.parseInt(value));
-                } else if (name.equals("idlewarning")){
-                    setIdleWarningTime(Integer.parseInt(value));
-                } else if (name.equals("cash")) {
-                    setNewCash(Integer.parseInt(value));
-                } else if (name.equals("respawn")) {
-                    setRespawnTime(Integer.parseInt(value));
-                } else if (name.equals("minbet")) {
-                    setMinBet(Integer.parseInt(value));
-                } else if (name.equals("maxplayers")) {
-                    setMaxPlayers(Integer.parseInt(value));
-                }
-            }
-            in.close();
-        } catch (IOException e) {
-            /* load defaults if texaspoker.ini is not found */
-            bot.log(getIniFile()+" not found! Creating new "+getIniFile()+"...");
-            setNewCash(1000);
-            setIdleOutTime(60);
-            setIdleWarningTime(45);
-            setRespawnTime(600);
-            setMaxPlayers(22);
-            setMinBet(10);
-            saveSettings();
-        }
+    protected void initSettings(){
+        // Do not use setSettings()
+        settingsMap.put("cash", 1000);
+        settingsMap.put("idle", 60);
+        settingsMap.put("idlewarning", 45);
+        settingsMap.put("respawn", 600);
+        settingsMap.put("maxplayers", 22);
+        settingsMap.put("minbet", 10);
+        settingsMap.put("autostarts", 10);
     }
     @Override
     protected void saveSettings() {
@@ -902,20 +834,22 @@ public class TexasPoker extends CardGame{
             PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(getIniFile())));
             out.println("#Settings");
             out.println("#Number of seconds before a player idles out");
-            out.println("idle=" + getIdleOutTime());
+            out.println("idle=" + getSetting("idle"));
             out.println("#Number of seconds before a player is given a warning for idling");
-            out.println("idlewarning=" + getIdleWarningTime());
+            out.println("idlewarning=" + getSetting("idlewarning"));
             out.println("#Initial amount given to new and bankrupt players");
-            out.println("cash=" + getNewCash());
+            out.println("cash=" + getSetting("cash"));
             out.println("#Number of seconds before a bankrupt player is allowed to join again");
-            out.println("respawn=" + getRespawnTime());
+            out.println("respawn=" + getSetting("respawn"));
             out.println("#Minimum bet (big blind), preferably an even number");
-            out.println("minbet=" + getMinBet());
+            out.println("minbet=" + getSetting("minbet"));
             out.println("#The maximum number of players allowed to join a game");
-            out.println("maxplayers=" + getMaxPlayers());
+            out.println("maxplayers=" + getSetting("maxplayers"));
+            out.println("#The maximum number of autostarts allowed");
+            out.println("autostarts=" + getSetting("autostarts"));
             out.close();
         } catch (IOException e) {
-            bot.log("Error creating "+getIniFile()+"!");
+            bot.log("Error creating " + getIniFile() + "!");
         }
     }
     
@@ -1477,7 +1411,7 @@ public class TexasPoker extends CardGame{
     @Override
     public String getGameRulesStr() {
         return "This is no limit Texas Hold'em Poker. Blind bets are set at $" + 
-            formatNumber(getMinBet()/2) + "/$" + formatNumber(getMinBet()) + 
+            formatNumber(getSetting("minbet")/2) + "/$" + formatNumber(getSetting("minbet")) + 
             " or your stack, whichever is lower.";
     }
     @Override
