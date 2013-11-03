@@ -400,7 +400,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             if (isOpCommandAllowed(user, nick)){
                 if (params.length > 0){
                     try {
-                        showSetting(params[0].toLowerCase(), getSetting(params[0]));
+                        showSetting(params[0].toLowerCase(), getSetting(params[0].toLowerCase()));
                     } catch (IllegalArgumentException e) {
                         infoBadParameter(nick);
                     }

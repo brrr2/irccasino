@@ -612,7 +612,12 @@ public class Blackjack extends CardGame {
                             setIdleOutTask();
                         }
                     } else {
-                        removeJoined(p);
+                        if (p.has("initialbet")){
+                            p.setQuit(true);
+                            bot.sendNotice(p.getNick(), "You will be removed at the end of the round.");
+                        } else {
+                            removeJoined(p);
+                        }
                     }
                 // Check if it is already in the endRound stage
                 } else if (isEndRound()){
