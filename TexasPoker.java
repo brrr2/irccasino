@@ -73,8 +73,7 @@ public class TexasPoker extends CardGame{
         }
         
         public HouseStat(int pot) {
-            statsMap = new HashMap<String,Integer>();
-            statsMap.put("biggestpot", pot);
+            set("biggestpot", pot);
             nicks = new ArrayList<String>();
         }
         
@@ -560,6 +559,7 @@ public class TexasPoker extends CardGame{
 
         // Check if anybody left during post-start waiting period
         if (getNumberJoined() > 1 && pots.size() > 0) {
+            String netResults = Colors.YELLOW + ",01 Change: ";
             // Give all non-folded players the community cards
             for (int ctr = 0; ctr < getNumberJoined(); ctr++){
                 p = (PokerPlayer) getJoined(ctr);
@@ -614,8 +614,19 @@ public class TexasPoker extends CardGame{
                 } else {
                     savePlayerData(p);
                 }
+                
+                // Add player to list of net results
+                if (p.get("change") > 0) {
+                    netResults += Colors.WHITE + ",01 " + p.getNick() + " (" + Colors.GREEN + ",01$" + p.get("change") + Colors.WHITE + ",01), ";
+                } else if (p.get("change") < 0) {
+                    netResults += Colors.WHITE + ",01 " + p.getNick() + " (" + Colors.RED + ",01$" + p.get("change") + Colors.WHITE + ",01), ";
+                } else {
+                    netResults += Colors.WHITE + ",01 " + p.getNick() + " (" + Colors.WHITE + ",01$" + p.get("change") + Colors.WHITE + ",01), ";
+                }
+                
                 resetPlayer(p);
             }
+            bot.sendMessage(channel, netResults.substring(0, netResults.length()-2));
         } else {
             showNoPlayers();
         }
@@ -685,18 +696,18 @@ public class TexasPoker extends CardGame{
                     removeJoined(p);
                 // Check if it is already in the endRound stage
                 } else if (isEndRound()){
-                    p.setQuit(true);
+                    p.set("quit", 1);
                     bot.sendNotice(p.getNick(), "You will be removed at the end of the round.");
                 // Force the player to fold if it is his turn
                 } else if (p == currentPlayer){
-                    p.setQuit(true);
+                    p.set("quit", 1);
                     bot.sendNotice(p.getNick(), "You will be removed at the end of the round.");
                     fold();
                 } else {
-                    p.setQuit(true);
+                    p.set("quit", 1);
                     bot.sendNotice(p.getNick(), "You will be removed at the end of the round.");
                     if (!p.hasFolded()){
-                        p.setFold(true);
+                        p.set("fold", 1);
                         showFold(p);
                         // Remove this player from any existing pots
                         if (currentPot != null && currentPot.hasPlayer(p)){
@@ -729,9 +740,10 @@ public class TexasPoker extends CardGame{
     }
     public void resetPlayer(PokerPlayer p) {
         discardPlayerHand(p);
-        p.setFold(false);
-        p.setQuit(false);
-        p.setAllIn(false);
+        p.clear("fold");
+        p.clear("quit");
+        p.clear("allin");
+        p.clear("change");
     }
     public void setButton(){
         if (dealer == null){
@@ -818,7 +830,7 @@ public class TexasPoker extends CardGame{
     
     /* Game settings management */
     @Override
-    protected void initSettings(){
+    protected final void initSettings(){
         // Do not use setSettings()
         settingsMap.put("cash", 1000);
         settingsMap.put("idle", 60);
@@ -829,7 +841,7 @@ public class TexasPoker extends CardGame{
         settingsMap.put("autostarts", 10);
     }
     @Override
-    protected void saveSettings() {
+    protected final void saveSettings() {
         try {
             PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(getIniFile())));
             out.println("#Settings");
@@ -1036,7 +1048,7 @@ public class TexasPoker extends CardGame{
                 topBettor = p;
             }
             p.set("bet", amount);
-            p.setAllIn(true);
+            p.set("allin", 1);
             showAllIn(p);
             continueRound();
         // A bet that's larger than a player's stack
@@ -1113,7 +1125,7 @@ public class TexasPoker extends CardGame{
         
         // A call that's an all-in to match the currentBet
         if (total == p.get("cash")){
-            p.setAllIn(true);
+            p.set("allin", 1);
             p.set("bet", total);
             showAllIn(p);
         // A check
@@ -1133,7 +1145,7 @@ public class TexasPoker extends CardGame{
     public void fold(){
         cancelIdleOutTask();
         PokerPlayer p = (PokerPlayer) currentPlayer;
-        p.setFold(true);
+        p.set("fold", 1);
         showFold(p);
 
         //Remove this player from any existing pots
@@ -1192,11 +1204,13 @@ public class TexasPoker extends CardGame{
                         p.add("cash", -1 * bet);
                         p.add("tpwinnings", -1 * bet);
                         p.add("bet", -1 * bet);
+                        p.add("change", -1 * bet);
                     } else {
                         currentPot.addPot(lowBet);
                         p.add("cash", -1 * lowBet);
                         p.add("tpwinnings", -1 * lowBet);
                         p.add("bet", -1 * lowBet);
+                        p.add("change", -1 * lowBet);
                     }
                     // Ensure a non-folded player is included in this pot
                     if (!p.hasFolded() && !currentPot.hasPlayer(p)){
@@ -1262,8 +1276,7 @@ public class TexasPoker extends CardGame{
         PokerPlayer p;
         StringBuilder msg = new StringBuilder();
         // Append community cards to StringBuilder
-        String str = formatHeader(" Community Cards: ") + " " + 
-                    community.toString() + " ";
+        String str = formatHeader(" Community Cards: ") + " " + community.toString() + " ";
         msg.append(str);
         
         // Append existing pots to StringBuilder
@@ -1275,7 +1288,7 @@ public class TexasPoker extends CardGame{
         // Append remaining non-folded players
         int notFolded = getNumberNotFolded();
         int count = 0;
-        str = "("+Colors.BOLD+notFolded+Colors.BOLD+" players: ";
+        str = "(" + formatBold(notFolded) + " players: ";
         for (int ctr = 0; ctr < getNumberJoined(); ctr++){
             p = (PokerPlayer) getJoined(ctr);
             if (!p.hasFolded()){
@@ -1358,6 +1371,7 @@ public class TexasPoker extends CardGame{
                 p = players.get(ctr2);
                 p.add("cash", currentPot.getPot()/winners);
                 p.add("tpwinnings", currentPot.getPot()/winners);
+                p.add("change", currentPot.getPot()/winners);
                 bot.sendMessage(channel, Colors.YELLOW+",01 Pot #" + (ctr+1) + ": " + Colors.NORMAL + " " + 
                     p.getNickStr() + " wins $" + formatNumber(currentPot.getPot()/winners) + 
                     ". Stack: $" + formatNumber(p.get("cash"))+ " (" + getPlayerListString(currentPot.getPlayers()) + ")");

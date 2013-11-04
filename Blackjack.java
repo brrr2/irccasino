@@ -48,11 +48,10 @@ public class Blackjack extends CardGame {
         }
 
         public HouseStat(int a, int b, int c) {
-        statsMap = new HashMap<String,Integer>();
-        statsMap.put("decks", a);
-        statsMap.put("rounds", b);
-        statsMap.put("cash", c);
-    }
+            set("decks", a);
+            set("rounds", b);
+            set("cash", c);
+        }
         
     @Override
         public String toString() {
@@ -194,7 +193,7 @@ public class Blackjack extends CardGame {
             } else {
                 BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
                 if (p.hasSplit()){
-                    showTurn(p, p.getCurrentIndex()+1);
+                    showTurn(p, p.get("currentindex")+1);
                 } else {
                     showTurn(p);
                 }
@@ -613,7 +612,7 @@ public class Blackjack extends CardGame {
                         }
                     } else {
                         if (p.has("initialbet")){
-                            p.setQuit(true);
+                            p.set("quit", 1);
                             bot.sendNotice(p.getNick(), "You will be removed at the end of the round.");
                         } else {
                             removeJoined(p);
@@ -621,12 +620,12 @@ public class Blackjack extends CardGame {
                     }
                 // Check if it is already in the endRound stage
                 } else if (isEndRound()){
-                    p.setQuit(true);
+                    p.set("quit", 1);
                     bot.sendNotice(p.getNick(), "You will be removed at the end of the round.");
                     // If in the card-playing phase
                 } else {
                     bot.sendNotice(p.getNick(), "You will be removed at the end of the round.");
-                    p.setQuit(true);
+                    p.set("quit", 1);
                     if (p == currentPlayer){
                         stay();
                     }
@@ -658,7 +657,7 @@ public class Blackjack extends CardGame {
     @Override
     public void continueRound(){
         BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
-        if (p.getCurrentIndex() < p.getNumberHands() - 1) {
+        if (p.get("currentindex") < p.getNumberHands() - 1) {
             p.getNextHand();
             quickEval();
         } else {
@@ -802,10 +801,10 @@ public class Blackjack extends CardGame {
      */
     public void resetPlayer(BlackjackPlayer p) {
         discardPlayerHand(p);
-        p.resetCurrentIndex();
+        p.clear("currentindex");
         p.clear("initialbet");
-        p.setQuit(false);
-        p.setSurrender(false);
+        p.clear("quit");
+        p.clear("surrender");
         p.clear("insurebet");
     }
     public void setIdleShuffleTask() {
@@ -1091,7 +1090,7 @@ public class Blackjack extends CardGame {
             p.add("cash", calcHalf(p.get("initialbet")));
             p.add("bjwinnings", calcHalf(p.get("initialbet")));
             house.add("cash", -1 * calcHalf(p.get("initialbet")));
-            p.setSurrender(true);
+            p.set("surrender", 1);
             showSurrender(p);
             continueRound();
         }
@@ -1151,7 +1150,7 @@ public class Blackjack extends CardGame {
             house.add("cash", cHand.getBet());
             p.splitHand();
             dealCard(cHand);
-            nHand = p.getHand(p.getCurrentIndex() + 1);
+            nHand = p.getHand(p.get("currentindex") + 1);
             dealCard(nHand);
             nHand.setBet(cHand.getBet());
             showSplitHands(p);
@@ -1164,7 +1163,7 @@ public class Blackjack extends CardGame {
     private void quickEval() {
         BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
         if (p.hasSplit()) {
-            showTurn(p, p.getCurrentIndex() + 1);
+            showTurn(p, p.get("currentindex") + 1);
         } else {
             showTurn(p);
         }
@@ -1410,7 +1409,7 @@ public class Blackjack extends CardGame {
     }
     public void showHitResult(BlackjackPlayer p, BlackjackHand h){
         if (p.hasSplit()) {
-            showPlayerHand(p, h, p.getCurrentIndex() + 1);
+            showPlayerHand(p, h, p.get("currentindex") + 1);
         } else {
             showPlayerHand(p, h, false);
         }

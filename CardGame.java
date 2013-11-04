@@ -790,7 +790,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     public void togglePlayerSimple(String nick){
         Player p = findJoined(nick);
-        p.setSimple(!p.isSimple());
+        p.set("simple", (p.get("simple") + 1) % 2);
         if (p.isSimple()){
             bot.sendNotice(nick, "Game info will now be noticed to you.");
         } else {
@@ -954,7 +954,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     p.set("bjrounds", statLine.get("bjrounds"));
                     p.set("tpwinnings", statLine.get("tpwinnings"));
                     p.set("tprounds", statLine.get("tprounds"));
-                    p.setSimple(statLine.getSimple());
+                    p.set("simple", statLine.get("simple"));
                     found = true;
                     break;
                 }
@@ -994,7 +994,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     statLine.set("bjrounds", p.get("bjrounds"));
                     statLine.set("tpwinnings", p.get("tpwinnings"));
                     statLine.set("tprounds", p.get("tprounds"));
-                    statLine.setSimple(p.isSimple());
+                    statLine.set("simple", p.get("simple"));
                     found = true;
                     break;
                 }
@@ -1004,7 +1004,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 p.get("bank"), p.get("bankrupts"),
                 p.get("bjwinnings"), p.get("bjrounds"),
                 p.get("tpwinnings"), p.get("tprounds"),
-                p.isSimple());
+                p.get("simple"));
                 statList.add(statLine);
             }
         } catch (IOException e) {
@@ -1042,8 +1042,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     public static void loadPlayerFile(ArrayList<StatFileLine> statList) throws IOException {
         String nick;
-        int cash, bank, bankrupts, bjwinnings, bjrounds, tpwinnings, tprounds;
-        boolean simple;
+        int cash, bank, bankrupts, bjwinnings, bjrounds, tpwinnings, tprounds, simple;
         
         BufferedReader in = new BufferedReader(new FileReader("players.txt"));
         StringTokenizer st;
@@ -1057,7 +1056,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             bjrounds = Integer.parseInt(st.nextToken());
             tpwinnings = Integer.parseInt(st.nextToken());
             tprounds = Integer.parseInt(st.nextToken());
-            simple = Boolean.parseBoolean(st.nextToken());
+            simple = Integer.parseInt(st.nextToken());
             statList.add(new StatFileLine(nick, cash, bank, bankrupts, bjwinnings, 
                                         bjrounds, tpwinnings, tprounds, simple));
         }
@@ -1683,15 +1682,18 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     public static String formatBold(String str){
         return Colors.BOLD + str + Colors.BOLD;
     }
+    public static String formatBold(int value){
+        return formatBold(value + "");
+    }
     protected static String getPlayerListString(ArrayList<? extends Player> playerList){
         String outStr;
         int size = playerList.size();
         if (size == 0){
-            outStr = Colors.BOLD+"0"+Colors.BOLD+" players";
+            outStr = formatBold("0") + " players";
         } else if (size == 1){
-            outStr = Colors.BOLD+"1"+Colors.BOLD+" player: "+playerList.get(0).getNick();
+            outStr = formatBold("1") + " player: " + playerList.get(0).getNick();
         } else {
-            outStr = Colors.BOLD+size+Colors.BOLD+" players: ";
+            outStr = formatBold(size) + " players: ";
             for (int ctr=0; ctr < size; ctr++){
                 if (ctr == size-1){
                     outStr += playerList.get(ctr).getNick();
@@ -1706,11 +1708,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         String outStr;
         int size = stringList.size();
         if (size == 0){
-            outStr = Colors.BOLD+"0"+Colors.BOLD+" players";
+            outStr = formatBold("0") + " players";
         } else if (size == 1){
-            outStr = Colors.BOLD+"1"+Colors.BOLD+" player: " + stringList.get(0);
+            outStr = formatBold("1") + " player: " + stringList.get(0);
         } else {
-            outStr = Colors.BOLD+size+Colors.BOLD+" players: ";
+            outStr = formatBold(size) + " players: ";
             for (int ctr=0; ctr < size; ctr++){
                 if (ctr == size-1){
                     outStr += stringList.get(ctr);

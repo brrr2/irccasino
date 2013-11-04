@@ -26,12 +26,8 @@ import java.util.*;
  * @author Yizhe Shen
  */
 public class BlackjackPlayer extends Player{
-    /** The index of the player's current BlackjackHand. */
-    private int currentIndex;
     /** ArrayList containing the player's BlackjackHands. */
     private ArrayList<BlackjackHand> hands;
-    /** The player's surrender status. */
-    private boolean surrender;
     
     /**
      * Creates a new BlackjackPlayer.
@@ -44,10 +40,10 @@ public class BlackjackPlayer extends Player{
     public BlackjackPlayer(String nick, String hostmask, boolean dealer){
         super(nick, hostmask, dealer);
         hands = new ArrayList<BlackjackHand>();
-        statsMap.put("initialbet", 0);
-        statsMap.put("insurebet", 0);
-        currentIndex = 0;
-        surrender = false;
+        set("initialbet", 0);
+        set("insurebet", 0);
+        set("surrender", 0);
+        set("currentindex", 0);
     }
     
     /* Blackjack-specific card/hand manipulation methods */
@@ -72,7 +68,7 @@ public class BlackjackPlayer extends Player{
      * @return the BlackjackHand at the current index
      */
     public BlackjackHand getHand(){
-        return hands.get(currentIndex);
+        return hands.get(get("currentindex"));
     }
     
     /**
@@ -80,22 +76,8 @@ public class BlackjackPlayer extends Player{
      * @return the BlackjackHand at the incremented index
      */
     public BlackjackHand getNextHand(){
-        return getHand(++currentIndex);
-    }
-    
-    /**
-     * The index of the player's current BlackjackHand.
-     * @return the current index
-     */
-    public int getCurrentIndex(){
-        return currentIndex;
-    }
-    
-    /**
-     * Resets the current index back to the player's first hand.
-     */
-    public void resetCurrentIndex(){
-        currentIndex = 0;
+        increment("currentindex");
+        return getHand(get("currentindex"));
     }
     
     /**
@@ -122,19 +104,11 @@ public class BlackjackPlayer extends Player{
     }
     
     /**
-     * Sets the player's surrender status to the specified status.
-     * @param b the new status
-     */
-    public void setSurrender(boolean b){
-        surrender = b;
-    }
-    
-    /**
      * Whether or not the player has surrendered.
      * @return true if the player has surrendered.
      */
     public boolean hasSurrendered(){
-        return surrender;
+        return get("surrender") == 1;
     }
     
     /* Methods related to splitting hands */
@@ -158,6 +132,6 @@ public class BlackjackPlayer extends Player{
         tHand.add(cHand.get(1));
         cHand.remove(1);
 
-        hands.add(currentIndex+1, tHand);
+        hands.add(get("currentindex") + 1, tHand);
     }
 }
