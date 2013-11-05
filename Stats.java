@@ -21,9 +21,17 @@ package irccasino;
 
 import java.util.HashMap;
 
+/**
+ * Wrapper class for a HashMap to store stats.
+ * @author Yizhe Shen
+ */
 public abstract class Stats {
     /** Stores the stats. */
     protected HashMap<String,Integer> statsMap;
+    
+    public Stats() {
+        statsMap = new HashMap<String,Integer>();
+    }
     
     public void set(String stat, int value){
         statsMap.put(stat, value);

@@ -18,29 +18,30 @@
 */
 package irccasino;
 
-import java.util.HashMap;
-
+/**
+ * Stores a single line of data read from the players' stats file.
+ * @author Yizhe Shen
+ */
 public class StatFileLine extends Stats{
     private String nick;
-    private boolean simple;
     
     public StatFileLine(){
-        this("",0,0,0,0,0,0,0,true);
+        this("",0,0,0,0,0,0,0,0);
     }
     
     public StatFileLine(String nick, int cash, int bank, int bankrupts, 
             int bjwinnings, int bjrounds, int tpwinnings, int tprounds,
-            boolean simple){
-        statsMap = new HashMap<String,Integer>();
+            int simple){
+        super();
         this.nick = nick;
-        statsMap.put("cash", cash);
-        statsMap.put("bank", bank);
-        statsMap.put("bankrupts", bankrupts);
-        statsMap.put("bjwinnings", bjwinnings);
-        statsMap.put("bjrounds", bjrounds);
-        statsMap.put("tpwinnings", tpwinnings);
-        statsMap.put("tprounds", tprounds);
-        this.simple = simple;
+        set("cash", cash);
+        set("bank", bank);
+        set("bankrupts", bankrupts);
+        set("bjwinnings", bjwinnings);
+        set("bjrounds", bjrounds);
+        set("tpwinnings", tpwinnings);
+        set("tprounds", tprounds);
+        set("simple", simple);
     }
     
     public String getNick(){
@@ -51,22 +52,14 @@ public class StatFileLine extends Stats{
         nick = value;
     }
     
-    public boolean getSimple(){
-        return simple;
-    }
-    
-    public void setSimple(boolean value){
-        simple = value;
-    }
-    
     @Override
     public int get(String stat){
         if (stat.equals("exists")){
             return 1;
         } else if (stat.equals("netcash")){
-            return statsMap.get("cash") + statsMap.get("bank");
+            return get("cash") + get("bank");
         }
-        return statsMap.get(stat);
+        return super.get(stat);
     }
     
     @Override
@@ -74,6 +67,6 @@ public class StatFileLine extends Stats{
         return getNick() + " " + get("cash") + " " + get("bank") + 
                 " " + get("bankrupts") + " " + get("bjwinnings") + 
                 " " + get("bjrounds") + " " + get("tpwinnings") + 
-                " " + get("tprounds") + " " + getSimple();
+                " " + get("tprounds") + " " + get("simple");
     }
 }

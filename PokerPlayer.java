@@ -28,10 +28,6 @@ public class PokerPlayer extends Player implements Comparable<PokerPlayer> {
     private Hand hand;
     /** The player's cards plus any community cards. */
     private PokerHand pHand;
-    /** The player's fold status. */
-    private boolean fold;
-    /** The player's all-in status. */
-    private boolean allIn;
     
     /**
      * Creates a new PokerPlayer.
@@ -42,11 +38,12 @@ public class PokerPlayer extends Player implements Comparable<PokerPlayer> {
      */
     public PokerPlayer(String nick, String hostmask){
         super(nick, hostmask, false);
-        statsMap.put("bet", 0);
+        set("bet", 0);
+        set("change", 0);
+        set("fold", 0);
+        set("allin", 0);
         hand = new Hand();
         pHand = new PokerHand();
-        fold = false;
-        allIn = false;
     }
 
     /**
@@ -84,27 +81,11 @@ public class PokerPlayer extends Player implements Comparable<PokerPlayer> {
     }
     
     /**
-     * Sets the player's fold status to the specified status.
-     * @param b the new status
-     */
-    public void setFold(boolean b){
-        fold = b;
-    }
-    
-    /**
      * Whether or not the player has folded.
      * @return true if player has folded
      */
     public boolean hasFolded(){
-        return fold;
-    }
-    
-    /**
-     * Sets the player's all-in status to the specified value.
-     * @param b the new status
-     */
-    public void setAllIn(boolean b){
-        allIn = b;
+        return get("fold") == 1;
     }
     
     /**
@@ -112,7 +93,7 @@ public class PokerPlayer extends Player implements Comparable<PokerPlayer> {
      * @return true if the player has gone all in
      */
     public boolean hasAllIn(){
-        return allIn;
+        return get("allin") == 1;
     }
     
     /**

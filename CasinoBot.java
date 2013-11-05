@@ -62,7 +62,7 @@ public class CasinoBot extends PircBotX {
             String msg = event.getMessage();
 
             // Parse the message if it is a command
-            if (msg.length() > 1 && msg.charAt(0) == commandChar) {
+            if (msg.length() > 1 && msg.charAt(0) == commandChar && msg.charAt(1) != ' ') {
                 msg = msg.substring(1);
                 StringTokenizer st = new StringTokenizer(msg);
                 String command = st.nextToken().toLowerCase();

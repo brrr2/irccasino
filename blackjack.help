@@ -1,6 +1,6 @@
 ##### Player commands #####
-go=Usage: go | Alias: start | Starts a new round of Blackjack if there are sufficient players.
-start=Usage: start | Alias: go | Starts a new round of Blackjack if there are sufficient players.
+go=Usage: go | Alias: start <auto-starts> | Starts a new round of Blackjack if there are sufficient players. An optional parameter can be added to specify the number of auto-starts.
+start=Usage: start | Alias: go  <auto-starts> | Starts a new round of Blackjack if there are sufficient players. An optional parameter can be added to specify the number of auto-starts.
 join=Usage: join | Alias: j | Joins the game. If a game is in progress, you will be added to a waiting list and automatically added to the next round.
 j=Usage: j | Alias: join | Joins the game. If a game is in progress, you will be added to a waiting list and automatically added to the next round.
 quit=Usage: quit | Alias: q, leave, l | Leaves the current game if joined, or the waiting list if on the waiting list.

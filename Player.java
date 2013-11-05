@@ -19,7 +19,6 @@
 
 package irccasino;
 
-import java.util.HashMap;
 import org.pircbotx.*;
 
 /**
@@ -28,12 +27,8 @@ import org.pircbotx.*;
  * @author Yizhe Shen
  */
 public abstract class Player extends Stats{
-    /** Stores the player's simple status. */
-    protected boolean simple;
     /** Stores the player's dealer status. */
     protected boolean dealer;
-    /** Stores the player's quit status. */
-    protected boolean quit;
     /** Stores the player's nick. */
     protected String nick;
     /** Stores the player's hostmask. */
@@ -49,19 +44,19 @@ public abstract class Player extends Stats{
      * @param dealer Whether or not this player is dealer
      */
     public Player(String nick, String hostmask, boolean dealer){
+        super();
         this.nick = nick;
         this.dealer = dealer;
         this.hostmask = hostmask;
-        statsMap = new HashMap<String,Integer>();
-        statsMap.put("cash", 0);
-        statsMap.put("bank", 0);
-        statsMap.put("bankrupts", 0);
-        statsMap.put("bjrounds", 0);
-        statsMap.put("bjwinnings", 0);
-        statsMap.put("tprounds", 0);
-        statsMap.put("tpwinnings", 0);
-        simple = true;
-        quit = false;
+        set("cash", 0);
+        set("bank", 0);
+        set("bankrupts", 0);
+        set("bjrounds", 0);
+        set("bjwinnings", 0);
+        set("tprounds", 0);
+        set("tpwinnings", 0);
+        set("simple", 1);
+        set("quit", 0);
     }
     
     /* Player info methods */
@@ -73,9 +68,8 @@ public abstract class Player extends Stats{
     public String getNick(){
         if (dealer){
             return "Dealer";
-        } else {
-            return nick;
         }
+        return nick;
     }
     
     /**
@@ -97,21 +91,12 @@ public abstract class Player extends Stats{
     }
     
     /**
-     * Sets the Player's quit status.
-     * 
-     * @param b the new status
-     */
-    public void setQuit(boolean b){
-        quit = b;
-    }
-    
-    /**
      * Whether or not the Player has quit.
      * 
      * @return true if the Player has quit
      */
     public boolean hasQuit(){
-        return quit;
+        return get("quit") == 1;
     }
     
     /**
@@ -122,16 +107,7 @@ public abstract class Player extends Stats{
      * @return true if simple is turned on
      */
     public boolean isSimple(){
-        return simple;
-    }
-    
-    /**
-     * Sets the Player's simple status.
-     * 
-     * @param s the new status
-     */
-    public void setSimple(boolean s){
-        simple = s;
+        return get("simple") == 1;
     }
     
     @Override
@@ -139,9 +115,9 @@ public abstract class Player extends Stats{
         if (stat.equals("exists")){
             return 1;
         } else if (stat.equals("netcash")){
-            return statsMap.get("cash") + statsMap.get("bank");
+            return get("cash") + get("bank");
         }
-        return statsMap.get(stat);
+        return super.get(stat);
     }
     
     /**
@@ -160,7 +136,7 @@ public abstract class Player extends Stats{
      * @return the bold-formatted nick
      */
     public String getNickStr(){
-        return Colors.BOLD+getNick()+Colors.BOLD;
+        return Colors.BOLD + getNick() + Colors.BOLD;
     }
     
     /**
