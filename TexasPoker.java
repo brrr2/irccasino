@@ -67,36 +67,88 @@ public class TexasPoker extends CardGame{
     
     /* Nested class to store statistics, based on number of decks used, for the house */
     private class HouseStat extends Stats {
-        ArrayList<String> nicks;
+        private ArrayList<String> playerList, winnerList;
         public HouseStat() {
             this(0);
         }
         
         public HouseStat(int pot) {
             set("biggestpot", pot);
-            nicks = new ArrayList<String>();
+            playerList = new ArrayList<String>();
+            winnerList = new ArrayList<String>();
         }
         
-        public void addNick(String nick){
-            nicks.add(nick);
+        public int getNumPlayers(){
+            return playerList.size();
         }
         
-        public void clearNicks(){
-            nicks.clear();
+        public void addPlayer(String nick){
+            playerList.add(nick);
         }
         
-        public String getNickListString(){
-            String output = "";
-            for (int ctr = 0; ctr < nicks.size(); ctr++){
-                output += nicks.get(ctr) + " ";
+        public void clearPlayerList(){
+            playerList.clear();
+        }
+        
+        public int getNumWinners(){
+            return winnerList.size();
+        }
+        
+        public void addWinner(String nick){
+            winnerList.add(nick);
+        }
+        
+        public void clearWinnerList(){
+            winnerList.clear();
+        }
+        
+        public String getPlayerListString(){
+            String outStr = "";
+            for (int ctr = 0; ctr < playerList.size(); ctr++){
+                outStr += playerList.get(ctr) + " ";
             }
-            return output.substring(0, output.length()-1);
+            return outStr.substring(0, outStr.length() - 1);
+        }
+        
+        public String getWinnerListString(){
+            String outStr = "";
+            for (int ctr = 0; ctr < winnerList.size(); ctr++){
+                outStr += winnerList.get(ctr) + " ";
+            }
+            return outStr.substring(0, outStr.length() - 1);
+        }
+        
+        public String getToStringList(){
+            String outStr = "";
+            int size = playerList.size();
+            if (size == 0){
+                outStr = formatBold("0") + " players";
+            } else if (size == 1){
+                outStr = formatBold("1") + " player: " + playerList.get(0);
+            } else {
+                outStr = formatBold(size) + " players: ";
+                for (int ctr = 0; ctr < size; ctr++){
+                    if (ctr == size-1){
+                        if (winnerList.contains(playerList.get(ctr))) {
+                            outStr += formatBold(playerList.get(ctr));
+                        } else {
+                            outStr += playerList.get(ctr);
+                        }
+                    } else {
+                        if (winnerList.contains(playerList.get(ctr))) {
+                            outStr += formatBold(playerList.get(ctr)) + ", ";
+                        } else {
+                            outStr += playerList.get(ctr) + ", ";
+                        }
+                    }
+                }   
+            }
+            return outStr;
         }
         
         @Override
         public String toString() {
-            return "Biggest pot: $" + formatNumber(get("biggestpot")) + " (" +
-                    getListString(nicks) + ").";
+            return "Biggest pot: $" + formatNumber(get("biggestpot")) + " (" + getToStringList() + ").";
         }
     }
     
@@ -870,7 +922,7 @@ public class TexasPoker extends CardGame{
         try {
             BufferedReader in = new BufferedReader(new FileReader("housestats.txt"));
             String str;
-            int biggestpot;
+            int biggestpot, players, winners;
             StringTokenizer st;
             while (in.ready()) {
                 str = in.readLine();
@@ -883,8 +935,13 @@ public class TexasPoker extends CardGame{
                         st = new StringTokenizer(str);
                         biggestpot = Integer.parseInt(st.nextToken());
                         house.set("biggestpot", biggestpot);
-                        while (st.hasMoreTokens()){
-                            house.addNick(st.nextToken());
+                        players = Integer.parseInt(st.nextToken());
+                        for (int ctr = 0; ctr < players; ctr++) {
+                            house.addPlayer(st.nextToken());
+                        }
+                        winners = Integer.parseInt(st.nextToken());
+                        for (int ctr = 0; ctr < winners; ctr++) {
+                            house.addWinner(st.nextToken());
                         }
                     }
                     break;
@@ -936,7 +993,7 @@ public class TexasPoker extends CardGame{
             lines.add("#texaspoker");
             index = lines.size();
         }
-        lines.add(index, house.get("biggestpot") + " " + house.getNickListString());
+        lines.add(index, house.get("biggestpot") + " " + house.getNumPlayers() + " " + house.getPlayerListString() + " " + house.getNumWinners() + " " + house.getWinnerListString());
         try {
             PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("housestats.txt")));
             for (int ctr = 0; ctr < lines.size(); ctr++) {
@@ -1166,8 +1223,10 @@ public class TexasPoker extends CardGame{
      */
     public void addBetsToPot(){
         PokerPlayer p;
+        int lowBet, overBet;
         while(currentBet != 0){
-            int lowBet = currentBet;
+            lowBet = currentBet;
+            overBet = 0;
             // Create a new pot if none exists
             if (currentPot == null){
                 currentPot = new PokerPot();
@@ -1178,8 +1237,7 @@ public class TexasPoker extends CardGame{
                 // thus requiring a new pot
                 for (int ctr = 0; ctr < currentPot.getNumberPlayers(); ctr++) {
                     p = currentPot.getPlayer(ctr);
-                    if (p.get("bet") == 0 && currentBet != 0 && !p.hasFolded()
-                                    && currentPot.hasPlayer(p)) {
+                    if (p.get("bet") == 0 && currentBet != 0 && !p.hasFolded() && currentPot.hasPlayer(p)) {
                         currentPot = new PokerPot();
                         pots.add(currentPot);
                         break;
@@ -1216,13 +1274,29 @@ public class TexasPoker extends CardGame{
                     if (!p.hasFolded() && !currentPot.hasPlayer(p)){
                         currentPot.addPlayer(p);
                     }
+                    // Check if this player has any bet left over
+                    if (p.get("bet") != 0){
+                        overBet++;
+                    }
                 }
             }
             currentBet -= lowBet;
-            // If there is any currentBet left over, that means we have to
+            // If there is any currentBet left over and there is more than one
+            // player with a positive bet amount, that means we have to
             // create a new sidepot, so we set currentPot to null.
-            if (currentBet != 0) {
+            if (currentBet != 0 && overBet > 1) {
                 currentPot = null;
+            // If only one person has a positive bet amount, that means he has
+            // over-bet and should have his bet returned.
+            } else if (overBet == 1){
+                for (int ctr = 0; ctr < getNumberJoined(); ctr++){
+                    p = (PokerPlayer) getJoined(ctr);
+                    if (p.get("bet") != 0){
+                        p.clear("bet");
+                        break;
+                    }
+                }
+                currentBet = 0;
             }
         }
     }
@@ -1380,9 +1454,13 @@ public class TexasPoker extends CardGame{
             // Check if it's the biggest pot
             if (house.get("biggestpot") < currentPot.getPot()){
                 house.set("biggestpot", currentPot.getPot());
-                house.clearNicks();
-                for(int ctr2 = 0; ctr2 < currentPot.getNumberPlayers(); ctr2++){
-                    house.addNick(currentPot.getPlayer(ctr2).getNick());
+                house.clearPlayerList();
+                house.clearWinnerList();
+                for (int ctr2 = 0; ctr2 < currentPot.getNumberPlayers(); ctr2++){
+                    house.addPlayer(currentPot.getPlayer(ctr2).getNick());
+                }
+                for (int ctr2 = 0; ctr2 < winners; ctr2++){
+                    house.addWinner(currentPot.getPlayer(ctr2).getNick());
                 }
                 saveHouseStats();
             }
