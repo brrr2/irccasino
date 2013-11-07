@@ -42,13 +42,15 @@ public abstract class Stats {
     }
     
     public void increment(String stat){
-        int value = statsMap.get(stat);
-        statsMap.put(stat, value + 1);
+        statsMap.put(stat, get(stat) + 1);
+    }
+    
+    public void decrement(String stat){
+        statsMap.put(stat, get(stat) - 1);
     }
     
     public void add(String stat, int amount){
-        int value = statsMap.get(stat);
-        statsMap.put(stat, value + amount);
+        statsMap.put(stat, get(stat) + amount);
     }
     
     public boolean has(String stat){

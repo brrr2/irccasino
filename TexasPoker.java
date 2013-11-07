@@ -152,7 +152,6 @@ public class TexasPoker extends CardGame{
         }
     }
     
-    private int stage, currentBet, minRaise;
     private ArrayList<PokerPot> pots;
     private PokerPot currentPot;
     private PokerPlayer dealer, smallBlind, bigBlind, topBettor;
@@ -173,14 +172,12 @@ public class TexasPoker extends CardGame{
         setHelpFile("texaspoker.help");
         house = new HouseStat();
         loadHouseStats();
-        initSettings();
-        loadSettings();
+        initialize();
+        loadIniFile();
         deck = new CardDeck();
         deck.shuffleCards();
         pots = new ArrayList<PokerPot>();
         community = new Hand();
-        stage = 0;
-        currentBet = 0;
         currentPot = null;
         dealer = null;
         smallBlind = null;
@@ -211,12 +208,12 @@ public class TexasPoker extends CardGame{
             if (isStartAllowed(nick)){
                 if (params.length > 0){
                     try {
-                        setStartCount(Math.min(getSetting("autostarts") - 1, Integer.parseInt(params[0]) - 1));
+                        set("startcount", Math.min(get("autostarts") - 1, Integer.parseInt(params[0]) - 1));
                     } catch (NumberFormatException e) {
                         // Do nothing and proceed
                     }
                 }
-                setInProgress(true);
+                set("inprogress", 1);
                 showStartRound();
                 setStartRoundTask();
             }
@@ -248,7 +245,7 @@ public class TexasPoker extends CardGame{
             if (isPlayerTurn(nick)){
                 if (params.length > 0){
                     try {
-                        bet(Integer.parseInt(params[0]) + currentBet);
+                        bet(Integer.parseInt(params[0]) + get("currentbet"));
                     } catch (NumberFormatException e) {
                         infoBadParameter(nick);
                     }
@@ -263,9 +260,9 @@ public class TexasPoker extends CardGame{
         } else if (command.equals("community") || command.equals("comm")){
             if (!isJoined(nick)) {
                 infoNotJoined(nick);
-            } else if (!isInProgress()) {
+            } else if (!has("inprogress")) {
                 infoNotStarted(nick);
-            } else if (stage == 0){
+            } else if (!has("stage")){
                 infoNoCommunity(nick);
             } else {
                 showCommunityCards();
@@ -273,7 +270,7 @@ public class TexasPoker extends CardGame{
         } else if (command.equals("hand")) {
             if (!isJoined(nick)) {
                 infoNotJoined(nick);
-            } else if (!isInProgress()) {
+            } else if (!has("inprogress")) {
                 infoNotStarted(nick);
             } else {
                 PokerPlayer p = (PokerPlayer) findJoined(nick);
@@ -282,13 +279,13 @@ public class TexasPoker extends CardGame{
         } else if (command.equals("turn")) {
             if (!isJoined(nick)) {
                 infoNotJoined(nick);
-            } else if (!isInProgress()) {
+            } else if (!has("inprogress")) {
                 infoNotStarted(nick);
             } else {
                 showTurn(currentPlayer);
             }
         } else if (command.equals("players")) {
-            if (isInProgress()){
+            if (has("inprogress")){
                 showTablePlayers();
             } else {
                 showPlayers();
@@ -296,7 +293,7 @@ public class TexasPoker extends CardGame{
         /* Op commands */
         } else if (command.equals("fstart") || command.equals("fgo")){
             if (isForceStartAllowed(user,nick)){
-                setInProgress(true);
+                set("inprogress", 1);
                 showStartRound();
                 setStartRoundTask();
             }
@@ -311,7 +308,7 @@ public class TexasPoker extends CardGame{
                 }
                 resetGame();
                 showEndRound();
-                setInProgress(false);
+                set("inprogress", 0);
             }
         } else if (command.equals("fj") || command.equals("fjoin")){
             if (!channel.isOp(user)) {
@@ -361,7 +358,7 @@ public class TexasPoker extends CardGame{
             if (isForcePlayAllowed(user, nick)){
                 if (params.length > 0){
                     try {
-                        bet(Integer.parseInt(params[0]) + currentBet);
+                        bet(Integer.parseInt(params[0]) + get("currentbet"));
                     } catch (NumberFormatException e) {
                         infoBadParameter(nick);
                     }
@@ -387,7 +384,7 @@ public class TexasPoker extends CardGame{
             }
         } else if (command.equals("reload")) {
             if (isOpCommandAllowed(user, nick)){
-                loadSettings();
+                loadIniFile();
                 showReloadSettings();
             }
         } else if (command.equals("test1")){
@@ -511,7 +508,7 @@ public class TexasPoker extends CardGame{
     @Override
     public void startRound() {
         if (getNumberJoined() < 2){
-            setStartCount(0);
+            set("startcount", 0);
             endRound();
         } else {
             setButton();
@@ -545,13 +542,13 @@ public class TexasPoker extends CardGame{
          * end of a round of betting and we should deal community cards. */
         if (currentPlayer == topBettor || currentPlayer == firstPlayer) {
             // Reset minimum raise
-            minRaise = getSetting("minbet");
+            set("minraise", get("minbet"));
             // Add bets from this round of betting to the pot
             addBetsToPot();
-            stage++;
+            increment("stage");
             
             // If all community cards have been dealt, move to end of round
-            if (stage == 4){
+            if (get("stage") == 4){
                 endRound();
             // Otherwise, deal community cards
             } else {
@@ -580,7 +577,7 @@ public class TexasPoker extends CardGame{
                    try { Thread.sleep(10000); } catch (InterruptedException e){}
                 }
                 // Burn a card before turn and river
-                if (stage != 1) {
+                if (get("stage") != 1) {
                     burnCard();
                 }
                 dealCommunity();
@@ -606,7 +603,7 @@ public class TexasPoker extends CardGame{
     }
     @Override
     public void endRound() {
-        setEndRound(true);
+        set("endround", 1);
         PokerPlayer p;
 
         // Check if anybody left during post-start waiting period
@@ -641,7 +638,7 @@ public class TexasPoker extends CardGame{
                 if (!p.has("cash")) {
                     // Make a withdrawal if the player has a positive bank
                     if (p.get("bank") > 0){
-                        int amount = Math.min(p.get("bank"), getSetting("cash"));
+                        int amount = Math.min(p.get("bank"), get("cash"));
                         p.bankTransfer(-amount);
                         savePlayerData(p);
                         infoAutoWithdraw(p.getNick(),amount);
@@ -684,19 +681,17 @@ public class TexasPoker extends CardGame{
         }
         resetGame();
         showEndRound();
-        setInProgress(false);
-        setEndRound(false);
         mergeWaitlist();
         // Check if auto-starts remaining
-        if (getStartCount() > 0){
-            decStartCount();
-            if (!isInProgress()){
+        if (get("startcount") > 0){
+            decrement("startcount");
+            if (!has("inprogress")){
                 if (getNumberJoined() > 1) {
-                    setInProgress(true);
+                    set("inprogress", 1);
                     showStartRound();
                     setStartRoundTask();
                 } else {
-                    setStartCount(0);
+                    set("startcount", 0);
                 }
             }
         }
@@ -724,9 +719,11 @@ public class TexasPoker extends CardGame{
     }
     @Override
     public void resetGame() {
+        set("stage", 0);
+        set("currentbet", 0);
+        set("inprogress", 0);
+        set("endround", 0);
         discardCommunity();
-        stage = 0;
-        currentBet = 0;
         currentPot = null;
         pots.clear();
         currentPlayer = null;
@@ -741,13 +738,13 @@ public class TexasPoker extends CardGame{
         if (isJoined(nick)){
             PokerPlayer p = (PokerPlayer) findJoined(nick);
             // Check if a round is in progress
-            if (isInProgress()) {
+            if (has("inprogress")) {
                 /* If still in the post-start waiting phase, then currentPlayer has
                  * not been set yet. */
                 if (currentPlayer == null){
                     removeJoined(p);
                 // Check if it is already in the endRound stage
-                } else if (isEndRound()){
+                } else if (has("endround")){
                     p.set("quit", 1);
                     bot.sendNotice(p.getNick(), "You will be removed at the end of the round.");
                 // Force the player to fold if it is his turn
@@ -813,20 +810,20 @@ public class TexasPoker extends CardGame{
     public void setBlindBets(){
         // Set the small blind to minimum raise or the player's cash, 
         // whichever is less.
-        smallBlind.set("bet", Math.min(getSetting("minbet")/2, smallBlind.get("cash")));
+        smallBlind.set("bet", Math.min(get("minbet")/2, smallBlind.get("cash")));
         // Set the big blind to minimum raise + small blind or the player's 
         // cash, whichever is less.
-        bigBlind.set("bet", Math.min(getSetting("minbet"), bigBlind.get("cash")));
+        bigBlind.set("bet", Math.min(get("minbet"), bigBlind.get("cash")));
         // Set the current bet to the bigger of the two blinds.
-        currentBet = Math.max(smallBlind.get("bet"), bigBlind.get("bet"));
-        minRaise = getSetting("minbet");
+        set("currentbet", Math.max(smallBlind.get("bet"), bigBlind.get("bet")));
+        set("minraise", get("minbet"));
     }
     
     /* Game command logic checking methods */
     public boolean isStartAllowed(String nick){
         if (!isJoined(nick)) {
             infoNotJoined(nick);
-        } else if (isInProgress()) {
+        } else if (has("inprogress")) {
             infoRoundStarted(nick);
         } else if (getNumberJoined() < 2) {
             showNoPlayers();
@@ -838,7 +835,7 @@ public class TexasPoker extends CardGame{
     public boolean isPlayerTurn(String nick){
         if (!isJoined(nick)){
             infoNotJoined(nick);
-        } else if (!isInProgress()) {
+        } else if (!has("inprogress")) {
             infoNotStarted(nick);
         } else if (findJoined(nick) != currentPlayer){
             infoNotTurn(nick);
@@ -850,7 +847,7 @@ public class TexasPoker extends CardGame{
     public boolean isForceStartAllowed(User user, String nick){
         if (!channel.isOp(user)) {
             infoOpsOnly(nick);
-        } else if (isInProgress()) {
+        } else if (has("inprogress")) {
             infoRoundStarted(nick);
         } else if (getNumberJoined() < 2) {
             showNoPlayers();
@@ -862,7 +859,7 @@ public class TexasPoker extends CardGame{
     public boolean isForceStopAllowed(User user, String nick){
         if (!channel.isOp(user)) {
             infoOpsOnly(nick);
-        } else if (!isInProgress()) {
+        } else if (!has("inprogress")) {
             infoNotStarted(nick);
         } else {
             return true;
@@ -872,7 +869,7 @@ public class TexasPoker extends CardGame{
     public boolean isForcePlayAllowed(User user, String nick){
         if (!channel.isOp(user)) {
             infoOpsOnly(nick);
-        } else if (!isInProgress()) {
+        } else if (!has("inprogress")) {
             infoNotStarted(nick);
         } else {
             return true;
@@ -882,8 +879,10 @@ public class TexasPoker extends CardGame{
     
     /* Game settings management */
     @Override
-    protected final void initSettings(){
-        // Do not use setSettings()
+    protected final void initialize(){
+        super.initialize();
+        // Do not use set()
+        // Ini file settings
         settingsMap.put("cash", 1000);
         settingsMap.put("idle", 60);
         settingsMap.put("idlewarning", 45);
@@ -891,26 +890,30 @@ public class TexasPoker extends CardGame{
         settingsMap.put("maxplayers", 22);
         settingsMap.put("minbet", 10);
         settingsMap.put("autostarts", 10);
+        // In-game properties
+        settingsMap.put("stage", 0);
+        settingsMap.put("currentbet", 0);
+        settingsMap.put("minraise", 0);
     }
     @Override
-    protected final void saveSettings() {
+    protected final void saveIniFile() {
         try {
             PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(getIniFile())));
             out.println("#Settings");
             out.println("#Number of seconds before a player idles out");
-            out.println("idle=" + getSetting("idle"));
+            out.println("idle=" + get("idle"));
             out.println("#Number of seconds before a player is given a warning for idling");
-            out.println("idlewarning=" + getSetting("idlewarning"));
+            out.println("idlewarning=" + get("idlewarning"));
             out.println("#Initial amount given to new and bankrupt players");
-            out.println("cash=" + getSetting("cash"));
+            out.println("cash=" + get("cash"));
             out.println("#Number of seconds before a bankrupt player is allowed to join again");
-            out.println("respawn=" + getSetting("respawn"));
+            out.println("respawn=" + get("respawn"));
             out.println("#Minimum bet (big blind), preferably an even number");
-            out.println("minbet=" + getSetting("minbet"));
+            out.println("minbet=" + get("minbet"));
             out.println("#The maximum number of players allowed to join a game");
-            out.println("maxplayers=" + getSetting("maxplayers"));
+            out.println("maxplayers=" + get("maxplayers"));
             out.println("#The maximum number of autostarts allowed");
-            out.println("autostarts=" + getSetting("autostarts"));
+            out.println("autostarts=" + get("autostarts"));
             out.close();
         } catch (IOException e) {
             bot.log("Error creating " + getIniFile() + "!");
@@ -1010,7 +1013,7 @@ public class TexasPoker extends CardGame{
      * Deals cards to the community hand.
      */
     public void dealCommunity(){
-        if (stage == 1) {
+        if (get("stage") == 1) {
             for (int ctr = 1; ctr <= 3; ctr++){
                 dealCard(community);
             }
@@ -1097,11 +1100,11 @@ public class TexasPoker extends CardGame{
         
         // A bet that's an all-in
         if (amount == p.get("cash")){
-            if (amount > currentBet || topBettor == null){
-                if (amount - currentBet > minRaise){
-                    minRaise = amount - currentBet;
+            if (amount > get("currentbet") || topBettor == null){
+                if (amount - get("currentbet") > get("minraise")){
+                    set("minraise", amount - get("currentbet"));
                 }
-                currentBet = amount;
+                set("currentbet", amount);
                 topBettor = p;
             }
             p.set("bet", amount);
@@ -1113,11 +1116,11 @@ public class TexasPoker extends CardGame{
             infoInsufficientFunds(p.getNick());
             setIdleOutTask();
         // A bet that's lower than the current bet
-        } else if (amount < currentBet) {
+        } else if (amount < get("currentbet")) {
             infoBetTooLow(p.getNick());
             setIdleOutTask();
         // A bet that's equivalent to a call or check
-        } else if (amount == currentBet){
+        } else if (amount == get("currentbet")){
             if (topBettor == null){
                 topBettor = p;
             }
@@ -1129,20 +1132,20 @@ public class TexasPoker extends CardGame{
             }
             continueRound();
         // A bet that's lower than the minimum raise
-        } else if ((amount-currentBet) < minRaise){
+        } else if (amount - get("currentbet") < get("minraise")){
             infoRaiseTooLow(p.getNick());
             setIdleOutTask();
         // A valid bet that's greater than the currentBet
         } else {
             p.set("bet", amount);
             topBettor = p;
-            if (currentBet == 0){
+            if (get("currentbet") == 0){
                 showBet(p);
             } else {
                 showRaise(p);
             }
-            minRaise = amount - currentBet;
-            currentBet = amount;
+            set("minraise", amount - get("currentbet"));
+            set("currentbet", amount);
             continueRound();
         }
     }
@@ -1155,7 +1158,7 @@ public class TexasPoker extends CardGame{
         cancelIdleOutTask();
         PokerPlayer p = (PokerPlayer) currentPlayer;
         
-        if (currentBet == 0 || p.get("bet") == currentBet){
+        if (get("currentbet") == 0 || p.get("bet") == get("currentbet")){
             if (topBettor == null){
                 topBettor = p;
             }
@@ -1174,7 +1177,7 @@ public class TexasPoker extends CardGame{
     public void call(){
         cancelIdleOutTask();
         PokerPlayer p = (PokerPlayer) currentPlayer;
-        int total = Math.min(p.get("cash"), currentBet);
+        int total = Math.min(p.get("cash"), get("currentbet"));
         
         if (topBettor == null){
             topBettor = p;
@@ -1224,8 +1227,8 @@ public class TexasPoker extends CardGame{
     public void addBetsToPot(){
         PokerPlayer p;
         int lowBet, overBet;
-        while(currentBet != 0){
-            lowBet = currentBet;
+        while(get("currentbet") != 0){
+            lowBet = get("currentbet");
             overBet = 0;
             // Create a new pot if none exists
             if (currentPot == null){
@@ -1237,7 +1240,7 @@ public class TexasPoker extends CardGame{
                 // thus requiring a new pot
                 for (int ctr = 0; ctr < currentPot.getNumberPlayers(); ctr++) {
                     p = currentPot.getPlayer(ctr);
-                    if (p.get("bet") == 0 && currentBet != 0 && !p.hasFolded() && currentPot.hasPlayer(p)) {
+                    if (p.get("bet") == 0 && get("currentbet") != 0 && !p.hasFolded() && currentPot.hasPlayer(p)) {
                         currentPot = new PokerPot();
                         pots.add(currentPot);
                         break;
@@ -1280,11 +1283,11 @@ public class TexasPoker extends CardGame{
                     }
                 }
             }
-            currentBet -= lowBet;
+            set("currentbet", get("currentbet") - lowBet);
             // If there is any currentBet left over and there is more than one
             // player with a positive bet amount, that means we have to
             // create a new sidepot, so we set currentPot to null.
-            if (currentBet != 0 && overBet > 1) {
+            if (get("currentbet") != 0 && overBet > 1) {
                 currentPot = null;
             // If only one person has a positive bet amount, that means he has
             // over-bet and should have his bet returned.
@@ -1296,7 +1299,7 @@ public class TexasPoker extends CardGame{
                         break;
                     }
                 }
-                currentBet = 0;
+                set("currentbet", 0);
             }
         }
     }
@@ -1381,8 +1384,8 @@ public class TexasPoker extends CardGame{
     @Override
     public void showTurn(Player p) {
         bot.sendMessage(channel, p.getNickStr()+"'s turn. Committed: $" + formatNumber(p.get("bet")) + 
-            ". Stack: $" + formatNumber(p.get("cash")-p.get("bet")) + ". " + "Current bet: "+Colors.BOLD+"$" + 
-            formatNumber(currentBet) + Colors.BOLD);
+            ". Stack: $" + formatNumber(p.get("cash") - p.get("bet")) + ". " + "Current bet: " + 
+            formatBold("$" + formatNumber(get("currentbet"))));
     }
     public void showBet(Player p){
         bot.sendMessage(channel, p.getNickStr()+" bets $" + formatNumber(p.get("bet"))+
@@ -1488,13 +1491,13 @@ public class TexasPoker extends CardGame{
     }
     @Override
     public void infoBetTooLow(String nick){
-        bot.sendNotice(nick, "Bet too low. Current bet is $" + formatNumber(currentBet)+".");
+        bot.sendNotice(nick, "Bet too low. Current bet is $" + formatNumber(get("currentbet"))+".");
     }
     public void infoRaiseTooLow(String nick){
-        bot.sendNotice(nick, "Minimum raise is $" + formatNumber(minRaise) + ". Try again.");
+        bot.sendNotice(nick, "Minimum raise is $" + formatNumber(get("minraise")) + ". Try again.");
     }
     public void infoNoChecking(String nick){
-        bot.sendNotice(nick, "Current bet is $" + formatNumber(currentBet) + ". You must call or raise.");
+        bot.sendNotice(nick, "Current bet is $" + formatNumber(get("currentbet")) + ". You must call or raise.");
     }
     public void infoNoCommunity(String nick){
         bot.sendNotice(nick, "No community cards have been dealt yet.");
@@ -1503,7 +1506,7 @@ public class TexasPoker extends CardGame{
     @Override
     public String getGameRulesStr() {
         return "This is no limit Texas Hold'em Poker. Blind bets are set at $" + 
-            formatNumber(getSetting("minbet")/2) + "/$" + formatNumber(getSetting("minbet")) + 
+            formatNumber(get("minbet")/2) + "/$" + formatNumber(get("minbet")) + 
             " or your stack, whichever is lower.";
     }
     @Override

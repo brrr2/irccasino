@@ -62,7 +62,6 @@ public class Blackjack extends CardGame {
     }
     
     private BlackjackPlayer dealer;
-    private boolean insuranceBets;
     private ArrayList<HouseStat> houseStatsList;
     private IdleShuffleTask idleShuffleTask;
     private HouseStat house;
@@ -82,11 +81,9 @@ public class Blackjack extends CardGame {
         dealer = new BlackjackPlayer(bot.getNick(),"",true);
         houseStatsList = new ArrayList<HouseStat>();
         loadHouseStats();
-        initSettings();
-        loadSettings();
-        insuranceBets = false;
+        initialize();
+        loadIniFile();
         idleShuffleTask = null;
-        betting = true;
     }
 
     @Override
@@ -111,13 +108,13 @@ public class Blackjack extends CardGame {
             if (isStartAllowed(nick)) {
                 if (params.length > 0){
                     try {
-                        setStartCount(Math.min(getSetting("autostarts") - 1, Integer.parseInt(params[0]) - 1));
+                        set("startcount", Math.min(get("autostarts") - 1, Integer.parseInt(params[0]) - 1));
                     } catch (NumberFormatException e) {
                         // Do nothing and proceed
                     }
                 }
                 cancelIdleShuffleTask();
-                setInProgress(true);
+                set("inprogress", 1);
                 showStartRound();
                 setStartRoundTask();
             }
@@ -188,7 +185,7 @@ public class Blackjack extends CardGame {
         } else if (command.equals("turn")) {
             if (!isJoined(nick)) {
                 infoNotJoined(nick);
-            } else if (!isInProgress()) {
+            } else if (!has("inprogress")) {
                 infoNotStarted(nick);
             } else {
                 BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
@@ -222,7 +219,7 @@ public class Blackjack extends CardGame {
         } else if (command.equals("numcards") || command.equals("ncards")) {
             if (!isJoined(nick)) {
                 infoNotJoined(nick);
-            } else if (isInProgress()) {
+            } else if (has("inprogress")) {
                 infoWaitRoundEnd(nick);
             } else {
                 showNumCards();
@@ -230,7 +227,7 @@ public class Blackjack extends CardGame {
         } else if (command.equals("numdiscards") || command.equals("ndiscards")) {
             if (!isJoined(nick)) {
                 infoNotJoined(nick);
-            } else if (isInProgress()) {
+            } else if (has("inprogress")) {
                 infoWaitRoundEnd(nick);
             } else {
                 showNumDiscards();
@@ -240,7 +237,7 @@ public class Blackjack extends CardGame {
         } else if (command.equals("players")) {
             showPlayers();
         } else if (command.equals("house")) {
-            if (isInProgress()) {
+            if (has("inprogress")) {
                 infoWaitRoundEnd(nick);
             } else {
                 if (params.length > 0){
@@ -250,14 +247,14 @@ public class Blackjack extends CardGame {
                         infoBadParameter(nick);
                     }
                 } else {
-                    showHouseStat(getSetting("decks"));
+                    showHouseStat(get("decks"));
                 }
             }
         /* Op commands */
         } else if (command.equals("fstart") || command.equals("fgo")){
             if (isForceStartAllowed(user,nick)){
                 cancelIdleShuffleTask();
-                setInProgress(true);
+                set("inprogress", 1);
                 showStartRound();
                 setStartRoundTask();
             }
@@ -272,7 +269,7 @@ public class Blackjack extends CardGame {
                 }
                 resetGame();
                 showEndRound();
-                setInProgress(false);
+                set("inprogress", 0);
             }
         } else if (command.equals("fj") || command.equals("fjoin")){
             if (!channel.isOp(user)) {
@@ -358,7 +355,7 @@ public class Blackjack extends CardGame {
         } else if (command.equals("reload")){
             if (isOpCommandAllowed(user, nick)){
                 cancelIdleShuffleTask();
-                loadSettings();
+                loadIniFile();
                 showReloadSettings();
             }
         } else if (command.equals("test1")){
@@ -366,41 +363,26 @@ public class Blackjack extends CardGame {
         }
     }
 
-    /* Accessor methods */
-    public boolean isCountEnabled() {
-        return getSetting("count") == 1;
-    }
-    public boolean isHoleEnabled(){
-        return getSetting("hole") == 1;
-    }
-    public boolean isSoft17Hit(){
-        return getSetting("soft17hit") == 1;
-    }
-    public boolean hasInsuranceBets() {
-        return insuranceBets;
-    }
-    public void setInsuranceBets(boolean b) {
-        insuranceBets = b;
-    }
-
     /* Game settings management */
     @Override
-    protected void setSetting(String setting, int value) {
-        super.setSetting(setting, value);
+    protected void set(String setting, int value) {
+        super.set(setting, value);
         if (setting.equals("decks")) {
             cancelIdleShuffleTask();
-            deck = new CardDeck(getSetting("decks"));
+            deck = new CardDeck(get("decks"));
             deck.shuffleCards();
-            house = getHouseStat(getSetting("decks"));
+            house = getHouseStat(get("decks"));
             if (house == null) {
-                house = new HouseStat(getSetting("decks"), 0, 0);
+                house = new HouseStat(get("decks"), 0, 0);
                 houseStatsList.add(house);
             }
         }
     }
     @Override
-    protected final void initSettings() {
-        // Do not use setSettings()
+    protected final void initialize() {
+        super.initialize();
+        // Do not use set()
+        // Ini file settings
         settingsMap.put("decks", 8);
         settingsMap.put("cash", 1000);
         settingsMap.put("idle", 60);
@@ -414,50 +396,53 @@ public class Blackjack extends CardGame {
         settingsMap.put("shufflepoint", 10);
         settingsMap.put("soft17hit", 0);
         settingsMap.put("autostarts", 10);
+        // In-game properties
+        settingsMap.put("betting", 1);
+        settingsMap.put("insurancebets", 0);
     }
     @Override
-    protected final void loadSettings() {
-        super.loadSettings();
+    protected final void loadIniFile() {
+        super.loadIniFile();
         cancelIdleShuffleTask();
-        deck = new CardDeck(getSetting("decks"));
+        deck = new CardDeck(get("decks"));
         deck.shuffleCards();
-        house = getHouseStat(getSetting("decks"));
+        house = getHouseStat(get("decks"));
         if (house == null) {
-            house = new HouseStat(getSetting("decks"), 0, 0);
+            house = new HouseStat(get("decks"), 0, 0);
             houseStatsList.add(house);
         }
     }
     @Override
-    protected void saveSettings() {
+    protected void saveIniFile() {
         try {
             PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(getIniFile())));
             out.println("#Settings");
             out.println("#Number of decks in the dealer's shoe");
-            out.println("decks=" + getSetting("decks"));
+            out.println("decks=" + get("decks"));
             out.println("#Number of seconds before a player idles out");
-            out.println("idle=" + getSetting("idle"));
+            out.println("idle=" + get("idle"));
             out.println("#Number of seconds before a player is given a warning for idling");
-            out.println("idlewarning=" + getSetting("idlewarning"));
+            out.println("idlewarning=" + get("idlewarning"));
             out.println("#Number of seconds of idleness after a round ends before the deck is shuffled");
-            out.println("idleshuffle=" + getSetting("idleshuffle"));
+            out.println("idleshuffle=" + get("idleshuffle"));
             out.println("#Initial amount given to new and bankrupt players");
-            out.println("cash=" + getSetting("cash"));
+            out.println("cash=" + get("cash"));
             out.println("#Number of seconds before a bankrupt player is allowed to join again");
-            out.println("respawn=" + getSetting("respawn"));
+            out.println("respawn=" + get("respawn"));
             out.println("#Whether card counting functions are enabled");
-            out.println("count=" + getSetting("count"));
+            out.println("count=" + get("count"));
             out.println("#Whether player hands are shown with a hole card in the main channel");
-            out.println("hole=" + getSetting("hole"));
+            out.println("hole=" + get("hole"));
             out.println("#The minimum bet required to see a hand");
-            out.println("minbet=" + getSetting("minbet"));
+            out.println("minbet=" + get("minbet"));
             out.println("#The number of cards remaining in the shoe when the discards are shuffled back");
-            out.println("shufflepoint=" + getSetting("shufflepoint"));
+            out.println("shufflepoint=" + get("shufflepoint"));
             out.println("#The maximum number of players allowed to join the game");
-            out.println("maxplayers=" + getSetting("maxplayers"));
+            out.println("maxplayers=" + get("maxplayers"));
             out.println("#Whether or not the dealer hits on soft 17");
-            out.println("soft17hit=" + getSetting("soft17hit"));
+            out.println("soft17hit=" + get("soft17hit"));
             out.println("#The maximum number of autostarts allowed");
-            out.println("autostarts=" + getSetting("autostarts"));
+            out.println("autostarts=" + get("autostarts"));
             out.close();
         } catch (IOException e) {
             bot.log("Error creating " + getIniFile() + "!");
@@ -591,14 +576,14 @@ public class Blackjack extends CardGame {
         if (isJoined(nick)){
             BlackjackPlayer p = (BlackjackPlayer) findJoined(nick);
             // Check if a round is in progress
-            if (isInProgress()) {
+            if (has("inprogress")) {
                 // If in the betting or post-start wait phase
-                if (isBetting() || currentPlayer == null){
+                if (has("betting") || currentPlayer == null){
                     if (p == currentPlayer){
                         currentPlayer = getNextPlayer();
                         removeJoined(p);
                         if (currentPlayer == null) {
-                            setBetting(false);
+                            set("betting", 0);
                             if (getNumberJoined() == 0) {
                                 endRound();
                             } else {
@@ -619,7 +604,7 @@ public class Blackjack extends CardGame {
                         }
                     }
                 // Check if it is already in the endRound stage
-                } else if (isEndRound()){
+                } else if (has("endround")){
                     p.set("quit", 1);
                     bot.sendNotice(p.getNick(), "You will be removed at the end of the round.");
                     // If in the card-playing phase
@@ -645,12 +630,12 @@ public class Blackjack extends CardGame {
     public void startRound() {
         if (getNumberJoined() > 0) {
             showPlayers();
-            setBetting(true);
+            set("betting", 1);
             currentPlayer = getJoined(0);
             showTurn(currentPlayer);
             setIdleOutTask();
         } else {
-            setStartCount(0);
+            set("startcount", 0);
             endRound();
         }
     }
@@ -671,7 +656,7 @@ public class Blackjack extends CardGame {
     }
     @Override
     public void endRound() {
-        setEndRound(true);
+        set("endround", 1);
         BlackjackPlayer p;
         BlackjackHand dHand;
 
@@ -682,7 +667,7 @@ public class Blackjack extends CardGame {
                 showTurn(dealer);
                 dHand = dealer.getHand();
                 showPlayerHand(dealer, dHand, true);
-                while (dHand.calcSum() < 17 || (dHand.isSoft17() && isSoft17Hit())) {
+                while (dHand.calcSum() < 17 || (dHand.isSoft17() && has("soft17hit"))) {
                     // Add a 1 second delay for dramatic effect
                     try { Thread.sleep(1000); } catch (InterruptedException e){}
                     dealCard(dHand);
@@ -696,7 +681,7 @@ public class Blackjack extends CardGame {
             showResults();
             // Add a 1 second delay for dramatic effect
             try { Thread.sleep(1000); } catch (InterruptedException e){}
-            if (hasInsuranceBets()) {
+            if (has("insurancebets")) {
                 showInsuranceResults();
             }
             /* Clean-up tasks
@@ -714,7 +699,7 @@ public class Blackjack extends CardGame {
                 if (!p.has("cash")) {
                     // Make a withdrawal if the player has a positive bankroll
                     if (p.get("bank") > 0){
-                        int amount = Math.min(p.get("bank"), getSetting("cash"));
+                        int amount = Math.min(p.get("bank"), get("cash"));
                         p.bankTransfer(-amount);
                         savePlayerData(p);
                         infoAutoWithdraw(p.getNick(),amount);
@@ -747,19 +732,17 @@ public class Blackjack extends CardGame {
         }
         resetGame();
         showEndRound();
-        setInProgress(false);
-        setEndRound(false);
         mergeWaitlist();
         // Check if any auto-starts remaining
-        if (getStartCount() > 0){
-            decStartCount();
-            if (!isInProgress()) {
+        if (get("startcount") > 0){
+            decrement("startcount");
+            if (!has("inprogress")) {
                 if (getNumberJoined() > 0) {
-                    setInProgress(true);
+                    set("inprogress", 1);
                     showStartRound();
                     setStartRoundTask();
                 } else {
-                    setStartCount(0);
+                    set("startcount", 0);
                     setIdleShuffleTask();
                 }
             }
@@ -787,9 +770,11 @@ public class Blackjack extends CardGame {
     }
     @Override
     public void resetGame() {
+        set("inprogress", 0);
+        set("endround", 0);
+        set("insurancebets", 0);
+        set("betting", 1);
         discardPlayerHand(dealer);
-        setInsuranceBets(false);
-        setBetting(true);
         currentPlayer = null;
     }
     /**
@@ -809,7 +794,7 @@ public class Blackjack extends CardGame {
     }
     public void setIdleShuffleTask() {
         idleShuffleTask = new IdleShuffleTask(this);
-        gameTimer.schedule(idleShuffleTask, getSetting("idleshuffle")*1000);
+        gameTimer.schedule(idleShuffleTask, get("idleshuffle")*1000);
     }
     public void cancelIdleShuffleTask() {
         if (idleShuffleTask != null){
@@ -822,7 +807,7 @@ public class Blackjack extends CardGame {
     private boolean isStartAllowed(String nick){
         if (!isJoined(nick)) {
             infoNotJoined(nick);
-        } else if (isInProgress()) {
+        } else if (has("inprogress")) {
             infoRoundStarted(nick);
         } else if (getNumberJoined() < 1) {
             showNoPlayers();
@@ -834,9 +819,9 @@ public class Blackjack extends CardGame {
     private boolean isStage1PlayerTurn(String nick){
         if (!isJoined(nick)) {
             infoNotJoined(nick);
-        } else if (!isInProgress()) {
+        } else if (!has("inprogress")) {
             infoNotStarted(nick);
-        } else if (!isBetting()) {
+        } else if (!has("betting")) {
             infoNotBetting(nick);
         } else if (currentPlayer != findJoined(nick)) {
             infoNotTurn(nick);
@@ -848,9 +833,9 @@ public class Blackjack extends CardGame {
     private boolean isStage2(String nick){
         if (!isJoined(nick)) {
             infoNotJoined(nick);
-        } else if (!isInProgress()) {
+        } else if (!has("inprogress")) {
             infoNotStarted(nick);
-        } else if (isBetting()) {
+        } else if (has("betting")) {
             infoNoCards(nick);
         } else {
             return true;
@@ -869,7 +854,7 @@ public class Blackjack extends CardGame {
     private boolean isForceStartAllowed(User user, String nick){
         if (!channel.isOp(user)) {
             infoOpsOnly(nick);
-        } else if (isInProgress()) {
+        } else if (has("inprogress")) {
             infoRoundStarted(nick);
         } else if (getNumberJoined() < 1) {
             showNoPlayers();
@@ -881,7 +866,7 @@ public class Blackjack extends CardGame {
     private boolean isForceStopAllowed(User user, String nick){
         if (!channel.isOp(user)){
             infoOpsOnly(nick);
-        } else if (!isInProgress()){
+        } else if (!has("inprogress")){
             infoNotStarted(nick);
         } else {
             return true;
@@ -891,9 +876,9 @@ public class Blackjack extends CardGame {
     private boolean isForcePlayAllowed(User user, String nick){
         if (!channel.isOp(user)) {
             infoOpsOnly(nick);
-        } else if (!isInProgress()) {
+        } else if (!has("inprogress")) {
             infoNotStarted(nick);
-        } else if (isBetting()) {
+        } else if (has("betting")) {
             infoNoCards(nick);
         } else {
             return true;
@@ -903,9 +888,9 @@ public class Blackjack extends CardGame {
     private boolean isForceBetAllowed(User user, String nick){
         if (!channel.isOp(user)) {
             infoOpsOnly(nick);
-        } else if (!isInProgress()) {
+        } else if (!has("inprogress")) {
             infoNotStarted(nick);
-        } else if (!isBetting()) {
+        } else if (!has("betting")) {
             infoNotBetting(nick);
         } else {
             return true;
@@ -914,11 +899,11 @@ public class Blackjack extends CardGame {
     }
     private boolean isCountAllowed(String nick){
         if (!isJoined(nick)) {
-                infoNotJoined(nick);
-        } else if (isInProgress()) {
-                infoWaitRoundEnd(nick);
-        } else if (!isCountEnabled()) {
-                infoCountDisabled(nick);
+            infoNotJoined(nick);
+        } else if (has("inprogress")) {
+            infoWaitRoundEnd(nick);
+        } else if (!has("count")) {
+            infoCountDisabled(nick);
         } else {
             return true;
         }
@@ -929,7 +914,7 @@ public class Blackjack extends CardGame {
     @Override
     public void dealCard(Hand h) {
         h.add(deck.takeCard());
-        if (deck.getNumberCards() == getSetting("shufflepoint")) {
+        if (deck.getNumberCards() == get("shufflepoint")) {
             showDeckEmpty();
             deck.refillDeck();
         }
@@ -961,7 +946,7 @@ public class Blackjack extends CardGame {
             dealHand(p);
             h = p.getHand();
             h.setBet(p.get("initialbet"));
-            if (isHoleEnabled()) {
+            if (has("hole")) {
                 infoPlayerHand(p, h);
             }
         }
@@ -985,7 +970,7 @@ public class Blackjack extends CardGame {
     /* Blackjack gameplay methods */
     
     /**
-     * Sets the initial bet for the current player to see a hand.
+     * Sets the initialize bet for the current player to see a hand.
      * The game then moves on to the next hand, player or phase.
      * 
      * @param amount the bet on the hand
@@ -998,7 +983,7 @@ public class Blackjack extends CardGame {
             infoBetTooHigh(p.getNick(), p.get("cash"));
             setIdleOutTask();
         // Check if the amount is less than minimum bet
-        } else if (amount < getSetting("minbet") && amount < p.get("cash")) {
+        } else if (amount < get("minbet") && amount < p.get("cash")) {
             infoBetTooLow(p.getNick());
             setIdleOutTask();
         } else {
@@ -1009,7 +994,7 @@ public class Blackjack extends CardGame {
             showProperBet(p);
             currentPlayer = getNextPlayer();
             if (currentPlayer == null) {
-                setBetting(false);
+                set("betting", 0);
                 dealTable();
                 currentPlayer = getJoined(0);
                 quickEval();
@@ -1120,7 +1105,7 @@ public class Blackjack extends CardGame {
         } else if (amount <= 0) {
             infoInsureBetTooLow(p.getNick());
         } else {
-            setInsuranceBets(true);
+            set("insurancebets", 1);
             p.set("insurebet", amount);
             p.add("cash", -1 * amount);
             p.add("bjwinnings", -1 * amount);
@@ -1263,7 +1248,7 @@ public class Blackjack extends CardGame {
     }
     /* contributed by Yky */
     private double getRed7() {
-        double red7 = -2 * getSetting("decks");
+        double red7 = -2 * get("decks");
         String face;
         ArrayList<Card> discards = deck.getDiscards();
         for (int i = 0; i < deck.getNumberDiscards(); i++) {
@@ -1295,7 +1280,7 @@ public class Blackjack extends CardGame {
     }
     @Override
     public void showTurn(Player p) {
-        if (isBetting()) {
+        if (has("betting")) {
             bot.sendMessage(channel, p.getNickStr() + "'s turn. Stack: $"
                                             + formatNumber(p.get("cash"))
                                             + ". Enter an initial bet up to $"
@@ -1317,7 +1302,7 @@ public class Blackjack extends CardGame {
             } else {
                 bot.sendMessage(channel, p.getNickStr() + ": " + h.toString());
             }
-        } else if (isHoleEnabled() || p.isDealer()) {
+        } else if (has("hole") || p.isDealer()) {
             bot.sendMessage(channel, p.getNickStr() + ": " + h.toString(1));
         } else {
             if (h.isBlackjack()) {
@@ -1330,7 +1315,7 @@ public class Blackjack extends CardGame {
         }
     }
     public void showPlayerHand(BlackjackPlayer p, BlackjackHand h, int handIndex) {
-        if (isHoleEnabled() || p.isDealer()) {
+        if (has("hole") || p.isDealer()) {
             bot.sendMessage(channel, p.getNickStr() + "-" + handIndex + ": " + h.toString(1));
         } else {
             if (h.isBlackjack()) {
@@ -1343,7 +1328,7 @@ public class Blackjack extends CardGame {
         }
     }
     public void showPlayerHandWithBet(BlackjackPlayer p, BlackjackHand h, int handIndex) {
-        if (isHoleEnabled() || p.isDealer()) {
+        if (has("hole") || p.isDealer()) {
             bot.sendMessage(channel, p.getNickStr() + "-" + handIndex + ": " + h.toString(1) + ", bet: $" + formatNumber(h.getBet()));
         } else {
             if (h.isBlackjack()) {
@@ -1657,7 +1642,7 @@ public class Blackjack extends CardGame {
     @Override
     public String getGameRulesStr() {
         String str;
-        if (isSoft17Hit()){
+        if (has("soft17hit")){
             str = "Dealer hits on soft 17. ";
         } else {
             str = "Dealer stands on soft 17. ";
@@ -1665,10 +1650,10 @@ public class Blackjack extends CardGame {
         return str + "The dealer's shoe has " + 
             deck.getNumberDecks() + " deck(s) of cards. Discards are " +
             "merged back into the shoe and the shoe is shuffled when " +
-            getSetting("shufflepoint") + " card(s) remain in the shoe. Regular " + 
+            get("shufflepoint") + " card(s) remain in the shoe. Regular " + 
             "wins are paid out at 1:1 and blackjacks are paid out at 3:2. " +
             "Insurance wins are paid out at 2:1. Minimum bet is $" + 
-            getSetting("minbet") + " or your stack, whichever is lower.";
+            get("minbet") + " or your stack, whichever is lower.";
     }
     @Override
     public String getGameCommandStr() {
