@@ -109,6 +109,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected Player currentPlayer; //stores the player whose turn it is
     protected Timer gameTimer; //All TimerTasks are scheduled on this Timer
     protected HashMap<String,Integer> settingsMap;
+    protected HashMap<String,String> helpMap, msgMap;
     private String gameName, iniFile, helpFile;
     private IdleOutTask idleOutTask;
     private IdleWarningTask idleWarningTask;
@@ -132,6 +133,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         waitlist = new ArrayList<Player>();
         respawnTasks = new ArrayList<RespawnTask>();
         settingsMap = new HashMap<String,Integer>();
+        helpMap = new HashMap<String,String>();
+        msgMap = new HashMap<String,String>();
         gameTimer = new Timer("Game Timer");
         startRoundTask = null;
         idleOutTask = null;
@@ -248,34 +251,34 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             }
         } else if (command.equals("withdraw")){
             if (!isJoined(nick)) {
-                infoNotJoined(nick);
+                informPlayer(nick, getMsg("no_join"));
             } else if (has("inprogress")) {
-                infoWaitRoundEnd(nick);
+                informPlayer(nick, getMsg("wait_round_end"));
             } else {
                 if (params.length > 0){
                     try {
                         transfer(nick, -Integer.parseInt(params[0]));
                     } catch (NumberFormatException e) {
-                        infoBadParameter(nick);
+                        informPlayer(nick, getMsg("bad_parameter"));
                     }
                 } else {
-                    infoNoParameter(nick);
+                    informPlayer(nick, getMsg("no_parameter"));
                 }
             }
         } else if (command.equals("transfer") || command.equals("deposit")) {
             if (!isJoined(nick)) {
-                infoNotJoined(nick);
+                informPlayer(nick, getMsg("no_join"));
             } else if (has("inprogress")) {
-                infoWaitRoundEnd(nick);
+                informPlayer(nick, getMsg("wait_round_end"));
             } else {
                 if (params.length > 0){
                     try {
                         transfer(nick, Integer.parseInt(params[0]));
                     } catch (NumberFormatException e) {
-                        infoBadParameter(nick);
+                        informPlayer(nick, getMsg("bad_parameter"));
                     }
                 } else {
-                    infoNoParameter(nick);
+                    informPlayer(nick, getMsg("no_parameter"));
                 }
             }
         } else if (command.equals("waitlist")) {
@@ -284,19 +287,19 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             showBlacklist();
         } else if (command.equals("rank")) {
             if (has("inprogress")) {
-                infoWaitRoundEnd(nick);
+                informPlayer(nick, getMsg("wait_round_end"));
             } else {
                 if (params.length > 1){
                     try {
                         showPlayerRank(params[1].toLowerCase(), params[0].toLowerCase());
                     } catch (IllegalArgumentException e) {
-                        infoBadParameter(nick);
+                        informPlayer(nick, getMsg("bad_parameter"));
                     }
                 } else if (params.length == 1){
                     try {
                         showPlayerRank(nick, params[0].toLowerCase());
                     } catch (IllegalArgumentException e) {
-                        infoBadParameter(nick);
+                        informPlayer(nick, getMsg("bad_parameter"));
                     }
                 } else {
                     showPlayerRank(nick, "cash");
@@ -304,19 +307,19 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             }
         } else if (command.equals("top")) {
             if (has("inprogress")) {
-                infoWaitRoundEnd(nick);
+                informPlayer(nick, getMsg("wait_round_end"));
             } else {
                 if (params.length > 1){
                     try {
                         showTopPlayers(params[1].toLowerCase(), Integer.parseInt(params[0]));
                     } catch (IllegalArgumentException e) {
-                        infoBadParameter(nick);
+                        informPlayer(nick, getMsg("bad_parameter"));
                     }
                 } else if (params.length == 1){
                     try {
                         showTopPlayers("cash", Integer.parseInt(params[0]));
                     } catch (IllegalArgumentException e) {
-                        infoBadParameter(nick);
+                        informPlayer(nick, getMsg("bad_parameter"));
                     }
                 } else {
                     showTopPlayers("cash", 5);
@@ -324,13 +327,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             }
         } else if (command.equals("simple")) {
             if (!isJoined(nick)) {
-                infoNotJoined(nick);
+                informPlayer(nick, getMsg("no_join"));
             } else {
                 togglePlayerSimple(nick);
             }
         } else if (command.equals("stats")){
             if (has("inprogress")) {
-                infoWaitRoundEnd(nick);
+                informPlayer(nick, getMsg("wait_round_end"));
             } else {
                 showGameStats();
             }
@@ -349,12 +352,12 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         // Op Commands
         } else if (command.equals("fl") || command.equals("fq") || command.equals("fquit") || command.equals("fleave")){
             if (!channel.isOp(user)) {
-                infoOpsOnly(nick);
+                informPlayer(nick, getMsg("ops_only"));
             } else {
                 if (params.length > 0){
                     leave(params[0]);
                 } else {
-                    infoNoParameter(nick);
+                    informPlayer(nick, getMsg("no_parameter"));
                 }
             }
         } else if (command.equals("cards") || command.equals("discards")) {
@@ -370,10 +373,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                             bot.sendNotice(nick, "Empty!");
                         }
                     } catch (IllegalArgumentException e) {
-                        infoBadParameter(nick);
+                        informPlayer(nick, getMsg("bad_parameter"));
                     }
                 } else {
-                    infoNoParameter(nick);
+                    informPlayer(nick, getMsg("no_parameter"));
                 }
             }
         } else if (command.equals("set")){
@@ -383,10 +386,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                         set(params[0].toLowerCase(), Integer.parseInt(params[1]));
                         showUpdateSetting(params[0].toLowerCase());
                     } catch (IllegalArgumentException e) {
-                        infoBadParameter(nick);
+                        informPlayer(nick, getMsg("bad_parameter"));
                     }
                 } else {
-                    infoNoParameter(nick);
+                    informPlayer(nick, getMsg("no_parameter"));
                 }
             }
         } else if (command.equals("get")) {
@@ -395,10 +398,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     try {
                         showSetting(params[0].toLowerCase(), get(params[0].toLowerCase()));
                     } catch (IllegalArgumentException e) {
-                        infoBadParameter(nick);
+                        informPlayer(nick, getMsg("bad_parameter"));
                     }
                 } else {
-                    infoNoParameter(nick);
+                    informPlayer(nick, getMsg("no_parameter"));
                 }
             }
         }
@@ -438,7 +441,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     public void processNickChange(User user, String oldNick, String newNick){
         String hostmask = user.getHostmask();
         if (isJoined(oldNick) || isWaitlisted(oldNick)){
-            infoNickChange(newNick);
+            informPlayer(newNick, getMsg("nick_change"));
             if (isJoined(oldNick)){
                 bot.deVoice(channel, user);
                 leave(oldNick);
@@ -467,12 +470,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     public String getIniFile(){
         return iniFile;
-    }
-    public void setHelpFile(String file){
-        helpFile = file;
-    }
-    public String getHelpFile(){
-        return helpFile;
     }
     
     /* 
@@ -554,14 +551,14 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     public void join(String nick, String hostmask) {
         if (getNumberJoined() == get("maxplayers")){
-            infoMaxPlayers(nick);
+            informPlayer(nick, getMsg("max_players"));
         } else if (isJoined(nick)) {
-            infoAlreadyJoined(nick);
+            informPlayer(nick, getMsg("already_joined"));
         } else if (isBlacklisted(nick)) {
-            infoBlacklisted(nick);
+            informPlayer(nick, getMsg("blacklisted"));
         } else if (has("inprogress")) {
             if (isWaitlisted(nick)) {
-                infoAlreadyWaitlisted(nick);
+                informPlayer(nick, getMsg("already_waitlisted"));
             } else {
                 addWaitlistPlayer(nick, hostmask);
             }
@@ -631,9 +628,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     public boolean isOpCommandAllowed(User user, String nick){
         if (!channel.isOp(user)) {
-            infoOpsOnly(nick);
+            informPlayer(nick, getMsg("ops_only"));
         } else if (has("inprogress")) {
-            infoWaitRoundEnd(nick);
+            informPlayer(nick, getMsg("wait_round_end"));
         } else {
             return true;
         }
@@ -801,15 +798,15 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         Player p = findJoined(nick);
         // Ignore a transfer of $0
         if (amount == 0){
-            infoNoTransaction(nick);
+            informPlayer(nick, getMsg("no_transaction"));
         // Disallow withdrawals for bankrolls with insufficient funds
         } else if (amount < 0 && p.get("bank") < -amount){
-            infoNoWithdrawal(nick);
+            informPlayer(nick, getMsg("no_withdrawal"));
         } else if (amount > 0 && amount > p.get("cash")){
-            infoNoDepositCash(nick);
+            informPlayer(nick, getMsg("no_deposit_cash"));
         // Disallow deposits that leave the player with $0 cash
         } else if (amount > 0 && amount == p.get("cash")){
-            infoNoDepositBankrupt(nick);
+            informPlayer(nick, getMsg("no_deposit_bankrupt"));
         } else {
             p.bankTransfer(amount);
             savePlayerData(p);
@@ -1513,6 +1510,16 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * Private messages to players.
      * These methods will all send notices/messages to the specified nick.
      */
+    
+    /**
+     * Sends a message to a player via PM or notice depending on simple status.
+     * @param nick
+     * @param message
+     * @param args 
+     */
+    public void informPlayer(String nick, String message, Object... args){
+        bot.sendNotice(nick, String.format(message, args));
+    }
     public void infoGameRules(String nick) {
         bot.sendNotice(nick,getGameRulesStr());
     }
@@ -1529,84 +1536,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     public void infoNewNick(String nick){
         bot.sendNotice(nick, "Welcome to "+getGameNameStr()+"! For help, type .ghelp!");
     }
-    public void infoMaxPlayers(String nick){
-        bot.sendNotice(nick, "Unable to join. The maximum number of players has been reached.");
-    }
-    public void infoAlreadyJoined(String nick){
-        bot.sendNotice(nick, "You have already joined!");
-    }
-    public void infoNotJoined(String nick){
-        bot.sendNotice(nick, "You are not currently joined!");
-    }
-    public void infoJoinWaitlist(String nick){
-        bot.sendNotice(nick, "You have joined the waitlist and will be automatically added next round.");
-    }
-    public void infoLeaveWaitlist(String nick){
-        bot.sendNotice(nick, "You have left the waitlist and will not be automatically added next round.");
-    }
-    public void infoAlreadyWaitlisted(String nick){
-        bot.sendNotice(nick, "You have already joined the waitlist!");
-    }
-    public void infoBlacklisted(String nick){
-        bot.sendNotice(nick, "You have gone bankrupt. Please wait for a loan to join again.");
-    }
-    public void infoWaitRoundEnd(String nick){
-        bot.sendNotice(nick, "A round is in progress! Wait for the round to end.");
-    }
-    public void infoRoundStarted(String nick){
-        bot.sendNotice(nick, "A round is in progress!");
-    }
-    public void infoNotStarted(String nick){
-        bot.sendNotice(nick, "No round in progress!");
-    }
-    public void infoNotBetting(String nick){
-        bot.sendNotice(nick, "No betting in progress!");
-    }
-    public void infoNotTurn(String nick){
-        bot.sendNotice(nick, "It's not your turn!");
-    }
-    public void infoNoCards(String nick){
-        bot.sendNotice(nick, "No cards have been dealt yet!");
-    }
-    public void infoOpsOnly(String nick){
-        bot.sendNotice(nick, "This command may only be used by channel Ops.");
-    }
-    public void infoNickChange(String nick){
-        bot.sendNotice(nick, "You have changed nicks while joined. Your old nick will be removed " +
-                        "and your new nick will be joined, if possible.");
-    }
-    public void infoNoTransaction(String nick){
-        bot.sendNotice(nick, "Invalid transaction!");
-    }
-    public void infoNoWithdrawal(String nick){
-        bot.sendNotice(nick, "Your bankroll contains insufficient funds for this transaction.");
-    }
-    public void infoNoDepositCash(String nick){
-        bot.sendNotice(nick, "You do not have that much cash. Try again.");
-    }
-    public void infoNoDepositBankrupt(String nick){
-        bot.sendNotice(nick, "You cannot go bankrupt making a deposit. Try again.");
-    }
-    public void infoPaymentTooLow(String nick){
-        bot.sendNotice(nick, "Minimum payment is $1. Try again.");
-    }
-    public void infoPaymentTooHigh(String nick, int max){
-        bot.sendNotice(nick, "Your outstanding debt is only $"+formatNumber(max)+". Try again.");
-    }
-    public void infoPaymentWillBankrupt(String nick){
-        bot.sendNotice(nick, "You cannot go bankrupt trying to pay off your debt. Try again.");
-    }
-    public void infoInsufficientFunds(String nick){
-        bot.sendNotice(nick, "Insufficient funds.");
-    }
     public void infoNickNotFound(String nick, String searchNick){
         bot.sendNotice(nick, searchNick + " was not found.");
-    }
-    public void infoNoParameter(String nick){
-        bot.sendNotice(nick, "Parameter(s) missing!");
-    }
-    public void infoBadParameter(String nick){
-        bot.sendNotice(nick,"Bad parameter(s). Try again.");
     }
     public void infoBetTooLow(String nick){
         bot.sendNotice(nick, "Minimum bet is $"+formatNumber(get("minbet"))+". Try again.");
@@ -1668,7 +1599,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     
     /* Formatted strings */
     public String getGameNameStr(){
-        return Colors.BOLD + gameName + Colors.BOLD;
+        return formatBold(gameName);
     }
     public String getGameHelpStr() {
         return "For a list of game commands, type .gcommands. For house rules, type .grules. " +
@@ -1731,36 +1662,50 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
 
     /**
-     * Searches the help file for data on the specified command.
+     * Returns the help data on the specified command.
      * @param command
      * @return the help data for the command
      */
     protected String getCommandHelp(String command){
+        if (helpMap.containsKey(command)){
+            return helpMap.get(command);
+        } else {
+            return "Help for \'" + command + "\' not found!";
+        }
+    }
+    
+    /**
+     * Returns the message based on the specified key.
+     * @param msgKey the message key
+     * @return the message
+     */
+    protected String getMsg(String msgKey) {
+        if (msgMap.containsKey(msgKey)){
+            return msgMap.get(msgKey);
+        } else {
+            return "\'" + msgKey + "\' not found!";
+        }
+    }
+    
+    /**
+     * Loads String-to-String mapping data from a file.
+     * @param stringMap a String-to-String HashMap
+     * @param file path to file to load
+     */
+    protected void loadLib(HashMap<String,String> stringMap, String file) {
         try {
-            BufferedReader in = new BufferedReader(new FileReader(getHelpFile()));
+            BufferedReader in = new BufferedReader(new FileReader(file));
             StringTokenizer st;
-            String c,d="";
-            boolean found = false;
             while (in.ready()){
                 st = new StringTokenizer(in.readLine(), "=");
+                // Skips all lines that aren't in the form String=String
                 if (st.countTokens() == 2){
-                    c = st.nextToken();
-                    d = st.nextToken();
-                    if (c.equals(command)){
-                        found = true;
-                        break;
-                    }
+                    stringMap.put(st.nextToken(), st.nextToken());
                 }
             }
             in.close();
-            if (found){
-                return d;
-            } else {
-                return "Help for \'"+command+"\' not found!";
-            }
         } catch (IOException e) {
-            bot.log("Error reading from "+getHelpFile()+"!");
-            return "Error reading from "+getHelpFile()+"!";
+            bot.log("Error reading from " + file + "!");
         }
     }
 }

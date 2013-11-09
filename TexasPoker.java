@@ -169,7 +169,8 @@ public class TexasPoker extends CardGame{
         super(parent, commChar, gameChannel);
         setGameName("Texas Hold'em Poker");
         setIniFile("texaspoker.ini");
-        setHelpFile("texaspoker.help");
+        loadLib(helpMap, "texaspoker.help");
+        loadLib(msgMap, "msglib.txt");
         house = new HouseStat();
         loadHouseStats();
         initialize();
@@ -200,7 +201,7 @@ public class TexasPoker extends CardGame{
                 (bot.bjgame.isJoined(nick) || bot.bjgame.isWaitlisted(nick))){
                 bot.sendNotice(user, "You're already joined in "+bot.bjgame.getGameNameStr()+"!");
             } else if (bot.bjgame != null && bot.bjgame.isBlacklisted(nick)){
-                infoBlacklisted(nick);
+                informPlayer(nick, getMsg("blacklisted"));
             } else{
                 join(nick, hostmask);
             }
@@ -223,10 +224,10 @@ public class TexasPoker extends CardGame{
                     try {
                         bet(Integer.parseInt(params[0]));
                     } catch (NumberFormatException e) {
-                        infoBadParameter(nick);
+                        informPlayer(nick, getMsg("bad_parameter"));
                     }
                 } else {
-                    infoNoParameter(nick);
+                    informPlayer(nick, getMsg("no_parameter"));
                 }
             }
         } else if (command.equals("c") || command.equals("ca") || command.equals("call")) {
@@ -247,10 +248,10 @@ public class TexasPoker extends CardGame{
                     try {
                         bet(Integer.parseInt(params[0]) + get("currentbet"));
                     } catch (NumberFormatException e) {
-                        infoBadParameter(nick);
+                        informPlayer(nick, getMsg("bad_parameter"));
                     }
                 } else {
-                    infoNoParameter(nick);
+                    informPlayer(nick, getMsg("no_parameter"));
                 }
             }
         } else if (command.equals("allin") || command.equals("a")){
@@ -259,9 +260,9 @@ public class TexasPoker extends CardGame{
             }
         } else if (command.equals("community") || command.equals("comm")){
             if (!isJoined(nick)) {
-                infoNotJoined(nick);
+                informPlayer(nick, getMsg("no_join"));
             } else if (!has("inprogress")) {
-                infoNotStarted(nick);
+                informPlayer(nick, getMsg("no_start"));
             } else if (!has("stage")){
                 infoNoCommunity(nick);
             } else {
@@ -269,18 +270,18 @@ public class TexasPoker extends CardGame{
             }
         } else if (command.equals("hand")) {
             if (!isJoined(nick)) {
-                infoNotJoined(nick);
+                informPlayer(nick, getMsg("no_join"));
             } else if (!has("inprogress")) {
-                infoNotStarted(nick);
+                informPlayer(nick, getMsg("no_start"));
             } else {
                 PokerPlayer p = (PokerPlayer) findJoined(nick);
                 infoPlayerHand(p, p.getHand());
             }
         } else if (command.equals("turn")) {
             if (!isJoined(nick)) {
-                infoNotJoined(nick);
+                informPlayer(nick, getMsg("no_join"));
             } else if (!has("inprogress")) {
-                infoNotStarted(nick);
+                informPlayer(nick, getMsg("no_start"));
             } else {
                 showTurn(currentPlayer);
             }
@@ -312,7 +313,7 @@ public class TexasPoker extends CardGame{
             }
         } else if (command.equals("fj") || command.equals("fjoin")){
             if (!channel.isOp(user)) {
-                infoOpsOnly(nick);
+                informPlayer(nick, getMsg("ops_only"));
             } else {
                 if (params.length > 0){
                     String fNick = params[0];
@@ -335,7 +336,7 @@ public class TexasPoker extends CardGame{
                     }
                     infoNickNotFound(nick,fNick);
                 } else {
-                    infoNoParameter(nick);
+                    informPlayer(nick, getMsg("no_parameter"));
                 }
             }
         } else if (command.equals("fb") || command.equals("fbet")){
@@ -344,10 +345,10 @@ public class TexasPoker extends CardGame{
                     try {
                         bet(Integer.parseInt(params[0]));
                     } catch (NumberFormatException e) {
-                        infoBadParameter(nick);
+                        informPlayer(nick, getMsg("bad_parameter"));
                     }
                 } else {
-                    infoNoParameter(nick);
+                    informPlayer(nick, getMsg("no_parameter"));
                 }
             }
         } else if (command.equals("fa") || command.equals("fallin")){
@@ -360,10 +361,10 @@ public class TexasPoker extends CardGame{
                     try {
                         bet(Integer.parseInt(params[0]) + get("currentbet"));
                     } catch (NumberFormatException e) {
-                        infoBadParameter(nick);
+                        informPlayer(nick, getMsg("bad_parameter"));
                     }
                 } else {
-                    infoNoParameter(nick);
+                    informPlayer(nick, getMsg("no_parameter"));
                 }
             }
         } else if (command.equals("fc") || command.equals("fca") || command.equals("fcall")){
@@ -455,10 +456,10 @@ public class TexasPoker extends CardGame{
                         comm.clear();
                         deck.refillDeck();
                     } catch (NumberFormatException e) {
-                        infoBadParameter(nick);
+                        informPlayer(nick, getMsg("bad_parameter"));
                     }
                 } else {
-                    infoNoParameter(nick);
+                    informPlayer(nick, getMsg("no_parameter"));
                 }                
             }
         } else if (command.equals("test2")){	
@@ -483,10 +484,10 @@ public class TexasPoker extends CardGame{
                         h.clear();
                         deck.refillDeck();
                     } catch (NumberFormatException e) {
-                        infoBadParameter(nick);
+                        informPlayer(nick, getMsg("bad_parameter"));
                     }
                 } else {
-                    infoNoParameter(nick);
+                    informPlayer(nick, getMsg("no_parameter"));
                 }
                 
             }
@@ -502,7 +503,7 @@ public class TexasPoker extends CardGame{
     public void addWaitlistPlayer(String nick, String hostmask) {
         Player p = new PokerPlayer(nick, hostmask);
         waitlist.add(p);
-        infoJoinWaitlist(p.getNick());
+        informPlayer(p.getNick(), getMsg("join_waitlist"));
     }
     public Player getPlayerAfter(Player p){
         return getJoined((getJoinedIndex(p)+1) % getNumberJoined());
@@ -705,16 +706,22 @@ public class TexasPoker extends CardGame{
         cancelRespawnTasks();
         gameTimer.cancel();
         devoiceAll();
+        helpMap.clear();
+        msgMap.clear();
+        settingsMap.clear();
         joined.clear();
         waitlist.clear();
         blacklist.clear();
         deck = null;
+        community = null;
         pots.clear();
+        currentPot = null;
         currentPlayer = null;
         dealer = null;
         smallBlind = null;
         bigBlind = null;
         topBettor = null;
+        house = null;
         showGameEnd();
         bot = null;
         channel = null;
@@ -783,10 +790,10 @@ public class TexasPoker extends CardGame{
             }
         // Check if on the waitlist
         } else if (isWaitlisted(nick)) {
-            infoLeaveWaitlist(nick);
+            informPlayer(nick, getMsg("leave_waitlist"));
             removeWaitlisted(nick);
         } else {
-            infoNotJoined(nick);
+            informPlayer(nick, getMsg("no_join"));
         }
     }
     public void resetPlayer(PokerPlayer p) {
@@ -824,9 +831,9 @@ public class TexasPoker extends CardGame{
     /* Game command logic checking methods */
     public boolean isStartAllowed(String nick){
         if (!isJoined(nick)) {
-            infoNotJoined(nick);
+            informPlayer(nick, getMsg("no_join"));
         } else if (has("inprogress")) {
-            infoRoundStarted(nick);
+            informPlayer(nick, getMsg("round_started"));
         } else if (getNumberJoined() < 2) {
             showNoPlayers();
         } else {
@@ -836,11 +843,11 @@ public class TexasPoker extends CardGame{
     }
     public boolean isPlayerTurn(String nick){
         if (!isJoined(nick)){
-            infoNotJoined(nick);
+            informPlayer(nick, getMsg("no_join"));
         } else if (!has("inprogress")) {
-            infoNotStarted(nick);
+            informPlayer(nick, getMsg("no_start"));
         } else if (findJoined(nick) != currentPlayer){
-            infoNotTurn(nick);
+            informPlayer(nick, getMsg("wrong_turn"));
         } else {
             return true;
         }
@@ -848,9 +855,9 @@ public class TexasPoker extends CardGame{
     }
     public boolean isForceStartAllowed(User user, String nick){
         if (!channel.isOp(user)) {
-            infoOpsOnly(nick);
+            informPlayer(nick, getMsg("ops_only"));
         } else if (has("inprogress")) {
-            infoRoundStarted(nick);
+            informPlayer(nick, getMsg("round_started"));
         } else if (getNumberJoined() < 2) {
             showNoPlayers();
         } else {
@@ -860,9 +867,9 @@ public class TexasPoker extends CardGame{
     }
     public boolean isForceStopAllowed(User user, String nick){
         if (!channel.isOp(user)) {
-            infoOpsOnly(nick);
+            informPlayer(nick, getMsg("ops_only"));
         } else if (!has("inprogress")) {
-            infoNotStarted(nick);
+            informPlayer(nick, getMsg("no_start"));
         } else {
             return true;
         }
@@ -870,9 +877,9 @@ public class TexasPoker extends CardGame{
     }
     public boolean isForcePlayAllowed(User user, String nick){
         if (!channel.isOp(user)) {
-            infoOpsOnly(nick);
+            informPlayer(nick, getMsg("ops_only"));
         } else if (!has("inprogress")) {
-            infoNotStarted(nick);
+            informPlayer(nick, getMsg("no_start"));
         } else {
             return true;
         }
@@ -1115,7 +1122,7 @@ public class TexasPoker extends CardGame{
             continueRound();
         // A bet that's larger than a player's stack
         } else if (amount > p.get("cash")) {
-            infoInsufficientFunds(p.getNick());
+            informPlayer(p.getNick(), getMsg("insufficient_funds"));
             setIdleOutTask();
         // A bet that's lower than the current bet
         } else if (amount < get("currentbet")) {
