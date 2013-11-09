@@ -359,7 +359,30 @@ public class Blackjack extends CardGame {
                 showReloadSettings();
             }
         } else if (command.equals("test1")){
-            bot.sendMessage(channel, "No test implemented yet.");
+            // 1. Tests the dealer playing algorithm and underlying calculations.
+            if (isOpCommandAllowed(user, nick)){
+                String outStr; 
+                BlackjackHand h;
+                bot.sendMessage(channel, "Dealing cards to Dealer...");
+                // Deal cards to the dealer
+                dealHand(dealer);
+                h = dealer.getHand();
+                showPlayerHand(dealer, h, true);
+                // Deal more cards if necessary
+                while (h.calcSum() < 17 || (h.isSoft17() && has("soft17hit"))) {
+                    dealCard(h);
+                    showPlayerHand(dealer, h, true);
+                }
+                // Output result
+                if (h.isBlackjack()) {
+                    outStr = dealer.getNickStr() + " has blackjack (";
+                } else {
+                    outStr = dealer.getNickStr() + " has " + h.calcSum() + " (";
+                }
+                outStr += h.toString() + ").";
+                bot.sendMessage(channel, outStr);
+                resetPlayer(dealer);
+            }
         }
     }
 
@@ -1594,13 +1617,9 @@ public class Blackjack extends CardGame {
      */
     public void infoPlayerHand(BlackjackPlayer p, BlackjackHand h) {
         if (p.isSimple()) {
-            bot.sendNotice(p.getNick(), 
-                            "Your current hand is " + h.toString(0) + " with a bet of $"+
-            formatNumber(h.getBet())+".");
+            bot.sendNotice(p.getNick(), "Your current hand is " + h.toString(0) + " with a bet of $" + formatNumber(h.getBet())+".");
         } else {
-            bot.sendMessage(p.getNick(),
-                            "Your current hand is " + h.toString(0) + " with a bet of "+
-            formatNumber(h.getBet())+".");
+            bot.sendMessage(p.getNick(), "Your current hand is " + h.toString(0) + " with a bet of " + formatNumber(h.getBet())+".");
         }
     }
     

@@ -449,9 +449,10 @@ public class TexasPoker extends CardGame{
                         }
                         // Discard and shuffle
                         for (int ctr=0; ctr < number; ctr++){
-                            deck.addToDiscard(peeps.get(ctr).getHand().getAllCards());
+                            resetPlayer(peeps.get(ctr));
                         }
                         deck.addToDiscard(comm.getAllCards());
+                        comm.clear();
                         deck.refillDeck();
                     } catch (NumberFormatException e) {
                         infoBadParameter(nick);
@@ -479,6 +480,7 @@ public class TexasPoker extends CardGame{
                         h.getValue();
                         bot.sendMessage(channel, h.getName()+": " + h);
                         deck.addToDiscard(h.getAllCards());
+                        h.clear();
                         deck.refillDeck();
                     } catch (NumberFormatException e) {
                         infoBadParameter(nick);
