@@ -93,7 +93,6 @@ public class CasinoBot extends PircBotX {
                     } else {
                         cbot.bjgame = new Blackjack(cbot, commandChar, channel);
                         cbot.getListenerManager().addListener(cbot.bjgame);
-                        cbot.bjgame.showGameStart();
                     }
                 } else if (command.equals("texaspoker") || command.equals("tp")) {
                     if (cbot.bjgame != null && cbot.bjgame.getChannel().equals(channel)){
@@ -103,7 +102,6 @@ public class CasinoBot extends PircBotX {
                     } else {
                         cbot.tpgame = new TexasPoker(cbot, commandChar, channel);
                         cbot.getListenerManager().addListener(cbot.tpgame);
-                        cbot.tpgame.showGameStart();
                     }
                 } else if (command.equals("endgame")) {
                     if (cbot.bjgame != null && cbot.bjgame.getChannel().equals(channel)){
