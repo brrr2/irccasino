@@ -32,11 +32,13 @@ public class TexasPoker extends CardGame{
     /* A pot class to handle bets and payouts in Texas Hold'em Poker. */
     private class PokerPot {
         private ArrayList<PokerPlayer> players;
+        private ArrayList<PokerPlayer> donors;
         private int pot;
 
         public PokerPot(){
             pot = 0;
             players = new ArrayList<PokerPlayer>();
+            donors = new ArrayList<PokerPlayer>();
         }
 
         public int getPot(){
@@ -51,94 +53,109 @@ public class TexasPoker extends CardGame{
         public void removePlayer(PokerPlayer p){
             players.remove(p);
         }
+        public void addDonor(PokerPlayer p) {
+            donors.add(p);
+        }
+        public void removeDonor(PokerPlayer p) {
+            donors.remove(p);
+        }
         public PokerPlayer getPlayer(int c){
             return players.get(c);
         }
         public ArrayList<PokerPlayer> getPlayers(){
             return players;
         }
+        public PokerPlayer getDonor(int c) {
+            return donors.get(c);
+        }
+        public ArrayList<PokerPlayer> getDonors() {
+            return donors;
+        }
         public boolean hasPlayer(PokerPlayer p){
             return players.contains(p);
         }
-        public int getNumberPlayers(){
+        public boolean hasDonor(PokerPlayer p) {
+            return donors.contains(p);
+        }
+        public int getNumPlayers(){
             return players.size();
+        }
+        public int getNumDonors() {
+            return donors.size();
         }
     }
     
     /* Nested class to store statistics, based on number of decks used, for the house */
     private class HouseStat extends Stats {
-        private ArrayList<String> playerList, winnerList;
+        private ArrayList<PokerPlayer> donors;
+        private ArrayList<PokerPlayer> winners;
+        
         public HouseStat() {
             this(0);
         }
         
         public HouseStat(int pot) {
             set("biggestpot", pot);
-            playerList = new ArrayList<String>();
-            winnerList = new ArrayList<String>();
+            donors = new ArrayList<PokerPlayer>();
+            winners = new ArrayList<PokerPlayer>();
         }
         
-        public int getNumPlayers(){
-            return playerList.size();
+        public int getNumDonors() {
+            return donors.size();
+        }
+        public void addDonor(PokerPlayer p){
+            donors.add(p);
+        }
+        public void clearDonors(){
+            donors.clear();
+        }
+        public int getNumWinners() {
+            return winners.size();
+        }
+        public void addWinner(PokerPlayer p){
+            winners.add(p);
+        }
+        public void clearWinners(){
+            winners.clear();
         }
         
-        public void addPlayer(String nick){
-            playerList.add(nick);
-        }
-        
-        public void clearPlayerList(){
-            playerList.clear();
-        }
-        
-        public int getNumWinners(){
-            return winnerList.size();
-        }
-        
-        public void addWinner(String nick){
-            winnerList.add(nick);
-        }
-        
-        public void clearWinnerList(){
-            winnerList.clear();
-        }
-        
-        public String getPlayerListString(){
+        public String getDonorsString(){
             String outStr = "";
-            for (int ctr = 0; ctr < playerList.size(); ctr++){
-                outStr += playerList.get(ctr) + " ";
+            for (int ctr = 0; ctr < donors.size(); ctr++){
+                outStr += donors.get(ctr).getNick() + " ";
             }
             return outStr.substring(0, outStr.length() - 1);
         }
         
-        public String getWinnerListString(){
+        public String getWinnersString(){
             String outStr = "";
-            for (int ctr = 0; ctr < winnerList.size(); ctr++){
-                outStr += winnerList.get(ctr) + " ";
+            for (int ctr = 0; ctr < winners.size(); ctr++){
+                outStr += winners.get(ctr).getNick() + " ";
             }
             return outStr.substring(0, outStr.length() - 1);
         }
         
         public String getToStringList(){
-            String outStr = "";
-            int size = playerList.size();
+            String outStr;
+            int size = donors.size();
             if (size == 0){
                 outStr = formatBold("0") + " players";
             } else if (size == 1){
-                outStr = formatBold("1") + " player: " + playerList.get(0);
+                outStr = formatBold("1") + " player: " + donors.get(0).getNickStr();
             } else {
                 outStr = formatBold(size) + " players: ";
                 for (int ctr = 0; ctr < size; ctr++){
                     if (ctr == size-1){
-                        if (winnerList.contains(playerList.get(ctr))) {
-                            outStr += formatBold(playerList.get(ctr));
+                        if (winners.contains(donors.get(ctr))) {
+                            outStr += donors.get(ctr).getNickStr();
                         } else {
-                            outStr += playerList.get(ctr);
+                            outStr += donors.get(ctr).getNick();
                         }
                     } else {
-                        if (winnerList.contains(playerList.get(ctr))) {
-                            outStr += formatBold(playerList.get(ctr)) + ", ";
+                        if (winners.contains(donors.get(ctr))) {
+                            outStr += donors.get(ctr).getNickStr() + ", ";
                         } else {
-                            outStr += playerList.get(ctr) + ", ";
+                            outStr += donors.get(ctr).getNick() + ", ";
                         }
                     }
                 }   
@@ -953,11 +970,11 @@ public class TexasPoker extends CardGame{
                         house.set("biggestpot", biggestpot);
                         players = Integer.parseInt(st.nextToken());
                         for (int ctr = 0; ctr < players; ctr++) {
-                            house.addPlayer(st.nextToken());
+                            house.addDonor(new PokerPlayer(st.nextToken(), ""));
                         }
                         winners = Integer.parseInt(st.nextToken());
                         for (int ctr = 0; ctr < winners; ctr++) {
-                            house.addWinner(st.nextToken());
+                            house.addWinner(new PokerPlayer(st.nextToken(), ""));
                         }
                     }
                     break;
@@ -1009,7 +1026,7 @@ public class TexasPoker extends CardGame{
             lines.add("#texaspoker");
             index = lines.size();
         }
-        lines.add(index, house.get("biggestpot") + " " + house.getNumPlayers() + " " + house.getPlayerListString() + " " + house.getNumWinners() + " " + house.getWinnerListString());
+        lines.add(index, house.get("biggestpot") + " " + house.getNumDonors() + " " + house.getDonorsString() + " " + house.getNumWinners() + " " + house.getWinnersString());
         try {
             PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("housestats.txt")));
             for (int ctr = 0; ctr < lines.size(); ctr++) {
@@ -1251,7 +1268,7 @@ public class TexasPoker extends CardGame{
                 // Determine if anybody is still in the game, but has not
                 // contributed any bets in the latest round of betting, 
                 // thus requiring a new pot
-                for (int ctr = 0; ctr < currentPot.getNumberPlayers(); ctr++) {
+                for (int ctr = 0; ctr < currentPot.getNumPlayers(); ctr++) {
                     p = currentPot.getPlayer(ctr);
                     if (p.get("bet") == 0 && get("currentbet") != 0 && !p.hasFolded() && currentPot.hasPlayer(p)) {
                         currentPot = new PokerPot();
@@ -1272,6 +1289,14 @@ public class TexasPoker extends CardGame{
             for (int ctr = 0; ctr < getNumberJoined(); ctr++){
                 p = (PokerPlayer) getJoined(ctr);
                 if (p.get("bet") != 0){
+                    // Check if player has been added to donor list
+                    if (!currentPot.hasDonor(p)) {
+                        currentPot.addDonor(p);
+                    }
+                    // Ensure a non-folded player is included in this pot
+                    if (!p.hasFolded() && !currentPot.hasPlayer(p)){
+                        currentPot.addPlayer(p);
+                    }
                     if (p.hasFolded()){
                         int bet = Math.min(p.get("bet"), lowBet);
                         currentPot.addPot(bet);
@@ -1285,10 +1310,6 @@ public class TexasPoker extends CardGame{
                         p.add("tpwinnings", -1 * lowBet);
                         p.add("bet", -1 * lowBet);
                         p.add("change", -1 * lowBet);
-                    }
-                    // Ensure a non-folded player is included in this pot
-                    if (!p.hasFolded() && !currentPot.hasPlayer(p)){
-                        currentPot.addPlayer(p);
                     }
                     // Check if this player has any bet left over
                     if (p.get("bet") != 0){
@@ -1407,7 +1428,7 @@ public class TexasPoker extends CardGame{
         Collections.sort(players);
         Collections.reverse(players);
         // Show each remaining player's hand
-        if (pots.get(0).getNumberPlayers() > 1){
+        if (pots.get(0).getNumPlayers() > 1){
             for (int ctr = 0; ctr < players.size(); ctr++){
                 p = players.get(ctr);
                 showPlayerResult(p);
@@ -1421,7 +1442,7 @@ public class TexasPoker extends CardGame{
             Collections.sort(players);
             Collections.reverse(players);
             // Determine number of winners
-            for (int ctr2=1; ctr2 < currentPot.getNumberPlayers(); ctr2++){
+            for (int ctr2=1; ctr2 < currentPot.getNumPlayers(); ctr2++){
                 if (players.get(0).compareTo(players.get(ctr2)) == 0){
                     winners++;
                 }
@@ -1441,13 +1462,15 @@ public class TexasPoker extends CardGame{
             // Check if it's the biggest pot
             if (house.get("biggestpot") < currentPot.getPot()){
                 house.set("biggestpot", currentPot.getPot());
-                house.clearPlayerList();
-                house.clearWinnerList();
-                for (int ctr2 = 0; ctr2 < currentPot.getNumberPlayers(); ctr2++){
-                    house.addPlayer(currentPot.getPlayer(ctr2).getNick());
+                house.clearDonors();
+                house.clearWinners();
+                // Store the list of donors
+                for (int ctr2 = 0; ctr2 < currentPot.getNumDonors(); ctr2++){
+                    house.addDonor(new PokerPlayer(currentPot.getDonor(ctr2).getNick(), ""));
                 }
+                // Store the list of winners
                 for (int ctr2 = 0; ctr2 < winners; ctr2++){
-                    house.addWinner(currentPot.getPlayer(ctr2).getNick());
+                    house.addWinner(new PokerPlayer(currentPot.getPlayer(ctr2).getNick(), ""));
                 }
                 saveHouseStats();
             }

@@ -19,6 +19,7 @@
 
 package irccasino;
 
+import java.util.Objects;
 import org.pircbotx.*;
 
 /**
@@ -70,6 +71,15 @@ public abstract class Player extends Stats{
             return "Dealer";
         }
         return nick;
+    }
+    
+    /**
+     * Returns the Player's hostmask.
+     * 
+     * @return the Player's hostmask
+     */
+    public String getHostmask() {
+        return hostmask;
     }
     
     /**
@@ -136,7 +146,7 @@ public abstract class Player extends Stats{
      * @return the bold-formatted nick
      */
     public String getNickStr(){
-        return Colors.BOLD + getNick() + Colors.BOLD;
+        return Colors.BOLD + nick + Colors.BOLD;
     }
     
     /**
@@ -146,6 +156,36 @@ public abstract class Player extends Stats{
      */
     @Override
     public String toString(){
-        return getNick() + " " + hostmask;
+        return nick + " " + hostmask;
+    }
+    
+    /**
+     * Comparison of Player objects.
+     * @param o the Object to compare
+     * @return true if the properties are the same
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (o != null && o instanceof Player) {
+            Player p = (Player) o;
+            if (nick.equals(p.nick) && hostmask.equals(p.hostmask) &&
+                dealer == p.dealer && hashCode() == p.hashCode()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Auto-generated hashCode method.
+     * @return the Player's hashCode
+     */
+    @Override
+    public int hashCode() {
+        int hash = 5;
+        hash = 29 * hash + (this.dealer ? 1 : 0);
+        hash = 29 * hash + Objects.hashCode(this.nick);
+        hash = 29 * hash + Objects.hashCode(this.hostmask);
+        return hash;
     }
 }
