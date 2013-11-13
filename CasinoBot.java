@@ -41,7 +41,7 @@ import org.pircbotx.hooks.managers.ThreadedListenerManager;
  * @author Yizhe Shen
  */
 public class CasinoBot extends PircBotX {
-    /* CommandListener that will process initialization commands */
+    /* Listener for CasinoBot initialization */
     public static class InitListener extends ListenerAdapter<PircBotX> {
         CasinoBot bot;
         char commandChar;
@@ -209,7 +209,7 @@ public class CasinoBot extends PircBotX {
         
         try {
             bot.connect(network);
-        } catch (IrcException e){
+        } catch (IrcException | IOException e){
             System.out.println("Error: " + e);
         }
     }

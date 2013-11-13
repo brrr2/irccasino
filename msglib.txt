@@ -83,9 +83,9 @@ separator=u0002-----------------------------------------------------------------
 ###################
 join=%s has joined the game. Players: u0002%du0002
 reload_ini=%s has been reloaded.
-players=Joined: %s;
-waitlist=Waiting: %s;
-blacklist=Bankrupt: %s;
+players=Joined: %s
+waitlist=Waiting: %s
+blacklist=Bankrupt: %s
 setting=%s: %d
 setting_updated=%s setting has been updated.
 game_start=%s has started.

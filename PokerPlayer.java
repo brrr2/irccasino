@@ -81,22 +81,6 @@ public class PokerPlayer extends Player implements Comparable<PokerPlayer> {
     }
     
     /**
-     * Whether or not the player has folded.
-     * @return true if player has folded
-     */
-    public boolean hasFolded(){
-        return get("fold") == 1;
-    }
-    
-    /**
-     * Whether or not the player has gone all in.
-     * @return true if the player has gone all in
-     */
-    public boolean hasAllIn(){
-        return get("allin") == 1;
-    }
-    
-    /**
      * Compares this PokerPlayer to another based on their PokerHand.
      * Returns the same value as a comparison of the players' PokerHands.
      * @param p the PokerPlayer to compare

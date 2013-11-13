@@ -101,15 +101,6 @@ public abstract class Player extends Stats{
     }
     
     /**
-     * Whether or not the Player has quit.
-     * 
-     * @return true if the Player has quit
-     */
-    public boolean hasQuit(){
-        return get("quit") == 1;
-    }
-    
-    /**
      * Returns the simple status of the Player.
      * If simple is true, then game information is sent via notices. If simple
      * is false, then game information is sent via private messages.

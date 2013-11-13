@@ -727,7 +727,7 @@ public class Blackjack extends CardGame {
                         savePlayerData(p);
                         informPlayer(p.getNick(), getMsg("auto_withdraw"), amount);
                         // Check if the player has quit
-                        if (p.hasQuit()){
+                        if (p.has("quit")){
                             removeJoined(p);
                             ctr--;
                         }
@@ -740,7 +740,7 @@ public class Blackjack extends CardGame {
                         ctr--;
                     }
                 // Quitters
-                } else if (p.hasQuit()) {
+                } else if (p.has("quit")) {
                     removeJoined(p.getNick());
                     ctr--;
                 // Remaining players
@@ -1180,7 +1180,7 @@ public class Blackjack extends CardGame {
         } else {
             showTurn(p);
         }
-        if (p.hasQuit()){
+        if (p.has("quit")){
             stay();
         } else {
             setIdleOutTask();
