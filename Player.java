@@ -137,7 +137,7 @@ public abstract class Player extends Stats{
      * @return the bold-formatted nick
      */
     public String getNickStr(){
-        return Colors.BOLD + nick + Colors.BOLD;
+        return Colors.BOLD + getNick() + Colors.BOLD;
     }
     
     /**

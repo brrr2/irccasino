@@ -58,8 +58,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         @Override
         public void run() {
             if (game.has("inprogress") && player == game.getCurrentPlayer()) {
-                game.bot.sendMessage(game.channel, player.getNickStr()
-                                + " has wasted precious time and idled out.");
+                game.showMsg(game.getMsg("idle_out"), player.getNickStr());
                 game.leave(player);
             }
         }
@@ -76,7 +75,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         @Override
         public void run(){
             if (game.has("inprogress") && player == game.getCurrentPlayer()) {
-                game.infoPlayerIdleWarning(player);
+                game.informPlayer(player.getNick(), game.getMsg("idle_warning"),
+                        player.getNickStr(), game.get("idle") - game.get("idlewarning"));
             }
         }
     }
@@ -93,8 +93,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             ArrayList<RespawnTask> tasks = game.getRespawnTasks();
             player.set("cash", game.get("cash"));
             player.add("bank", -game.get("cash"));
-            game.bot.sendMessage(game.channel, player.getNickStr() + " has been loaned $"
-                                + formatNumber(game.get("cash")) + ". Please bet responsibly.");
+            game.showMsg(game.getMsg("respawn"), player.getNickStr(), game.get("cash"));
             game.savePlayerData(player);
             game.removeBlacklisted(player);
             tasks.remove(this);
@@ -110,7 +109,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected Timer gameTimer; //All TimerTasks are scheduled on this Timer
     protected HashMap<String,Integer> settingsMap;
     protected HashMap<String,String> helpMap, msgMap;
-    private String gameName, iniFile, helpFile;
+    private String gameName, iniFile;
     private IdleOutTask idleOutTask;
     private IdleWarningTask idleWarningTask;
     private StartRoundTask startRoundTask;
@@ -150,8 +149,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         // Parse the message if it is a command
         if (msg.length() > 1 && msg.charAt(0) == commandChar && 
                 msg.charAt(1) != ' ' && event.getChannel().equals(channel)){
-            msg = msg.substring(1);
-            StringTokenizer st = new StringTokenizer(msg);
+            StringTokenizer st = new StringTokenizer(msg.substring(1));
             String command = st.nextToken().toLowerCase();
             String[] params = new String[st.countTokens()];
             for (int ctr = 0; ctr < params.length; ctr++){
@@ -249,7 +247,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             } else {
                 showPlayerAllStats(nick);
             }
-        } else if (command.equals("withdraw")){
+        } else if (command.equals("transfer") || command.equals("deposit") || 
+                    command.equals("withdraw")) {
             if (!isJoined(nick)) {
                 informPlayer(nick, getMsg("no_join"));
             } else if (has("inprogress")) {
@@ -257,23 +256,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             } else {
                 if (params.length > 0){
                     try {
-                        transfer(nick, -Integer.parseInt(params[0]));
-                    } catch (NumberFormatException e) {
-                        informPlayer(nick, getMsg("bad_parameter"));
-                    }
-                } else {
-                    informPlayer(nick, getMsg("no_parameter"));
-                }
-            }
-        } else if (command.equals("transfer") || command.equals("deposit")) {
-            if (!isJoined(nick)) {
-                informPlayer(nick, getMsg("no_join"));
-            } else if (has("inprogress")) {
-                informPlayer(nick, getMsg("wait_round_end"));
-            } else {
-                if (params.length > 0){
-                    try {
-                        transfer(nick, Integer.parseInt(params[0]));
+                        if (command.equals("transfer") || command.equals("deposit")) {
+                            transfer(nick, Integer.parseInt(params[0]));
+                        } else {
+                            transfer(nick, -Integer.parseInt(params[0]));
+                        }
                     } catch (NumberFormatException e) {
                         informPlayer(nick, getMsg("bad_parameter"));
                     }
@@ -341,7 +328,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             infoGameRules(nick);
         } else if (command.equals("ghelp")) {
             if (params.length == 0){
-                infoGameHelp(nick);
+                informPlayer(nick, getMsg("game_help"), commandChar, commandChar, commandChar);
             } else {
                 informPlayer(nick, getCommandHelp(params[0].toLowerCase()));
             }
@@ -356,6 +343,31 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             } else {
                 if (params.length > 0){
                     leave(params[0]);
+                } else {
+                    informPlayer(nick, getMsg("no_parameter"));
+                }
+            }
+        } else if (command.equals("ftransfer") || command.equals("fdeposit") ||
+                command.equals("fwithdraw")) {
+            if (!channel.isOp(user)) {
+                informPlayer(nick, getMsg("ops_only"));
+            } else {
+                if (params.length > 1) {
+                    if (!isJoined(params[0])) {
+                        bot.sendNotice(nick, params[0] + " is not currently joined!");
+                    } else if (has("inprogress")) {
+                        informPlayer(nick, getMsg("wait_round_end"));
+                    } else {
+                        try {
+                            if (command.equals("ftransfer") || command.equals("fdeposit")) {
+                                transfer(params[0], Integer.parseInt(params[1]));
+                            } else {
+                                transfer(params[0], -Integer.parseInt(params[1]));
+                            }
+                        } catch (NumberFormatException e) {
+                            informPlayer(nick, getMsg("bad_parameter"));
+                        }
+                    }
                 } else {
                     informPlayer(nick, getMsg("no_parameter"));
                 }
@@ -544,7 +556,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             in.close();
         } catch (IOException e) {
             /* load defaults if texaspoker.ini is not found */
-            bot.log(getIniFile()+" not found! Creating new "+getIniFile()+"...");
+            bot.log(getIniFile()+" not found! Creating new " + getIniFile() + "...");
             initialize();
             saveIniFile();
         }
@@ -724,9 +736,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         blacklist.remove(p);
     }
     public User findUser(String nick){
-        Set<User> users = bot.getUsers(channel);
         User user;
-        Iterator<User> it = users.iterator();
+        Iterator<User> it = bot.getUsers(channel).iterator();
         while(it.hasNext()){
             user = it.next();
             if (user.getNick().equalsIgnoreCase(nick)){
@@ -889,13 +900,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             
             if (gameName.equals("Blackjack")){
                 for (int ctr = 0; ctr < numLines; ctr++){
-                    if (statList.get(ctr).get("bjrounds") > 0){
+                    if (statList.get(ctr).has("bjrounds")){
                         total++;
                     }
                 }
             } else if (gameName.equals("Texas Hold'em Poker")){
                 for (int ctr = 0; ctr < numLines; ctr++){
-                    if (statList.get(ctr).get("tprounds") > 0){
+                    if (statList.get(ctr).has("tprounds")){
                         total++;
                     }
                 }
@@ -1030,10 +1041,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             }
             if (!found) {
                 statLine = new StatFileLine(p.getNick(), p.get("cash"),
-                p.get("bank"), p.get("bankrupts"),
-                p.get("bjwinnings"), p.get("bjrounds"),
-                p.get("tpwinnings"), p.get("tprounds"),
-                p.get("simple"));
+                                        p.get("bank"), p.get("bankrupts"),
+                                        p.get("bjwinnings"), p.get("bjrounds"),
+                                        p.get("tpwinnings"), p.get("tprounds"),
+                                        p.get("simple"));
                 statList.add(statLine);
             }
         } catch (IOException e) {
@@ -1499,9 +1510,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     public void infoGameRules(String nick) {
         bot.sendNotice(nick,getGameRulesStr());
     }
-    public void infoGameHelp(String nick) {
-        bot.sendNotice(nick,getGameHelpStr());
-    }
     public void infoGameCommands(String nick){
         bot.sendNotice(nick,getGameNameStr()+" commands:");
         bot.sendNotice(nick,getGameCommandStr());
@@ -1511,17 +1519,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             bot.sendNotice(nick, "You've lost all your money. Please wait " + (get("respawn")+penalty)/60 + " minute(s) for a loan.");
         } else {
             bot.sendNotice(nick, "You've lost all your money. Please wait " + String.format("%.1f", (get("respawn")+penalty)/60.) + " minutes for a loan.");
-        }
-    }
-    public void infoPlayerIdleWarning(Player p){
-        if (p.isSimple()) {
-            bot.sendNotice(p.getNick(), p.getNickStr()
-                + ": You will idle out in " + (get("idle") - get("idlewarning")) 
-                + " seconds. Please make your move.");
-        } else {
-            bot.sendMessage(p.getNick(), p.getNickStr()
-                + ": You will idle out in " + (get("idle") - get("idlewarning")) 
-                + " seconds. Please make your move.");
         }
     }
     
@@ -1547,7 +1544,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             for (int ctr=cardIndex; ctr < cardIndex+numOut; ctr++){
                 cardStr += tCards.get(ctr)+" ";
             }
-            cardIndex+=numOut;
+            cardIndex += numOut;
             bot.sendNotice(nick, cardStr.substring(0, cardStr.length()-1)+Colors.NORMAL);
         }
     }
@@ -1555,10 +1552,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     /* Formatted strings */
     public String getGameNameStr(){
         return formatBold(gameName);
-    }
-    public String getGameHelpStr() {
-        return "For a list of game commands, type .gcommands. For house rules, type .grules. " +
-                "For help on individual commands, type .ghelp <command>.";
     }
     abstract public String getGameRulesStr();
     abstract public String getGameCommandStr();
@@ -1578,39 +1571,39 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         return formatBold(value + "");
     }
     protected static String getPlayerListString(ArrayList<? extends Player> playerList){
-        String outStr;
         int size = playerList.size();
+        String outStr = formatBold(size);
         if (size == 0){
-            outStr = formatBold("0") + " players";
+            outStr += " players";
         } else if (size == 1){
-            outStr = formatBold("1") + " player: " + playerList.get(0).getNick();
+            outStr += " player: ";
         } else {
-            outStr = formatBold(size) + " players: ";
-            for (int ctr=0; ctr < size; ctr++){
-                if (ctr == size-1){
-                    outStr += playerList.get(ctr).getNick();
-                } else {
-                    outStr += playerList.get(ctr).getNick()+", ";
-                }
+            outStr += " players: ";
+        }
+        for (int ctr=0; ctr < size; ctr++){
+            if (ctr == size-1){
+                outStr += playerList.get(ctr).getNick();
+            } else {
+                outStr += playerList.get(ctr).getNick()+", ";
             }
         }
         return outStr;
     }
     protected static String getListString(ArrayList<String> stringList){
-        String outStr;
         int size = stringList.size();
+        String outStr = formatBold(size);
         if (size == 0){
-            outStr = formatBold("0") + " players";
+            outStr += " players";
         } else if (size == 1){
-            outStr = formatBold("1") + " player: " + stringList.get(0);
+            outStr += " player: ";
         } else {
-            outStr = formatBold(size) + " players: ";
-            for (int ctr=0; ctr < size; ctr++){
-                if (ctr == size-1){
-                    outStr += stringList.get(ctr);
-                } else {
-                    outStr += stringList.get(ctr) + ", ";
-                }
+            outStr += " players: ";
+        }
+        for (int ctr = 0; ctr < size; ctr++){
+            if (ctr == size - 1){
+                outStr += stringList.get(ctr);
+            } else {
+                outStr += stringList.get(ctr) + ", ";
             }
         }
         return outStr;

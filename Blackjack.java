@@ -952,7 +952,7 @@ public class Blackjack extends CardGame {
      */
     public void shuffleShoe() {
         deck.refillDeck();
-        showMsg(getMsg("shuffle_shoe"));
+        showMsg(getMsg("bj_shuffle_shoe"));
     }
     /**
      * Deals two cards to the specified player.

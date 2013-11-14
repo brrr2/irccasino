@@ -27,6 +27,7 @@ no_deposit_bankrupt=You cannot go bankrupt making a deposit. Try again.
 insufficient_funds=Insufficient funds.
 no_parameter=Parameter(s) missing!
 bad_parameter=Bad parameter(s). Try again.
+game_help=For a list of game commands, type %cgcommands. For house rules, type %cgrules. For help on individual commands, type %cghelp <command>.
 ###################
 # With parameters #
 ###################
@@ -36,6 +37,8 @@ nick_not_found=%s was not found.
 bet_too_low=Minimum bet is $%,d. Try again.
 bet_too_high=Maximum bet is $%,d. Try again.
 auto_withdraw=You make a withdrawal of $%,d to replenish your empty stack.
+idle_out=%s has wasted precious time and idled out.
+idle_warning=%s: You will idle out in %,d seconds. Please make your move.
 ##############################
 # Blackjack private messages #
 ##############################
@@ -98,6 +101,7 @@ num_cards=%,d cards left in the deck.
 num_discards=%,d cards in the discard pile.
 num_decks=This game of %s is using %,d deck(s) of cards.
 turn=It's now %s's turn.
+respawn=%s has been loaned $%,d. Please bet responsibly.
 ##############################
 # Blackjack channel messages #
 ##############################
@@ -105,7 +109,8 @@ turn=It's now %s's turn.
 # No parameters #
 #################
 bj_deck_empty=Merging the discards back into the shoe and shuffling...
-shuffle_shoe=The dealer's shoe has been shuffled.
+bj_shuffle_shoe=The dealer's shoe has been shuffled.
+bj_game_name=Blackjack
 ###################
 # With parameters #
 ###################
@@ -121,6 +126,11 @@ bj_zen=Zen count: %,d
 ##############################
 # Texaspoker channel messages #
 ##############################
+#################
+# No parameters #
+#################
+tp_game_name=Texas Hold'em Poker
+tp_shuffle_deck=The deck has been shuffled.
 ###################
 # With parameters #
 ###################

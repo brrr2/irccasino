@@ -1094,7 +1094,7 @@ public class TexasPoker extends CardGame{
      */
     public void shuffleDeck() {
         deck.refillDeck();
-        showShuffleDeck();
+        showMsg(getMsg("tp_shuffle_deck"));
     }
     
     /* Texas Hold'em Poker gameplay methods */
@@ -1475,9 +1475,7 @@ public class TexasPoker extends CardGame{
             }
         }
     }
-    public void showShuffleDeck() {
-        bot.sendMessage(channel, "The deck has been shuffled.");
-    }
+    
     
     /* Private messages to players */
     /**
