@@ -39,6 +39,7 @@ bet_too_high=Maximum bet is $%,d. Try again.
 auto_withdraw=You make a withdrawal of $%,d to replenish your empty stack.
 idle_out=%s has wasted precious time and idled out.
 idle_warning=%s: You will idle out in %,d seconds. Please make your move.
+bankrupt_info=You've lost all your money. Please wait %.1f minute(s) for a loan.
 ##############################
 # Blackjack private messages #
 ##############################
@@ -55,6 +56,7 @@ no_insure_no_ace=The dealer's upcard is not an ace. You cannot make an insurance
 no_insure_has_hit=You cannot make an insurance bet after hitting.
 no_insure_has_split=You cannot make an insurance bet after splitting.
 already_insured=You have already made an insurance bet.
+bj_commands=go, join, quit, bet, hit, stand, doubledown, surrender, insure, split, table, turn, sum, hand, allhands, cash, netcash, bank, transfer, deposit, withdraw, bankrupts, winnings, winrate, rounds, player, numdecks, numcards, numdiscards, hilo, zen, red7, count, simple, players, stats, house, waitlist, blacklist, rank, top, game, ghelp, grules, gcommands
 ###################
 # With parameters #
 ###################
@@ -66,6 +68,7 @@ insure_bet_too_high=Maximum insurance bet is $%,d. Try again.
 # No parameters #
 #################
 no_community=No community cards have been dealt yet.
+tp_commands=go, join, quit, bet, check, call, raise, fold, community, turn, hand, cash, netcash, bank, transfer, deposit, withdraw, bankrupts, winnings, winrate, rounds, player, players, waitlist, blacklist, rank, top, simple, stats, game, ghelp, grules, gcommands
 ###################
 # With parameters #
 ###################
@@ -81,11 +84,11 @@ no_checking=Current bet is $%,d. You must call or raise.
 deck_empty=The deck is empty. Refilling with discards...
 no_players=Not enough players.
 separator=u0002------------------------------------------------------------------u0002
+reload=Configuration and library files have been reloaded.
 ###################
 # With parameters #
 ###################
 join=%s has joined the game. Players: u0002%du0002
-reload_ini=%s has been reloaded.
 players=Joined: %s
 waitlist=Waiting: %s
 blacklist=Bankrupt: %s
@@ -102,6 +105,19 @@ num_discards=%,d cards in the discard pile.
 num_decks=This game of %s is using %,d deck(s) of cards.
 turn=It's now %s's turn.
 respawn=%s has been loaned $%,d. Please bet responsibly.
+unjoin=%s has left the game. Players: u0002%,d
+unjoin_bankrupt=%s has gone bankrupt and left the game. Players: u0002%,d
+start_round_auto=u0002----------u0002 Starting another round of %s in 5 seconds... (Auto-starts: u0002%,du0002) u0002----------u0002
+start_round=u0002----------u0002 Starting another round of %s in 5 seconds... u0002----------u0002
+no_data=No data found for %s.
+player_cash=%s has $%,d in chips.
+player_net=%s has $%,d in net cash.
+player_bank=%s has $%,d in the bank.
+player_bankrupts=%s has gone bankrupt %,d time(s).
+player_winnings=%s has won $%,d in %s.
+player_no_rounds=%s has not played any rounds of %s.
+player_rounds=%s has played %,d round(s) of %s.
+player_winrate=%s has won $%.2f per round in %s.
 ##############################
 # Blackjack channel messages #
 ##############################

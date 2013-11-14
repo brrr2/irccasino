@@ -405,7 +405,9 @@ public class TexasPoker extends CardGame{
         } else if (command.equals("reload")) {
             if (isOpCommandAllowed(user, nick)){
                 loadIni();
-                showMsg(getMsg("reload_ini"), getIniFile());
+                loadLib(helpMap, "texaspoker.help");
+                loadLib(msgMap, "msglib.txt");
+                showMsg(getMsg("reload"));
             }
         } else if (command.equals("test1")){
             // 1. Test if game will properly determine winner of 2-5 players
@@ -689,14 +691,15 @@ public class TexasPoker extends CardGame{
                 }
                 
                 // Add player to list of net results
+                netResults += Colors.WHITE + ",01 " + p.getNick() + " (";
                 if (p.get("change") > 0) {
-                    netResults += Colors.WHITE + ",01 " + p.getNick() + " (" + Colors.GREEN + ",01$" + p.get("change") + Colors.WHITE + ",01), ";
+                     netResults += Colors.GREEN + ",01$" + p.get("change");
                 } else if (p.get("change") < 0) {
-                    netResults += Colors.WHITE + ",01 " + p.getNick() + " (" + Colors.RED + ",01$" + p.get("change") + Colors.WHITE + ",01), ";
+                    netResults += Colors.RED + ",01$" + p.get("change");
                 } else {
-                    netResults += Colors.WHITE + ",01 " + p.getNick() + " (" + Colors.WHITE + ",01$" + p.get("change") + Colors.WHITE + ",01), ";
+                    netResults += Colors.WHITE + ",01$" + p.get("change");
                 }
-                
+                netResults += Colors.WHITE + ",01), ";
                 resetPlayer(p);
             }
             bot.sendMessage(channel, netResults.substring(0, netResults.length()-2));

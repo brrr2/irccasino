@@ -356,7 +356,9 @@ public class Blackjack extends CardGame {
             if (isOpCommandAllowed(user, nick)){
                 cancelIdleShuffleTask();
                 loadIni();
-                showMsg(getMsg("reload_ini"), getIniFile());
+                loadLib(helpMap, "blackjack.help");
+                loadLib(msgMap, "msglib.txt");
+                showMsg(getMsg("reload"));
             }
         } else if (command.equals("test1")){
             // 1. Tests the dealer playing algorithm and underlying calculations.
