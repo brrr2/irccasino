@@ -28,8 +28,6 @@ import org.pircbotx.*;
  * @author Yizhe Shen
  */
 public abstract class Player extends Stats{
-    /** Stores the player's dealer status. */
-    protected boolean dealer;
     /** Stores the player's nick. */
     protected String nick;
     /** Stores the player's hostmask. */
@@ -42,12 +40,10 @@ public abstract class Player extends Stats{
      * 
      * @param nick IRC user nick
      * @param hostmask IRC user hostmask
-     * @param dealer Whether or not this player is dealer
      */
-    public Player(String nick, String hostmask, boolean dealer){
+    public Player(String nick, String hostmask){
         super();
         this.nick = nick;
-        this.dealer = dealer;
         this.hostmask = hostmask;
         set("cash", 0);
         set("bank", 0);
@@ -62,15 +58,44 @@ public abstract class Player extends Stats{
     
     /* Player info methods */
     /**
-     * Returns the Player's nick or "Dealer" if the player is in the dealer role.
+     * Returns the Player's nick.
      * 
-     * @return the Player's name
+     * @return the Player's nick
      */
     public String getNick(){
-        if (dealer){
-            return "Dealer";
+        return getNick(true);
+    }
+    
+    /**
+     * Allows a nick to be returned with a zero-space character.
+     * @param ping whether or not to add a zero-width character in nick
+     * @return the Player's nick
+     */
+    public String getNick(boolean ping) {
+        if (ping) {
+            return nick;
+        } else {
+            return nick.substring(0, 1) + "\u200b" + nick.substring(1);
         }
-        return nick;
+    }
+    
+    /**
+     * Returns the player's nick formatted in IRC bold.
+     * 
+     * @return the bold-formatted nick
+     */
+    public String getNickStr(){
+        return getNickStr(true);
+    }
+    
+    /**
+     * Allows a bolded nick to be returned with a zero-space character.
+     * 
+     * @param ping whether or not to add a zero-width character in nick
+     * @return the bold-formatted nick
+     */
+    public String getNickStr(boolean ping){
+        return Colors.BOLD + getNick(ping) + Colors.BOLD;
     }
     
     /**
@@ -80,24 +105,6 @@ public abstract class Player extends Stats{
      */
     public String getHostmask() {
         return hostmask;
-    }
-    
-    /**
-     * Sets the Player's dealer status.
-     * 
-     * @param b the new status
-     */
-    public void setDealer(boolean b){
-        dealer = b;
-    }
-    
-    /**
-     * Whether or not the Player is the dealer.
-     * 
-     * @return true if the Player is the dealer
-     */
-    public boolean isDealer(){
-        return dealer;
     }
     
     /**
@@ -132,15 +139,6 @@ public abstract class Player extends Stats{
     }
     
     /**
-     * Returns the player's nick formatted in IRC bold.
-     * 
-     * @return the bold-formatted nick
-     */
-    public String getNickStr(){
-        return Colors.BOLD + getNick() + Colors.BOLD;
-    }
-    
-    /**
      * String representation includes the Player's nick and hostmask.
      * 
      * @return a String containing the Players nick and hostmask
@@ -160,7 +158,7 @@ public abstract class Player extends Stats{
         if (o != null && o instanceof Player) {
             Player p = (Player) o;
             if (nick.equals(p.nick) && hostmask.equals(p.hostmask) &&
-                dealer == p.dealer && hashCode() == p.hashCode()) {
+                hashCode() == p.hashCode()) {
                 return true;
             }
         }
@@ -174,7 +172,6 @@ public abstract class Player extends Stats{
     @Override
     public int hashCode() {
         int hash = 5;
-        hash = 29 * hash + (this.dealer ? 1 : 0);
         hash = 29 * hash + Objects.hashCode(this.nick);
         hash = 29 * hash + Objects.hashCode(this.hostmask);
         return hash;

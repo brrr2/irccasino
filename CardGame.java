@@ -33,6 +33,10 @@ import org.pircbotx.hooks.events.NickChangeEvent;
 import org.pircbotx.hooks.events.PartEvent;
 import org.pircbotx.hooks.events.QuitEvent;
 
+/**
+ * Superclass for card games written for irccasino.
+ * @author Yizhe Shen
+ */
 public abstract class CardGame extends ListenerAdapter<PircBotX> {
     /* Start round task to be performed after post-start waiting period */
     public static class StartRoundTask extends TimerTask{
@@ -57,10 +61,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
 
         @Override
         public void run() {
-            if (game.has("inprogress") && player == game.getCurrentPlayer()) {
-                game.showMsg(game.getMsg("idle_out"), player.getNickStr());
-                game.leave(player);
-            }
+            game.showMsg(game.getMsg("idle_out"), player.getNickStr());
+            game.leave(player);
         }
     }
     /* Idle warning task for reminding players they are about to idle out */
@@ -74,10 +76,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         
         @Override
         public void run(){
-            if (game.has("inprogress") && player == game.getCurrentPlayer()) {
-                game.informPlayer(player.getNick(), game.getMsg("idle_warning"),
-                        player.getNickStr(), game.get("idle") - game.get("idlewarning"));
-            }
+            game.informPlayer(player.getNick(), game.getMsg("idle_warning"),
+                    player.getNickStr(), game.get("idle") - game.get("idlewarning"));
         }
     }
     /* Respawn task for giving loans after bankruptcies */
@@ -325,7 +325,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 showGameStats();
             }
         } else if (command.equals("grules")) {
-            infoGameRules(nick);
+            informPlayer(nick, getGameRulesStr());
         } else if (command.equals("ghelp")) {
             if (params.length == 0){
                 informPlayer(nick, getMsg("game_help"), commandChar, commandChar, commandChar);
@@ -333,7 +333,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 informPlayer(nick, getCommandHelp(params[0].toLowerCase()));
             }
         } else if (command.equals("gcommands")) {
-            infoGameCommands(nick);
+            informPlayer(nick, getGameNameStr() + " commands:");
+            informPlayer(nick, getGameCommandStr());
         } else if (command.equals("game")) {
             showMsg(getMsg("game_name"), getGameNameStr());
         // Op Commands
@@ -594,7 +595,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     
     public void join(String nick, String hostmask) {
-        if (getNumberJoined() == get("maxplayers")){
+        if (joined.size() == get("maxplayers")){
             informPlayer(nick, getMsg("max_players"));
         } else if (isJoined(nick)) {
             informPlayer(nick, getMsg("already_joined"));
@@ -615,7 +616,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     public void mergeWaitlist(){
         for (int ctr = 0; ctr < waitlist.size(); ctr++){
-            addPlayer(getWaitlisted(ctr));
+            addPlayer(waitlist.get(ctr));
         }
         waitlist.clear();
     }
@@ -635,8 +636,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         respawnTasks.clear();
         gameTimer.purge();
         // Fast-track loans
-        for (int ctr = 0; ctr < getNumberBlacklisted(); ctr++){
-            p = getBlacklisted(ctr);
+        for (int ctr = 0; ctr < blacklist.size(); ctr++){
+            p = blacklist.get(ctr);
             p.set("cash", get("cash"));
             p.add("bank", -get("cash"));
             savePlayerData(p);
@@ -695,7 +696,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         if (user != null){
             bot.voice(channel, user);
         }
-        showMsg(getMsg("join"), p.getNickStr(), getNumberJoined());
+        showMsg(getMsg("join"), p.getNickStr(), joined.size());
     }
     public boolean isJoined(String nick){
         return (findJoined(nick) != null);
@@ -727,9 +728,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             bot.deVoice(channel, user);
         }
         if (!p.has("cash")) {
-            showMsg(getMsg("unjoin_bankrupt"), p.getNickStr(), getNumberJoined());
+            showMsg(getMsg("unjoin_bankrupt"), p.getNickStr(), joined.size());
         } else {
-            showMsg(getMsg("unjoin"), p.getNickStr(), getNumberJoined());
+            showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
         }
     }
     public void removeWaitlisted(String nick){
@@ -758,8 +759,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         return null;
     }
     public Player findJoined(String nick){
-        for (int ctr=0; ctr< getNumberJoined(); ctr++){
-            Player p = getJoined(ctr);
+        for (int ctr=0; ctr< joined.size(); ctr++){
+            Player p = joined.get(ctr);
             if (p.getNick().equalsIgnoreCase(nick)){
                 return p;
             }  
@@ -767,8 +768,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         return null;
     }
     public Player findWaitlisted(String nick){
-        for (int ctr=0; ctr< getNumberWaitlisted(); ctr++){
-            Player p = getWaitlisted(ctr);
+        for (int ctr=0; ctr< waitlist.size(); ctr++){
+            Player p = waitlist.get(ctr);
             if (p.getNick().equalsIgnoreCase(nick)){
                 return p;
             }  
@@ -776,46 +777,29 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         return null;
     }
     public Player findBlacklisted(String nick){
-        for (int ctr=0; ctr< getNumberBlacklisted(); ctr++){
-            Player p = getBlacklisted(ctr);
+        for (int ctr=0; ctr< blacklist.size(); ctr++){
+            Player p = blacklist.get(ctr);
             if (p.getNick().equalsIgnoreCase(nick)){
                 return p;
             }  
         }
         return null;
     }
-    public Player getJoined(int num){
-        return joined.get(num);
-    }
-    public Player getWaitlisted(int num){
-        return waitlist.get(num);
-    }
-    public Player getBlacklisted(int num){
-        return blacklist.get(num);
-    }
-    public int getNumberJoined(){
-        return joined.size();
-    }
-    public int getNumberWaitlisted(){
-        return waitlist.size();
-    }
-    public int getNumberBlacklisted(){
-        return blacklist.size();
-    }
-    public Player getCurrentPlayer(){
-        return currentPlayer;
-    }
-    public int getJoinedIndex(Player p){
-        return joined.indexOf(p);
-    }
+    
+    /**
+     * Returns the player that comes next after currentPlayer.
+     * Returns null if currentPlayer is the last player.
+     * @return the next player or null
+     */
     public Player getNextPlayer(){
         int index = joined.indexOf(currentPlayer);
-        if (index + 1 < getNumberJoined()){
-            return joined.get(index+1);
+        if (index + 1 < joined.size()){
+            return joined.get(index + 1);
         } else {
             return null;
         }
     }
+    
     /**
      * Toggles a player's "simple" status.
      * Players with "simple" set to true will have game information sent via
@@ -833,6 +817,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             bot.sendMessage(nick, "Game info will now be messaged to you.");
         }
     }
+    
     /**
      * Transfers the specified amount from a player's stack to his bankroll.
      * A negative amount indicates a withdrawal. A positive amount indicates
@@ -865,6 +850,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             }
         }
     }
+    
     /**
      * Devoices all players joined in a game and saves their data.
      * This method only needs to be called when a game is shutdown.
@@ -874,8 +860,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         String modeSet = "";
         String nickStr = "";
         int count = 0;
-        for (int ctr = 0; ctr < getNumberJoined(); ctr++){
-            p = getJoined(ctr);
+        for (int ctr = 0; ctr < joined.size(); ctr++){
+            p = joined.get(ctr);
             savePlayerData(p);
             modeSet += "v";
             nickStr += " " + p.getNick();
@@ -1148,6 +1134,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         bot.sendMessage(channel, String.format(msg, args));
     }
     
+    /**
+     * Displays the start round message.
+     */
     public void showStartRound(){
         if (get("startcount") > 0){
             showMsg(getMsg("start_round_auto"), getGameNameStr(), get("startcount"));
@@ -1155,36 +1144,56 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             showMsg(getMsg("start_round"), getGameNameStr());
         }
     }
+    
+    /**
+     * Displays a player's cash.
+     * @param nick the player
+     */
     public void showPlayerCash(String nick){
         int cash = getPlayerStat(nick, "cash");
         if (cash != Integer.MIN_VALUE){
-            showMsg(getMsg("player_cash"), nick, cash);
+            showMsg(getMsg("player_cash"), formatNoPing(nick), cash);
         } else {
-            showMsg(getMsg("no_data"), nick);
+            showMsg(getMsg("no_data"), formatNoPing(nick));
         }
     }
+    
+    /**
+     * Displays a player's net cash.
+     * @param nick the player
+     */
     public void showPlayerNetCash(String nick){
         int netcash = getPlayerStat(nick, "netcash");
         if (netcash != Integer.MIN_VALUE){
-            showMsg(getMsg("player_net"), nick, netcash);
+            showMsg(getMsg("player_net"), formatNoPing(nick), netcash);
         } else {
-            showMsg(getMsg("no_data"), nick);
+            showMsg(getMsg("no_data"), formatNoPing(nick));
         }
     }
+    
+    /**
+     * Displays a player's bank.
+     * @param nick the player
+     */
     public void showPlayerBank(String nick){
         int bank = getPlayerStat(nick, "bank");
         if (bank != Integer.MIN_VALUE){
-            showMsg(getMsg("player_bank"), nick, bank);
+            showMsg(getMsg("player_bank"), formatNoPing(nick), bank);
         } else {
-            showMsg(getMsg("no_data"), nick);
+            showMsg(getMsg("no_data"), formatNoPing(nick));
         }
     }
+    
+    /**
+     * Displays a player's number of bankrupts
+     * @param nick the player
+     */
     public void showPlayerBankrupts(String nick){
         int bankrupts = getPlayerStat(nick, "bankrupts");
         if (bankrupts != Integer.MIN_VALUE){
-            showMsg(getMsg("player_bankrupts"), nick, bankrupts);
+            showMsg(getMsg("player_bankrupts"), formatNoPing(nick), bankrupts);
         } else {
-            showMsg(getMsg("no_data"), nick);
+            showMsg(getMsg("no_data"), formatNoPing(nick));
         }
     }
     
@@ -1205,15 +1214,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             bot.sendMessage(nick, String.format(message, args));
         }
     }
-    public void infoGameRules(String nick) {
-        informPlayer(nick, getGameRulesStr());
-    }
-    public void infoGameCommands(String nick){
-        informPlayer(nick, getGameNameStr()+" commands:");
-        informPlayer(nick, getGameCommandStr());
-    }
     
-    /* Reveals cards from the card deck */
+    /**
+     * Reveals cards from the card deck.
+     * @param nick the player
+     * @param type undealt cards or discards
+     * @param num the number of cards to reveal
+     */
     public void infoDeckCards(String nick, char type, int num){
         if (num < 1){
             throw new IllegalArgumentException();
@@ -1230,20 +1237,19 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         while(n > 0){
             cardStr = cardIndex+"";
             numOut = Math.min(n, 25);
-            cardStr += "-"+(cardIndex+numOut-1)+": ";
+            cardStr += "-" + (cardIndex+numOut-1) + ":";
             n -= numOut;
             for (int ctr=cardIndex; ctr < cardIndex+numOut; ctr++){
-                cardStr += tCards.get(ctr)+" ";
+                cardStr += " " + tCards.get(ctr);
             }
             cardIndex += numOut;
-            informPlayer(nick, cardStr.substring(0, cardStr.length()-1)+Colors.NORMAL);
+            informPlayer(nick, cardStr + Colors.NORMAL);
         }
     }
     
     /* Formatted strings */
     abstract public String getGameNameStr();
     abstract public String getGameRulesStr();
-    abstract public String getGameCommandStr();
     public static String formatDecimal(double n) {
         return String.format("%,.2f", n);
     }
@@ -1261,6 +1267,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     public static String formatBold(int value){
         return formatBold(value + "");
+    }
+    public static String formatNoPing(String str) {
+        return str.substring(0,1) + "\u200b" + str.substring(1);
     }
     protected static String getPlayerListString(ArrayList<? extends Player> playerList){
         int size = playerList.size();
@@ -1281,26 +1290,22 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         }
         return outStr;
     }
-    protected static String getListString(ArrayList<String> stringList){
-        int size = stringList.size();
-        String outStr = formatBold(size);
-        if (size == 0){
-            outStr += " players";
-        } else if (size == 1){
-            outStr += " player: ";
-        } else {
-            outStr += " players: ";
-        }
-        for (int ctr = 0; ctr < size; ctr++){
-            if (ctr == size - 1){
-                outStr += stringList.get(ctr);
-            } else {
-                outStr += stringList.get(ctr) + ", ";
-            }
-        }
-        return outStr;
-    }
 
+    /**
+     * Returns a list of commands for this game based on its help file
+     * @return a list of commands
+     */
+    public String getGameCommandStr() {
+        StringBuilder commandList = new StringBuilder();
+        Set<String> commandSet = helpMap.keySet();
+        Iterator<String> it = commandSet.iterator();
+        while (it.hasNext()) {
+            commandList.append(it.next());
+            commandList.append(", ");
+        }
+        return commandList.substring(0, commandList.length() - 2);
+    }
+    
     /**
      * Returns the help data on the specified command.
      * @param command

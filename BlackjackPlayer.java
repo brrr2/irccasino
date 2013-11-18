@@ -35,10 +35,9 @@ public class BlackjackPlayer extends Player{
      * 
      * @param nick IRC user's nick.
      * @param hostmask IRC user's hostmask.
-     * @param dealer Whether or not player is dealer.
      */
-    public BlackjackPlayer(String nick, String hostmask, boolean dealer){
-        super(nick, hostmask, dealer);
+    public BlackjackPlayer(String nick, String hostmask){
+        super(nick, hostmask);
         hands = new ArrayList<BlackjackHand>();
         set("initialbet", 0);
         set("insurebet", 0);

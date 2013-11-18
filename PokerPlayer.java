@@ -37,7 +37,7 @@ public class PokerPlayer extends Player implements Comparable<PokerPlayer> {
      * @param hostmask IRC user's hostmask.
      */
     public PokerPlayer(String nick, String hostmask){
-        super(nick, hostmask, false);
+        super(nick, hostmask);
         set("bet", 0);
         set("change", 0);
         set("fold", 0);

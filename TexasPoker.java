@@ -323,8 +323,8 @@ public class TexasPoker extends CardGame{
             if (isForceStopAllowed(user,nick)){
                 PokerPlayer p;
                 cancelIdleOutTask();
-                for (int ctr = 0; ctr < getNumberJoined(); ctr++) {
-                    p = (PokerPlayer) getJoined(ctr);
+                for (int ctr = 0; ctr < joined.size(); ctr++) {
+                    p = (PokerPlayer) joined.get(ctr);
                     resetPlayer(p);
                 }
                 resetGame();
@@ -527,11 +527,11 @@ public class TexasPoker extends CardGame{
         informPlayer(p.getNick(), getMsg("join_waitlist"));
     }
     public Player getPlayerAfter(Player p){
-        return getJoined((getJoinedIndex(p)+1) % getNumberJoined());
+        return joined.get((joined.indexOf(p) + 1) % joined.size());
     }
     @Override
     public void startRound() {
-        if (getNumberJoined() < 2){
+        if (joined.size() < 2){
             set("startcount", 0);
             endRound();
         } else {
@@ -633,11 +633,11 @@ public class TexasPoker extends CardGame{
         PokerPlayer p;
 
         // Check if anybody left during post-start waiting period
-        if (getNumberJoined() > 1 && pots.size() > 0) {
+        if (joined.size() > 1 && pots.size() > 0) {
             String netResults = Colors.YELLOW + ",01 Change: ";
             // Give all non-folded players the community cards
-            for (int ctr = 0; ctr < getNumberJoined(); ctr++){
-                p = (PokerPlayer) getJoined(ctr);
+            for (int ctr = 0; ctr < joined.size(); ctr++){
+                p = (PokerPlayer) joined.get(ctr);
                 if (!p.has("fold")){
                     p.getPokerHand().addAll(p.getHand());
                     p.getPokerHand().addAll(community);
@@ -656,8 +656,8 @@ public class TexasPoker extends CardGame{
              * 4. Save player data
              * 5. Reset the player
              */
-            for (int ctr = 0; ctr < getNumberJoined(); ctr++){
-                p = (PokerPlayer) getJoined(ctr);
+            for (int ctr = 0; ctr < joined.size(); ctr++){
+                p = (PokerPlayer) joined.get(ctr);
                 p.increment("tprounds");
                 
                 // Bankrupts
@@ -692,11 +692,11 @@ public class TexasPoker extends CardGame{
                 
                 // Add player to list of net results
                 if (p.get("change") > 0) {
-                     netResults += Colors.WHITE + ",01 " + p.getNick() + " (" + Colors.GREEN + ",01$" + p.get("change") + Colors.WHITE + ",01), ";
+                     netResults += Colors.WHITE + ",01 " + p.getNick() + " (" + Colors.GREEN + ",01$" + formatNumber(p.get("change")) + Colors.WHITE + ",01), ";
                 } else if (p.get("change") < 0) {
-                    netResults += Colors.WHITE + ",01 " + p.getNick() + " (" + Colors.RED + ",01$" + p.get("change") + Colors.WHITE + ",01), ";
+                    netResults += Colors.WHITE + ",01 " + p.getNick() + " (" + Colors.RED + ",01$" + formatNumber(p.get("change")) + Colors.WHITE + ",01), ";
                 } else {
-                    netResults += Colors.WHITE + ",01 " + p.getNick() + " (" + Colors.WHITE + ",01$" + p.get("change") + Colors.WHITE + ",01), ";
+                    netResults += Colors.WHITE + ",01 " + p.getNick() + " (" + Colors.WHITE + ",01$" + formatNumber(p.get("change")) + Colors.WHITE + ",01), ";
                 }
                 resetPlayer(p);
             }
@@ -711,7 +711,7 @@ public class TexasPoker extends CardGame{
         if (get("startcount") > 0){
             decrement("startcount");
             if (!has("inprogress")){
-                if (getNumberJoined() > 1) {
+                if (joined.size() > 1) {
                     set("inprogress", 1);
                     showStartRound();
                     setStartRoundTask();
@@ -827,11 +827,11 @@ public class TexasPoker extends CardGame{
     }
     public void setButton(){
         if (dealer == null){
-            dealer = (PokerPlayer) getJoined(0);
+            dealer = (PokerPlayer) joined.get(0);
         } else {
             dealer = (PokerPlayer) getPlayerAfter(dealer);
         }
-        if (getNumberJoined() == 2){
+        if (joined.size() == 2){
             smallBlind = dealer;
         } else {
             smallBlind = (PokerPlayer) getPlayerAfter(dealer);
@@ -856,7 +856,7 @@ public class TexasPoker extends CardGame{
             informPlayer(nick, getMsg("no_join"));
         } else if (has("inprogress")) {
             informPlayer(nick, getMsg("round_started"));
-        } else if (getNumberJoined() < 2) {
+        } else if (joined.size() < 2) {
             showMsg(getMsg("no_players"));
         } else {
             return true;
@@ -880,7 +880,7 @@ public class TexasPoker extends CardGame{
             informPlayer(nick, getMsg("ops_only"));
         } else if (has("inprogress")) {
             informPlayer(nick, getMsg("round_started"));
-        } else if (getNumberJoined() < 2) {
+        } else if (joined.size() < 2) {
             showMsg(getMsg("no_players"));
         } else {
             return true;
@@ -1065,8 +1065,8 @@ public class TexasPoker extends CardGame{
      */
     public void dealTable() {
         PokerPlayer p;
-        for (int ctr = 0; ctr < getNumberJoined(); ctr++) {
-            p = (PokerPlayer) getJoined(ctr);
+        for (int ctr = 0; ctr < joined.size(); ctr++) {
+            p = (PokerPlayer) joined.get(ctr);
             dealHand(p);
             informPlayer(p.getNick(), getMsg("tp_hand"), p.getHand());
         }
@@ -1099,39 +1099,54 @@ public class TexasPoker extends CardGame{
     }
     
     /* Texas Hold'em Poker gameplay methods */
+    /**
+     * Determine the number of players who have not folded.
+     * @return the number of non-folded players
+     */
     public int getNumberNotFolded(){
         PokerPlayer p;
         int numberNotFolded = 0;
-        for (int ctr = 0; ctr < getNumberJoined(); ctr++){
-            p = (PokerPlayer) getJoined(ctr);
+        for (int ctr = 0; ctr < joined.size(); ctr++){
+            p = (PokerPlayer) joined.get(ctr);
             if (!p.has("fold")){
                 numberNotFolded++;
             }
         }
         return numberNotFolded;
     }
+    
+    /**
+     * Determine the number players who can still make a bet.
+     * @return the number of players who can bet
+     */
     public int getNumberCanBet(){
         PokerPlayer p;
         int numberCanBet = 0;
-        for (int ctr = 0; ctr < getNumberJoined(); ctr++){
-            p = (PokerPlayer) getJoined(ctr);
+        for (int ctr = 0; ctr < joined.size(); ctr++){
+            p = (PokerPlayer) joined.get(ctr);
             if (!p.has("fold") && !p.has("allin")){
                 numberCanBet++;
             }
         }
         return numberCanBet;
     }
+    
+    /**
+     * Determine the number of players who have made a bet in a round of betting.
+     * @return the number of bettors
+     */
     public int getNumberBettors() {
         PokerPlayer p;
         int numberBettors = 0;
-        for (int ctr = 0; ctr < getNumberJoined(); ctr++){
-            p = (PokerPlayer) getJoined(ctr);
+        for (int ctr = 0; ctr < joined.size(); ctr++){
+            p = (PokerPlayer) joined.get(ctr);
             if (p.has("bet")){
                 numberBettors++;
             }
         }
         return numberBettors;
     }
+    
     /**
      * Processes a bet command.
      * @param amount the amount to bet
@@ -1191,6 +1206,7 @@ public class TexasPoker extends CardGame{
             continueRound();
         }
     }
+    
     /**
      * Processes a check command.
      * Only allow a player to check when the currentBet is 0 or if the player
@@ -1211,6 +1227,7 @@ public class TexasPoker extends CardGame{
             setIdleOutTask();
         }
     }
+    
     /**
      * Processes a call command.
      * A player's bet will be matched to the currentBet. If a player's stack
@@ -1240,6 +1257,7 @@ public class TexasPoker extends CardGame{
         }
         continueRound();
     }
+    
     /**
      * Process a fold command.
      * The folding player is removed from all pots.
@@ -1262,6 +1280,7 @@ public class TexasPoker extends CardGame{
         }
         continueRound();
     }
+    
     /**
      * Adds the bets during a round of betting to the pot.
      * If no pot exists, a new one is created. Sidepots are created as necessary.
@@ -1292,15 +1311,15 @@ public class TexasPoker extends CardGame{
                 }
 
                 // Determine the lowest non-zero bet
-                for (int ctr = 0; ctr < getNumberJoined(); ctr++) {
-                    p = (PokerPlayer) getJoined(ctr);
+                for (int ctr = 0; ctr < joined.size(); ctr++) {
+                    p = (PokerPlayer) joined.get(ctr);
                     if (p.get("bet") < lowBet && p.has("bet")){
                         lowBet = p.get("bet");
                     }
                 }
                 // Subtract lowBet from each player's (non-zero) bet and add to pot.
-                for (int ctr = 0; ctr < getNumberJoined(); ctr++){
-                    p = (PokerPlayer) getJoined(ctr);
+                for (int ctr = 0; ctr < joined.size(); ctr++){
+                    p = (PokerPlayer) joined.get(ctr);
                     if (p.has("bet")){
                         // Check if player has been added to donor list
                         if (!currentPot.hasDonor(p)) {
@@ -1325,8 +1344,8 @@ public class TexasPoker extends CardGame{
             // contributed to the current pot and his bet and currentBet should
             // be reset.
             } else {
-                for (int ctr = 0; ctr < getNumberJoined(); ctr++){
-                    p = (PokerPlayer) getJoined(ctr);
+                for (int ctr = 0; ctr < joined.size(); ctr++){
+                    p = (PokerPlayer) joined.get(ctr);
                     if (p.get("bet") != 0){
                         p.clear("bet");
                         break;
@@ -1369,12 +1388,18 @@ public class TexasPoker extends CardGame{
     public void showGameStats() {
         showMsg(getMsg("tp_game_stats"), getTotalPlayers(), getGameNameStr(), house);
     }
+    
+    /**
+     * Displays the players who are involved in a round. Players who have not
+     * folded are displayed in bold. Designations for small blind, big blind,
+     * and dealer are also shown.
+     */
     public void showTablePlayers(){
         PokerPlayer p;
-        String msg = formatBold(getNumberJoined()+"") + " players: ";
+        String msg = formatBold(joined.size()) + " players: ";
         String nickColor;
-        for (int ctr = 0; ctr < getNumberJoined(); ctr++){
-            p = (PokerPlayer) getJoined(ctr);
+        for (int ctr = 0; ctr < joined.size(); ctr++){
+            p = (PokerPlayer) joined.get(ctr);
             // Give bold to remaining non-folded players
             if (!p.has("fold")){
                 nickColor = Colors.BOLD;
@@ -1397,12 +1422,16 @@ public class TexasPoker extends CardGame{
                 msg += ")";
             }
             msg += nickColor;
-            if (ctr != getNumberJoined()-1){
+            if (ctr != joined.size() - 1){
                 msg += ", ";
             }
         }
         showMsg(msg);
     }
+    
+    /**
+     * Displays the community cards along with existing pots.
+     */
     public void showCommunityCards(){
         PokerPlayer p;
         StringBuilder msg = new StringBuilder();
@@ -1420,8 +1449,8 @@ public class TexasPoker extends CardGame{
         int notFolded = getNumberNotFolded();
         int count = 0;
         str = "(" + formatBold(notFolded) + " players: ";
-        for (int ctr = 0; ctr < getNumberJoined(); ctr++){
-            p = (PokerPlayer) getJoined(ctr);
+        for (int ctr = 0; ctr < joined.size(); ctr++){
+            p = (PokerPlayer) joined.get(ctr);
             if (!p.has("fold")){
                 str += p.getNick();
                 if (count != notFolded-1){
@@ -1436,6 +1465,9 @@ public class TexasPoker extends CardGame{
         showMsg(msg.toString());
     }
 
+    /**
+     * Displays the results of a round.
+     */
     public void showResults(){
         ArrayList<PokerPlayer> players;
         PokerPlayer p;
@@ -1499,9 +1531,9 @@ public class TexasPoker extends CardGame{
     public void showPlayerWinnings(String nick){
         int winnings = getPlayerStat(nick, "tpwinnings");
         if (winnings != Integer.MIN_VALUE) {
-            showMsg(getMsg("player_winnings"), nick, winnings, getGameNameStr());
+            showMsg(getMsg("player_winnings"), formatNoPing(nick), winnings, getGameNameStr());
         } else {
-            showMsg(getMsg("no_data"), nick);
+            showMsg(getMsg("no_data"), formatNoPing(nick));
         }
     }
     
@@ -1512,12 +1544,12 @@ public class TexasPoker extends CardGame{
         
         if (rounds != Integer.MIN_VALUE) {
             if (rounds == 0){
-                showMsg(getMsg("player_no_rounds"), nick, getGameNameStr());
+                showMsg(getMsg("player_no_rounds"), formatNoPing(nick), getGameNameStr());
             } else {
-                showMsg(getMsg("player_winrate"), nick, winnings/rounds, getGameNameStr());
+                showMsg(getMsg("player_winrate"), formatNoPing(nick), winnings/rounds, getGameNameStr());
             }    
         } else {
-            showMsg(getMsg("no_data"), nick);
+            showMsg(getMsg("no_data"), formatNoPing(nick));
         }
     }
     
@@ -1526,12 +1558,12 @@ public class TexasPoker extends CardGame{
         int rounds = getPlayerStat(nick, "tprounds");
         if (rounds != Integer.MIN_VALUE) {
             if (rounds == 0){
-                showMsg(getMsg("player_no_rounds"), nick, getGameNameStr());
+                showMsg(getMsg("player_no_rounds"), formatNoPing(nick), getGameNameStr());
             } else {
-                showMsg(getMsg("player_rounds"), nick, rounds, getGameNameStr());
+                showMsg(getMsg("player_rounds"), formatNoPing(nick), rounds, getGameNameStr());
             }  
         } else {
-            showMsg(getMsg("no_data"), nick);
+            showMsg(getMsg("no_data"), formatNoPing(nick));
         }
     }
     
@@ -1551,9 +1583,9 @@ public class TexasPoker extends CardGame{
         int winnings = getPlayerStat(nick, "tpwinnings");
         int rounds = getPlayerStat(nick, "tprounds");
         if (cash != Integer.MIN_VALUE) {
-            showMsg(getMsg("player_all_stats"), nick, cash, bank, net, bankrupts, winnings, rounds);
+            showMsg(getMsg("player_all_stats"), formatNoPing(nick), cash, bank, net, bankrupts, winnings, rounds);
         } else {
-            showMsg(getMsg("no_data"), nick);
+            showMsg(getMsg("no_data"), formatNoPing(nick));
         }
     }
     
@@ -1566,7 +1598,7 @@ public class TexasPoker extends CardGame{
     @Override
     public void showPlayerRank(String nick, String stat){
         if (getPlayerStat(nick, "exists") != 1){
-            showMsg(getMsg("no_data"), nick);
+            showMsg(getMsg("no_data"), formatNoPing(nick));
             return;
         }
         
@@ -1638,11 +1670,11 @@ public class TexasPoker extends CardGame{
                 }
                 if (nick.equalsIgnoreCase(nicks.get(highIndex))){
                     if (stat.equals("rounds") || stat.equals("bankrupts")) {
-                        line += "#" + rank + " " + Colors.WHITE + ",04 " + nick + " " + formatNoDecimal(test.get(highIndex)) + " ";
+                        line += "#" + rank + " " + Colors.WHITE + ",04 " + formatNoPing(nick) + " " + formatNoDecimal(test.get(highIndex)) + " ";
                     } else if (stat.equals("winrate")) {
-                        line += "#" + rank + " " + Colors.WHITE + ",04 " + nick + " $" + formatDecimal(test.get(highIndex)) + " ";
+                        line += "#" + rank + " " + Colors.WHITE + ",04 " + formatNoPing(nick) + " $" + formatDecimal(test.get(highIndex)) + " ";
                     } else {
-                        line += "#" + rank + " " + Colors.WHITE + ",04 " + nick + " $" + formatNoDecimal(test.get(highIndex)) + " ";
+                        line += "#" + rank + " " + Colors.WHITE + ",04 " + formatNoPing(nick) + " $" + formatNoDecimal(test.get(highIndex)) + " ";
                     }
                     break;
                 } else {
@@ -1738,11 +1770,11 @@ public class TexasPoker extends CardGame{
                     }
                 }
                 if (stat.equals("rounds") || stat.equals("bankrupts")) {
-                    list += " #" + ctr + ": " + Colors.WHITE + ",04 " + nicks.get(highIndex) + " " + formatNoDecimal(test.get(highIndex)) + " " + Colors.BLACK + ",08";
+                    list += " #" + ctr + ": " + Colors.WHITE + ",04 " + formatNoPing(nicks.get(highIndex)) + " " + formatNoDecimal(test.get(highIndex)) + " " + Colors.BLACK + ",08";
                 } else if (stat.equals("winrate")) {
-                    list += " #" + ctr + ": " + Colors.WHITE + ",04 " + nicks.get(highIndex) + " $" + formatDecimal(test.get(highIndex)) + " " + Colors.BLACK + ",08";
+                    list += " #" + ctr + ": " + Colors.WHITE + ",04 " + formatNoPing(nicks.get(highIndex)) + " $" + formatDecimal(test.get(highIndex)) + " " + Colors.BLACK + ",08";
                 } else {
-                    list += " #" + ctr + ": " + Colors.WHITE + ",04 " + nicks.get(highIndex) + " $" + formatNoDecimal(test.get(highIndex)) + " " + Colors.BLACK + ",08";
+                    list += " #" + ctr + ": " + Colors.WHITE + ",04 " + formatNoPing(nicks.get(highIndex)) + " $" + formatNoDecimal(test.get(highIndex)) + " " + Colors.BLACK + ",08";
                 }
                 nicks.remove(highIndex);
                 test.remove(highIndex);
@@ -1772,9 +1804,5 @@ public class TexasPoker extends CardGame{
         return "This is no limit Texas Hold'em Poker. Blind bets are set at $" + 
             formatNumber(get("minbet")/2) + "/$" + formatNumber(get("minbet")) + 
             " or your stack, whichever is lower.";
-    }
-    @Override
-    public String getGameCommandStr() {
-        return getMsg("tp_commands");
     }
 }
