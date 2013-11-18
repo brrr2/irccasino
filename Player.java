@@ -19,6 +19,7 @@
 
 package irccasino;
 
+import java.util.Objects;
 import org.pircbotx.*;
 
 /**
@@ -27,8 +28,6 @@ import org.pircbotx.*;
  * @author Yizhe Shen
  */
 public abstract class Player extends Stats{
-    /** Stores the player's dealer status. */
-    protected boolean dealer;
     /** Stores the player's nick. */
     protected String nick;
     /** Stores the player's hostmask. */
@@ -41,12 +40,10 @@ public abstract class Player extends Stats{
      * 
      * @param nick IRC user nick
      * @param hostmask IRC user hostmask
-     * @param dealer Whether or not this player is dealer
      */
-    public Player(String nick, String hostmask, boolean dealer){
+    public Player(String nick, String hostmask){
         super();
         this.nick = nick;
-        this.dealer = dealer;
         this.hostmask = hostmask;
         set("cash", 0);
         set("bank", 0);
@@ -61,42 +58,53 @@ public abstract class Player extends Stats{
     
     /* Player info methods */
     /**
-     * Returns the Player's nick or "Dealer" if the player is in the dealer role.
+     * Returns the Player's nick.
      * 
-     * @return the Player's name
+     * @return the Player's nick
      */
     public String getNick(){
-        if (dealer){
-            return "Dealer";
+        return getNick(true);
+    }
+    
+    /**
+     * Allows a nick to be returned with a zero-space character.
+     * @param ping whether or not to add a zero-width character in nick
+     * @return the Player's nick
+     */
+    public String getNick(boolean ping) {
+        if (ping) {
+            return nick;
+        } else {
+            return nick.substring(0, 1) + "\u200b" + nick.substring(1);
         }
-        return nick;
     }
     
     /**
-     * Sets the Player's dealer status.
+     * Returns the player's nick formatted in IRC bold.
      * 
-     * @param b the new status
+     * @return the bold-formatted nick
      */
-    public void setDealer(boolean b){
-        dealer = b;
+    public String getNickStr(){
+        return getNickStr(true);
     }
     
     /**
-     * Whether or not the Player is the dealer.
+     * Allows a bolded nick to be returned with a zero-space character.
      * 
-     * @return true if the Player is the dealer
+     * @param ping whether or not to add a zero-width character in nick
+     * @return the bold-formatted nick
      */
-    public boolean isDealer(){
-        return dealer;
+    public String getNickStr(boolean ping){
+        return Colors.BOLD + getNick(ping) + Colors.BOLD;
     }
     
     /**
-     * Whether or not the Player has quit.
+     * Returns the Player's hostmask.
      * 
-     * @return true if the Player has quit
+     * @return the Player's hostmask
      */
-    public boolean hasQuit(){
-        return get("quit") == 1;
+    public String getHostmask() {
+        return hostmask;
     }
     
     /**
@@ -131,21 +139,41 @@ public abstract class Player extends Stats{
     }
     
     /**
-     * Returns the player's nick formatted in IRC bold.
-     * 
-     * @return the bold-formatted nick
-     */
-    public String getNickStr(){
-        return Colors.BOLD + getNick() + Colors.BOLD;
-    }
-    
-    /**
      * String representation includes the Player's nick and hostmask.
      * 
      * @return a String containing the Players nick and hostmask
      */
     @Override
     public String toString(){
-        return getNick() + " " + hostmask;
+        return nick + " " + hostmask;
+    }
+    
+    /**
+     * Comparison of Player objects.
+     * @param o the Object to compare
+     * @return true if the properties are the same
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (o != null && o instanceof Player) {
+            Player p = (Player) o;
+            if (nick.equals(p.nick) && hostmask.equals(p.hostmask) &&
+                hashCode() == p.hashCode()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Auto-generated hashCode method.
+     * @return the Player's hashCode
+     */
+    @Override
+    public int hashCode() {
+        int hash = 5;
+        hash = 29 * hash + Objects.hashCode(this.nick);
+        hash = 29 * hash + Objects.hashCode(this.hostmask);
+        return hash;
     }
 }

@@ -30,13 +30,15 @@ import org.pircbotx.*;
 
 public class TexasPoker extends CardGame{
     /* A pot class to handle bets and payouts in Texas Hold'em Poker. */
-    private class PokerPot {
+    public class PokerPot {
         private ArrayList<PokerPlayer> players;
+        private ArrayList<PokerPlayer> donors;
         private int pot;
 
         public PokerPot(){
             pot = 0;
             players = new ArrayList<PokerPlayer>();
+            donors = new ArrayList<PokerPlayer>();
         }
 
         public int getPot(){
@@ -51,94 +53,109 @@ public class TexasPoker extends CardGame{
         public void removePlayer(PokerPlayer p){
             players.remove(p);
         }
+        public void addDonor(PokerPlayer p) {
+            donors.add(p);
+        }
+        public void removeDonor(PokerPlayer p) {
+            donors.remove(p);
+        }
         public PokerPlayer getPlayer(int c){
             return players.get(c);
         }
         public ArrayList<PokerPlayer> getPlayers(){
             return players;
         }
+        public PokerPlayer getDonor(int c) {
+            return donors.get(c);
+        }
+        public ArrayList<PokerPlayer> getDonors() {
+            return donors;
+        }
         public boolean hasPlayer(PokerPlayer p){
             return players.contains(p);
         }
-        public int getNumberPlayers(){
+        public boolean hasDonor(PokerPlayer p) {
+            return donors.contains(p);
+        }
+        public int getNumPlayers(){
             return players.size();
+        }
+        public int getNumDonors() {
+            return donors.size();
         }
     }
     
     /* Nested class to store statistics, based on number of decks used, for the house */
-    private class HouseStat extends Stats {
-        private ArrayList<String> playerList, winnerList;
+    public class HouseStat extends Stats {
+        private ArrayList<PokerPlayer> donors;
+        private ArrayList<PokerPlayer> winners;
+        
         public HouseStat() {
             this(0);
         }
         
         public HouseStat(int pot) {
             set("biggestpot", pot);
-            playerList = new ArrayList<String>();
-            winnerList = new ArrayList<String>();
+            donors = new ArrayList<PokerPlayer>();
+            winners = new ArrayList<PokerPlayer>();
         }
         
-        public int getNumPlayers(){
-            return playerList.size();
+        public int getNumDonors() {
+            return donors.size();
+        }
+        public void addDonor(PokerPlayer p){
+            donors.add(p);
+        }
+        public void clearDonors(){
+            donors.clear();
+        }
+        public int getNumWinners() {
+            return winners.size();
+        }
+        public void addWinner(PokerPlayer p){
+            winners.add(p);
+        }
+        public void clearWinners(){
+            winners.clear();
         }
         
-        public void addPlayer(String nick){
-            playerList.add(nick);
-        }
-        
-        public void clearPlayerList(){
-            playerList.clear();
-        }
-        
-        public int getNumWinners(){
-            return winnerList.size();
-        }
-        
-        public void addWinner(String nick){
-            winnerList.add(nick);
-        }
-        
-        public void clearWinnerList(){
-            winnerList.clear();
-        }
-        
-        public String getPlayerListString(){
+        public String getDonorsString(){
             String outStr = "";
-            for (int ctr = 0; ctr < playerList.size(); ctr++){
-                outStr += playerList.get(ctr) + " ";
+            for (int ctr = 0; ctr < donors.size(); ctr++){
+                outStr += donors.get(ctr).getNick() + " ";
             }
             return outStr.substring(0, outStr.length() - 1);
         }
         
-        public String getWinnerListString(){
+        public String getWinnersString(){
             String outStr = "";
-            for (int ctr = 0; ctr < winnerList.size(); ctr++){
-                outStr += winnerList.get(ctr) + " ";
+            for (int ctr = 0; ctr < winners.size(); ctr++){
+                outStr += winners.get(ctr).getNick() + " ";
             }
             return outStr.substring(0, outStr.length() - 1);
         }
         
         public String getToStringList(){
-            String outStr = "";
-            int size = playerList.size();
+            String outStr;
+            int size = donors.size();
             if (size == 0){
                 outStr = formatBold("0") + " players";
             } else if (size == 1){
-                outStr = formatBold("1") + " player: " + playerList.get(0);
+                outStr = formatBold("1") + " player: " + donors.get(0).getNickStr();
             } else {
                 outStr = formatBold(size) + " players: ";
                 for (int ctr = 0; ctr < size; ctr++){
                     if (ctr == size-1){
-                        if (winnerList.contains(playerList.get(ctr))) {
-                            outStr += formatBold(playerList.get(ctr));
+                        if (winners.contains(donors.get(ctr))) {
+                            outStr += donors.get(ctr).getNickStr();
                         } else {
-                            outStr += playerList.get(ctr);
+                            outStr += donors.get(ctr).getNick();
                         }
                     } else {
-                        if (winnerList.contains(playerList.get(ctr))) {
-                            outStr += formatBold(playerList.get(ctr)) + ", ";
+                        if (winners.contains(donors.get(ctr))) {
+                            outStr += donors.get(ctr).getNickStr() + ", ";
                         } else {
-                            outStr += playerList.get(ctr) + ", ";
+                            outStr += donors.get(ctr).getNick() + ", ";
                         }
                     }
                 }   
@@ -152,7 +169,6 @@ public class TexasPoker extends CardGame{
         }
     }
     
-    private int stage, currentBet, minRaise;
     private ArrayList<PokerPot> pots;
     private PokerPot currentPot;
     private PokerPlayer dealer, smallBlind, bigBlind, topBettor;
@@ -168,24 +184,25 @@ public class TexasPoker extends CardGame{
      */
     public TexasPoker(CasinoBot parent, char commChar, Channel gameChannel){
         super(parent, commChar, gameChannel);
-        setGameName("Texas Hold'em Poker");
         setIniFile("texaspoker.ini");
         setHelpFile("texaspoker.help");
+        setStrFile("strlib.txt");
+        loadLib(helpMap, getHelpFile());
+        loadLib(msgMap, getStrFile());
         house = new HouseStat();
         loadHouseStats();
-        initSettings();
-        loadSettings();
+        initialize();
+        loadIni();
         deck = new CardDeck();
         deck.shuffleCards();
         pots = new ArrayList<PokerPot>();
         community = new Hand();
-        stage = 0;
-        currentBet = 0;
         currentPot = null;
         dealer = null;
         smallBlind = null;
         bigBlind = null;
         topBettor = null;
+        showMsg(getMsg("game_start"), getGameNameStr());
     }
     
     /* Command management method */
@@ -201,9 +218,9 @@ public class TexasPoker extends CardGame{
         if (command.equals("join") || command.equals("j")) {
             if (bot.bjgame != null &&
                 (bot.bjgame.isJoined(nick) || bot.bjgame.isWaitlisted(nick))){
-                bot.sendNotice(user, "You're already joined in "+bot.bjgame.getGameNameStr()+"!");
+                informPlayer(user.getNick(), getMsg("already_joined_other_game"), bot.bjgame.getGameNameStr());
             } else if (bot.bjgame != null && bot.bjgame.isBlacklisted(nick)){
-                infoBlacklisted(nick);
+                informPlayer(nick, getMsg("blacklisted"));
             } else{
                 join(nick, hostmask);
             }
@@ -211,12 +228,12 @@ public class TexasPoker extends CardGame{
             if (isStartAllowed(nick)){
                 if (params.length > 0){
                     try {
-                        setStartCount(Math.min(getSetting("autostarts") - 1, Integer.parseInt(params[0]) - 1));
+                        set("startcount", Math.min(get("autostarts") - 1, Integer.parseInt(params[0]) - 1));
                     } catch (NumberFormatException e) {
                         // Do nothing and proceed
                     }
                 }
-                setInProgress(true);
+                set("inprogress", 1);
                 showStartRound();
                 setStartRoundTask();
             }
@@ -226,10 +243,10 @@ public class TexasPoker extends CardGame{
                     try {
                         bet(Integer.parseInt(params[0]));
                     } catch (NumberFormatException e) {
-                        infoBadParameter(nick);
+                        informPlayer(nick, getMsg("bad_parameter"));
                     }
                 } else {
-                    infoNoParameter(nick);
+                    informPlayer(nick, getMsg("no_parameter"));
                 }
             }
         } else if (command.equals("c") || command.equals("ca") || command.equals("call")) {
@@ -248,12 +265,12 @@ public class TexasPoker extends CardGame{
             if (isPlayerTurn(nick)){
                 if (params.length > 0){
                     try {
-                        bet(Integer.parseInt(params[0]) + currentBet);
+                        bet(Integer.parseInt(params[0]) + get("currentbet"));
                     } catch (NumberFormatException e) {
-                        infoBadParameter(nick);
+                        informPlayer(nick, getMsg("bad_parameter"));
                     }
                 } else {
-                    infoNoParameter(nick);
+                    informPlayer(nick, getMsg("no_parameter"));
                 }
             }
         } else if (command.equals("allin") || command.equals("a")){
@@ -262,41 +279,42 @@ public class TexasPoker extends CardGame{
             }
         } else if (command.equals("community") || command.equals("comm")){
             if (!isJoined(nick)) {
-                infoNotJoined(nick);
-            } else if (!isInProgress()) {
-                infoNotStarted(nick);
-            } else if (stage == 0){
-                infoNoCommunity(nick);
+                informPlayer(nick, getMsg("no_join"));
+            } else if (!has("inprogress")) {
+                informPlayer(nick, getMsg("no_start"));
+            } else if (!has("stage")){
+                informPlayer(nick, getMsg("no_community"));
             } else {
                 showCommunityCards();
             }
         } else if (command.equals("hand")) {
             if (!isJoined(nick)) {
-                infoNotJoined(nick);
-            } else if (!isInProgress()) {
-                infoNotStarted(nick);
+                informPlayer(nick, getMsg("no_join"));
+            } else if (!has("inprogress")) {
+                informPlayer(nick, getMsg("no_start"));
             } else {
                 PokerPlayer p = (PokerPlayer) findJoined(nick);
-                infoPlayerHand(p, p.getHand());
+                informPlayer(p.getNick(), getMsg("tp_hand"), p.getHand());
             }
         } else if (command.equals("turn")) {
             if (!isJoined(nick)) {
-                infoNotJoined(nick);
-            } else if (!isInProgress()) {
-                infoNotStarted(nick);
+                informPlayer(nick, getMsg("no_join"));
+            } else if (!has("inprogress")) {
+                informPlayer(nick, getMsg("no_start"));
             } else {
-                showTurn(currentPlayer);
+                showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentPlayer.get("bet"), 
+                        currentPlayer.get("cash")-currentPlayer.get("bet"), get("currentbet"));
             }
         } else if (command.equals("players")) {
-            if (isInProgress()){
+            if (has("inprogress")){
                 showTablePlayers();
             } else {
-                showPlayers();
+                showMsg(getMsg("players"), getPlayerListString(joined));
             }
         /* Op commands */
         } else if (command.equals("fstart") || command.equals("fgo")){
             if (isForceStartAllowed(user,nick)){
-                setInProgress(true);
+                set("inprogress", 1);
                 showStartRound();
                 setStartRoundTask();
             }
@@ -305,40 +323,39 @@ public class TexasPoker extends CardGame{
             if (isForceStopAllowed(user,nick)){
                 PokerPlayer p;
                 cancelIdleOutTask();
-                for (int ctr = 0; ctr < getNumberJoined(); ctr++) {
-                    p = (PokerPlayer) getJoined(ctr);
+                for (int ctr = 0; ctr < joined.size(); ctr++) {
+                    p = (PokerPlayer) joined.get(ctr);
                     resetPlayer(p);
                 }
                 resetGame();
-                showEndRound();
-                setInProgress(false);
+                showMsg(getMsg("end_round"), getGameNameStr(), commandChar);
+                set("inprogress", 0);
             }
         } else if (command.equals("fj") || command.equals("fjoin")){
             if (!channel.isOp(user)) {
-                infoOpsOnly(nick);
+                informPlayer(nick, getMsg("ops_only"));
             } else {
                 if (params.length > 0){
                     String fNick = params[0];
-                    Set<User> chanUsers = channel.getUsers();
-                    Iterator<User> it = chanUsers.iterator();
+                    Iterator<User> it = channel.getUsers().iterator();
                     while(it.hasNext()){
                         User u = it.next();
                         if (u.getNick().equalsIgnoreCase(fNick)){
                             // Check if fNick is joined in another game
                             if (bot.bjgame != null &&
                                 (bot.bjgame.isJoined(fNick) || bot.bjgame.isWaitlisted(fNick))){
-                                bot.sendNotice(user, u.getNick()+" is already joined in "+bot.bjgame.getGameNameStr()+"!");
+                                informPlayer(user.getNick(), u.getNick()+" is already joined in "+bot.bjgame.getGameNameStr()+"!");
                             } else if (bot.bjgame != null && bot.bjgame.isBlacklisted(fNick)){
-                                bot.sendNotice(user, u.getNick()+" is bankrupt and cannot join!");
+                                informPlayer(user.getNick(), u.getNick()+" is bankrupt and cannot join!");
                             } else{
                                 join(u.getNick(), u.getHostmask());
                             }
                             return;
                         }
                     }
-                    infoNickNotFound(nick,fNick);
+                    informPlayer(nick, getMsg("nick_not_found"), fNick);
                 } else {
-                    infoNoParameter(nick);
+                    informPlayer(nick, getMsg("no_parameter"));
                 }
             }
         } else if (command.equals("fb") || command.equals("fbet")){
@@ -347,10 +364,10 @@ public class TexasPoker extends CardGame{
                     try {
                         bet(Integer.parseInt(params[0]));
                     } catch (NumberFormatException e) {
-                        infoBadParameter(nick);
+                        informPlayer(nick, getMsg("bad_parameter"));
                     }
                 } else {
-                    infoNoParameter(nick);
+                    informPlayer(nick, getMsg("no_parameter"));
                 }
             }
         } else if (command.equals("fa") || command.equals("fallin")){
@@ -361,12 +378,12 @@ public class TexasPoker extends CardGame{
             if (isForcePlayAllowed(user, nick)){
                 if (params.length > 0){
                     try {
-                        bet(Integer.parseInt(params[0]) + currentBet);
+                        bet(Integer.parseInt(params[0]) + get("currentbet"));
                     } catch (NumberFormatException e) {
-                        infoBadParameter(nick);
+                        informPlayer(nick, getMsg("bad_parameter"));
                     }
                 } else {
-                    infoNoParameter(nick);
+                    informPlayer(nick, getMsg("no_parameter"));
                 }
             }
         } else if (command.equals("fc") || command.equals("fca") || command.equals("fcall")){
@@ -387,8 +404,10 @@ public class TexasPoker extends CardGame{
             }
         } else if (command.equals("reload")) {
             if (isOpCommandAllowed(user, nick)){
-                loadSettings();
-                showReloadSettings();
+                loadIni();
+                loadLib(helpMap, getHelpFile());
+                loadLib(msgMap, getStrFile());
+                showMsg(getMsg("reload"));
             }
         } else if (command.equals("test1")){
             // 1. Test if game will properly determine winner of 2-5 players
@@ -408,14 +427,14 @@ public class TexasPoker extends CardGame{
                             p = new PokerPlayer(ctr+1+"", "");
                             peeps.add(p);
                             dealHand(p);                            
-                            bot.sendMessage(channel, "Player "+p.getNickStr()+": "+p.getHand().toString());
+                            showMsg("Player "+p.getNickStr()+": "+p.getHand().toString());
                         }
                         // Generate community cards
                         Hand comm = new Hand();
                         for (int ctr=0; ctr<5; ctr++){
                             dealCard(comm);
                         }
-                        bot.sendMessage(channel, "Community: "+comm.toString());
+                        showMsg("Community: " + comm.toString());
                         // Propagate poker hands
                         for (int ctr=0; ctr < number; ctr++){
                             p = peeps.get(ctr);
@@ -441,26 +460,27 @@ public class TexasPoker extends CardGame{
                         for (int ctr=0; ctr < winners; ctr++){
                             p = peeps.get(ctr);
                             ph = p.getPokerHand();
-                            bot.sendMessage(channel, "Player "+p.getNickStr()+
+                            showMsg("Player "+p.getNickStr()+
                                     " ("+p.getHand()+"), "+ph.getName()+": " + ph+" (WINNER)");
                         }
                         for (int ctr=winners; ctr < peeps.size(); ctr++){
                             p = peeps.get(ctr);
                             ph = p.getPokerHand();
-                            bot.sendMessage(channel, "Player "+p.getNickStr()+
+                            showMsg("Player "+p.getNickStr()+
                                     " ("+p.getHand()+"), "+ph.getName()+": " + ph);
                         }
                         // Discard and shuffle
                         for (int ctr=0; ctr < number; ctr++){
-                            deck.addToDiscard(peeps.get(ctr).getHand().getAllCards());
+                            resetPlayer(peeps.get(ctr));
                         }
                         deck.addToDiscard(comm.getAllCards());
+                        comm.clear();
                         deck.refillDeck();
                     } catch (NumberFormatException e) {
-                        infoBadParameter(nick);
+                        informPlayer(nick, getMsg("bad_parameter"));
                     }
                 } else {
-                    infoNoParameter(nick);
+                    informPlayer(nick, getMsg("no_parameter"));
                 }                
             }
         } else if (command.equals("test2")){	
@@ -476,18 +496,19 @@ public class TexasPoker extends CardGame{
                         for (int ctr = 0; ctr < number; ctr++){
                             dealCard(h);
                         }
-                        bot.sendMessage(channel, h.toString(0, h.getSize()));
+                        showMsg(h.toString(0, h.getSize()));
                         Collections.sort(h.getAllCards());
                         Collections.reverse(h.getAllCards());
                         h.getValue();
-                        bot.sendMessage(channel, h.getName()+": " + h);
+                        showMsg(h.getName()+": " + h);
                         deck.addToDiscard(h.getAllCards());
+                        h.clear();
                         deck.refillDeck();
                     } catch (NumberFormatException e) {
-                        infoBadParameter(nick);
+                        informPlayer(nick, getMsg("bad_parameter"));
                     }
                 } else {
-                    infoNoParameter(nick);
+                    informPlayer(nick, getMsg("no_parameter"));
                 }
                 
             }
@@ -503,15 +524,15 @@ public class TexasPoker extends CardGame{
     public void addWaitlistPlayer(String nick, String hostmask) {
         Player p = new PokerPlayer(nick, hostmask);
         waitlist.add(p);
-        infoJoinWaitlist(p.getNick());
+        informPlayer(p.getNick(), getMsg("join_waitlist"));
     }
     public Player getPlayerAfter(Player p){
-        return getJoined((getJoinedIndex(p)+1) % getNumberJoined());
+        return joined.get((joined.indexOf(p) + 1) % joined.size());
     }
     @Override
     public void startRound() {
-        if (getNumberJoined() < 2){
-            setStartCount(0);
+        if (joined.size() < 2){
+            set("startcount", 0);
             endRound();
         } else {
             setButton();
@@ -519,7 +540,8 @@ public class TexasPoker extends CardGame{
             dealTable();
             setBlindBets();
             currentPlayer = getPlayerAfter(bigBlind);
-            showTurn(currentPlayer);
+            showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentPlayer.get("bet"), 
+                        currentPlayer.get("cash")-currentPlayer.get("bet"), get("currentbet"));
             setIdleOutTask();
         }
     }
@@ -535,7 +557,7 @@ public class TexasPoker extends CardGame{
          * topBettor. If we reach the firstPlayer or topBettor then stop
          * looking.
          */
-        while ((p.hasFolded() || p.hasAllIn()) && currentPlayer != firstPlayer
+        while ((p.has("fold") || p.has("allin")) && currentPlayer != firstPlayer
                         && currentPlayer != topBettor) {
             currentPlayer = getPlayerAfter(currentPlayer);
             p = (PokerPlayer) currentPlayer;
@@ -545,13 +567,13 @@ public class TexasPoker extends CardGame{
          * end of a round of betting and we should deal community cards. */
         if (currentPlayer == topBettor || currentPlayer == firstPlayer) {
             // Reset minimum raise
-            minRaise = getSetting("minbet");
+            set("minraise", get("minbet"));
             // Add bets from this round of betting to the pot
             addBetsToPot();
-            stage++;
+            increment("stage");
             
             // If all community cards have been dealt, move to end of round
-            if (stage == 4){
+            if (get("stage") == 4){
                 endRound();
             // Otherwise, deal community cards
             } else {
@@ -573,14 +595,14 @@ public class TexasPoker extends CardGame{
                                 showdownStr += ", ";
                             }
                         }
-                        bot.sendMessage(channel, showdownStr);
+                        showMsg(showdownStr);
                     }
                    
                    // Add a 10 second delay for dramatic effect
                    try { Thread.sleep(10000); } catch (InterruptedException e){}
                 }
                 // Burn a card before turn and river
-                if (stage != 1) {
+                if (get("stage") != 1) {
                     burnCard();
                 }
                 dealCommunity();
@@ -600,22 +622,23 @@ public class TexasPoker extends CardGame{
             continueRound();
         // Continue to the next bettor
         } else {
-            showTurn(currentPlayer);
+            showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentPlayer.get("bet"), 
+                        currentPlayer.get("cash")-currentPlayer.get("bet"), get("currentbet"));
             setIdleOutTask();
         }
     }
     @Override
     public void endRound() {
-        setEndRound(true);
+        set("endround", 1);
         PokerPlayer p;
 
         // Check if anybody left during post-start waiting period
-        if (getNumberJoined() > 1 && pots.size() > 0) {
+        if (joined.size() > 1 && pots.size() > 0) {
             String netResults = Colors.YELLOW + ",01 Change: ";
             // Give all non-folded players the community cards
-            for (int ctr = 0; ctr < getNumberJoined(); ctr++){
-                p = (PokerPlayer) getJoined(ctr);
-                if (!p.hasFolded()){
+            for (int ctr = 0; ctr < joined.size(); ctr++){
+                p = (PokerPlayer) joined.get(ctr);
+                if (!p.has("fold")){
                     p.getPokerHand().addAll(p.getHand());
                     p.getPokerHand().addAll(community);
                     Collections.sort(p.getPokerHand().getAllCards());
@@ -633,20 +656,20 @@ public class TexasPoker extends CardGame{
              * 4. Save player data
              * 5. Reset the player
              */
-            for (int ctr = 0; ctr < getNumberJoined(); ctr++){
-                p = (PokerPlayer) getJoined(ctr);
+            for (int ctr = 0; ctr < joined.size(); ctr++){
+                p = (PokerPlayer) joined.get(ctr);
                 p.increment("tprounds");
                 
                 // Bankrupts
                 if (!p.has("cash")) {
                     // Make a withdrawal if the player has a positive bank
                     if (p.get("bank") > 0){
-                        int amount = Math.min(p.get("bank"), getSetting("cash"));
+                        int amount = Math.min(p.get("bank"), get("cash"));
                         p.bankTransfer(-amount);
                         savePlayerData(p);
-                        infoAutoWithdraw(p.getNick(),amount);
+                        informPlayer(p.getNick(), getMsg("auto_withdraw"), amount);
                         // Check if the player has quit
-                        if (p.hasQuit()){
+                        if (p.has("quit")){
                             removeJoined(p);
                             ctr--;
                         }
@@ -659,7 +682,7 @@ public class TexasPoker extends CardGame{
                         ctr--;
                     }
                 // Quitters
-                } else if (p.hasQuit()) {
+                } else if (p.has("quit")) {
                     removeJoined(p);
                     ctr--;
                 // Remaining players
@@ -669,34 +692,31 @@ public class TexasPoker extends CardGame{
                 
                 // Add player to list of net results
                 if (p.get("change") > 0) {
-                    netResults += Colors.WHITE + ",01 " + p.getNick() + " (" + Colors.GREEN + ",01$" + p.get("change") + Colors.WHITE + ",01), ";
+                     netResults += Colors.WHITE + ",01 " + p.getNick() + " (" + Colors.GREEN + ",01$" + formatNumber(p.get("change")) + Colors.WHITE + ",01), ";
                 } else if (p.get("change") < 0) {
-                    netResults += Colors.WHITE + ",01 " + p.getNick() + " (" + Colors.RED + ",01$" + p.get("change") + Colors.WHITE + ",01), ";
+                    netResults += Colors.WHITE + ",01 " + p.getNick() + " (" + Colors.RED + ",01$" + formatNumber(p.get("change")) + Colors.WHITE + ",01), ";
                 } else {
-                    netResults += Colors.WHITE + ",01 " + p.getNick() + " (" + Colors.WHITE + ",01$" + p.get("change") + Colors.WHITE + ",01), ";
+                    netResults += Colors.WHITE + ",01 " + p.getNick() + " (" + Colors.WHITE + ",01$" + formatNumber(p.get("change")) + Colors.WHITE + ",01), ";
                 }
-                
                 resetPlayer(p);
             }
-            bot.sendMessage(channel, netResults.substring(0, netResults.length()-2));
+            showMsg(netResults.substring(0, netResults.length()-2));
         } else {
-            showNoPlayers();
+            showMsg(getMsg("no_players"));
         }
         resetGame();
-        showEndRound();
-        setInProgress(false);
-        setEndRound(false);
+        showMsg(getMsg("end_round"), getGameNameStr(), commandChar);
         mergeWaitlist();
         // Check if auto-starts remaining
-        if (getStartCount() > 0){
-            decStartCount();
-            if (!isInProgress()){
-                if (getNumberJoined() > 1) {
-                    setInProgress(true);
+        if (get("startcount") > 0){
+            decrement("startcount");
+            if (!has("inprogress")){
+                if (joined.size() > 1) {
+                    set("inprogress", 1);
                     showStartRound();
                     setStartRoundTask();
                 } else {
-                    setStartCount(0);
+                    set("startcount", 0);
                 }
             }
         }
@@ -707,26 +727,34 @@ public class TexasPoker extends CardGame{
         cancelIdleOutTask();
         cancelRespawnTasks();
         gameTimer.cancel();
-        devoiceAll();
-        joined.clear();
-        waitlist.clear();
-        blacklist.clear();
         deck = null;
+        community = null;
         pots.clear();
+        currentPot = null;
         currentPlayer = null;
         dealer = null;
         smallBlind = null;
         bigBlind = null;
         topBettor = null;
-        showGameEnd();
+        house = null;
+        devoiceAll();
+        showMsg(getMsg("game_end"), getGameNameStr());
+        joined.clear();
+        waitlist.clear();
+        blacklist.clear();
+        helpMap.clear();
+        msgMap.clear();
+        settingsMap.clear();
         bot = null;
         channel = null;
     }
     @Override
     public void resetGame() {
+        set("stage", 0);
+        set("currentbet", 0);
+        set("inprogress", 0);
+        set("endround", 0);
         discardCommunity();
-        stage = 0;
-        currentBet = 0;
         currentPot = null;
         pots.clear();
         currentPlayer = null;
@@ -741,26 +769,26 @@ public class TexasPoker extends CardGame{
         if (isJoined(nick)){
             PokerPlayer p = (PokerPlayer) findJoined(nick);
             // Check if a round is in progress
-            if (isInProgress()) {
+            if (has("inprogress")) {
                 /* If still in the post-start waiting phase, then currentPlayer has
                  * not been set yet. */
                 if (currentPlayer == null){
                     removeJoined(p);
                 // Check if it is already in the endRound stage
-                } else if (isEndRound()){
+                } else if (has("endround")){
                     p.set("quit", 1);
-                    bot.sendNotice(p.getNick(), "You will be removed at the end of the round.");
+                    informPlayer(p.getNick(), getMsg("remove_end_round"));
                 // Force the player to fold if it is his turn
                 } else if (p == currentPlayer){
                     p.set("quit", 1);
-                    bot.sendNotice(p.getNick(), "You will be removed at the end of the round.");
+                    informPlayer(p.getNick(), getMsg("remove_end_round"));
                     fold();
                 } else {
                     p.set("quit", 1);
-                    bot.sendNotice(p.getNick(), "You will be removed at the end of the round.");
-                    if (!p.hasFolded()){
+                    informPlayer(p.getNick(), getMsg("remove_end_round"));
+                    if (!p.has("fold")){
                         p.set("fold", 1);
-                        showFold(p);
+                        showMsg(getMsg("tp_fold"), p.getNickStr(), p.get("cash")-p.get("bet"));
                         // Remove this player from any existing pots
                         if (currentPot != null && currentPot.hasPlayer(p)){
                             currentPot.removePlayer(p);
@@ -784,10 +812,10 @@ public class TexasPoker extends CardGame{
             }
         // Check if on the waitlist
         } else if (isWaitlisted(nick)) {
-            infoLeaveWaitlist(nick);
+            informPlayer(nick, getMsg("leave_waitlist"));
             removeWaitlisted(nick);
         } else {
-            infoNotJoined(nick);
+            informPlayer(nick, getMsg("no_join"));
         }
     }
     public void resetPlayer(PokerPlayer p) {
@@ -799,11 +827,11 @@ public class TexasPoker extends CardGame{
     }
     public void setButton(){
         if (dealer == null){
-            dealer = (PokerPlayer) getJoined(0);
+            dealer = (PokerPlayer) joined.get(0);
         } else {
             dealer = (PokerPlayer) getPlayerAfter(dealer);
         }
-        if (getNumberJoined() == 2){
+        if (joined.size() == 2){
             smallBlind = dealer;
         } else {
             smallBlind = (PokerPlayer) getPlayerAfter(dealer);
@@ -813,23 +841,23 @@ public class TexasPoker extends CardGame{
     public void setBlindBets(){
         // Set the small blind to minimum raise or the player's cash, 
         // whichever is less.
-        smallBlind.set("bet", Math.min(getSetting("minbet")/2, smallBlind.get("cash")));
+        smallBlind.set("bet", Math.min(get("minbet")/2, smallBlind.get("cash")));
         // Set the big blind to minimum raise + small blind or the player's 
         // cash, whichever is less.
-        bigBlind.set("bet", Math.min(getSetting("minbet"), bigBlind.get("cash")));
+        bigBlind.set("bet", Math.min(get("minbet"), bigBlind.get("cash")));
         // Set the current bet to the bigger of the two blinds.
-        currentBet = Math.max(smallBlind.get("bet"), bigBlind.get("bet"));
-        minRaise = getSetting("minbet");
+        set("currentbet", Math.max(smallBlind.get("bet"), bigBlind.get("bet")));
+        set("minraise", get("minbet"));
     }
     
     /* Game command logic checking methods */
     public boolean isStartAllowed(String nick){
         if (!isJoined(nick)) {
-            infoNotJoined(nick);
-        } else if (isInProgress()) {
-            infoRoundStarted(nick);
-        } else if (getNumberJoined() < 2) {
-            showNoPlayers();
+            informPlayer(nick, getMsg("no_join"));
+        } else if (has("inprogress")) {
+            informPlayer(nick, getMsg("round_started"));
+        } else if (joined.size() < 2) {
+            showMsg(getMsg("no_players"));
         } else {
             return true;
         }
@@ -837,11 +865,11 @@ public class TexasPoker extends CardGame{
     }
     public boolean isPlayerTurn(String nick){
         if (!isJoined(nick)){
-            infoNotJoined(nick);
-        } else if (!isInProgress()) {
-            infoNotStarted(nick);
+            informPlayer(nick, getMsg("no_join"));
+        } else if (!has("inprogress")) {
+            informPlayer(nick, getMsg("no_start"));
         } else if (findJoined(nick) != currentPlayer){
-            infoNotTurn(nick);
+            informPlayer(nick, getMsg("wrong_turn"));
         } else {
             return true;
         }
@@ -849,11 +877,11 @@ public class TexasPoker extends CardGame{
     }
     public boolean isForceStartAllowed(User user, String nick){
         if (!channel.isOp(user)) {
-            infoOpsOnly(nick);
-        } else if (isInProgress()) {
-            infoRoundStarted(nick);
-        } else if (getNumberJoined() < 2) {
-            showNoPlayers();
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (has("inprogress")) {
+            informPlayer(nick, getMsg("round_started"));
+        } else if (joined.size() < 2) {
+            showMsg(getMsg("no_players"));
         } else {
             return true;
         }
@@ -861,9 +889,9 @@ public class TexasPoker extends CardGame{
     }
     public boolean isForceStopAllowed(User user, String nick){
         if (!channel.isOp(user)) {
-            infoOpsOnly(nick);
-        } else if (!isInProgress()) {
-            infoNotStarted(nick);
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (!has("inprogress")) {
+            informPlayer(nick, getMsg("no_start"));
         } else {
             return true;
         }
@@ -871,9 +899,9 @@ public class TexasPoker extends CardGame{
     }
     public boolean isForcePlayAllowed(User user, String nick){
         if (!channel.isOp(user)) {
-            infoOpsOnly(nick);
-        } else if (!isInProgress()) {
-            infoNotStarted(nick);
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (!has("inprogress")) {
+            informPlayer(nick, getMsg("no_start"));
         } else {
             return true;
         }
@@ -882,8 +910,10 @@ public class TexasPoker extends CardGame{
     
     /* Game settings management */
     @Override
-    protected final void initSettings(){
-        // Do not use setSettings()
+    protected final void initialize(){
+        super.initialize();
+        // Do not use set()
+        // Ini file settings
         settingsMap.put("cash", 1000);
         settingsMap.put("idle", 60);
         settingsMap.put("idlewarning", 45);
@@ -891,26 +921,30 @@ public class TexasPoker extends CardGame{
         settingsMap.put("maxplayers", 22);
         settingsMap.put("minbet", 10);
         settingsMap.put("autostarts", 10);
+        // In-game properties
+        settingsMap.put("stage", 0);
+        settingsMap.put("currentbet", 0);
+        settingsMap.put("minraise", 0);
     }
     @Override
-    protected final void saveSettings() {
+    protected final void saveIniFile() {
         try {
             PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(getIniFile())));
             out.println("#Settings");
             out.println("#Number of seconds before a player idles out");
-            out.println("idle=" + getSetting("idle"));
+            out.println("idle=" + get("idle"));
             out.println("#Number of seconds before a player is given a warning for idling");
-            out.println("idlewarning=" + getSetting("idlewarning"));
+            out.println("idlewarning=" + get("idlewarning"));
             out.println("#Initial amount given to new and bankrupt players");
-            out.println("cash=" + getSetting("cash"));
+            out.println("cash=" + get("cash"));
             out.println("#Number of seconds before a bankrupt player is allowed to join again");
-            out.println("respawn=" + getSetting("respawn"));
+            out.println("respawn=" + get("respawn"));
             out.println("#Minimum bet (big blind), preferably an even number");
-            out.println("minbet=" + getSetting("minbet"));
+            out.println("minbet=" + get("minbet"));
             out.println("#The maximum number of players allowed to join a game");
-            out.println("maxplayers=" + getSetting("maxplayers"));
+            out.println("maxplayers=" + get("maxplayers"));
             out.println("#The maximum number of autostarts allowed");
-            out.println("autostarts=" + getSetting("autostarts"));
+            out.println("autostarts=" + get("autostarts"));
             out.close();
         } catch (IOException e) {
             bot.log("Error creating " + getIniFile() + "!");
@@ -937,11 +971,11 @@ public class TexasPoker extends CardGame{
                         house.set("biggestpot", biggestpot);
                         players = Integer.parseInt(st.nextToken());
                         for (int ctr = 0; ctr < players; ctr++) {
-                            house.addPlayer(st.nextToken());
+                            house.addDonor(new PokerPlayer(st.nextToken(), ""));
                         }
                         winners = Integer.parseInt(st.nextToken());
                         for (int ctr = 0; ctr < winners; ctr++) {
-                            house.addWinner(st.nextToken());
+                            house.addWinner(new PokerPlayer(st.nextToken(), ""));
                         }
                     }
                     break;
@@ -993,7 +1027,7 @@ public class TexasPoker extends CardGame{
             lines.add("#texaspoker");
             index = lines.size();
         }
-        lines.add(index, house.get("biggestpot") + " " + house.getNumPlayers() + " " + house.getPlayerListString() + " " + house.getNumWinners() + " " + house.getWinnerListString());
+        lines.add(index, house.get("biggestpot") + " " + house.getNumDonors() + " " + house.getDonorsString() + " " + house.getNumWinners() + " " + house.getWinnersString());
         try {
             PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("housestats.txt")));
             for (int ctr = 0; ctr < lines.size(); ctr++) {
@@ -1010,7 +1044,7 @@ public class TexasPoker extends CardGame{
      * Deals cards to the community hand.
      */
     public void dealCommunity(){
-        if (stage == 1) {
+        if (get("stage") == 1) {
             for (int ctr = 1; ctr <= 3; ctr++){
                 dealCard(community);
             }
@@ -1031,10 +1065,10 @@ public class TexasPoker extends CardGame{
      */
     public void dealTable() {
         PokerPlayer p;
-        for (int ctr = 0; ctr < getNumberJoined(); ctr++) {
-            p = (PokerPlayer) getJoined(ctr);
+        for (int ctr = 0; ctr < joined.size(); ctr++) {
+            p = (PokerPlayer) joined.get(ctr);
             dealHand(p);
-            infoPlayerHand(p, p.getHand());
+            informPlayer(p.getNick(), getMsg("tp_hand"), p.getHand());
         }
     }
     /**
@@ -1061,32 +1095,58 @@ public class TexasPoker extends CardGame{
      */
     public void shuffleDeck() {
         deck.refillDeck();
-        showShuffleDeck();
+        showMsg(getMsg("tp_shuffle_deck"));
     }
     
     /* Texas Hold'em Poker gameplay methods */
+    /**
+     * Determine the number of players who have not folded.
+     * @return the number of non-folded players
+     */
     public int getNumberNotFolded(){
         PokerPlayer p;
         int numberNotFolded = 0;
-        for (int ctr = 0; ctr < getNumberJoined(); ctr++){
-            p = (PokerPlayer) getJoined(ctr);
-            if (!p.hasFolded()){
+        for (int ctr = 0; ctr < joined.size(); ctr++){
+            p = (PokerPlayer) joined.get(ctr);
+            if (!p.has("fold")){
                 numberNotFolded++;
             }
         }
         return numberNotFolded;
     }
+    
+    /**
+     * Determine the number players who can still make a bet.
+     * @return the number of players who can bet
+     */
     public int getNumberCanBet(){
         PokerPlayer p;
         int numberCanBet = 0;
-        for (int ctr = 0; ctr < getNumberJoined(); ctr++){
-            p = (PokerPlayer) getJoined(ctr);
-            if (!p.hasFolded() && !p.hasAllIn()){
+        for (int ctr = 0; ctr < joined.size(); ctr++){
+            p = (PokerPlayer) joined.get(ctr);
+            if (!p.has("fold") && !p.has("allin")){
                 numberCanBet++;
             }
         }
         return numberCanBet;
     }
+    
+    /**
+     * Determine the number of players who have made a bet in a round of betting.
+     * @return the number of bettors
+     */
+    public int getNumberBettors() {
+        PokerPlayer p;
+        int numberBettors = 0;
+        for (int ctr = 0; ctr < joined.size(); ctr++){
+            p = (PokerPlayer) joined.get(ctr);
+            if (p.has("bet")){
+                numberBettors++;
+            }
+        }
+        return numberBettors;
+    }
+    
     /**
      * Processes a bet command.
      * @param amount the amount to bet
@@ -1097,55 +1157,56 @@ public class TexasPoker extends CardGame{
         
         // A bet that's an all-in
         if (amount == p.get("cash")){
-            if (amount > currentBet || topBettor == null){
-                if (amount - currentBet > minRaise){
-                    minRaise = amount - currentBet;
+            if (amount > get("currentbet") || topBettor == null){
+                if (amount - get("currentbet") > get("minraise")){
+                    set("minraise", amount - get("currentbet"));
                 }
-                currentBet = amount;
+                set("currentbet", amount);
                 topBettor = p;
             }
             p.set("bet", amount);
             p.set("allin", 1);
-            showAllIn(p);
+            showMsg(getMsg("tp_allin"), p.getNickStr(), p.get("bet"), p.get("cash")-p.get("bet"));
             continueRound();
         // A bet that's larger than a player's stack
         } else if (amount > p.get("cash")) {
-            infoInsufficientFunds(p.getNick());
+            informPlayer(p.getNick(), getMsg("insufficient_funds"));
             setIdleOutTask();
         // A bet that's lower than the current bet
-        } else if (amount < currentBet) {
-            infoBetTooLow(p.getNick());
+        } else if (amount < get("currentbet")) {
+            informPlayer(p.getNick(), getMsg("tp_bet_too_low"), get("currentbet"));
             setIdleOutTask();
         // A bet that's equivalent to a call or check
-        } else if (amount == currentBet){
+        } else if (amount == get("currentbet")){
             if (topBettor == null){
                 topBettor = p;
             }
             if (amount == 0 || p.get("bet") == amount){
-                showCheck(p);
+                showMsg(getMsg("tp_check"), p.getNickStr(), p.get("bet"), p.get("cash")-p.get("bet"));
             } else {
                 p.set("bet", amount);
-                showCall(p);
+                showMsg(getMsg("tp_call"), p.getNickStr(), p.get("bet"), p.get("cash")-p.get("bet"));
             }
             continueRound();
         // A bet that's lower than the minimum raise
-        } else if ((amount-currentBet) < minRaise){
-            infoRaiseTooLow(p.getNick());
+        } else if (amount - get("currentbet") < get("minraise")){
+            informPlayer(p.getNick(), getMsg("raise_too_low"), get("minraise"));
             setIdleOutTask();
         // A valid bet that's greater than the currentBet
         } else {
             p.set("bet", amount);
             topBettor = p;
-            if (currentBet == 0){
-                showBet(p);
+            if (get("currentbet") == 0){
+                showMsg(getMsg("tp_bet"), p.getNickStr(), p.get("bet"), p.get("cash") - p.get("bet"));
             } else {
-                showRaise(p);
+                showMsg(getMsg("tp_raise"), p.getNickStr(), p.get("bet"), p.get("cash")-p.get("bet"));
             }
-            minRaise = amount - currentBet;
-            currentBet = amount;
+            set("minraise", amount - get("currentbet"));
+            set("currentbet", amount);
             continueRound();
         }
     }
+    
     /**
      * Processes a check command.
      * Only allow a player to check when the currentBet is 0 or if the player
@@ -1155,17 +1216,18 @@ public class TexasPoker extends CardGame{
         cancelIdleOutTask();
         PokerPlayer p = (PokerPlayer) currentPlayer;
         
-        if (currentBet == 0 || p.get("bet") == currentBet){
+        if (get("currentbet") == 0 || p.get("bet") == get("currentbet")){
             if (topBettor == null){
                 topBettor = p;
             }
-            showCheck(p);
+            showMsg(getMsg("tp_check"), p.getNickStr(), p.get("bet"), p.get("cash")-p.get("bet"));
             continueRound();
         } else {
-            infoNoChecking(p.getNick());
+            informPlayer(p.getNick(), getMsg("no_checking"), get("currentbet"));
             setIdleOutTask();
         }
     }
+    
     /**
      * Processes a call command.
      * A player's bet will be matched to the currentBet. If a player's stack
@@ -1174,7 +1236,7 @@ public class TexasPoker extends CardGame{
     public void call(){
         cancelIdleOutTask();
         PokerPlayer p = (PokerPlayer) currentPlayer;
-        int total = Math.min(p.get("cash"), currentBet);
+        int total = Math.min(p.get("cash"), get("currentbet"));
         
         if (topBettor == null){
             topBettor = p;
@@ -1184,17 +1246,18 @@ public class TexasPoker extends CardGame{
         if (total == p.get("cash")){
             p.set("allin", 1);
             p.set("bet", total);
-            showAllIn(p);
+            showMsg(getMsg("tp_allin"), p.getNickStr(), p.get("bet"), p.get("cash")-p.get("bet"));
         // A check
         } else if (total == 0 || p.get("bet") == total){
-            showCheck(p);
+            showMsg(getMsg("tp_check"), p.getNickStr(), p.get("bet"), p.get("cash")-p.get("bet"));
         // A call
         } else {
             p.set("bet", total);
-            showCall(p);
+            showMsg(getMsg("tp_call"), p.getNickStr(), p.get("bet"), p.get("cash")-p.get("bet"));
         }
         continueRound();
     }
+    
     /**
      * Process a fold command.
      * The folding player is removed from all pots.
@@ -1203,7 +1266,7 @@ public class TexasPoker extends CardGame{
         cancelIdleOutTask();
         PokerPlayer p = (PokerPlayer) currentPlayer;
         p.set("fold", 1);
-        showFold(p);
+        showMsg(getMsg("tp_fold"), p.getNickStr(), p.get("cash")-p.get("bet"));
 
         //Remove this player from any existing pots
         if (currentPot != null && currentPot.hasPlayer(p)){
@@ -1212,114 +1275,133 @@ public class TexasPoker extends CardGame{
         for (int ctr = 0; ctr < pots.size(); ctr++){
             PokerPot cPot = pots.get(ctr);
             if (cPot.hasPlayer(p)){
-                    cPot.removePlayer(p);
+                cPot.removePlayer(p);
             }
         }
         continueRound();
     }
+    
     /**
      * Adds the bets during a round of betting to the pot.
      * If no pot exists, a new one is created. Sidepots are created as necessary.
      */
     public void addBetsToPot(){
         PokerPlayer p;
-        int lowBet, overBet;
-        while(currentBet != 0){
-            lowBet = currentBet;
-            overBet = 0;
-            // Create a new pot if none exists
-            if (currentPot == null){
-                currentPot = new PokerPot();
-                pots.add(currentPot);
-            } else {
-                // Determine if anybody is still in the game, but has not
-                // contributed any bets in the latest round of betting, 
-                // thus requiring a new pot
-                for (int ctr = 0; ctr < currentPot.getNumberPlayers(); ctr++) {
-                    p = currentPot.getPlayer(ctr);
-                    if (p.get("bet") == 0 && currentBet != 0 && !p.hasFolded() && currentPot.hasPlayer(p)) {
-                        currentPot = new PokerPot();
-                        pots.add(currentPot);
-                        break;
+        int lowBet;
+        while(get("currentbet") != 0){
+            lowBet = get("currentbet");
+            // Only add bets to a pot if more than one player has made a bet
+            if (getNumberBettors() > 1) {
+                // Create a new pot if currentPot is set to null
+                if (currentPot == null){
+                    currentPot = new PokerPot();
+                    pots.add(currentPot);
+                } else {
+                    // Determine if anybody in the current pot has no more bet
+                    // left to contribute but is still in the game. If so, 
+                    // then a new pot will be required.
+                    for (int ctr = 0; ctr < currentPot.getNumPlayers(); ctr++) {
+                        p = currentPot.getPlayer(ctr);
+                        if (!p.has("bet") && get("currentbet") != 0 && !p.has("fold") && currentPot.hasPlayer(p)) {
+                            currentPot = new PokerPot();
+                            pots.add(currentPot);
+                            break;
+                        }
                     }
                 }
-            }
-            // Determine the lowest non-zero bet from a non-folded player
-            for (int ctr = 0; ctr < getNumberJoined(); ctr++) {
-                p = (PokerPlayer) getJoined(ctr);
-                if (p.get("bet") < lowBet && p.get("bet") != 0 && !p.hasFolded()){
-                    lowBet = p.get("bet");
+
+                // Determine the lowest non-zero bet
+                for (int ctr = 0; ctr < joined.size(); ctr++) {
+                    p = (PokerPlayer) joined.get(ctr);
+                    if (p.get("bet") < lowBet && p.has("bet")){
+                        lowBet = p.get("bet");
+                    }
                 }
-            }
-            // Subtract lowBet from each player's bet and add to pot. For folded
-            // players, the min of their bet and lowBet is contributed.
-            for (int ctr = 0; ctr < getNumberJoined(); ctr++){
-                p = (PokerPlayer) getJoined(ctr);
-                if (p.get("bet") != 0){
-                    if (p.hasFolded()){
-                        int bet = Math.min(p.get("bet"), lowBet);
-                        currentPot.addPot(bet);
-                        p.add("cash", -1 * bet);
-                        p.add("tpwinnings", -1 * bet);
-                        p.add("bet", -1 * bet);
-                        p.add("change", -1 * bet);
-                    } else {
+                // Subtract lowBet from each player's (non-zero) bet and add to pot.
+                for (int ctr = 0; ctr < joined.size(); ctr++){
+                    p = (PokerPlayer) joined.get(ctr);
+                    if (p.has("bet")){
+                        // Check if player has been added to donor list
+                        if (!currentPot.hasDonor(p)) {
+                            currentPot.addDonor(p);
+                        }
+                        // Ensure a non-folded player is included in this pot
+                        if (!p.has("fold") && !currentPot.hasPlayer(p)){
+                            currentPot.addPlayer(p);
+                        }
+                        // Transfer lowBet from the player to the pot
                         currentPot.addPot(lowBet);
                         p.add("cash", -1 * lowBet);
                         p.add("tpwinnings", -1 * lowBet);
                         p.add("bet", -1 * lowBet);
                         p.add("change", -1 * lowBet);
                     }
-                    // Ensure a non-folded player is included in this pot
-                    if (!p.hasFolded() && !currentPot.hasPlayer(p)){
-                        currentPot.addPlayer(p);
-                    }
-                    // Check if this player has any bet left over
-                    if (p.get("bet") != 0){
-                        overBet++;
-                    }
                 }
-            }
-            currentBet -= lowBet;
-            // If there is any currentBet left over and there is more than one
-            // player with a positive bet amount, that means we have to
-            // create a new sidepot, so we set currentPot to null.
-            if (currentBet != 0 && overBet > 1) {
-                currentPot = null;
-            // If only one person has a positive bet amount, that means he has
-            // over-bet and should have his bet returned.
-            } else if (overBet == 1){
-                for (int ctr = 0; ctr < getNumberJoined(); ctr++){
-                    p = (PokerPlayer) getJoined(ctr);
+                // Update currentbet
+                set("currentbet", get("currentbet") - lowBet);
+            
+            // If only one player has any bet left then it should not be
+            // contributed to the current pot and his bet and currentBet should
+            // be reset.
+            } else {
+                for (int ctr = 0; ctr < joined.size(); ctr++){
+                    p = (PokerPlayer) joined.get(ctr);
                     if (p.get("bet") != 0){
                         p.clear("bet");
                         break;
                     }
                 }
-                currentBet = 0;
+                set("currentbet", 0);
+                break;
             }
         }
     }
     
+    /**
+     * Returns the total number of players who have played this game.
+     * Counts the number of players who have played more than one round of this
+     * game.
+     * 
+     * @return the total counted from players.txt
+     */
+    @Override
+    public int getTotalPlayers(){
+        try {
+            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
+            loadPlayerFile(statList);
+            int total = 0, numLines = statList.size();
+            
+            for (int ctr = 0; ctr < numLines; ctr++){
+                if (statList.get(ctr).has("tprounds")){
+                    total++;
+                }
+            }
+            return total;
+        } catch (IOException e){
+            bot.log("Error reading players.txt!");
+            return 0;
+        }
+    }    
+    
     /* Channel message output methods for Texas Hold'em Poker*/
     @Override
     public void showGameStats() {
-        int totalPlayers;
-        totalPlayers = getTotalPlayers();
-        if (totalPlayers == 1){
-            bot.sendMessage(channel, formatNumber(totalPlayers)+" player has played " +	getGameNameStr()+". " + house);
-        } else {
-            bot.sendMessage(channel, formatNumber(totalPlayers)+" players have played " + getGameNameStr()+". " + house);
-        }
+        showMsg(getMsg("tp_game_stats"), getTotalPlayers(), getGameNameStr(), house);
     }
+    
+    /**
+     * Displays the players who are involved in a round. Players who have not
+     * folded are displayed in bold. Designations for small blind, big blind,
+     * and dealer are also shown.
+     */
     public void showTablePlayers(){
         PokerPlayer p;
-        String msg = formatBold(getNumberJoined()+"") + " players: ";
-        String nickColor = "";
-        for (int ctr = 0; ctr < getNumberJoined(); ctr++){
-            p = (PokerPlayer) getJoined(ctr);
+        String msg = formatBold(joined.size()) + " players: ";
+        String nickColor;
+        for (int ctr = 0; ctr < joined.size(); ctr++){
+            p = (PokerPlayer) joined.get(ctr);
             // Give bold to remaining non-folded players
-            if (!p.hasFolded()){
+            if (!p.has("fold")){
                 nickColor = Colors.BOLD;
             } else {
                 nickColor = "";
@@ -1340,12 +1422,16 @@ public class TexasPoker extends CardGame{
                 msg += ")";
             }
             msg += nickColor;
-            if (ctr != getNumberJoined()-1){
+            if (ctr != joined.size() - 1){
                 msg += ", ";
             }
         }
-        bot.sendMessage(channel, msg);
+        showMsg(msg);
     }
+    
+    /**
+     * Displays the community cards along with existing pots.
+     */
     public void showCommunityCards(){
         PokerPlayer p;
         StringBuilder msg = new StringBuilder();
@@ -1363,9 +1449,9 @@ public class TexasPoker extends CardGame{
         int notFolded = getNumberNotFolded();
         int count = 0;
         str = "(" + formatBold(notFolded) + " players: ";
-        for (int ctr = 0; ctr < getNumberJoined(); ctr++){
-            p = (PokerPlayer) getJoined(ctr);
-            if (!p.hasFolded()){
+        for (int ctr = 0; ctr < joined.size(); ctr++){
+            p = (PokerPlayer) joined.get(ctr);
+            if (!p.has("fold")){
                 str += p.getNick();
                 if (count != notFolded-1){
                     str += ", ";
@@ -1376,54 +1462,26 @@ public class TexasPoker extends CardGame{
         str += ")";
         msg.append(str);
         
-        bot.sendMessage(channel, msg.toString());
+        showMsg(msg.toString());
     }
-    @Override
-    public void showTurn(Player p) {
-        bot.sendMessage(channel, p.getNickStr()+"'s turn. Committed: $" + formatNumber(p.get("bet")) + 
-            ". Stack: $" + formatNumber(p.get("cash")-p.get("bet")) + ". " + "Current bet: "+Colors.BOLD+"$" + 
-            formatNumber(currentBet) + Colors.BOLD);
-    }
-    public void showBet(Player p){
-        bot.sendMessage(channel, p.getNickStr()+" bets $" + formatNumber(p.get("bet"))+
-                                ". Stack: $" + formatNumber(p.get("cash") - p.get("bet")));
-    }
-    public void showRaise(Player p){
-        bot.sendMessage(channel, p.getNickStr()+" has raised to $" + formatNumber(p.get("bet"))+
-                                ". Stack: $" + formatNumber(p.get("cash") - p.get("bet")));
-    }
-    public void showAllIn(Player p){
-        bot.sendMessage(channel, p.getNickStr()+" has gone all in! Committed: $"+
-                        formatNumber(p.get("bet"))+". Stack: $" + formatNumber(p.get("cash")-p.get("bet")));
-    }
-    public void showCall(Player p){
-        bot.sendMessage(channel, p.getNickStr() + " has called. Committed: $" +
-                                formatNumber(p.get("bet")) + ". Stack: $" + formatNumber(p.get("cash")-p.get("bet")));
-    }
-    public void showCheck(Player p){
-        bot.sendMessage(channel, p.getNickStr()+" has checked. Committed: $" +
-                                formatNumber(p.get("bet")) + ". Stack: $" + formatNumber(p.get("cash")-p.get("bet")));
-    }
-    public void showFold(Player p){
-        bot.sendMessage(channel, p.getNickStr()+" has folded. Stack: $" + formatNumber(p.get("cash")-p.get("bet")));
-    }
-    public void showPlayerResult(PokerPlayer p){
-        bot.sendMessage(channel, p.getNickStr() + " (" + p.getHand() + ")" + ": "+ p.getPokerHand().getName()+", " + p.getPokerHand() );
-    }
+
+    /**
+     * Displays the results of a round.
+     */
     public void showResults(){
         ArrayList<PokerPlayer> players;
         PokerPlayer p;
         int winners;
         // Show introduction to end results
-        bot.sendMessage(channel, formatHeader(" Results: "));
+        showMsg(formatHeader(" Results: "));
         players = pots.get(0).getPlayers();
         Collections.sort(players);
         Collections.reverse(players);
         // Show each remaining player's hand
-        if (pots.get(0).getNumberPlayers() > 1){
+        if (pots.get(0).getNumPlayers() > 1){
             for (int ctr = 0; ctr < players.size(); ctr++){
                 p = players.get(ctr);
-                showPlayerResult(p);
+                showMsg(getMsg("tp_player_result"), p.getNickStr(), p.getHand(), p.getPokerHand().getName(), p.getPokerHand());
             }
         }
         // Find the winner(s) from each pot
@@ -1434,7 +1492,7 @@ public class TexasPoker extends CardGame{
             Collections.sort(players);
             Collections.reverse(players);
             // Determine number of winners
-            for (int ctr2=1; ctr2 < currentPot.getNumberPlayers(); ctr2++){
+            for (int ctr2=1; ctr2 < currentPot.getNumPlayers(); ctr2++){
                 if (players.get(0).compareTo(players.get(ctr2)) == 0){
                     winners++;
                 }
@@ -1446,7 +1504,7 @@ public class TexasPoker extends CardGame{
                 p.add("cash", currentPot.getPot()/winners);
                 p.add("tpwinnings", currentPot.getPot()/winners);
                 p.add("change", currentPot.getPot()/winners);
-                bot.sendMessage(channel, Colors.YELLOW+",01 Pot #" + (ctr+1) + ": " + Colors.NORMAL + " " + 
+                showMsg(Colors.YELLOW+",01 Pot #" + (ctr+1) + ": " + Colors.NORMAL + " " + 
                     p.getNickStr() + " wins $" + formatNumber(currentPot.getPot()/winners) + 
                     ". Stack: $" + formatNumber(p.get("cash"))+ " (" + getPlayerListString(currentPot.getPlayers()) + ")");
             }
@@ -1454,64 +1512,297 @@ public class TexasPoker extends CardGame{
             // Check if it's the biggest pot
             if (house.get("biggestpot") < currentPot.getPot()){
                 house.set("biggestpot", currentPot.getPot());
-                house.clearPlayerList();
-                house.clearWinnerList();
-                for (int ctr2 = 0; ctr2 < currentPot.getNumberPlayers(); ctr2++){
-                    house.addPlayer(currentPot.getPlayer(ctr2).getNick());
+                house.clearDonors();
+                house.clearWinners();
+                // Store the list of donors
+                for (int ctr2 = 0; ctr2 < currentPot.getNumDonors(); ctr2++){
+                    house.addDonor(new PokerPlayer(currentPot.getDonor(ctr2).getNick(), ""));
                 }
+                // Store the list of winners
                 for (int ctr2 = 0; ctr2 < winners; ctr2++){
-                    house.addWinner(currentPot.getPlayer(ctr2).getNick());
+                    house.addWinner(new PokerPlayer(currentPot.getPlayer(ctr2).getNick(), ""));
                 }
                 saveHouseStats();
             }
         }
     }
-    public void showShuffleDeck() {
-        bot.sendMessage(channel, "The deck has been shuffled.");
-    }
     
-    /* Private messages to players */
-    /**
-     * Informs a player of his hand.
-     * The information is sent by notice if simple is true and by message if
-     * simple is false.
-     * 
-     * @param p the player
-     * @param h the hand
-     */
-    public void infoPlayerHand(PokerPlayer p, Hand h) {
-        if (p.isSimple()) {
-            bot.sendNotice(p.getNick(), "Your hand is " + h + ".");
+    @Override
+    public void showPlayerWinnings(String nick){
+        int winnings = getPlayerStat(nick, "tpwinnings");
+        if (winnings != Integer.MIN_VALUE) {
+            showMsg(getMsg("player_winnings"), formatNoPing(nick), winnings, getGameNameStr());
         } else {
-            bot.sendMessage(p.getNick(), "Your hand is " + h + ".");
+            showMsg(getMsg("no_data"), formatNoPing(nick));
         }
     }
+    
     @Override
-    public void infoBetTooLow(String nick){
-        bot.sendNotice(nick, "Bet too low. Current bet is $" + formatNumber(currentBet)+".");
+    public void showPlayerWinRate(String nick){
+        double winnings = (double) getPlayerStat(nick, "tpwinnings");
+        double rounds = (double) getPlayerStat(nick, "tprounds");
+        
+        if (rounds != Integer.MIN_VALUE) {
+            if (rounds == 0){
+                showMsg(getMsg("player_no_rounds"), formatNoPing(nick), getGameNameStr());
+            } else {
+                showMsg(getMsg("player_winrate"), formatNoPing(nick), winnings/rounds, getGameNameStr());
+            }    
+        } else {
+            showMsg(getMsg("no_data"), formatNoPing(nick));
+        }
     }
-    public void infoRaiseTooLow(String nick){
-        bot.sendNotice(nick, "Minimum raise is $" + formatNumber(minRaise) + ". Try again.");
+    
+    @Override
+    public void showPlayerRounds(String nick){
+        int rounds = getPlayerStat(nick, "tprounds");
+        if (rounds != Integer.MIN_VALUE) {
+            if (rounds == 0){
+                showMsg(getMsg("player_no_rounds"), formatNoPing(nick), getGameNameStr());
+            } else {
+                showMsg(getMsg("player_rounds"), formatNoPing(nick), rounds, getGameNameStr());
+            }  
+        } else {
+            showMsg(getMsg("no_data"), formatNoPing(nick));
+        }
     }
-    public void infoNoChecking(String nick){
-        bot.sendNotice(nick, "Current bet is $" + formatNumber(currentBet) + ". You must call or raise.");
+    
+    /**
+     * Outputs all of a player's data relevant to this game.
+     * Sends a message to a player the list of statistics separated by '|'
+     * character.
+     * 
+     * @param nick the player's nick
+     */
+    @Override
+    public void showPlayerAllStats(String nick){
+        int cash = getPlayerStat(nick, "cash");
+        int bank = getPlayerStat(nick, "bank");
+        int net = getPlayerStat(nick, "netcash");
+        int bankrupts = getPlayerStat(nick, "bankrupts");
+        int winnings = getPlayerStat(nick, "tpwinnings");
+        int rounds = getPlayerStat(nick, "tprounds");
+        if (cash != Integer.MIN_VALUE) {
+            showMsg(getMsg("player_all_stats"), formatNoPing(nick), cash, bank, net, bankrupts, winnings, rounds);
+        } else {
+            showMsg(getMsg("no_data"), formatNoPing(nick));
+        }
     }
-    public void infoNoCommunity(String nick){
-        bot.sendNotice(nick, "No community cards have been dealt yet.");
+    
+    /**
+     * Outputs a player's rank given a nick and stat name.
+     * 
+     * @param nick player's nick
+     * @param stat the stat name
+     */
+    @Override
+    public void showPlayerRank(String nick, String stat){
+        if (getPlayerStat(nick, "exists") != 1){
+            showMsg(getMsg("no_data"), formatNoPing(nick));
+            return;
+        }
+        
+        int highIndex, rank = 0;
+        try {
+            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
+            loadPlayerFile(statList);
+            ArrayList<String> nicks = new ArrayList<String>();
+            ArrayList<Double> test = new ArrayList<Double>();
+            int length = statList.size();
+            String line = Colors.BLACK + ",08";
+            
+            for (int ctr = 0; ctr < statList.size(); ctr++) {
+                nicks.add(statList.get(ctr).getNick());
+            }
+            
+            if (stat.equals("cash")) {
+                for (int ctr = 0; ctr < statList.size(); ctr++) {
+                    test.add((double) statList.get(ctr).get(stat));
+                }
+                line += "Cash: ";
+            } else if (stat.equals("bank")) {
+                for (int ctr = 0; ctr < statList.size(); ctr++) {
+                    test.add((double) statList.get(ctr).get(stat));
+                }
+                line += "Bank: ";
+            } else if (stat.equals("bankrupts")) {
+                for (int ctr = 0; ctr < statList.size(); ctr++) {
+                    test.add((double) statList.get(ctr).get(stat));
+                }
+                line += "Bankrupts: ";
+            } else if (stat.equals("net") || stat.equals("netcash")) {
+                for (int ctr = 0; ctr < nicks.size(); ctr++) {
+                    test.add((double) statList.get(ctr).get("netcash"));
+                }
+                line += "Net Cash: ";
+            } else if (stat.equals("winnings")){
+                for (int ctr = 0; ctr < statList.size(); ctr++) {
+                    test.add((double) statList.get(ctr).get("tpwinnings"));
+                }
+                line += "Texas Hold'em Winnings: ";
+            } else if (stat.equals("rounds")) {
+                for (int ctr = 0; ctr < statList.size(); ctr++) {
+                    test.add((double) statList.get(ctr).get("tprounds"));
+                }
+                line += "Texas Hold'em Rounds: ";
+            } else if (stat.equals("winrate")) {
+                for (int ctr = 0; ctr < statList.size(); ctr++) {
+                    if (statList.get(ctr).get("tprounds") == 0){
+                        test.add(0.);
+                    } else {
+                        test.add((double) statList.get(ctr).get("tpwinnings") / (double) statList.get(ctr).get("tprounds"));
+                    }
+                }
+                line += "Texas Hold'em Win Rate: ";
+            } else {
+                throw new IllegalArgumentException();
+            }
+            
+            // Find the player with the highest value, add to output string and remove.
+            // Repeat n times or for the length of the list.
+            for (int ctr = 1; ctr <= length; ctr++){
+                highIndex = 0;
+                rank++;
+                for (int ctr2 = 0; ctr2 < nicks.size(); ctr2++) {
+                    if (test.get(ctr2) > test.get(highIndex)) {
+                        highIndex = ctr2;
+                    }
+                }
+                if (nick.equalsIgnoreCase(nicks.get(highIndex))){
+                    if (stat.equals("rounds") || stat.equals("bankrupts")) {
+                        line += "#" + rank + " " + Colors.WHITE + ",04 " + formatNoPing(nick) + " " + formatNoDecimal(test.get(highIndex)) + " ";
+                    } else if (stat.equals("winrate")) {
+                        line += "#" + rank + " " + Colors.WHITE + ",04 " + formatNoPing(nick) + " $" + formatDecimal(test.get(highIndex)) + " ";
+                    } else {
+                        line += "#" + rank + " " + Colors.WHITE + ",04 " + formatNoPing(nick) + " $" + formatNoDecimal(test.get(highIndex)) + " ";
+                    }
+                    break;
+                } else {
+                    nicks.remove(highIndex);
+                    test.remove(highIndex);
+                }
+            }
+            showMsg(line);
+        } catch (IOException e) {
+            bot.log("Error reading players.txt!");
+        }
     }
+    
+    /**
+     * Outputs the top N players for a given statistic.
+     * Sends a message to channel with the list of players sorted by ranking.
+     * 
+     * @param stat the statistic used for ranking
+     * @param n the length of the list up to n players
+     */
+    @Override
+    public void showTopPlayers(String stat, int n) {
+        if (n < 1){
+            throw new IllegalArgumentException();
+        }
+        
+        int highIndex;
+        try {
+            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
+            loadPlayerFile(statList);
+            ArrayList<String> nicks = new ArrayList<String>();
+            ArrayList<Double> test = new ArrayList<Double>();
+            int length = Math.min(n, statList.size());
+            String title = Colors.BOLD + Colors.BLACK + ",08 Top " + length;
+            String list = Colors.BLACK + ",08";
+            
+            for (int ctr = 0; ctr < statList.size(); ctr++) {
+                nicks.add(statList.get(ctr).getNick());
+            }
+            
+            if (stat.equals("cash")) {
+                for (int ctr = 0; ctr < statList.size(); ctr++) {
+                    test.add((double) statList.get(ctr).get(stat));
+                }
+                title += " Cash ";
+            } else if (stat.equals("bank")) {
+                for (int ctr = 0; ctr < statList.size(); ctr++) {
+                    test.add((double) statList.get(ctr).get(stat));
+                }
+                title += " Bank ";
+            } else if (stat.equals("bankrupts")) {
+                for (int ctr = 0; ctr < statList.size(); ctr++) {
+                    test.add((double) statList.get(ctr).get(stat));
+                }
+                title += " Bankrupts ";
+            } else if (stat.equals("net") || stat.equals("netcash")) {
+                for (int ctr = 0; ctr < nicks.size(); ctr++) {
+                    test.add((double) statList.get(ctr).get("netcash"));
+                }
+                title += " Net Cash ";
+            } else if (stat.equals("winnings")){
+                for (int ctr = 0; ctr < statList.size(); ctr++) {
+                    test.add((double) statList.get(ctr).get("tpwinnings"));
+                }
+                title += " Texas Hold'em Winnings ";
+            } else if (stat.equals("rounds")) {
+                for (int ctr = 0; ctr < statList.size(); ctr++) {
+                    test.add((double) statList.get(ctr).get("tprounds"));
+                }
+                title += " Texas Hold'em Rounds ";
+            } else if (stat.equals("winrate")) {
+                for (int ctr = 0; ctr < statList.size(); ctr++) {
+                    if (statList.get(ctr).get("tprounds") == 0){
+                        test.add(0.);
+                    } else {
+                        test.add((double) statList.get(ctr).get("tpwinnings") / (double) statList.get(ctr).get("tprounds"));
+                    }
+                }
+                title += " Texas Hold'em Win Rate ";
+            } else {
+                throw new IllegalArgumentException();
+            }
 
+            showMsg(title);
+            
+            // Find the player with the highest value, add to output string and remove.
+            // Repeat n times or for the length of the list.
+            for (int ctr = 1; ctr <= length; ctr++){
+                highIndex = 0;
+                for (int ctr2 = 0; ctr2 < nicks.size(); ctr2++) {
+                    if (test.get(ctr2) > test.get(highIndex)) {
+                        highIndex = ctr2;
+                    }
+                }
+                if (stat.equals("rounds") || stat.equals("bankrupts")) {
+                    list += " #" + ctr + ": " + Colors.WHITE + ",04 " + formatNoPing(nicks.get(highIndex)) + " " + formatNoDecimal(test.get(highIndex)) + " " + Colors.BLACK + ",08";
+                } else if (stat.equals("winrate")) {
+                    list += " #" + ctr + ": " + Colors.WHITE + ",04 " + formatNoPing(nicks.get(highIndex)) + " $" + formatDecimal(test.get(highIndex)) + " " + Colors.BLACK + ",08";
+                } else {
+                    list += " #" + ctr + ": " + Colors.WHITE + ",04 " + formatNoPing(nicks.get(highIndex)) + " $" + formatNoDecimal(test.get(highIndex)) + " " + Colors.BLACK + ",08";
+                }
+                nicks.remove(highIndex);
+                test.remove(highIndex);
+                if (nicks.isEmpty() || ctr == length) {
+                    break;
+                }
+                // Output and reset after 10 players
+                if (ctr % 10 == 0){
+                    showMsg(list);
+                    list = Colors.BLACK + ",08";
+                }
+            }
+            showMsg(list);
+        } catch (IOException e) {
+            bot.log("Error reading players.txt!");
+        }
+    }
+    
+    /* Formatted strings */
+    @Override
+    public String getGameNameStr(){
+        return formatBold(getMsg("tp_game_name"));
+    }
+    
     @Override
     public String getGameRulesStr() {
         return "This is no limit Texas Hold'em Poker. Blind bets are set at $" + 
-            formatNumber(getSetting("minbet")/2) + "/$" + formatNumber(getSetting("minbet")) + 
+            formatNumber(get("minbet")/2) + "/$" + formatNumber(get("minbet")) + 
             " or your stack, whichever is lower.";
-    }
-    @Override
-    public String getGameCommandStr() {
-        return "go, join, quit, bet, check, call, raise, fold, community, turn, " +
-           "hand, cash, netcash, bank, transfer, deposit, withdraw, " + 
-           "bankrupts, winnings, winrate, rounds, player, players, " +
-           "waitlist, blacklist, rank, top, simple, stats, game, ghelp, " +
-           "grules, gcommands";
     }
 }

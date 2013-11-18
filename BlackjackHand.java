@@ -92,7 +92,7 @@ public class BlackjackHand extends Hand implements Comparable<BlackjackHand>{
      * 
      * @return true if the hand is bust
      */
-    public boolean isBusted() {
+    public boolean isBust() {
         return calcSum() > 21;
     }
     

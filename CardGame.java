@@ -33,6 +33,10 @@ import org.pircbotx.hooks.events.NickChangeEvent;
 import org.pircbotx.hooks.events.PartEvent;
 import org.pircbotx.hooks.events.QuitEvent;
 
+/**
+ * Superclass for card games written for irccasino.
+ * @author Yizhe Shen
+ */
 public abstract class CardGame extends ListenerAdapter<PircBotX> {
     /* Start round task to be performed after post-start waiting period */
     public static class StartRoundTask extends TimerTask{
@@ -57,27 +61,23 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
 
         @Override
         public void run() {
-            if (game.isInProgress() && player == game.getCurrentPlayer()) {
-                game.bot.sendMessage(game.channel, player.getNickStr()
-                                + " has wasted precious time and idled out.");
-                game.leave(player);
-            }
+            game.showMsg(game.getMsg("idle_out"), player.getNickStr());
+            game.leave(player);
         }
     }
     /* Idle warning task for reminding players they are about to idle out */
     public static class IdleWarningTask extends TimerTask {
         private Player player;
-            private CardGame game;
-            public IdleWarningTask(Player p, CardGame g) {
-                player = p;
-                game = g;
-            }
+        private CardGame game;
+        public IdleWarningTask(Player p, CardGame g) {
+            player = p;
+            game = g;
+        }
         
         @Override
         public void run(){
-            if (game.isInProgress() && player == game.getCurrentPlayer()) {
-                game.infoPlayerIdleWarning(player);
-            }
+            game.informPlayer(player.getNick(), game.getMsg("idle_warning"),
+                    player.getNickStr(), game.get("idle") - game.get("idlewarning"));
         }
     }
     /* Respawn task for giving loans after bankruptcies */
@@ -91,10 +91,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         @Override
         public void run() {
             ArrayList<RespawnTask> tasks = game.getRespawnTasks();
-            player.set("cash", game.getSetting("cash"));
-            player.add("bank", -game.getSetting("cash"));
-            game.bot.sendMessage(game.channel, player.getNickStr() + " has been loaned $"
-                                + formatNumber(game.getSetting("cash")) + ". Please bet responsibly.");
+            player.set("cash", game.get("cash"));
+            player.add("bank", -game.get("cash"));
+            game.showMsg(game.getMsg("respawn"), player.getNickStr(), game.get("cash"));
             game.savePlayerData(player);
             game.removeBlacklisted(player);
             tasks.remove(this);
@@ -107,12 +106,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected ArrayList<Player> joined, blacklist, waitlist; //Player lists
     protected CardDeck deck; //the deck of cards
     protected Player currentPlayer; //stores the player whose turn it is
-    protected boolean inProgress, betting;
     protected Timer gameTimer; //All TimerTasks are scheduled on this Timer
     protected HashMap<String,Integer> settingsMap;
-    private boolean endRound;
-    private String gameName, iniFile, helpFile;
-    private int startCount;
+    protected HashMap<String,String> helpMap, msgMap;
+    private String iniFile, helpFile, strFile;
     private IdleOutTask idleOutTask;
     private IdleWarningTask idleWarningTask;
     private StartRoundTask startRoundTask;
@@ -135,15 +132,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         waitlist = new ArrayList<Player>();
         respawnTasks = new ArrayList<RespawnTask>();
         settingsMap = new HashMap<String,Integer>();
+        helpMap = new HashMap<String,String>();
+        msgMap = new HashMap<String,String>();
         gameTimer = new Timer("Game Timer");
         startRoundTask = null;
         idleOutTask = null;
         idleWarningTask = null;
-        inProgress = false;
-        endRound = false;
-        betting = false;
         currentPlayer = null;
-        startCount = 0;
         checkPlayerFile();
     }
     
@@ -154,8 +149,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         // Parse the message if it is a command
         if (msg.length() > 1 && msg.charAt(0) == commandChar && 
                 msg.charAt(1) != ' ' && event.getChannel().equals(channel)){
-            msg = msg.substring(1);
-            StringTokenizer st = new StringTokenizer(msg);
+            StringTokenizer st = new StringTokenizer(msg.substring(1));
             String command = st.nextToken().toLowerCase();
             String[] params = new String[st.countTokens()];
             for (int ctr = 0; ctr < params.length; ctr++){
@@ -253,77 +247,66 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             } else {
                 showPlayerAllStats(nick);
             }
-        } else if (command.equals("withdraw")){
+        } else if (command.equals("transfer") || command.equals("deposit") || 
+                    command.equals("withdraw")) {
             if (!isJoined(nick)) {
-                infoNotJoined(nick);
-            } else if (isInProgress()) {
-                infoWaitRoundEnd(nick);
+                informPlayer(nick, getMsg("no_join"));
+            } else if (has("inprogress")) {
+                informPlayer(nick, getMsg("wait_round_end"));
             } else {
                 if (params.length > 0){
                     try {
-                        transfer(nick, -Integer.parseInt(params[0]));
+                        if (command.equals("transfer") || command.equals("deposit")) {
+                            transfer(nick, Integer.parseInt(params[0]));
+                        } else {
+                            transfer(nick, -Integer.parseInt(params[0]));
+                        }
                     } catch (NumberFormatException e) {
-                        infoBadParameter(nick);
+                        informPlayer(nick, getMsg("bad_parameter"));
                     }
                 } else {
-                    infoNoParameter(nick);
-                }
-            }
-        } else if (command.equals("transfer") || command.equals("deposit")) {
-            if (!isJoined(nick)) {
-                infoNotJoined(nick);
-            } else if (isInProgress()) {
-                infoWaitRoundEnd(nick);
-            } else {
-                if (params.length > 0){
-                    try {
-                        transfer(nick, Integer.parseInt(params[0]));
-                    } catch (NumberFormatException e) {
-                        infoBadParameter(nick);
-                    }
-                } else {
-                    infoNoParameter(nick);
+                    informPlayer(nick, getMsg("no_parameter"));
                 }
             }
         } else if (command.equals("waitlist")) {
-            showWaitlist();
+            showMsg(getMsg("waitlist"), getPlayerListString(waitlist));
         } else if (command.equals("blacklist")) {
-            showBlacklist();
+            showMsg(getMsg("blacklist"), getPlayerListString(blacklist));
         } else if (command.equals("rank")) {
-            if (isInProgress()) {
-                infoWaitRoundEnd(nick);
+            if (has("inprogress")) {
+                informPlayer(nick, getMsg("wait_round_end"));
             } else {
                 if (params.length > 1){
                     try {
                         showPlayerRank(params[1].toLowerCase(), params[0].toLowerCase());
                     } catch (IllegalArgumentException e) {
-                        infoBadParameter(nick);
+                        informPlayer(nick, getMsg("bad_parameter"));
                     }
                 } else if (params.length == 1){
                     try {
                         showPlayerRank(nick, params[0].toLowerCase());
                     } catch (IllegalArgumentException e) {
-                        infoBadParameter(nick);
+                        informPlayer(nick, getMsg("bad_parameter"));
                     }
                 } else {
                     showPlayerRank(nick, "cash");
                 }
             }
         } else if (command.equals("top")) {
-            if (isInProgress()) {
-                infoWaitRoundEnd(nick);
+            if (has("inprogress")) {
+                informPlayer(nick, getMsg("wait_round_end"));
             } else {
                 if (params.length > 1){
                     try {
                         showTopPlayers(params[1].toLowerCase(), Integer.parseInt(params[0]));
                     } catch (IllegalArgumentException e) {
-                        infoBadParameter(nick);
+                        informPlayer(nick, getMsg("bad_parameter"));
                     }
                 } else if (params.length == 1){
                     try {
                         showTopPlayers("cash", Integer.parseInt(params[0]));
                     } catch (IllegalArgumentException e) {
-                        infoBadParameter(nick);
+                        informPlayer(nick, getMsg("bad_parameter"));
                     }
                 } else {
                     showTopPlayers("cash", 5);
@@ -331,37 +314,63 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             }
         } else if (command.equals("simple")) {
             if (!isJoined(nick)) {
-                infoNotJoined(nick);
+                informPlayer(nick, getMsg("no_join"));
             } else {
                 togglePlayerSimple(nick);
             }
         } else if (command.equals("stats")){
-            if (isInProgress()) {
-                infoWaitRoundEnd(nick);
+            if (has("inprogress")) {
+                informPlayer(nick, getMsg("wait_round_end"));
             } else {
                 showGameStats();
             }
         } else if (command.equals("grules")) {
-            infoGameRules(nick);
+            informPlayer(nick, getGameRulesStr());
         } else if (command.equals("ghelp")) {
             if (params.length == 0){
-                infoGameHelp(nick);
+                informPlayer(nick, getMsg("game_help"), commandChar, commandChar, commandChar);
             } else {
-                infoGameCommandHelp(nick, params[0].toLowerCase());
+                informPlayer(nick, getCommandHelp(params[0].toLowerCase()));
             }
         } else if (command.equals("gcommands")) {
-            infoGameCommands(nick);
+            informPlayer(nick, getGameNameStr() + " commands:");
+            informPlayer(nick, getGameCommandStr());
         } else if (command.equals("game")) {
-            showGameName();
+            showMsg(getMsg("game_name"), getGameNameStr());
         // Op Commands
         } else if (command.equals("fl") || command.equals("fq") || command.equals("fquit") || command.equals("fleave")){
             if (!channel.isOp(user)) {
-                infoOpsOnly(nick);
+                informPlayer(nick, getMsg("ops_only"));
             } else {
                 if (params.length > 0){
                     leave(params[0]);
                 } else {
-                    infoNoParameter(nick);
+                    informPlayer(nick, getMsg("no_parameter"));
+                }
+            }
+        } else if (command.equals("ftransfer") || command.equals("fdeposit") ||
+                command.equals("fwithdraw")) {
+            if (!channel.isOp(user)) {
+                informPlayer(nick, getMsg("ops_only"));
+            } else {
+                if (params.length > 1) {
+                    if (!isJoined(params[0])) {
+                        informPlayer(nick, params[0] + " is not currently joined!");
+                    } else if (has("inprogress")) {
+                        informPlayer(nick, getMsg("wait_round_end"));
+                    } else {
+                        try {
+                            if (command.equals("ftransfer") || command.equals("fdeposit")) {
+                                transfer(params[0], Integer.parseInt(params[1]));
+                            } else {
+                                transfer(params[0], -Integer.parseInt(params[1]));
+                            }
+                        } catch (NumberFormatException e) {
+                            informPlayer(nick, getMsg("bad_parameter"));
+                        }
+                    }
+                } else {
+                    informPlayer(nick, getMsg("no_parameter"));
                 }
             }
         } else if (command.equals("cards") || command.equals("discards")) {
@@ -374,38 +383,38 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                         } else if (command.equals("discards") && deck.getNumberDiscards() > 0) {
                             infoDeckCards(nick, 'd', num);
                         } else {
-                            bot.sendNotice(nick, "Empty!");
+                            informPlayer(nick, "Empty!");
                         }
                     } catch (IllegalArgumentException e) {
-                        infoBadParameter(nick);
+                        informPlayer(nick, getMsg("bad_parameter"));
                     }
                 } else {
-                    infoNoParameter(nick);
+                    informPlayer(nick, getMsg("no_parameter"));
                 }
             }
         } else if (command.equals("set")){
             if (isOpCommandAllowed(user, nick)){
                 if (params.length > 1){
                     try {
-                        setSetting(params[0].toLowerCase(), Integer.parseInt(params[1]));
-                        showUpdateSetting(params[0].toLowerCase());
+                        set(params[0].toLowerCase(), Integer.parseInt(params[1]));
+                        showMsg(getMsg("setting_updated"), params[0].toLowerCase());
                     } catch (IllegalArgumentException e) {
-                        infoBadParameter(nick);
+                        informPlayer(nick, getMsg("bad_parameter"));
                     }
                 } else {
-                    infoNoParameter(nick);
+                    informPlayer(nick, getMsg("no_parameter"));
                 }
             }
         } else if (command.equals("get")) {
             if (isOpCommandAllowed(user, nick)){
                 if (params.length > 0){
                     try {
-                        showSetting(params[0].toLowerCase(), getSetting(params[0].toLowerCase()));
+                        showMsg(getMsg("setting"), params[0].toLowerCase(), get(params[0].toLowerCase()));
                     } catch (IllegalArgumentException e) {
-                        infoBadParameter(nick);
+                        informPlayer(nick, getMsg("bad_parameter"));
                     }
                 } else {
-                    infoNoParameter(nick);
+                    informPlayer(nick, getMsg("no_parameter"));
                 }
             }
         }
@@ -419,7 +428,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     public void processJoin(User user){
         String nick = user.getNick();
         if (loadPlayerStat(nick, "exists") != 1){
-            infoNewNick(nick);
+            informPlayer(nick, getMsg("new_nick"), getGameNameStr(), commandChar);
         }
     }
     
@@ -445,7 +454,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     public void processNickChange(User user, String oldNick, String newNick){
         String hostmask = user.getHostmask();
         if (isJoined(oldNick) || isWaitlisted(oldNick)){
-            infoNickChange(newNick);
+            informPlayer(newNick, getMsg("nick_change"));
             if (isJoined(oldNick)){
                 bot.deVoice(channel, user);
                 leave(oldNick);
@@ -463,38 +472,23 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     public Channel getChannel(){
         return channel;
     }
-    public void setGameName(String name){
-        gameName = name;
-    }
-    public String getGameName(){
-        return gameName;
-    }
     public void setIniFile(String file){
         iniFile = file;
     }
     public String getIniFile(){
         return iniFile;
     }
-    public void setHelpFile(String file){
+    public void setHelpFile(String file) {
         helpFile = file;
     }
     public String getHelpFile(){
         return helpFile;
     }
-    public void setEndRound(boolean value){
-        endRound = value;
+    public void setStrFile(String file) {
+        strFile = file;
     }
-    public boolean isEndRound(){
-        return endRound;
-    }
-    public void setStartCount(int value){
-        startCount = value;
-    }
-    public void decStartCount(){
-        startCount--;
-    }
-    public int getStartCount(){
-        return startCount;
+    public String getStrFile(){
+        return strFile;
     }
     
     /* 
@@ -507,57 +501,109 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     abstract public void endGame();
     abstract public void resetGame();
     abstract public void leave(String nick);
-    abstract protected void saveSettings();
-    abstract protected void initSettings();
-    protected void setSetting(String setting, int value) throws IllegalArgumentException {
+    abstract protected void saveIniFile();
+    protected void initialize() {
+        // In-game properties
+        settingsMap.put("inprogress", 0);
+        settingsMap.put("endround", 0);
+        settingsMap.put("startcount", 0);
+    }
+    protected void set(String setting, int value) throws IllegalArgumentException {
         if (settingsMap.containsKey(setting)) {
             settingsMap.put(setting, value);
         } else {
             throw new IllegalArgumentException();
         }
-        saveSettings();
+        saveIniFile();
     }
-    protected int getSetting(String setting) throws IllegalArgumentException {
+    protected int get(String setting) throws IllegalArgumentException {
         if (settingsMap.containsKey(setting)){
             return settingsMap.get(setting);
         } else {
             throw new IllegalArgumentException();
         }
     }
-    protected void loadSettings() {
+    public boolean has(String setting) throws IllegalArgumentException {
+        if (settingsMap.containsKey(setting)){
+            return get(setting) > 0;
+        } else {
+            throw new IllegalArgumentException();
+        }
+    }
+    public void increment(String setting) throws IllegalArgumentException {
+        if (settingsMap.containsKey(setting)){
+            set(setting, get(setting) + 1);
+        } else {
+            throw new IllegalArgumentException();
+        }
+    }
+    public void decrement(String setting) throws IllegalArgumentException {
+        if (settingsMap.containsKey(setting)){
+            set(setting, get(setting) - 1);
+        } else {
+            throw new IllegalArgumentException();
+        }
+    }
+    
+    /**
+     * Loads the settings from the game's INI file.
+     */
+    protected void loadIni() {
         try {
             BufferedReader in = new BufferedReader(new FileReader(getIniFile()));
-            String str, name;
-            int value;
+            String str;
             StringTokenizer st;
             while (in.ready()) {
                 str = in.readLine();
-                if (str.startsWith("#")) {
-                    continue;
+                if (!str.startsWith("#")) {
+                    st = new StringTokenizer(str, "=");
+                    set(st.nextToken(), Integer.parseInt(st.nextToken()));
                 }
-                st = new StringTokenizer(str, "=");
-                name = st.nextToken();
-                value = Integer.parseInt(st.nextToken());
-                setSetting(name, value);
             }
             in.close();
         } catch (IOException e) {
-            /* load defaults if texaspoker.ini is not found */
-            bot.log(getIniFile()+" not found! Creating new "+getIniFile()+"...");
-            initSettings();
-            saveSettings();
+            /* load defaults if INI file is not found */
+            bot.log(getIniFile()+" not found! Creating new " + getIniFile() + "...");
+            initialize();
+            saveIniFile();
         }
     }
+    
+    /**
+     * Loads String-to-String mapping data from a file.
+     * @param stringMap a String-to-String HashMap
+     * @param file path to file to load
+     */
+    protected void loadLib(HashMap<String,String> stringMap, String file) {
+        try {
+            BufferedReader in = new BufferedReader(new FileReader(file));
+            StringTokenizer st;
+            String str;
+            while (in.ready()){
+                // Replace all unicode
+                str = in.readLine().replaceAll("u0002", Colors.BOLD);
+                // Skips all lines that begin with #
+                if (!str.startsWith("#")) {
+                    st = new StringTokenizer(str, "=");
+                    stringMap.put(st.nextToken(), st.nextToken());
+                }
+            }
+            in.close();
+        } catch (IOException e) {
+            bot.log("Error reading from " + file + "!");
+        }
+    }
+    
     public void join(String nick, String hostmask) {
-        if (getNumberJoined() == getSetting("maxplayers")){
-            infoMaxPlayers(nick);
+        if (joined.size() == get("maxplayers")){
+            informPlayer(nick, getMsg("max_players"));
         } else if (isJoined(nick)) {
-            infoAlreadyJoined(nick);
+            informPlayer(nick, getMsg("already_joined"));
         } else if (isBlacklisted(nick)) {
-            infoBlacklisted(nick);
-        } else if (isInProgress()) {
+            informPlayer(nick, getMsg("blacklisted"));
+        } else if (has("inprogress")) {
             if (isWaitlisted(nick)) {
-                infoAlreadyWaitlisted(nick);
+                informPlayer(nick, getMsg("already_waitlisted"));
             } else {
                 addWaitlistPlayer(nick, hostmask);
             }
@@ -570,28 +616,16 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     public void mergeWaitlist(){
         for (int ctr = 0; ctr < waitlist.size(); ctr++){
-            addPlayer(getWaitlisted(ctr));
+            addPlayer(waitlist.get(ctr));
         }
         waitlist.clear();
-    }
-    public void setInProgress(boolean b){
-        inProgress = b;
-    }
-    public boolean isInProgress(){
-        return inProgress;
-    }
-    public void setBetting(boolean b){
-        betting = b;
-    }
-    public boolean isBetting(){
-        return betting;
     }
     public void setRespawnTask(Player p) {
         // Calculate extra time penalty for players with debt
         int penalty = Math.max(-1 * p.get("bank") / 1000 * 60, 0);
-        infoPlayerBankrupt(p.getNick(), penalty);
+        informPlayer(p.getNick(), getMsg("bankrupt_info"), (get("respawn") + penalty)/60.);
         RespawnTask task = new RespawnTask(p, this);
-        gameTimer.schedule(task, (getSetting("respawn")+penalty)*1000);
+        gameTimer.schedule(task, (get("respawn")+penalty)*1000);
         respawnTasks.add(task);
     }
     public void cancelRespawnTasks() {
@@ -602,10 +636,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         respawnTasks.clear();
         gameTimer.purge();
         // Fast-track loans
-        for (int ctr = 0; ctr < getNumberBlacklisted(); ctr++){
-            p = getBlacklisted(ctr);
-            p.set("cash", getSetting("cash"));
-            p.add("bank", -getSetting("cash"));
+        for (int ctr = 0; ctr < blacklist.size(); ctr++){
+            p = blacklist.get(ctr);
+            p.set("cash", get("cash"));
+            p.add("bank", -get("cash"));
             savePlayerData(p);
         }
     }
@@ -623,12 +657,12 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         }
     }
     public void setIdleOutTask() {
-        if (getSetting("idlewarning") < getSetting("idle")) {
+        if (get("idlewarning") < get("idle")) {
             idleWarningTask = new IdleWarningTask(currentPlayer, this);
-            gameTimer.schedule(idleWarningTask, getSetting("idlewarning")*1000);
+            gameTimer.schedule(idleWarningTask, get("idlewarning")*1000);
         }
         idleOutTask = new IdleOutTask(currentPlayer, this);
-        gameTimer.schedule(idleOutTask, getSetting("idle")*1000);
+        gameTimer.schedule(idleOutTask, get("idle")*1000);
     }
     public void cancelIdleOutTask() {
         if (idleOutTask != null){
@@ -639,9 +673,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     public boolean isOpCommandAllowed(User user, String nick){
         if (!channel.isOp(user)) {
-            infoOpsOnly(nick);
-        } else if (isInProgress()) {
-            infoWaitRoundEnd(nick);
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (has("inprogress")) {
+            informPlayer(nick, getMsg("wait_round_end"));
         } else {
             return true;
         }
@@ -662,7 +696,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         if (user != null){
             bot.voice(channel, user);
         }
-        showJoin(p);
+        showMsg(getMsg("join"), p.getNickStr(), joined.size());
     }
     public boolean isJoined(String nick){
         return (findJoined(nick) != null);
@@ -693,7 +727,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         if (user != null){
             bot.deVoice(channel, user);
         }
-        showLeave(p);
+        if (!p.has("cash")) {
+            showMsg(getMsg("unjoin_bankrupt"), p.getNickStr(), joined.size());
+        } else {
+            showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
+        }
     }
     public void removeWaitlisted(String nick){
         Player p = findWaitlisted(nick);
@@ -710,9 +748,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         blacklist.remove(p);
     }
     public User findUser(String nick){
-        Set<User> users = bot.getUsers(channel);
         User user;
-        Iterator<User> it = users.iterator();
+        Iterator<User> it = bot.getUsers(channel).iterator();
         while(it.hasNext()){
             user = it.next();
             if (user.getNick().equalsIgnoreCase(nick)){
@@ -722,8 +759,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         return null;
     }
     public Player findJoined(String nick){
-        for (int ctr=0; ctr< getNumberJoined(); ctr++){
-            Player p = getJoined(ctr);
+        for (int ctr=0; ctr< joined.size(); ctr++){
+            Player p = joined.get(ctr);
             if (p.getNick().equalsIgnoreCase(nick)){
                 return p;
             }  
@@ -731,8 +768,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         return null;
     }
     public Player findWaitlisted(String nick){
-        for (int ctr=0; ctr< getNumberWaitlisted(); ctr++){
-            Player p = getWaitlisted(ctr);
+        for (int ctr=0; ctr< waitlist.size(); ctr++){
+            Player p = waitlist.get(ctr);
             if (p.getNick().equalsIgnoreCase(nick)){
                 return p;
             }  
@@ -740,46 +777,29 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         return null;
     }
     public Player findBlacklisted(String nick){
-        for (int ctr=0; ctr< getNumberBlacklisted(); ctr++){
-            Player p = getBlacklisted(ctr);
+        for (int ctr=0; ctr< blacklist.size(); ctr++){
+            Player p = blacklist.get(ctr);
             if (p.getNick().equalsIgnoreCase(nick)){
                 return p;
             }  
         }
         return null;
     }
-    public Player getJoined(int num){
-        return joined.get(num);
-    }
-    public Player getWaitlisted(int num){
-        return waitlist.get(num);
-    }
-    public Player getBlacklisted(int num){
-        return blacklist.get(num);
-    }
-    public int getNumberJoined(){
-        return joined.size();
-    }
-    public int getNumberWaitlisted(){
-        return waitlist.size();
-    }
-    public int getNumberBlacklisted(){
-        return blacklist.size();
-    }
-    public Player getCurrentPlayer(){
-        return currentPlayer;
-    }
-    public int getJoinedIndex(Player p){
-        return joined.indexOf(p);
-    }
+    
+    /**
+     * Returns the player that comes next after currentPlayer.
+     * Returns null if currentPlayer is the last player.
+     * @return the next player or null
+     */
     public Player getNextPlayer(){
         int index = joined.indexOf(currentPlayer);
-        if (index + 1 < getNumberJoined()){
-            return joined.get(index+1);
+        if (index + 1 < joined.size()){
+            return joined.get(index + 1);
         } else {
             return null;
         }
     }
+    
     /**
      * Toggles a player's "simple" status.
      * Players with "simple" set to true will have game information sent via
@@ -797,6 +817,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             bot.sendMessage(nick, "Game info will now be messaged to you.");
         }
     }
+    
     /**
      * Transfers the specified amount from a player's stack to his bankroll.
      * A negative amount indicates a withdrawal. A positive amount indicates
@@ -809,35 +830,51 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         Player p = findJoined(nick);
         // Ignore a transfer of $0
         if (amount == 0){
-            infoNoTransaction(nick);
+            informPlayer(nick, getMsg("no_transaction"));
         // Disallow withdrawals for bankrolls with insufficient funds
         } else if (amount < 0 && p.get("bank") < -amount){
-            infoNoWithdrawal(nick);
+            informPlayer(nick, getMsg("no_withdrawal"));
+        // Disallow deposits of amounts larger than cash
         } else if (amount > 0 && amount > p.get("cash")){
-            infoNoDepositCash(nick);
+            informPlayer(nick, getMsg("no_deposit_cash"));
         // Disallow deposits that leave the player with $0 cash
         } else if (amount > 0 && amount == p.get("cash")){
-            infoNoDepositBankrupt(nick);
+            informPlayer(nick, getMsg("no_deposit_bankrupt"));
         } else {
             p.bankTransfer(amount);
             savePlayerData(p);
             if (amount > 0){
-                showPlayerDeposit(p, amount);
+                showMsg(getMsg("deposit"), p.getNickStr(), amount, p.get("cash"), p.get("bank"));
             } else {
-                showPlayerWithdraw(p, -amount);
+                showMsg(getMsg("withdraw"), p.getNickStr(), -amount, p.get("cash"), p.get("bank"));
             }
         }
     }
+    
     /**
      * Devoices all players joined in a game and saves their data.
      * This method only needs to be called when a game is shutdown.
      */
     public void devoiceAll(){
         Player p;
-        for (int ctr=0; ctr<getNumberJoined(); ctr++){
-            p = getJoined(ctr);
+        String modeSet = "";
+        String nickStr = "";
+        int count = 0;
+        for (int ctr = 0; ctr < joined.size(); ctr++){
+            p = joined.get(ctr);
             savePlayerData(p);
-            bot.deVoice(channel, findUser(p.getNick()));
+            modeSet += "v";
+            nickStr += " " + p.getNick();
+            count++;
+            if (count % 4 == 0) {
+                bot.sendRawLine ("MODE " + channel.getName() + " -" + modeSet + nickStr);
+                nickStr = "";
+                modeSet = "";
+                count = 0;
+            }
+        }
+        if (count > 0) {
+            bot.sendRawLine ("MODE " + channel.getName() + " -" + modeSet + nickStr);
         }
     }
     
@@ -852,31 +889,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * 
      * @return the total counted from players.txt
      */
-    public int getTotalPlayers(){
-        try {
-            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
-            loadPlayerFile(statList);
-            int total = 0, numLines = statList.size();
-            
-            if (gameName.equals("Blackjack")){
-                for (int ctr = 0; ctr < numLines; ctr++){
-                    if (statList.get(ctr).get("bjrounds") > 0){
-                        total++;
-                    }
-                }
-            } else if (gameName.equals("Texas Hold'em Poker")){
-                for (int ctr = 0; ctr < numLines; ctr++){
-                    if (statList.get(ctr).get("tprounds") > 0){
-                        total++;
-                    }
-                }
-            }
-            return total;
-        } catch (IOException e){
-            bot.log("Error reading players.txt!");
-            return 0;
-        }
-    }
+    abstract public int getTotalPlayers();
     
     /**
      * Returns the specified statistic for a nick.
@@ -944,7 +957,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 statLine = statList.get(ctr);
                 if (p.getNick().equalsIgnoreCase(statLine.getNick())) {
                     if (statLine.get("cash") <= 0) {
-                        p.set("cash", getSetting("cash"));
+                        p.set("cash", get("cash"));
                     } else {
                         p.set("cash", statLine.get("cash"));
                     }
@@ -960,8 +973,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 }
             }
             if (!found) {
-                p.set("cash", getSetting("cash"));
-                infoNewPlayer(p.getNick());
+                p.set("cash", get("cash"));
+                informPlayer(p.getNick(), getMsg("new_player"), getGameNameStr(), get("cash"));
             }
         } catch (IOException e) {
             bot.log("Error reading players.txt!");
@@ -1001,10 +1014,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             }
             if (!found) {
                 statLine = new StatFileLine(p.getNick(), p.get("cash"),
-                p.get("bank"), p.get("bankrupts"),
-                p.get("bjwinnings"), p.get("bjrounds"),
-                p.get("tpwinnings"), p.get("tprounds"),
-                p.get("simple"));
+                                        p.get("bank"), p.get("bankrupts"),
+                                        p.get("bjwinnings"), p.get("bjrounds"),
+                                        p.get("tpwinnings"), p.get("tprounds"),
+                                        p.get("simple"));
                 statList.add(statLine);
             }
         } catch (IOException e) {
@@ -1018,6 +1031,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         }
     }
     
+    /**
+     * Checks if players.txt exists and creates it if it doesn't exist.
+     */
     protected final void checkPlayerFile(){
         try {
             BufferedReader out = new BufferedReader(new FileReader("players.txt"));
@@ -1084,9 +1100,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     /**
      * Takes a card from the deck and adds it to the discard pile.
      */
-    public void burnCard(){
+    public void burnCard() {
         deck.addToDiscard(deck.takeCard());
     }
+    
     /**
      * Takes a card from the deck and adds it to the specified hand.
      * @param h
@@ -1101,539 +1118,109 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * messages to the main channel.
      */
     abstract public void showGameStats();
-    public void showReloadSettings() {
-        bot.sendMessage(channel, iniFile+" has been reloaded.");
-    }
+    abstract public void showPlayerAllStats(String nick);
+    abstract public void showPlayerRank(String nick, String stat);
+    abstract public void showTopPlayers(String stat, int n);
+    abstract public void showPlayerWinnings(String nick);
+    abstract public void showPlayerWinRate(String nick);
+    abstract public void showPlayerRounds(String nick); 
+    
     /**
-     * Outputs all of a player's data relevant to this game.
-     * Sends a message to a player the list of statistics separated by '|'
-     * character.
-     * 
-     * @param nick the player's nick
+     * Sends a message to the game channel.
+     * @param msg the message to send
+     * @param args the parameters for the message
      */
-    public void showPlayerAllStats(String nick){
-        int cash = getPlayerStat(nick, "cash");
-        int bank = getPlayerStat(nick, "bank");
-        int net = getPlayerStat(nick, "netcash");
-        int bankrupts = getPlayerStat(nick, "bankrupts");
-        int winnings = 0;
-        int rounds = 0;
-        if (gameName.equals("Blackjack")){
-            winnings = getPlayerStat(nick, "bjwinnings");
-            rounds = getPlayerStat(nick, "bjrounds");
-        } else if (gameName.equals("Texas Hold'em Poker")){
-            winnings = getPlayerStat(nick, "tpwinnings");
-            rounds = getPlayerStat(nick, "tprounds");
-        }
-        if (cash != Integer.MIN_VALUE) {
-            bot.sendMessage(channel, nick+" | Cash: $"+formatNumber(cash)+" | Bank: $"+
-                    formatNumber(bank)+" | Net: $"+formatNumber(net)+" | Bankrupts: "+
-                    formatNumber(bankrupts)+" | Winnings: $"+formatNumber(winnings)+
-                    " | Rounds: "+formatNumber(rounds));
-        } else {
-            bot.sendMessage(channel, "No data found for " + nick + ".");
-        }
+    public void showMsg(String msg, Object... args){
+        bot.sendMessage(channel, String.format(msg, args));
     }
+    
     /**
-     * Outputs the a player's rank given a nick and stat name.
-     * 
-     * @param nick player's nick
-     * @param stat the stat name
+     * Displays the start round message.
      */
-    public void showPlayerRank(String nick, String stat){
-        if (getPlayerStat(nick, "exists") != 1){
-            bot.sendMessage(channel, "No data found for "+nick+".");
-            return;
-        }
-        
-        int highIndex, rank = 0;
-        try {
-            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
-            loadPlayerFile(statList);
-            ArrayList<String> nicks = new ArrayList<String>();
-            ArrayList<Integer> test = new ArrayList<Integer>();
-            int length = statList.size();
-            String line = Colors.BLACK + ",08";
-            
-            for (int ctr = 0; ctr < statList.size(); ctr++) {
-                nicks.add(statList.get(ctr).getNick());
-            }
-            
-            if (stat.equals("cash")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add(statList.get(ctr).get(stat));
-                }
-                line += "Cash: ";
-            } else if (stat.equals("bank")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add(statList.get(ctr).get(stat));
-                }
-                line += "Bank: ";
-            } else if (stat.equals("bankrupts")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add(statList.get(ctr).get(stat));
-                }
-                line += "Bankrupts: ";
-            } else if (stat.equals("net") || stat.equals("netcash")) {
-                for (int ctr = 0; ctr < nicks.size(); ctr++) {
-                    test.add(statList.get(ctr).get("netcash"));
-                }
-                line += "Net Cash: ";
-            } else if (stat.equals("winnings")){
-                if (gameName.equals("Blackjack")){
-                    for (int ctr = 0; ctr < statList.size(); ctr++) {
-                        test.add(statList.get(ctr).get("bjwinnings"));
-                    }
-                    line += "Blackjack Winnings: ";
-                } else if (gameName.equals("Texas Hold'em Poker")){
-                    for (int ctr = 0; ctr < statList.size(); ctr++) {
-                        test.add(statList.get(ctr).get("tpwinnings"));
-                    }
-                    line += "Texas Hold'em Winnings: ";
-                }
-            } else if (stat.equals("rounds")) {
-                if (gameName.equals("Blackjack")){
-                    for (int ctr = 0; ctr < statList.size(); ctr++) {
-                        test.add(statList.get(ctr).get("bjrounds"));
-                    }
-                    line += "Blackjack Rounds: ";
-                } else if (gameName.equals("Texas Hold'em Poker")){
-                    for (int ctr = 0; ctr < statList.size(); ctr++) {
-                        test.add(statList.get(ctr).get("tprounds"));
-                    }
-                    line += "Texas Hold'em Rounds: ";
-                }
-            } else {
-                throw new IllegalArgumentException();
-            }
-            
-            // Find the player with the highest value, add to output string and remove.
-            // Repeat n times or for the length of the list.
-            for (int ctr = 1; ctr <= length; ctr++){
-                highIndex = 0;
-                rank++;
-                for (int ctr2 = 0; ctr2 < nicks.size(); ctr2++) {
-                    if (test.get(ctr2) > test.get(highIndex)) {
-                        highIndex = ctr2;
-                    }
-                }
-                if (nick.equalsIgnoreCase(nicks.get(highIndex))){
-                    if (stat.equals("rounds") || stat.equals("bankrupts")) {
-                        line += "#" + rank + " " + Colors.WHITE + ",04 " + nick + " " + formatNumber(test.get(highIndex)) + " ";
-                    } else {
-                        line += "#" + rank + " " + Colors.WHITE + ",04 " + nick + " $" + formatNumber(test.get(highIndex)) + " ";
-                    }
-                    break;
-                } else {
-                    nicks.remove(highIndex);
-                    test.remove(highIndex);
-                }
-            }
-            bot.sendMessage(channel, line);
-        } catch (IOException e) {
-            bot.log("Error reading players.txt!");
-        }
-    }
-    /**
-     * Outputs the top N players for a given statistic.
-     * Sends a message to channel with the list of players sorted by ranking.
-     * 
-     * @param stat the statistic used for ranking
-     * @param n the length of the list up to n players
-     */
-    public void showTopPlayers(String stat, int n) {
-        if (n < 1){
-            throw new IllegalArgumentException();
-        }
-        
-        int highIndex;
-        try {
-            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
-            loadPlayerFile(statList);
-            ArrayList<String> nicks = new ArrayList<String>();
-            ArrayList<Integer> test = new ArrayList<Integer>();
-            int length = Math.min(n, statList.size());
-            String title = Colors.BLACK + ",08Top " + length;
-            String list;
-            
-            for (int ctr = 0; ctr < statList.size(); ctr++) {
-                nicks.add(statList.get(ctr).getNick());
-            }
-            
-            if (stat.equals("cash")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add(statList.get(ctr).get(stat));
-                }
-                title += " Cash:";
-            } else if (stat.equals("bank")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add(statList.get(ctr).get(stat));
-                }
-                title += " Bank:";
-            } else if (stat.equals("bankrupts")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add(statList.get(ctr).get(stat));
-                }
-                title += " Bankrupts:";
-            } else if (stat.equals("net") || stat.equals("netcash")) {
-                for (int ctr = 0; ctr < nicks.size(); ctr++) {
-                    test.add(statList.get(ctr).get("netcash"));
-                }
-                title += " Net Cash:";
-            } else if (stat.equals("winnings")){
-                if (gameName.equals("Blackjack")){
-                    for (int ctr = 0; ctr < statList.size(); ctr++) {
-                        test.add(statList.get(ctr).get("bjwinnings"));
-                    }
-                    title += " Blackjack Winnings:";
-                } else if (gameName.equals("Texas Hold'em Poker")){
-                    for (int ctr = 0; ctr < statList.size(); ctr++) {
-                        test.add(statList.get(ctr).get("tpwinnings"));
-                    }
-                    title += " Texas Hold'em Winnings:";
-                }
-            } else if (stat.equals("rounds")) {
-                if (gameName.equals("Blackjack")){
-                    for (int ctr = 0; ctr < statList.size(); ctr++) {
-                        test.add(statList.get(ctr).get("bjrounds"));
-                    }
-                    title += " Blackjack Rounds:";
-                } else if (gameName.equals("Texas Hold'em Poker")){
-                    for (int ctr = 0; ctr < statList.size(); ctr++) {
-                        test.add(statList.get(ctr).get("tprounds"));
-                    }
-                    title += " Texas Hold'em Rounds:";
-                }
-            } else {
-                throw new IllegalArgumentException();
-            }
-
-            list = title;
-            
-            // Find the player with the highest value, add to output string and remove.
-            // Repeat n times or for the length of the list.
-            for (int ctr = 1; ctr <= length; ctr++){
-                highIndex = 0;
-                for (int ctr2 = 0; ctr2 < nicks.size(); ctr2++) {
-                    if (test.get(ctr2) > test.get(highIndex)) {
-                        highIndex = ctr2;
-                    }
-                }
-                if (stat.equals("rounds") || stat.equals("bankrupts")) {
-                    list += " #" + ctr + ": " + Colors.WHITE + ",04 "
-                            + nicks.get(highIndex) + " " 
-                            + formatNumber(test.get(highIndex)) + " "
-                            + Colors.BLACK + ",08";
-                } else {
-                    list += " #" + ctr + ": " + Colors.WHITE + ",04 "
-                            + nicks.get(highIndex) + " $"
-                            + formatNumber(test.get(highIndex)) + " "
-                            + Colors.BLACK + ",08";
-                }
-                nicks.remove(highIndex);
-                test.remove(highIndex);
-                if (nicks.isEmpty() || ctr == length) {
-                    break;
-                }
-                // Output and reset after 10 players
-                if (ctr % 10 == 0){
-                    bot.sendMessage(channel, list);
-                    list = title;
-                }
-            }
-            bot.sendMessage(channel, list);
-        } catch (IOException e) {
-                bot.log("Error reading players.txt!");
-        }
-    }
-    public void showSetting(String setting, int value){
-        bot.sendMessage(channel, setting + "=" + value);
-    }
-    public void showUpdateSetting(String setting) {
-        bot.sendMessage(channel, setting + " setting has been updated.");
-    }
-    public void showTurn(Player p) {
-        bot.sendMessage(channel,"It's now "+p.getNickStr()+"'s turn.");
-    }
-    public void showJoin(Player p){
-        bot.sendMessage(channel, p.getNickStr()+" has joined the game. Players: "+Colors.BOLD+getNumberJoined());
-    }
-    public void showLeave(Player p){
-        if (!p.has("cash")){
-            bot.sendMessage(channel, p.getNickStr()+" has gone bankrupt and left the game. Players: "+Colors.BOLD+getNumberJoined());
-        } else {
-            bot.sendMessage(channel, p.getNickStr()+" has left the game. Players: "+Colors.BOLD+getNumberJoined());
-        }
-    }
-    public void showNoPlayers(){
-        bot.sendMessage(channel, "Not enough players.");
-    }
-    public void showGameStart(){
-        bot.sendMessage(channel, getGameNameStr()+" has started.");
-    }
-    public void showGameEnd(){
-        bot.sendMessage(channel, getGameNameStr()+" has ended.");
-    }
-    public void showGameName(){
-        bot.sendMessage(channel, "Currently running "+getGameNameStr()+".");
-    }
     public void showStartRound(){
-        if (getStartCount() > 0){
-            bot.sendMessage(channel, formatBold("----------") + " Starting another round of "+getGameNameStr()+" in 5 seconds... (Auto-starts: " + formatBold(getStartCount()+"") + ") " + formatBold("----------"));
+        if (get("startcount") > 0){
+            showMsg(getMsg("start_round_auto"), getGameNameStr(), get("startcount"));
         } else {
-            bot.sendMessage(channel, formatBold("----------") + " Starting another round of "+getGameNameStr()+" in 5 seconds... " + formatBold("----------"));
+            showMsg(getMsg("start_round"), getGameNameStr());
         }
     }
-    public void showEndRound(){
-        bot.sendMessage(channel, formatBold("----------") + " End of " + getGameNameStr() + " round. Type .go for a new round. " + formatBold("----------"));
-    }
-    public void showNumDecks(){
-        bot.sendMessage(channel, "This game of "+getGameNameStr()+" is using "+deck.getNumberDecks()+" deck(s) of cards.");
-    }
-    public void showNumCards(){
-        bot.sendMessage(channel, deck.getNumberCards()+" cards left in the deck.");
-    }
-    public void showNumDiscards(){
-        bot.sendMessage(channel, deck.getNumberDiscards()+" cards in the discard pile.");
-    }
-    public void showDeckEmpty() {
-        bot.sendMessage(channel, "The deck is empty. Refilling with discards...");
-    }
-    public void showPlayers(){
-        bot.sendMessage(channel, "Joined: "+getPlayerListString(joined));
-    }
-    public void showWaitlist(){
-        bot.sendMessage(channel, "Waiting: "+getPlayerListString(waitlist));
-    }
-    public void showBlacklist(){
-        bot.sendMessage(channel, "Bankrupt: "+getPlayerListString(blacklist));
-    }
+    
+    /**
+     * Displays a player's cash.
+     * @param nick the player
+     */
     public void showPlayerCash(String nick){
         int cash = getPlayerStat(nick, "cash");
         if (cash != Integer.MIN_VALUE){
-            bot.sendMessage(channel, nick+" has $"+formatNumber(cash)+".");
+            showMsg(getMsg("player_cash"), formatNoPing(nick), cash);
         } else {
-            bot.sendMessage(channel, "No data found for "+nick+".");
+            showMsg(getMsg("no_data"), formatNoPing(nick));
         }
     }
+    
+    /**
+     * Displays a player's net cash.
+     * @param nick the player
+     */
     public void showPlayerNetCash(String nick){
         int netcash = getPlayerStat(nick, "netcash");
         if (netcash != Integer.MIN_VALUE){
-            bot.sendMessage(channel, nick+" has $"+formatNumber(netcash)+" in net cash.");
+            showMsg(getMsg("player_net"), formatNoPing(nick), netcash);
         } else {
-            bot.sendMessage(channel, "No data found for "+nick+".");
+            showMsg(getMsg("no_data"), formatNoPing(nick));
         }
     }
+    
+    /**
+     * Displays a player's bank.
+     * @param nick the player
+     */
     public void showPlayerBank(String nick){
         int bank = getPlayerStat(nick, "bank");
         if (bank != Integer.MIN_VALUE){
-            if (bank < 0){
-                bot.sendMessage(channel, nick+" has $"+formatNumber(bank)+" in debt.");
-            } else {
-                bot.sendMessage(channel, nick+" has $"+formatNumber(bank)+" in the bank.");
-            }
+            showMsg(getMsg("player_bank"), formatNoPing(nick), bank);
         } else {
-            bot.sendMessage(channel, "No data found for "+nick+".");
+            showMsg(getMsg("no_data"), formatNoPing(nick));
         }
     }
+    
+    /**
+     * Displays a player's number of bankrupts
+     * @param nick the player
+     */
     public void showPlayerBankrupts(String nick){
         int bankrupts = getPlayerStat(nick, "bankrupts");
         if (bankrupts != Integer.MIN_VALUE){
-            bot.sendMessage(channel, nick+" has gone bankrupt "+bankrupts+" time(s).");
+            showMsg(getMsg("player_bankrupts"), formatNoPing(nick), bankrupts);
         } else {
-            bot.sendMessage(channel, "No data found for "+nick+".");
+            showMsg(getMsg("no_data"), formatNoPing(nick));
         }
-    }
-    public void showPlayerWinnings(String nick){
-        int winnings = 0;
-        if (gameName.equals("Blackjack")){
-            winnings = getPlayerStat(nick, "bjwinnings");
-        } else if (gameName.equals("Texas Hold'em Poker")){
-            winnings = getPlayerStat(nick, "tpwinnings");
-        }
-        
-        if (winnings != Integer.MIN_VALUE) {
-            bot.sendMessage(channel, nick + " has won $" + winnings + " in " + getGameNameStr() + ".");
-        } else {
-            bot.sendMessage(channel, "No data found for " + nick + ".");
-        }
-    }
-    public void showPlayerWinRate(String nick){
-        double winnings = 0;
-        double rounds = 0;
-        if (gameName.equals("Blackjack")){
-            winnings = (double) getPlayerStat(nick, "bjwinnings");
-            rounds = (double) getPlayerStat(nick, "bjrounds");
-        } else if (gameName.equals("Texas Hold'em Poker")){
-            winnings = (double) getPlayerStat(nick, "tpwinnings");
-            rounds = (double) getPlayerStat(nick, "tprounds");
-        }
-        
-        if (rounds != Integer.MIN_VALUE) {
-            if (rounds == 0){
-                bot.sendMessage(channel, nick + " has not played any rounds of " + getGameNameStr() + ".");
-            } else {
-                bot.sendMessage(channel, nick + " has won $" + formatDecimal(winnings/rounds) + " per round in " + getGameNameStr() + ".");
-            }    
-        } else {
-            bot.sendMessage(channel, "No data found for " + nick + ".");
-        }
-    }
-    public void showPlayerRounds(String nick){
-        int rounds = 0;
-        if (gameName.equals("Blackjack")){
-            rounds = getPlayerStat(nick, "bjrounds");
-        } else if (gameName.equals("Texas Hold'em Poker")){
-            rounds = getPlayerStat(nick, "tprounds");
-        }
-        
-        if (rounds != Integer.MIN_VALUE) {
-            bot.sendMessage(channel, nick + " has played " + rounds + " round(s) of " + getGameNameStr() + ".");
-        } else {
-            bot.sendMessage(channel, "No data found for " + nick + ".");
-        }
-    } 
-    public void showPlayerDeposit(Player p, int amount){
-        bot.sendMessage(channel, p.getNickStr()+" has made a deposit of $"+formatNumber(amount)+". Cash: $"+formatNumber(p.get("cash"))+". Bank: $"+formatNumber(p.get("bank"))+".");
-    }    
-    public void showPlayerWithdraw(Player p, int amount){
-        bot.sendMessage(channel, p.getNickStr()+" has made a withdrawal of $"+formatNumber(amount)+". Cash: $"+formatNumber(p.get("cash"))+". Bank: $"+formatNumber(p.get("bank"))+".");
-    }
-    public void showSeparator() {
-        bot.sendMessage(channel, Colors.BOLD+ "------------------------------------------------------------------");
     }
     
     /* 
      * Private messages to players.
      * These methods will all send notices/messages to the specified nick.
      */
-    public void infoGameRules(String nick) {
-        bot.sendNotice(nick,getGameRulesStr());
-    }
-    public void infoGameHelp(String nick) {
-        bot.sendNotice(nick,getGameHelpStr());
-    }
-    public void infoGameCommands(String nick){
-        bot.sendNotice(nick,getGameNameStr()+" commands:");
-        bot.sendNotice(nick,getGameCommandStr());
-    }
-    public void infoNewPlayer(String nick){
-        bot.sendNotice(nick, "Welcome to "+getGameNameStr()+"! Here's $"+formatNumber(getSetting("cash"))+" to get you started!");
-    }
-    public void infoNewNick(String nick){
-        bot.sendNotice(nick, "Welcome to "+getGameNameStr()+"! For help, type .ghelp!");
-    }
-    public void infoMaxPlayers(String nick){
-        bot.sendNotice(nick, "Unable to join. The maximum number of players has been reached.");
-    }
-    public void infoAlreadyJoined(String nick){
-        bot.sendNotice(nick, "You have already joined!");
-    }
-    public void infoNotJoined(String nick){
-        bot.sendNotice(nick, "You are not currently joined!");
-    }
-    public void infoJoinWaitlist(String nick){
-        bot.sendNotice(nick, "You have joined the waitlist and will be automatically added next round.");
-    }
-    public void infoLeaveWaitlist(String nick){
-        bot.sendNotice(nick, "You have left the waitlist and will not be automatically added next round.");
-    }
-    public void infoAlreadyWaitlisted(String nick){
-        bot.sendNotice(nick, "You have already joined the waitlist!");
-    }
-    public void infoBlacklisted(String nick){
-        bot.sendNotice(nick, "You have gone bankrupt. Please wait for a loan to join again.");
-    }
-    public void infoWaitRoundEnd(String nick){
-        bot.sendNotice(nick, "A round is in progress! Wait for the round to end.");
-    }
-    public void infoRoundStarted(String nick){
-        bot.sendNotice(nick, "A round is in progress!");
-    }
-    public void infoNotStarted(String nick){
-        bot.sendNotice(nick, "No round in progress!");
-    }
-    public void infoNotBetting(String nick){
-        bot.sendNotice(nick, "No betting in progress!");
-    }
-    public void infoNotTurn(String nick){
-        bot.sendNotice(nick, "It's not your turn!");
-    }
-    public void infoNoCards(String nick){
-        bot.sendNotice(nick, "No cards have been dealt yet!");
-    }
-    public void infoOpsOnly(String nick){
-        bot.sendNotice(nick, "This command may only be used by channel Ops.");
-    }
-    public void infoNickChange(String nick){
-        bot.sendNotice(nick, "You have changed nicks while joined. Your old nick will be removed " +
-                        "and your new nick will be joined, if possible.");
-    }
-    public void infoNoTransaction(String nick){
-        bot.sendNotice(nick, "Invalid transaction!");
-    }
-    public void infoNoWithdrawal(String nick){
-        bot.sendNotice(nick, "Your bankroll contains insufficient funds for this transaction.");
-    }
-    public void infoNoDepositCash(String nick){
-        bot.sendNotice(nick, "You do not have that much cash. Try again.");
-    }
-    public void infoNoDepositBankrupt(String nick){
-        bot.sendNotice(nick, "You cannot go bankrupt making a deposit. Try again.");
-    }
-    public void infoPaymentTooLow(String nick){
-        bot.sendNotice(nick, "Minimum payment is $1. Try again.");
-    }
-    public void infoPaymentTooHigh(String nick, int max){
-        bot.sendNotice(nick, "Your outstanding debt is only $"+formatNumber(max)+". Try again.");
-    }
-    public void infoPaymentWillBankrupt(String nick){
-        bot.sendNotice(nick, "You cannot go bankrupt trying to pay off your debt. Try again.");
-    }
-    public void infoInsufficientFunds(String nick){
-        bot.sendNotice(nick, "Insufficient funds.");
-    }
-    public void infoNickNotFound(String nick, String searchNick){
-        bot.sendNotice(nick, searchNick + " was not found.");
-    }
-    public void infoNoParameter(String nick){
-        bot.sendNotice(nick, "Parameter(s) missing!");
-    }
-    public void infoBadParameter(String nick){
-        bot.sendNotice(nick,"Bad parameter(s). Try again.");
-    }
-    public void infoBetTooLow(String nick){
-        bot.sendNotice(nick, "Minimum bet is $"+formatNumber(getSetting("minbet"))+". Try again.");
-    }
-    public void infoBetTooHigh(String nick, int max){
-        bot.sendNotice(nick, "Maximum bet is $"+formatNumber(max)+". Try again.");
-    }
-    public void infoAutoWithdraw(String nick, int amount){
-        bot.sendNotice(nick, "You make a withdrawal of $" + formatNumber(amount) + " to replenish your empty stack.");
-    }
-    public void infoPlayerBankrupt(String nick, int penalty){
-        if ((getSetting("respawn")+penalty) % 60 == 0){
-            bot.sendNotice(nick, "You've lost all your money. Please wait " + (getSetting("respawn")+penalty)/60 + " minute(s) for a loan.");
+    /**
+     * Sends a message to a player via PM or notice depending on simple status.
+     * @param nick
+     * @param message
+     * @param args 
+     */
+    public void informPlayer(String nick, String message, Object... args){
+        if (getPlayerStat(nick, "simple") > 0) {
+            bot.sendNotice(nick, String.format(message, args));
         } else {
-            bot.sendNotice(nick, "You've lost all your money. Please wait " + String.format("%.1f", (getSetting("respawn")+penalty)/60.) + " minutes for a loan.");
+            bot.sendMessage(nick, String.format(message, args));
         }
-    }
-    public void infoPlayerIdleWarning(Player p){
-        if (p.isSimple()) {
-            bot.sendNotice(p.getNick(), p.getNickStr()
-                + ": You will idle out in " + (getSetting("idle") - getSetting("idlewarning")) 
-                + " seconds. Please make your move.");
-        } else {
-            bot.sendMessage(p.getNick(), p.getNickStr()
-                + ": You will idle out in " + (getSetting("idle") - getSetting("idlewarning")) 
-                + " seconds. Please make your move.");
-        }
-    }
-    public void infoGameCommandHelp(String nick, String command){
-        bot.sendNotice(nick, getCommandHelp(command));
     }
     
-    /* Reveals cards from the card deck */
+    /**
+     * Reveals cards from the card deck.
+     * @param nick the player
+     * @param type undealt cards or discards
+     * @param num the number of cards to reveal
+     */
     public void infoDeckCards(String nick, char type, int num){
         if (num < 1){
             throw new IllegalArgumentException();
@@ -1650,28 +1237,24 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         while(n > 0){
             cardStr = cardIndex+"";
             numOut = Math.min(n, 25);
-            cardStr += "-"+(cardIndex+numOut-1)+": ";
+            cardStr += "-" + (cardIndex+numOut-1) + ":";
             n -= numOut;
             for (int ctr=cardIndex; ctr < cardIndex+numOut; ctr++){
-                cardStr += tCards.get(ctr)+" ";
+                cardStr += " " + tCards.get(ctr);
             }
-            cardIndex+=numOut;
-            bot.sendNotice(nick, cardStr.substring(0, cardStr.length()-1)+Colors.NORMAL);
+            cardIndex += numOut;
+            informPlayer(nick, cardStr + Colors.NORMAL);
         }
     }
     
     /* Formatted strings */
-    public String getGameNameStr(){
-        return Colors.BOLD + gameName + Colors.BOLD;
-    }
-    public String getGameHelpStr() {
-        return "For a list of game commands, type .gcommands. For house rules, type .grules. " +
-                "For help on individual commands, type .ghelp <command>.";
-    }
+    abstract public String getGameNameStr();
     abstract public String getGameRulesStr();
-    abstract public String getGameCommandStr();
-    public static String formatDecimal(double n){
-        return String.format("%.2f", n);
+    public static String formatDecimal(double n) {
+        return String.format("%,.2f", n);
+    }
+    public static String formatNoDecimal(double n) {
+        return String.format("%,.0f", n);
     }
     public static String formatNumber(int n){
         return String.format("%,d", n);
@@ -1685,76 +1268,67 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     public static String formatBold(int value){
         return formatBold(value + "");
     }
-    protected static String getPlayerListString(ArrayList<? extends Player> playerList){
-        String outStr;
-        int size = playerList.size();
-        if (size == 0){
-            outStr = formatBold("0") + " players";
-        } else if (size == 1){
-            outStr = formatBold("1") + " player: " + playerList.get(0).getNick();
-        } else {
-            outStr = formatBold(size) + " players: ";
-            for (int ctr=0; ctr < size; ctr++){
-                if (ctr == size-1){
-                    outStr += playerList.get(ctr).getNick();
-                } else {
-                    outStr += playerList.get(ctr).getNick()+", ";
-                }
-            }
-        }
-        return outStr;
+    public static String formatNoPing(String str) {
+        return str.substring(0,1) + "\u200b" + str.substring(1);
     }
-    protected static String getListString(ArrayList<String> stringList){
-        String outStr;
-        int size = stringList.size();
+    protected static String getPlayerListString(ArrayList<? extends Player> playerList){
+        int size = playerList.size();
+        String outStr = formatBold(size);
         if (size == 0){
-            outStr = formatBold("0") + " players";
+            outStr += " players";
         } else if (size == 1){
-            outStr = formatBold("1") + " player: " + stringList.get(0);
+            outStr += " player: ";
         } else {
-            outStr = formatBold(size) + " players: ";
-            for (int ctr=0; ctr < size; ctr++){
-                if (ctr == size-1){
-                    outStr += stringList.get(ctr);
-                } else {
-                    outStr += stringList.get(ctr) + ", ";
-                }
+            outStr += " players: ";
+        }
+        for (int ctr=0; ctr < size; ctr++){
+            if (ctr == size-1){
+                outStr += playerList.get(ctr).getNick();
+            } else {
+                outStr += playerList.get(ctr).getNick()+", ";
             }
         }
         return outStr;
     }
 
     /**
-     * Searches the help file for data on the specified command.
+     * Returns a list of commands for this game based on its help file
+     * @return a list of commands
+     */
+    public String getGameCommandStr() {
+        StringBuilder commandList = new StringBuilder();
+        Set<String> commandSet = helpMap.keySet();
+        Iterator<String> it = commandSet.iterator();
+        while (it.hasNext()) {
+            commandList.append(it.next());
+            commandList.append(", ");
+        }
+        return commandList.substring(0, commandList.length() - 2);
+    }
+    
+    /**
+     * Returns the help data on the specified command.
      * @param command
      * @return the help data for the command
      */
     protected String getCommandHelp(String command){
-        try {
-            BufferedReader in = new BufferedReader(new FileReader(getHelpFile()));
-            StringTokenizer st;
-            String c,d="";
-            boolean found = false;
-            while (in.ready()){
-                st = new StringTokenizer(in.readLine(), "=");
-                if (st.countTokens() == 2){
-                    c = st.nextToken();
-                    d = st.nextToken();
-                    if (c.equals(command)){
-                        found = true;
-                        break;
-                    }
-                }
-            }
-            in.close();
-            if (found){
-                return d;
-            } else {
-                return "Help for \'"+command+"\' not found!";
-            }
-        } catch (IOException e) {
-            bot.log("Error reading from "+getHelpFile()+"!");
-            return "Error reading from "+getHelpFile()+"!";
+        if (helpMap.containsKey(command)){
+            return helpMap.get(command);
+        } else {
+            return "Error: Help for \'" + command + "\' not found!";
+        }
+    }
+    
+    /**
+     * Returns the message based on the specified key.
+     * @param msgKey the message key
+     * @return the message
+     */
+    protected String getMsg(String msgKey) {
+        if (msgMap.containsKey(msgKey)){
+            return msgMap.get(msgKey);
+        } else {
+            return "Error: Message for \'" + msgKey + "\' not found!";
         }
     }
 }

@@ -41,7 +41,7 @@ import org.pircbotx.hooks.managers.ThreadedListenerManager;
  * @author Yizhe Shen
  */
 public class CasinoBot extends PircBotX {
-    /* CommandListener that will process initialization commands */
+    /* Listener for CasinoBot initialization */
     public static class InitListener extends ListenerAdapter<PircBotX> {
         CasinoBot bot;
         char commandChar;
@@ -93,7 +93,6 @@ public class CasinoBot extends PircBotX {
                     } else {
                         cbot.bjgame = new Blackjack(cbot, commandChar, channel);
                         cbot.getListenerManager().addListener(cbot.bjgame);
-                        cbot.bjgame.showGameStart();
                     }
                 } else if (command.equals("texaspoker") || command.equals("tp")) {
                     if (cbot.bjgame != null && cbot.bjgame.getChannel().equals(channel)){
@@ -103,11 +102,10 @@ public class CasinoBot extends PircBotX {
                     } else {
                         cbot.tpgame = new TexasPoker(cbot, commandChar, channel);
                         cbot.getListenerManager().addListener(cbot.tpgame);
-                        cbot.tpgame.showGameStart();
                     }
                 } else if (command.equals("endgame")) {
                     if (cbot.bjgame != null && cbot.bjgame.getChannel().equals(channel)){
-                        if (cbot.bjgame.isInProgress()){
+                        if (cbot.bjgame.has("inprogress")){
                             bot.sendMessage(channel, "Please wait for the current round to finish.");
                         } else {
                             cbot.bjgame.endGame();
@@ -116,7 +114,7 @@ public class CasinoBot extends PircBotX {
                         }
                     }
                     if (cbot.tpgame != null && cbot.tpgame.getChannel().equals(channel)){
-                        if (cbot.tpgame.isInProgress()){
+                        if (cbot.tpgame.has("inprogress")){
                             bot.sendMessage(channel, "Please wait for the current round to finish.");
                         } else {
                             cbot.tpgame.endGame();
@@ -126,9 +124,9 @@ public class CasinoBot extends PircBotX {
                     }
                 } else if (command.equals("shutdown") || command.equals("botquit")) {
                     if (cbot.bjgame != null || cbot.tpgame != null){
-                        if (cbot.bjgame != null && cbot.bjgame.isInProgress()){
+                        if (cbot.bjgame != null && cbot.bjgame.has("inprogress")){
                             bot.sendMessage(channel, "A round of "+cbot.bjgame.getGameNameStr()+" is in progress. Please wait for it to finish.");
-                        } else if (cbot.tpgame != null && cbot.tpgame.isInProgress()){
+                        } else if (cbot.tpgame != null && cbot.tpgame.has("inprogress")){
                             bot.sendMessage(channel, "A round of "+cbot.tpgame.getGameNameStr()+" is in progress. Please wait for it to finish.");
                         } else {
                             if (cbot.bjgame != null){
@@ -212,6 +210,8 @@ public class CasinoBot extends PircBotX {
         try {
             bot.connect(network);
         } catch (IrcException e){
+            System.out.println("Error: " + e);
+        } catch (IOException e){
             System.out.println("Error: " + e);
         }
     }
