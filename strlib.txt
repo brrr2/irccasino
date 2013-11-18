@@ -1,12 +1,13 @@
 #### Standard Java String format specifiers (%s=string, %d=integer %c=char) ####
-############################
-# Generic private messages #
-############################
+###################
+# Generic strings #
+###################
 #################
 # No parameters #
 #################
 max_players=Unable to join. The maximum number of players has been reached.
 already_joined=You have already joined!
+already_joined_other_game=You're already joined in %s!
 no_join=You are not currently joined!
 join_waitlist=You have joined the waitlist and will be automatically added next round.
 leave_waitlist=You have left the waitlist and will not be automatically added next round.
@@ -28,6 +29,11 @@ insufficient_funds=Insufficient funds.
 no_parameter=Parameter(s) missing!
 bad_parameter=Bad parameter(s). Try again.
 game_help=For a list of game commands, type %cgcommands. For house rules, type %cgrules. For help on individual commands, type %cghelp <command>.
+deck_empty=The deck is empty. Refilling with discards...
+no_players=Not enough players.
+separator=u0002------------------------------------------------------------------u0002
+reload=Configuration and library files have been reloaded.
+remove_end_round=You will be removed at the end of the round.
 ###################
 # With parameters #
 ###################
@@ -40,54 +46,6 @@ auto_withdraw=You make a withdrawal of $%,d to replenish your empty stack.
 idle_out=%s has wasted precious time and idled out.
 idle_warning=%s: You will idle out in %,d seconds. Please make your move.
 bankrupt_info=You've lost all your money. Please wait %.1f minute(s) for a loan.
-##############################
-# Blackjack private messages #
-##############################
-#################
-# No parameters #
-#################
-count_disabled=Counting functions are disabled.
-no_pair=Your hand cannot be split. It is not a pair.
-no_dd=You can only double down before hitting!
-no_surr=You cannot surrender after hitting!
-no_surr_split=You cannot surrender a split hand!
-insure_bet_too_low=Minimum insurance bet is $1. Try again.
-no_insure_no_ace=The dealer's upcard is not an ace. You cannot make an insurance bet.
-no_insure_has_hit=You cannot make an insurance bet after hitting.
-no_insure_has_split=You cannot make an insurance bet after splitting.
-already_insured=You have already made an insurance bet.
-bj_commands=go, join, quit, bet, hit, stand, doubledown, surrender, insure, split, table, turn, sum, hand, allhands, cash, netcash, bank, transfer, deposit, withdraw, bankrupts, winnings, winrate, rounds, player, numdecks, numcards, numdiscards, hilo, zen, red7, count, simple, players, stats, house, waitlist, blacklist, rank, top, game, ghelp, grules, gcommands
-###################
-# With parameters #
-###################
-insure_bet_too_high=Maximum insurance bet is $%,d. Try again.
-############################################
-### Texaspoker private messages ###
-############################################
-#################
-# No parameters #
-#################
-no_community=No community cards have been dealt yet.
-tp_commands=go, join, quit, bet, check, call, raise, fold, community, turn, hand, cash, netcash, bank, transfer, deposit, withdraw, bankrupts, winnings, winrate, rounds, player, players, waitlist, blacklist, rank, top, simple, stats, game, ghelp, grules, gcommands
-###################
-# With parameters #
-###################
-tp_bet_too_low=Bet too low. Current bet is $%,d.
-raise_too_low=Minimum raise is $%,d. Try again.
-no_checking=Current bet is $%,d. You must call or raise.
-############################
-# Generic channel messages #
-############################
-#################
-# No parameters #
-#################
-deck_empty=The deck is empty. Refilling with discards...
-no_players=Not enough players.
-separator=u0002------------------------------------------------------------------u0002
-reload=Configuration and library files have been reloaded.
-###################
-# With parameters #
-###################
 join=%s has joined the game. Players: u0002%du0002
 players=Joined: %s
 waitlist=Waiting: %s
@@ -117,19 +75,32 @@ player_bankrupts=%s has gone bankrupt %,d time(s).
 player_winnings=%s has won $%,d in %s.
 player_no_rounds=%s has not played any rounds of %s.
 player_rounds=%s has played %,d round(s) of %s.
-player_winrate=%s has won $%.2f per round in %s.
-##############################
-# Blackjack channel messages #
-##############################
+player_winrate=%s has won $%,.2f per round in %s.
+player_all_stats=%s | Cash: $%,d | Bank: $%,d | Net: $%,d | Bankrupts: %,d | Winnings: $%,d | Rounds: %,d
+#####################
+# Blackjack strings #
+#####################
 #################
 # No parameters #
 #################
+count_disabled=Counting functions are disabled.
+no_pair=Your hand cannot be split. It is not a pair.
+no_dd=You can only double down before hitting!
+no_surr=You cannot surrender after hitting!
+no_surr_split=You cannot surrender a split hand!
+insure_bet_too_low=Minimum insurance bet is $1. Try again.
+no_insure_no_ace=The dealer's upcard is not an ace. You cannot make an insurance bet.
+no_insure_has_hit=You cannot make an insurance bet after hitting.
+no_insure_has_split=You cannot make an insurance bet after splitting.
+already_insured=You have already made an insurance bet.
+bj_commands=go, join, quit, bet, hit, stand, doubledown, surrender, insure, split, table, turn, sum, hand, allhands, cash, netcash, bank, transfer, deposit, withdraw, bankrupts, winnings, winrate, rounds, player, numdecks, numcards, numdiscards, hilo, zen, red7, count, simple, players, stats, house, waitlist, blacklist, rank, top, game, ghelp, grules, gcommands
 bj_deck_empty=Merging the discards back into the shoe and shuffling...
 bj_shuffle_shoe=The dealer's shoe has been shuffled.
 bj_game_name=Blackjack
 ###################
 # With parameters #
 ###################
+insure_bet_too_high=Maximum insurance bet is $%,d. Try again.
 bj_bet=%s bets $%,d. Stack: $%,d
 bj_dd=%s has doubled down! The bet is now $%,d. Stack: $%,d
 bj_surr=%s has surrendered! Half the bet is returned. Stack: $%,d
@@ -139,17 +110,51 @@ bj_count=Cards/Hi-Lo/Red7/Zen: %,d/%,d/%.1f/%,d
 bj_red7=Red7 count: %.1f
 bj_hilo=Hi-Lo count: %,d
 bj_zen=Zen count: %,d
-##############################
-# Texaspoker channel messages #
-##############################
+bj_hand=Your current hand is %s with a bet of $%,d.
+bj_hand_sum=Hand sum is %d.
+bj_hand_bet=You have bet $%,d on this hand.
+bj_rules_soft17hit=Dealer hits on soft 17. %,d deck(s) of cards. Discards are merged back into the shoe and the shoe is shuffled when %,d card(s) remain in the shoe. Regular wins are paid out at 1:1 and blackjacks are paid out at 3:2. Insurance wins are paid out at 2:1. Minimum bet is $%,d or your stack, whichever is lower.
+bj_rules_soft17stand=Dealer stands on soft 17. %,d deck(s) of cards. Discards are merged back into the shoe and the shoe is shuffled when %,d card(s) remain in the shoe. Regular wins are paid out at 1:1 and blackjacks are paid out at 3:2. Insurance wins are paid out at 2:1. Minimum bet is $%,d or your stack, whichever is lower.
+bj_game_stats=%,d player(s) have played %s. They have played a total of %,d rounds. The house has won $%,d in those rounds.
+bj_turn_betting=%s's turn. Stack: $%,d. Enter an initial bet up to $%,d.
+bj_turn_split=It's now %s-%d's turn.
+bj_turn=It's now %s's turn.
+bj_stack=%s's stack: $%,d
+bj_split=%s has split the hand! %s's hands are now:
+bj_no_stats=No statistics found for %,d deck(s) shoes.
+bj_show_hand=%s: %s
+bj_show_hand_bj=%s: %s (Blackjack!)
+bj_show_hand_bust=%s: %s (Bust!)
+bj_show_split_hand=%s-%d: %s
+bj_show_split_hand_bj=%s-%d: %s (Blackjack!)
+bj_show_split_hand_bust=%s-%d: %s (Bust!)
+bj_show_split_hand_bet=%s-%d: %s, bet: $%,d
+bj_dealer_result=%s has %d (%s).
+bj_dealer_result_bj=%s has blackjack (%s).
+bj_result_push=%s: %s has %d (%s) and the $%,d bet is returned. Stack: $%,d
+bj_result_bj=%s: %s has blackjack (%s) and wins $%,d. Stack: $%,d
+bj_result_win=%s: %s has %d (%s) and wins $%,d. Stack: $%,d
+bj_result_loss=%s: %s has %d (%s). Stack: $%,d
+bj_result_surr=%s: %s has %d (%s). Stack: $%,d
+bj_insure_win=%s: %s wins $%,d. Stack: $%,d
+bj_insure_loss=%s: %s loses. Stack: $%,d
+bj_house_str=%,d round(s) have been played using %,d deck shoes. The house has won $%,d during those round(s).
+###################################
+### Texaspoker strings ###
+###################################
 #################
 # No parameters #
 #################
+no_community=No community cards have been dealt yet.
+tp_commands=go, join, quit, bet, check, call, raise, fold, community, turn, hand, cash, netcash, bank, transfer, deposit, withdraw, bankrupts, winnings, winrate, rounds, player, players, waitlist, blacklist, rank, top, simple, stats, game, ghelp, grules, gcommands
 tp_game_name=Texas Hold'em Poker
 tp_shuffle_deck=The deck has been shuffled.
 ###################
 # With parameters #
 ###################
+tp_bet_too_low=Bet too low. Current bet is $%,d.
+raise_too_low=Minimum raise is $%,d. Try again.
+no_checking=Current bet is $%,d. You must call or raise.
 tp_turn=%s's turn. Committed: $%,d. Stack: $%,d. Current bet: u0002$%,du0002
 tp_bet=%s bets $%,d. Stack: $%,d
 tp_raise=%s has raised to $%,d. Stack: $%,d
@@ -157,3 +162,6 @@ tp_allin=%s has gone all in! Committed: $%,d. Stack: $%,d
 tp_call=%s has called. Committed: $%,d. Stack: $%,d
 tp_check=%s has checked. Committed: $%,d. Stack: $%,d
 tp_fold=%s has folded. Stack: $%,d
+tp_player_result=%s (%s): %s, %s
+tp_hand=Your hand is %s.
+tp_game_stats=%,d players have played %s. %s

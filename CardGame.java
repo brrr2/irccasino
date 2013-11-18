@@ -109,7 +109,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected Timer gameTimer; //All TimerTasks are scheduled on this Timer
     protected HashMap<String,Integer> settingsMap;
     protected HashMap<String,String> helpMap, msgMap;
-    private String gameName, iniFile;
+    private String iniFile, helpFile, strFile;
     private IdleOutTask idleOutTask;
     private IdleWarningTask idleWarningTask;
     private StartRoundTask startRoundTask;
@@ -278,21 +278,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             } else {
                 if (params.length > 1){
                     try {
-                        if (params[0].equalsIgnoreCase("winrate")){
-                            showWinRateRank(params[1].toLowerCase());
-                        } else {
-                            showPlayerRank(params[1].toLowerCase(), params[0].toLowerCase());
-                        }
+                        showPlayerRank(params[1].toLowerCase(), params[0].toLowerCase());
                     } catch (IllegalArgumentException e) {
                         informPlayer(nick, getMsg("bad_parameter"));
                     }
                 } else if (params.length == 1){
                     try {
-                        if (params[0].equalsIgnoreCase("winrate")){
-                            showWinRateRank(nick);
-                        } else {
-                            showPlayerRank(nick, params[0].toLowerCase());
-                        }
+                        showPlayerRank(nick, params[0].toLowerCase());
                     } catch (IllegalArgumentException e) {
                         informPlayer(nick, getMsg("bad_parameter"));
                     }
@@ -306,11 +298,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             } else {
                 if (params.length > 1){
                     try {
-                        if (params[1].equalsIgnoreCase("winrate")){
-                            showTopWinRate(Integer.parseInt(params[0]));
-                        } else {
-                            showTopPlayers(params[1].toLowerCase(), Integer.parseInt(params[0]));
-                        }
+                        showTopPlayers(params[1].toLowerCase(), Integer.parseInt(params[0]));
                     } catch (IllegalArgumentException e) {
                         informPlayer(nick, getMsg("bad_parameter"));
                     }
@@ -366,7 +354,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             } else {
                 if (params.length > 1) {
                     if (!isJoined(params[0])) {
-                        bot.sendNotice(nick, params[0] + " is not currently joined!");
+                        informPlayer(nick, params[0] + " is not currently joined!");
                     } else if (has("inprogress")) {
                         informPlayer(nick, getMsg("wait_round_end"));
                     } else {
@@ -394,7 +382,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                         } else if (command.equals("discards") && deck.getNumberDiscards() > 0) {
                             infoDeckCards(nick, 'd', num);
                         } else {
-                            bot.sendNotice(nick, "Empty!");
+                            informPlayer(nick, "Empty!");
                         }
                     } catch (IllegalArgumentException e) {
                         informPlayer(nick, getMsg("bad_parameter"));
@@ -483,17 +471,23 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     public Channel getChannel(){
         return channel;
     }
-    public void setGameName(String name){
-        gameName = name;
-    }
-    public String getGameName(){
-        return gameName;
-    }
     public void setIniFile(String file){
         iniFile = file;
     }
     public String getIniFile(){
         return iniFile;
+    }
+    public void setHelpFile(String file) {
+        helpFile = file;
+    }
+    public String getHelpFile(){
+        return helpFile;
+    }
+    public void setStrFile(String file) {
+        strFile = file;
+    }
+    public String getStrFile(){
+        return strFile;
     }
     
     /* 
@@ -551,7 +545,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     
     /**
-     * Loads the settings from the game.ini file.
+     * Loads the settings from the game's INI file.
      */
     protected void loadIni() {
         try {
@@ -567,7 +561,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             }
             in.close();
         } catch (IOException e) {
-            /* load defaults if texaspoker.ini is not found */
+            /* load defaults if INI file is not found */
             bot.log(getIniFile()+" not found! Creating new " + getIniFile() + "...");
             initialize();
             saveIniFile();
@@ -585,7 +579,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             StringTokenizer st;
             String str;
             while (in.ready()){
-                str = in.readLine().replaceAll("u0002", "\u0002");
+                // Replace all unicode
+                str = in.readLine().replaceAll("u0002", Colors.BOLD);
                 // Skips all lines that begin with #
                 if (!str.startsWith("#")) {
                     st = new StringTokenizer(str, "=");
@@ -908,31 +903,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * 
      * @return the total counted from players.txt
      */
-    public int getTotalPlayers(){
-        try {
-            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
-            loadPlayerFile(statList);
-            int total = 0, numLines = statList.size();
-            
-            if (gameName.equals("Blackjack")){
-                for (int ctr = 0; ctr < numLines; ctr++){
-                    if (statList.get(ctr).has("bjrounds")){
-                        total++;
-                    }
-                }
-            } else if (gameName.equals("Texas Hold'em Poker")){
-                for (int ctr = 0; ctr < numLines; ctr++){
-                    if (statList.get(ctr).has("tprounds")){
-                        total++;
-                    }
-                }
-            }
-            return total;
-        } catch (IOException e){
-            bot.log("Error reading players.txt!");
-            return 0;
-        }
-    }
+    abstract public int getTotalPlayers();
     
     /**
      * Returns the specified statistic for a nick.
@@ -1074,6 +1045,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         }
     }
     
+    /**
+     * Checks if players.txt exists and creates it if it doesn't exist.
+     */
     protected final void checkPlayerFile(){
         try {
             BufferedReader out = new BufferedReader(new FileReader("players.txt"));
@@ -1158,6 +1132,12 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * messages to the main channel.
      */
     abstract public void showGameStats();
+    abstract public void showPlayerAllStats(String nick);
+    abstract public void showPlayerRank(String nick, String stat);
+    abstract public void showTopPlayers(String stat, int n);
+    abstract public void showPlayerWinnings(String nick);
+    abstract public void showPlayerWinRate(String nick);
+    abstract public void showPlayerRounds(String nick); 
     
     /**
      * Sends a message to the game channel.
@@ -1168,392 +1148,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         bot.sendMessage(channel, String.format(msg, args));
     }
     
-    /**
-     * Outputs all of a player's data relevant to this game.
-     * Sends a message to a player the list of statistics separated by '|'
-     * character.
-     * 
-     * @param nick the player's nick
-     */
-    public void showPlayerAllStats(String nick){
-        int cash = getPlayerStat(nick, "cash");
-        int bank = getPlayerStat(nick, "bank");
-        int net = getPlayerStat(nick, "netcash");
-        int bankrupts = getPlayerStat(nick, "bankrupts");
-        int winnings = 0;
-        int rounds = 0;
-        if (gameName.equals("Blackjack")){
-            winnings = getPlayerStat(nick, "bjwinnings");
-            rounds = getPlayerStat(nick, "bjrounds");
-        } else if (gameName.equals("Texas Hold'em Poker")){
-            winnings = getPlayerStat(nick, "tpwinnings");
-            rounds = getPlayerStat(nick, "tprounds");
-        }
-        if (cash != Integer.MIN_VALUE) {
-            bot.sendMessage(channel, nick+" | Cash: $"+formatNumber(cash)+" | Bank: $"+
-                    formatNumber(bank)+" | Net: $"+formatNumber(net)+" | Bankrupts: "+
-                    formatNumber(bankrupts)+" | Winnings: $"+formatNumber(winnings)+
-                    " | Rounds: "+formatNumber(rounds));
-        } else {
-            showMsg(getMsg("no_data"), nick);
-        }
-    }
-    
-    /**
-     * Outputs a player's win rate rank.
-     * 
-     * @param nick player's nick
-     */
-    public void showWinRateRank(String nick){
-        if (getPlayerStat(nick, "exists") != 1){
-            showMsg(getMsg("no_data"), nick);
-            return;
-        }
-        
-        int highIndex, rank = 0;
-        try {
-            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
-            loadPlayerFile(statList);
-            ArrayList<String> nicks = new ArrayList<String>();
-            ArrayList<Double> test = new ArrayList<Double>();
-            int length = statList.size();
-            String line = Colors.BLACK + ",08";
-            
-            if (gameName.equals("Blackjack")){
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    nicks.add(statList.get(ctr).getNick());
-                    if (statList.get(ctr).get("bjrounds") == 0){
-                        test.add(0.);
-                    } else {
-                        test.add((double) statList.get(ctr).get("bjwinnings") / (double) statList.get(ctr).get("bjrounds"));
-                    }
-                }
-                line += "Blackjack Win Rate: ";
-            } else if (gameName.equals("Texas Hold'em Poker")){
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    nicks.add(statList.get(ctr).getNick());
-                    if (statList.get(ctr).get("tprounds") == 0){
-                        test.add(0.);
-                    } else {
-                        test.add((double) statList.get(ctr).get("tpwinnings") / (double) statList.get(ctr).get("tprounds"));
-                    }
-                }
-                line += "Texas Hold'em Win Rate: ";
-            }
-            
-            // Find the player with the highest value, add to output string and remove.
-            // Repeat n times or for the length of the list.
-            for (int ctr = 1; ctr <= length; ctr++){
-                highIndex = 0;
-                rank++;
-                for (int ctr2 = 0; ctr2 < nicks.size(); ctr2++) {
-                    if (test.get(ctr2) > test.get(highIndex)) {
-                        highIndex = ctr2;
-                    }
-                }
-                if (nick.equalsIgnoreCase(nicks.get(highIndex))){
-                    line += "#" + rank + " " + Colors.WHITE + ",04 " + nick + " $" + formatDecimal(test.get(highIndex)) + " ";
-                    break;
-                } else {
-                    nicks.remove(highIndex);
-                    test.remove(highIndex);
-                }
-            }
-            bot.sendMessage(channel, line);
-        } catch (IOException e) {
-            bot.log("Error reading players.txt!");
-        }
-    }
-    
-    /**
-     * Outputs a player's rank given a nick and stat name.
-     * 
-     * @param nick player's nick
-     * @param stat the stat name
-     */
-    public void showPlayerRank(String nick, String stat){
-        if (getPlayerStat(nick, "exists") != 1){
-            showMsg(getMsg("no_data"), nick);
-            return;
-        }
-        
-        int highIndex, rank = 0;
-        try {
-            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
-            loadPlayerFile(statList);
-            ArrayList<String> nicks = new ArrayList<String>();
-            ArrayList<Integer> test = new ArrayList<Integer>();
-            int length = statList.size();
-            String line = Colors.BLACK + ",08";
-            
-            for (int ctr = 0; ctr < statList.size(); ctr++) {
-                nicks.add(statList.get(ctr).getNick());
-            }
-            
-            if (stat.equals("cash")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add(statList.get(ctr).get(stat));
-                }
-                line += "Cash: ";
-            } else if (stat.equals("bank")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add(statList.get(ctr).get(stat));
-                }
-                line += "Bank: ";
-            } else if (stat.equals("bankrupts")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add(statList.get(ctr).get(stat));
-                }
-                line += "Bankrupts: ";
-            } else if (stat.equals("net") || stat.equals("netcash")) {
-                for (int ctr = 0; ctr < nicks.size(); ctr++) {
-                    test.add(statList.get(ctr).get("netcash"));
-                }
-                line += "Net Cash: ";
-            } else if (stat.equals("winnings")){
-                if (gameName.equals("Blackjack")){
-                    for (int ctr = 0; ctr < statList.size(); ctr++) {
-                        test.add(statList.get(ctr).get("bjwinnings"));
-                    }
-                    line += "Blackjack Winnings: ";
-                } else if (gameName.equals("Texas Hold'em Poker")){
-                    for (int ctr = 0; ctr < statList.size(); ctr++) {
-                        test.add(statList.get(ctr).get("tpwinnings"));
-                    }
-                    line += "Texas Hold'em Winnings: ";
-                }
-            } else if (stat.equals("rounds")) {
-                if (gameName.equals("Blackjack")){
-                    for (int ctr = 0; ctr < statList.size(); ctr++) {
-                        test.add(statList.get(ctr).get("bjrounds"));
-                    }
-                    line += "Blackjack Rounds: ";
-                } else if (gameName.equals("Texas Hold'em Poker")){
-                    for (int ctr = 0; ctr < statList.size(); ctr++) {
-                        test.add(statList.get(ctr).get("tprounds"));
-                    }
-                    line += "Texas Hold'em Rounds: ";
-                }
-            } else {
-                throw new IllegalArgumentException();
-            }
-            
-            // Find the player with the highest value, add to output string and remove.
-            // Repeat n times or for the length of the list.
-            for (int ctr = 1; ctr <= length; ctr++){
-                highIndex = 0;
-                rank++;
-                for (int ctr2 = 0; ctr2 < nicks.size(); ctr2++) {
-                    if (test.get(ctr2) > test.get(highIndex)) {
-                        highIndex = ctr2;
-                    }
-                }
-                if (nick.equalsIgnoreCase(nicks.get(highIndex))){
-                    if (stat.equals("rounds") || stat.equals("bankrupts")) {
-                        line += "#" + rank + " " + Colors.WHITE + ",04 " + nick + " " + formatNumber(test.get(highIndex)) + " ";
-                    } else {
-                        line += "#" + rank + " " + Colors.WHITE + ",04 " + nick + " $" + formatNumber(test.get(highIndex)) + " ";
-                    }
-                    break;
-                } else {
-                    nicks.remove(highIndex);
-                    test.remove(highIndex);
-                }
-            }
-            bot.sendMessage(channel, line);
-        } catch (IOException e) {
-            bot.log("Error reading players.txt!");
-        }
-    }
-    
-    /**
-     * Show top N players for non-integer stats like win rate.
-     * Sends a message to channel with the list of players sorted by ranking.
-     * 
-     * @param n 
-     */
-    public void showTopWinRate(int n) {
-        if (n < 1){
-            throw new IllegalArgumentException();
-        }
-        
-        int highIndex;
-        try {
-            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
-            loadPlayerFile(statList);
-            ArrayList<String> nicks = new ArrayList<String>();
-            ArrayList<Double> test = new ArrayList<Double>();
-            int length = Math.min(n, statList.size());
-            String title = Colors.BOLD + Colors.BLACK + ",08 Top " + length;
-            String list = Colors.BLACK + ",08";
-            
-            if (gameName.equals("Blackjack")){
-                title += " Blackjack Win Rate ";
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    nicks.add(statList.get(ctr).getNick());
-                    if (statList.get(ctr).get("bjrounds") == 0){
-                        test.add(0.);
-                    } else {
-                        test.add((double) statList.get(ctr).get("bjwinnings") / (double) statList.get(ctr).get("bjrounds"));
-                    }
-                }
-            } else if (gameName.equals("Texas Hold'em Poker")){
-                title += " Texas Hold'em Win Rate ";
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    nicks.add(statList.get(ctr).getNick());
-                    if (statList.get(ctr).get("tprounds") == 0){
-                        test.add(0.);
-                    } else {
-                        test.add((double) statList.get(ctr).get("tpwinnings") / (double) statList.get(ctr).get("tprounds"));
-                    }
-                }
-            }
-            
-            showMsg(title);
-            
-            // Find the player with the highest value, add to output string and remove.
-            // Repeat n times or for the length of the list.
-            for (int ctr = 1; ctr <= length; ctr++){
-                highIndex = 0;
-                for (int ctr2 = 0; ctr2 < nicks.size(); ctr2++) {
-                    if (test.get(ctr2) > test.get(highIndex)) {
-                        highIndex = ctr2;
-                    }
-                }
-                list += " #" + ctr + ": " + Colors.WHITE + ",04 "
-                        + nicks.get(highIndex) + " $"
-                        + formatDecimal(test.get(highIndex)) + " "
-                        + Colors.BLACK + ",08";
-                nicks.remove(highIndex);
-                test.remove(highIndex);
-                if (nicks.isEmpty() || ctr == length) {
-                    break;
-                }
-                // Output and reset after 10 players
-                if (ctr % 10 == 0){
-                    bot.sendMessage(channel, list);
-                    list = Colors.BLACK + ",08";
-                }
-            }
-            bot.sendMessage(channel, list);
-            
-        } catch (IOException e) {
-            bot.log("Error reading players.txt!");
-        }
-    }
-    
-    /**
-     * Outputs the top N players for a given statistic.
-     * Sends a message to channel with the list of players sorted by ranking.
-     * 
-     * @param stat the statistic used for ranking
-     * @param n the length of the list up to n players
-     */
-    public void showTopPlayers(String stat, int n) {
-        if (n < 1){
-            throw new IllegalArgumentException();
-        }
-        
-        int highIndex;
-        try {
-            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
-            loadPlayerFile(statList);
-            ArrayList<String> nicks = new ArrayList<String>();
-            ArrayList<Integer> test = new ArrayList<Integer>();
-            int length = Math.min(n, statList.size());
-            String title = Colors.BOLD + Colors.BLACK + ",08 Top " + length;
-            String list = Colors.BLACK + ",08";
-            
-            for (int ctr = 0; ctr < statList.size(); ctr++) {
-                nicks.add(statList.get(ctr).getNick());
-            }
-            
-            if (stat.equals("cash")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add(statList.get(ctr).get(stat));
-                }
-                title += " Cash ";
-            } else if (stat.equals("bank")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add(statList.get(ctr).get(stat));
-                }
-                title += " Bank ";
-            } else if (stat.equals("bankrupts")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add(statList.get(ctr).get(stat));
-                }
-                title += " Bankrupts ";
-            } else if (stat.equals("net") || stat.equals("netcash")) {
-                for (int ctr = 0; ctr < nicks.size(); ctr++) {
-                    test.add(statList.get(ctr).get("netcash"));
-                }
-                title += " Net Cash ";
-            } else if (stat.equals("winnings")){
-                if (gameName.equals("Blackjack")){
-                    for (int ctr = 0; ctr < statList.size(); ctr++) {
-                        test.add(statList.get(ctr).get("bjwinnings"));
-                    }
-                    title += " Blackjack Winnings ";
-                } else if (gameName.equals("Texas Hold'em Poker")){
-                    for (int ctr = 0; ctr < statList.size(); ctr++) {
-                        test.add(statList.get(ctr).get("tpwinnings"));
-                    }
-                    title += " Texas Hold'em Winnings ";
-                }
-            } else if (stat.equals("rounds")) {
-                if (gameName.equals("Blackjack")){
-                    for (int ctr = 0; ctr < statList.size(); ctr++) {
-                        test.add(statList.get(ctr).get("bjrounds"));
-                    }
-                    title += " Blackjack Rounds ";
-                } else if (gameName.equals("Texas Hold'em Poker")){
-                    for (int ctr = 0; ctr < statList.size(); ctr++) {
-                        test.add(statList.get(ctr).get("tprounds"));
-                    }
-                    title += " Texas Hold'em Rounds ";
-                }
-            } else {
-                throw new IllegalArgumentException();
-            }
-
-            showMsg(title);
-            
-            // Find the player with the highest value, add to output string and remove.
-            // Repeat n times or for the length of the list.
-            for (int ctr = 1; ctr <= length; ctr++){
-                highIndex = 0;
-                for (int ctr2 = 0; ctr2 < nicks.size(); ctr2++) {
-                    if (test.get(ctr2) > test.get(highIndex)) {
-                        highIndex = ctr2;
-                    }
-                }
-                if (stat.equals("rounds") || stat.equals("bankrupts")) {
-                    list += " #" + ctr + ": " + Colors.WHITE + ",04 "
-                            + nicks.get(highIndex) + " " 
-                            + formatNumber(test.get(highIndex)) + " "
-                            + Colors.BLACK + ",08";
-                } else {
-                    list += " #" + ctr + ": " + Colors.WHITE + ",04 "
-                            + nicks.get(highIndex) + " $"
-                            + formatNumber(test.get(highIndex)) + " "
-                            + Colors.BLACK + ",08";
-                }
-                nicks.remove(highIndex);
-                test.remove(highIndex);
-                if (nicks.isEmpty() || ctr == length) {
-                    break;
-                }
-                // Output and reset after 10 players
-                if (ctr % 10 == 0){
-                    bot.sendMessage(channel, list);
-                    list = Colors.BLACK + ",08";
-                }
-            }
-            bot.sendMessage(channel, list);
-        } catch (IOException e) {
-            bot.log("Error reading players.txt!");
-        }
-    }
     public void showStartRound(){
         if (get("startcount") > 0){
             showMsg(getMsg("start_round_auto"), getGameNameStr(), get("startcount"));
@@ -1593,59 +1187,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             showMsg(getMsg("no_data"), nick);
         }
     }
-    public void showPlayerWinnings(String nick){
-        int winnings = 0;
-        if (gameName.equals("Blackjack")){
-            winnings = getPlayerStat(nick, "bjwinnings");
-        } else if (gameName.equals("Texas Hold'em Poker")){
-            winnings = getPlayerStat(nick, "tpwinnings");
-        }
-        
-        if (winnings != Integer.MIN_VALUE) {
-            showMsg(getMsg("player_winnings"), nick, winnings, getGameNameStr());
-        } else {
-            showMsg(getMsg("no_data"), nick);
-        }
-    }
-    public void showPlayerWinRate(String nick){
-        double winnings = 0;
-        double rounds = 0;
-        if (gameName.equals("Blackjack")){
-            winnings = (double) getPlayerStat(nick, "bjwinnings");
-            rounds = (double) getPlayerStat(nick, "bjrounds");
-        } else if (gameName.equals("Texas Hold'em Poker")){
-            winnings = (double) getPlayerStat(nick, "tpwinnings");
-            rounds = (double) getPlayerStat(nick, "tprounds");
-        }
-        
-        if (rounds != Integer.MIN_VALUE) {
-            if (rounds == 0){
-                showMsg(getMsg("player_no_rounds"), nick, getGameNameStr());
-            } else {
-                showMsg(getMsg("player_winrate"), nick, winnings/rounds, getGameNameStr());
-            }    
-        } else {
-            showMsg(getMsg("no_data"), nick);
-        }
-    }
-    public void showPlayerRounds(String nick){
-        int rounds = 0;
-        if (gameName.equals("Blackjack")){
-            rounds = getPlayerStat(nick, "bjrounds");
-        } else if (gameName.equals("Texas Hold'em Poker")){
-            rounds = getPlayerStat(nick, "tprounds");
-        }
-        
-        if (rounds != Integer.MIN_VALUE) {
-            if (rounds == 0){
-                showMsg(getMsg("player_no_rounds"), nick, getGameNameStr());
-            } else {
-                showMsg(getMsg("player_rounds"), nick, rounds, getGameNameStr());
-            }  
-        } else {
-            showMsg(getMsg("no_data"), nick);
-        }
-    } 
     
     /* 
      * Private messages to players.
@@ -1658,14 +1199,18 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param args 
      */
     public void informPlayer(String nick, String message, Object... args){
-        bot.sendNotice(nick, String.format(message, args));
+        if (getPlayerStat(nick, "simple") > 0) {
+            bot.sendNotice(nick, String.format(message, args));
+        } else {
+            bot.sendMessage(nick, String.format(message, args));
+        }
     }
     public void infoGameRules(String nick) {
-        bot.sendNotice(nick,getGameRulesStr());
+        informPlayer(nick, getGameRulesStr());
     }
     public void infoGameCommands(String nick){
-        bot.sendNotice(nick,getGameNameStr()+" commands:");
-        bot.sendNotice(nick,getGameCommandStr());
+        informPlayer(nick, getGameNameStr()+" commands:");
+        informPlayer(nick, getGameCommandStr());
     }
     
     /* Reveals cards from the card deck */
@@ -1691,18 +1236,19 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 cardStr += tCards.get(ctr)+" ";
             }
             cardIndex += numOut;
-            bot.sendNotice(nick, cardStr.substring(0, cardStr.length()-1)+Colors.NORMAL);
+            informPlayer(nick, cardStr.substring(0, cardStr.length()-1)+Colors.NORMAL);
         }
     }
     
     /* Formatted strings */
-    public String getGameNameStr(){
-        return formatBold(gameName);
-    }
+    abstract public String getGameNameStr();
     abstract public String getGameRulesStr();
     abstract public String getGameCommandStr();
-    public static String formatDecimal(double n){
-        return String.format("%.2f", n);
+    public static String formatDecimal(double n) {
+        return String.format("%,.2f", n);
+    }
+    public static String formatNoDecimal(double n) {
+        return String.format("%,.0f", n);
     }
     public static String formatNumber(int n){
         return String.format("%,d", n);

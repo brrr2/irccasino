@@ -209,7 +209,9 @@ public class CasinoBot extends PircBotX {
         
         try {
             bot.connect(network);
-        } catch (IrcException | IOException e){
+        } catch (IrcException e){
+            System.out.println("Error: " + e);
+        } catch (IOException e){
             System.out.println("Error: " + e);
         }
     }
