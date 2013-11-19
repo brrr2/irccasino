@@ -33,9 +33,9 @@ irccasino is a Java package that implements casino games for IRC using the [Pirc
     network=IRC network  
     channel=IRC channels (comma delimited)  
 
-### Run the standalone bot ###
-7. Run the project.
-8. Give the bot Op status in the channels that will run the games.
-9. While as channel Op, type ".texaspoker" or ".blackjack" to start the desired game in the channel.
+### Run standalone bot ###
+1. Run the project.
+2. Give the bot Op status in the channels that will run the games.
+3. While as channel Op, type ".texaspoker" or ".blackjack" to start the desired game in the channel.
 
 For more information, visit the [project wiki][4] on GitHub or join us on Freenode in **##casino**.
