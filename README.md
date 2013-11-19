@@ -1,12 +1,10 @@
 # irccasino #
-
----
-
-## What is irccasino? ##
 [1]: http://code.google.com/p/pircbotx/ "PircBotX"
 [2]: http://www.oracle.com/technetwork/java/javase/downloads/index.html "Java SE"
 [3]: http://repo1.maven.org/maven2/org/pircbotx/pircbotx/1.9/pircbotx-1.9.jar "pircbotx-1.9"
 [4]: https://github.com/brrr2/irccasino/wiki "Wiki"
+
+## What is irccasino? ##
 irccasino is a Java package that implements casino games for IRC using the [PircBotX][1] library. A standalone bot is included, but it can also be added to any existing PircBotX-based project with some minor tweaks.
 
 ## Game Modules ##
@@ -27,11 +25,11 @@ irccasino is a Java package that implements casino games for IRC using the [Pirc
 ### Configuration ###
 1.  Copy the .help files to the project run directory.
 2.  Create irccasino.conf in the project run directory with the following contents:
-  
-    nick=bot nick  
-    password=bot password  
-    network=IRC network  
-    channel=IRC channels (comma delimited)  
+
+        nick=bot nick
+        password=bot password
+        network=IRC network
+        channel=IRC channels (comma delimited)
 
 ### Run standalone bot ###
 1. Run the project.
