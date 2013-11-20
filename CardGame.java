@@ -109,7 +109,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected Timer gameTimer; //All TimerTasks are scheduled on this Timer
     protected HashMap<String,Integer> settingsMap;
     protected HashMap<String,String> helpMap, msgMap;
-    private String iniFile, helpFile, strFile;
+    private String name, iniFile, helpFile, strFile;
     private IdleOutTask idleOutTask;
     private IdleWarningTask idleWarningTask;
     private StartRoundTask startRoundTask;
@@ -338,6 +338,25 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         } else if (command.equals("game")) {
             showMsg(getMsg("game_name"), getGameNameStr());
         // Op Commands
+        } else if (command.equals("fj") || command.equals("fjoin")){
+            if (!channel.isOp(user)) {
+                informPlayer(nick, getMsg("ops_only"));
+            } else {
+                if (params.length > 0){
+                    String fNick = params[0];
+                    Iterator<User> it = channel.getUsers().iterator();
+                    while(it.hasNext()){
+                        User u = it.next();
+                        if (u.getNick().equalsIgnoreCase(fNick)){
+                            fjoin(nick, u.getNick(), u.getHostmask());
+                            return;
+                        }
+                    }
+                    informPlayer(nick, getMsg("nick_not_found"), fNick);
+                } else {
+                    informPlayer(nick, getMsg("no_parameter"));
+                }
+            }
         } else if (command.equals("fl") || command.equals("fq") || command.equals("fquit") || command.equals("fleave")){
             if (!channel.isOp(user)) {
                 informPlayer(nick, getMsg("ops_only"));
@@ -469,6 +488,12 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * Accessor methods 
      * Returns or sets object properties.
      */
+    public String getName() {
+        return name;
+    }
+    public void setName(String str) {
+        name = str;
+    }
     public Channel getChannel(){
         return channel;
     }
@@ -594,32 +619,81 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         }
     }
     
-    public void join(String nick, String hostmask) {
+    /**
+     * Attempts to add a player to the game.
+     * @param nick the player's nick
+     * @param host the player's host
+     */
+    public void join(String nick, String host) {
+        CardGame game = bot.getGame(nick);
         if (joined.size() == get("maxplayers")){
             informPlayer(nick, getMsg("max_players"));
         } else if (isJoined(nick)) {
-            informPlayer(nick, getMsg("already_joined"));
-        } else if (isBlacklisted(nick)) {
-            informPlayer(nick, getMsg("blacklisted"));
+            informPlayer(nick, getMsg("is_joined"));
+        } else if (isBlacklisted(nick) || bot.isBlacklisted(nick)) {
+            informPlayer(nick, getMsg("on_blacklist"));
+        } else if (game != null) {
+            informPlayer(nick, getMsg("is_joined_other"), game.getGameNameStr(), game.getChannel().getName());
         } else if (has("inprogress")) {
             if (isWaitlisted(nick)) {
-                informPlayer(nick, getMsg("already_waitlisted"));
+                informPlayer(nick, getMsg("on_waitlist"));
             } else {
-                addWaitlistPlayer(nick, hostmask);
+                addWaitlistPlayer(nick, host);
             }
         } else {
-            addPlayer(nick, hostmask);
+            addPlayer(nick, host);
         }
     }
+    
+    /**
+     * Attempts to force add a player to the game.
+     * @param OpNick the channel Op
+     * @param nick the player to be force joined
+     * @param host the player's host
+     */
+    public void fjoin(String OpNick, String nick, String host) {
+        CardGame game = bot.getGame(nick);
+        if (joined.size() == get("maxplayers")){
+            informPlayer(OpNick, getMsg("max_players"));
+        } else if (isJoined(nick)) {
+            informPlayer(OpNick, getMsg("is_joined_nick"), nick);
+        } else if (isBlacklisted(nick) || bot.isBlacklisted(nick)) {
+            informPlayer(OpNick, getMsg("on_blacklist_nick"), nick);
+        } else if (game != null) {
+            informPlayer(OpNick, getMsg("is_joined_other_nick"), nick, game.getGameNameStr(), game.getChannel().getName());
+        } else if (has("inprogress")) {
+            if (isWaitlisted(nick)) {
+                informPlayer(OpNick, getMsg("on_waitlist_nick"), nick);
+            } else {
+                addWaitlistPlayer(nick, host);
+            }
+        } else {
+            addPlayer(nick, host);
+        }
+    }
+    
+    /**
+     * Attempts to remove a player from the game.
+     * @param p the player
+     */
     public void leave(Player p){
         leave(p.getNick());
     }
+    
+    /**
+     * Moves players on the waitlist to the joined list and clears the waitlist.
+     */
     public void mergeWaitlist(){
         for (int ctr = 0; ctr < waitlist.size(); ctr++){
             addPlayer(waitlist.get(ctr));
         }
         waitlist.clear();
     }
+    
+    /**
+     * Sets a RespawnTask for a player who has gone bankrupt.
+     * @param p the bankrupt player
+     */
     public void setRespawnTask(Player p) {
         // Calculate extra time penalty for players with debt
         int penalty = Math.max(-1 * p.get("bank") / 1000 * 60, 0);
@@ -628,6 +702,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         gameTimer.schedule(task, (get("respawn")+penalty)*1000);
         respawnTasks.add(task);
     }
+    
+    /**
+     * Cancels all RespawnTasks.
+     */
     public void cancelRespawnTasks() {
         Player p;
         for (int ctr = 0; ctr < respawnTasks.size(); ctr++) {
@@ -1330,5 +1408,30 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         } else {
             return "Error: Message for \'" + msgKey + "\' not found!";
         }
+    }
+    
+    /**
+     * Comparison of CardGame objects based on name and channel.
+     * @param o the Object to compare
+     * @return true if the properties are the same.
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (o != null && o instanceof CardGame) {
+            CardGame c = (CardGame) o;
+            if (channel.equals(c.channel) && getName().equals(c.getName()) &&
+                hashCode() == c.hashCode()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = 7;
+        hash = 17 * hash + Objects.hashCode(this.channel);
+        hash = 17 * hash + Objects.hashCode(this.name);
+        return hash;
     }
 }

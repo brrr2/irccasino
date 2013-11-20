@@ -83,6 +83,7 @@ public class Blackjack extends CardGame {
      */
     public Blackjack(CasinoBot parent, char commChar, Channel gameChannel) {
         super(parent, commChar, gameChannel);
+        setName("blackjack");
         setIniFile("blackjack.ini");
         setHelpFile("blackjack.help");
         setStrFile("strlib.txt");
@@ -100,20 +101,14 @@ public class Blackjack extends CardGame {
     @Override
     public void processCommand(User user, String command, String[] params){
         String nick = user.getNick();
-        String hostmask = user.getHostmask();
+        String host = user.getHostmask();
 
         /* Check if it's a common command */
         super.processCommand(user, command, params);
         
         /* Parsing commands from the channel */
         if (command.equals("join") || command.equals("j")){
-            if (bot.tpgame != null && (bot.tpgame.isJoined(nick) || bot.tpgame.isWaitlisted(nick))){
-                informPlayer(user.getNick(), getMsg("already_joined_other_game"), bot.tpgame.getGameNameStr());
-            } else if (bot.tpgame != null && bot.tpgame.isBlacklisted(nick)){
-                informPlayer(nick, getMsg("blacklisted"));
-            } else {
-                join(nick, hostmask);
-            }
+            join(nick, host);
         } else if (command.equals("start") || command.equals("go")){
             if (isStartAllowed(nick)) {
                 if (params.length > 0){
@@ -278,34 +273,6 @@ public class Blackjack extends CardGame {
                 resetGame();
                 showMsg(getMsg("end_round"), getGameNameStr(), commandChar);
                 set("inprogress", 0);
-            }
-        } else if (command.equals("fj") || command.equals("fjoin")){
-            if (!channel.isOp(user)) {
-                informPlayer(nick, getMsg("ops_only"));
-            } else {
-                if (params.length > 0){
-                    String fNick = params[0];
-                    Set<User> chanUsers = channel.getUsers();
-                    Iterator<User> it = chanUsers.iterator();
-                    while(it.hasNext()){
-                        User u = it.next();
-                        if (u.getNick().equalsIgnoreCase(fNick)){
-                            // Check if fNick is joined in another game
-                            if (bot.tpgame != null && 
-                                (bot.tpgame.isJoined(fNick) || bot.tpgame.isWaitlisted(fNick))){
-                                informPlayer(user.getNick(), u.getNick()+" is already joined in "+bot.tpgame.getGameNameStr()+"!");
-                            } else if (bot.tpgame != null && bot.tpgame.isBlacklisted(fNick)){
-                                informPlayer(user.getNick(), u.getNick()+" is bankrupt and cannot join!");
-                            } else {
-                                join(u.getNick(), u.getHostmask());
-                            }
-                            return;
-                        }
-                    }
-                    informPlayer(nick, getMsg("nick_not_found"), fNick);
-                } else {
-                    informPlayer(nick, getMsg("no_parameter"));
-                }
             }
         } else if (command.equals("fb") || command.equals("fbet")){
             if (isForceBetAllowed(user, nick)){
@@ -816,8 +783,6 @@ public class Blackjack extends CardGame {
         helpMap.clear();
         msgMap.clear();
         settingsMap.clear();
-        bot = null;
-        channel = null;
     }
     @Override
     public void resetGame() {
@@ -2011,7 +1976,7 @@ public class Blackjack extends CardGame {
         }
     }
     
-    /* Formatted strings */
+    /* Formatted strings */   
     @Override
     public String getGameNameStr(){
         return formatBold(getMsg("bj_game_name"));

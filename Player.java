@@ -30,8 +30,8 @@ import org.pircbotx.*;
 public abstract class Player extends Stats{
     /** Stores the player's nick. */
     protected String nick;
-    /** Stores the player's hostmask. */
-    protected String hostmask;
+    /** Stores the player's host. */
+    protected String host;
     
     /**
      * Creates a new Player.
@@ -39,12 +39,12 @@ public abstract class Player extends Stats{
      * of players.
      * 
      * @param nick IRC user nick
-     * @param hostmask IRC user hostmask
+     * @param host IRC user host
      */
-    public Player(String nick, String hostmask){
+    public Player(String nick, String host){
         super();
         this.nick = nick;
-        this.hostmask = hostmask;
+        this.host = host;
         set("cash", 0);
         set("bank", 0);
         set("bankrupts", 0);
@@ -99,12 +99,12 @@ public abstract class Player extends Stats{
     }
     
     /**
-     * Returns the Player's hostmask.
+     * Returns the Player's host.
      * 
-     * @return the Player's hostmask
+     * @return the Player's host
      */
-    public String getHostmask() {
-        return hostmask;
+    public String getHost() {
+        return host;
     }
     
     /**
@@ -139,17 +139,17 @@ public abstract class Player extends Stats{
     }
     
     /**
-     * String representation includes the Player's nick and hostmask.
+     * String representation includes the Player's nick and host.
      * 
-     * @return a String containing the Players nick and hostmask
+     * @return a String containing the Players nick and host
      */
     @Override
     public String toString(){
-        return nick + " " + hostmask;
+        return nick + " " + host;
     }
     
     /**
-     * Comparison of Player objects.
+     * Comparison of Player objects based on nick and host.
      * @param o the Object to compare
      * @return true if the properties are the same
      */
@@ -157,7 +157,7 @@ public abstract class Player extends Stats{
     public boolean equals(Object o) {
         if (o != null && o instanceof Player) {
             Player p = (Player) o;
-            if (nick.equals(p.nick) && hostmask.equals(p.hostmask) &&
+            if (nick.equals(p.nick) && host.equals(p.host) &&
                 hashCode() == p.hashCode()) {
                 return true;
             }
@@ -173,7 +173,7 @@ public abstract class Player extends Stats{
     public int hashCode() {
         int hash = 5;
         hash = 29 * hash + Objects.hashCode(this.nick);
-        hash = 29 * hash + Objects.hashCode(this.hostmask);
+        hash = 29 * hash + Objects.hashCode(this.host);
         return hash;
     }
 }

@@ -41,10 +41,12 @@ import org.pircbotx.hooks.managers.ThreadedListenerManager;
  * @author Yizhe Shen
  */
 public class CasinoBot extends PircBotX {
-    /* Listener for CasinoBot initialization */
+    /**
+     * Listener for CasinoBot initialization 
+     */
     public static class InitListener extends ListenerAdapter<PircBotX> {
-        CasinoBot bot;
-        char commandChar;
+        protected CasinoBot bot;
+        protected char commandChar;
         public InitListener(CasinoBot parent, char commChar) {
             bot = parent;
             commandChar = commChar;
@@ -84,68 +86,30 @@ public class CasinoBot extends PircBotX {
          */
         public void processCommand(Channel channel, User user, String command, String[] params){
             if (channel.isOp(user)){
-                CasinoBot cbot = (CasinoBot) bot;
                 if (command.equals("blackjack") || command.equals("bj")) {
-                    if (cbot.tpgame != null && cbot.tpgame.getChannel().equals(channel)){
-                        bot.sendMessage(channel, "Currently running "+cbot.tpgame.getGameNameStr()+" in this channel.");
-                    } else if (cbot.bjgame != null) {
-                        bot.sendMessage(channel, cbot.bjgame.getGameNameStr()+" is already running in "+cbot.bjgame.getChannel().getName());
-                    } else {
-                        cbot.bjgame = new Blackjack(cbot, commandChar, channel);
-                        cbot.getListenerManager().addListener(cbot.bjgame);
+                    if (!bot.hasGame(channel)) {
+                        CardGame newGame = new Blackjack(bot, commandChar, channel);
+                        bot.gameList.add(newGame);
+                        bot.getListenerManager().addListener(newGame);
                     }
                 } else if (command.equals("texaspoker") || command.equals("tp")) {
-                    if (cbot.bjgame != null && cbot.bjgame.getChannel().equals(channel)){
-                        bot.sendMessage(channel, "Currently running "+cbot.bjgame.getGameNameStr()+" in this channel.");
-                    } else if (cbot.tpgame != null) {
-                        bot.sendMessage(channel, cbot.tpgame.getGameNameStr()+" is already running in "+cbot.tpgame.getChannel().getName());
-                    } else {
-                        cbot.tpgame = new TexasPoker(cbot, commandChar, channel);
-                        cbot.getListenerManager().addListener(cbot.tpgame);
+                    if (!bot.hasGame(channel)) {
+                        CardGame newGame = new TexasPoker(bot, commandChar, channel);
+                        bot.gameList.add(newGame);
+                        bot.getListenerManager().addListener(newGame);
                     }
                 } else if (command.equals("endgame")) {
-                    if (cbot.bjgame != null && cbot.bjgame.getChannel().equals(channel)){
-                        if (cbot.bjgame.has("inprogress")){
+                    CardGame game = bot.getGame(channel);
+                    if (game != null) {
+                        if (game.has("inprogress")){
                             bot.sendMessage(channel, "Please wait for the current round to finish.");
                         } else {
-                            cbot.bjgame.endGame();
-                            cbot.getListenerManager().removeListener(cbot.bjgame);
-                            cbot.bjgame = null;
-                        }
-                    }
-                    if (cbot.tpgame != null && cbot.tpgame.getChannel().equals(channel)){
-                        if (cbot.tpgame.has("inprogress")){
-                            bot.sendMessage(channel, "Please wait for the current round to finish.");
-                        } else {
-                            cbot.tpgame.endGame();
-                            cbot.getListenerManager().removeListener(cbot.tpgame);
-                            cbot.tpgame = null;
+                            bot.endGame(game);
                         }
                     }
                 } else if (command.equals("shutdown") || command.equals("botquit")) {
-                    if (cbot.bjgame != null || cbot.tpgame != null){
-                        if (cbot.bjgame != null && cbot.bjgame.has("inprogress")){
-                            bot.sendMessage(channel, "A round of "+cbot.bjgame.getGameNameStr()+" is in progress. Please wait for it to finish.");
-                        } else if (cbot.tpgame != null && cbot.tpgame.has("inprogress")){
-                            bot.sendMessage(channel, "A round of "+cbot.tpgame.getGameNameStr()+" is in progress. Please wait for it to finish.");
-                        } else {
-                            if (cbot.bjgame != null){
-                                cbot.bjgame.endGame();
-                                cbot.getListenerManager().removeListener(cbot.bjgame);
-                                cbot.bjgame = null;
-                            }
-                            if (cbot.tpgame != null){
-                                cbot.tpgame.endGame();
-                                cbot.getListenerManager().removeListener(cbot.tpgame);
-                                cbot.tpgame = null;
-                            }
-                            try {
-                                bot.quitServer("Bye.");
-                            } catch (Exception e){
-                                System.out.println("Error: " + e);
-                            }
-                        }
-                    } else {
+                    if (!bot.checkGamesInProgress()){
+                        bot.endGames();
                         try {
                             bot.quitServer("Bye.");
                         } catch (Exception e){
@@ -161,15 +125,14 @@ public class CasinoBot extends PircBotX {
     public static String configFile;
     public static String botNick, botPassword, network;
     public static ArrayList<String> channelList;
-    public CardGame bjgame, tpgame;
+    public ArrayList<CardGame> gameList;
     public String logFile;
     
     public CasinoBot(String fileName){
         super();
         version = "CasinoBot using PircBotX";
         logFile = fileName;
-        bjgame = null;
-        tpgame = null;
+        gameList = new ArrayList<CardGame>();
         setMessageDelay(200);
     }
     
@@ -287,5 +250,105 @@ public class CasinoBot extends PircBotX {
                 bot.log("Error creating "+configFile+"!");
             }
         }
+    }
+    
+    /**
+     * Checks if a game is running in the specified channel.
+     * @param channel the channel to check
+     * @return true if the channel has a game already running
+     */
+    public boolean hasGame(Channel channel) {
+        CardGame game = getGame(channel);
+        if (game == null) {
+            return false;
+        } else {
+            sendMessage(channel, game.getGameNameStr() + " is already running in this channel.");
+            return true;
+        }
+    }
+        
+    /**
+     * Returns the CardGame that's running in the specified channel.
+     * @param channel the channel to check
+     * @return the CardGame or null if no game is running
+     */
+    public CardGame getGame(Channel channel) {
+        for (int ctr = 0; ctr < gameList.size(); ctr++){
+            if (gameList.get(ctr).getChannel().equals(channel)){
+                return gameList.get(ctr);
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * Returns the CardGame that the specified nick has joined or is on the 
+     * waitlist.
+     * @param nick the player's nick
+     * @return the CardGame or null if not joined or waitlisted
+     */
+    public CardGame getGame(String nick) {
+        CardGame game;
+        for (int ctr = 0; ctr < gameList.size(); ctr++) {
+            game = gameList.get(ctr);
+            if (game.isJoined(nick) || game.isWaitlisted(nick)) {
+                return game;
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * Checks if a player is bankrupt.
+     * @param nick the player's nick
+     * @return true if the player is bankrupt
+     */
+    public boolean isBlacklisted(String nick) {
+        CardGame game;
+        for (int ctr = 0; ctr < gameList.size(); ctr++) {
+            game = gameList.get(ctr);
+            if (game.isBlacklisted(nick)) {
+                return true;
+            }
+        }
+        return false;
+    }
+        
+    /**
+     * Checks if any games have rounds in progress.
+     * @return true if any game has a round in progress
+     */
+    public boolean checkGamesInProgress() {
+        boolean inProgress = false;
+        CardGame game;
+        for (int ctr = 0; ctr < gameList.size(); ctr++){
+            game = gameList.get(ctr);
+            if (game.has("inprogress")){
+                sendMessage(game.getChannel(), "A round of " + game.getGameNameStr() + " is in progress in " + 
+                        game.getChannel().getName() + ". Please wait for it to finish.");
+                inProgress = true;
+            }
+        }
+        return inProgress;
+    }
+        
+    /**
+     * Shuts down all games.
+     */
+    public void endGames() {
+        for (int ctr = 0; ctr < gameList.size(); ctr++){
+            endGame(gameList.get(ctr));
+            ctr--;
+        }
+    }
+    
+    /**
+     * Shuts down the specified game.
+     * @param game the game to shut down
+     */
+    public void endGame(CardGame game) {
+        game.endGame();
+        getListenerManager().removeListener(game);
+        gameList.remove(game);
     }
 }

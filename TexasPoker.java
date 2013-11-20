@@ -184,6 +184,7 @@ public class TexasPoker extends CardGame{
      */
     public TexasPoker(CasinoBot parent, char commChar, Channel gameChannel){
         super(parent, commChar, gameChannel);
+        setName("texaspoker");
         setIniFile("texaspoker.ini");
         setHelpFile("texaspoker.help");
         setStrFile("strlib.txt");
@@ -209,21 +210,14 @@ public class TexasPoker extends CardGame{
     @Override
     public void processCommand(User user, String command, String[] params){
         String nick = user.getNick();
-        String hostmask = user.getHostmask();
+        String host = user.getHostmask();
         
         /* Check if it's a common command */
         super.processCommand(user, command, params);
         
         /* Parsing commands from the channel */
         if (command.equals("join") || command.equals("j")) {
-            if (bot.bjgame != null &&
-                (bot.bjgame.isJoined(nick) || bot.bjgame.isWaitlisted(nick))){
-                informPlayer(user.getNick(), getMsg("already_joined_other_game"), bot.bjgame.getGameNameStr());
-            } else if (bot.bjgame != null && bot.bjgame.isBlacklisted(nick)){
-                informPlayer(nick, getMsg("blacklisted"));
-            } else{
-                join(nick, hostmask);
-            }
+            join(nick, host);
         } else if (command.equals("start") || command.equals("go")) {
             if (isStartAllowed(nick)){
                 if (params.length > 0){
@@ -330,33 +324,6 @@ public class TexasPoker extends CardGame{
                 resetGame();
                 showMsg(getMsg("end_round"), getGameNameStr(), commandChar);
                 set("inprogress", 0);
-            }
-        } else if (command.equals("fj") || command.equals("fjoin")){
-            if (!channel.isOp(user)) {
-                informPlayer(nick, getMsg("ops_only"));
-            } else {
-                if (params.length > 0){
-                    String fNick = params[0];
-                    Iterator<User> it = channel.getUsers().iterator();
-                    while(it.hasNext()){
-                        User u = it.next();
-                        if (u.getNick().equalsIgnoreCase(fNick)){
-                            // Check if fNick is joined in another game
-                            if (bot.bjgame != null &&
-                                (bot.bjgame.isJoined(fNick) || bot.bjgame.isWaitlisted(fNick))){
-                                informPlayer(user.getNick(), u.getNick()+" is already joined in "+bot.bjgame.getGameNameStr()+"!");
-                            } else if (bot.bjgame != null && bot.bjgame.isBlacklisted(fNick)){
-                                informPlayer(user.getNick(), u.getNick()+" is bankrupt and cannot join!");
-                            } else{
-                                join(u.getNick(), u.getHostmask());
-                            }
-                            return;
-                        }
-                    }
-                    informPlayer(nick, getMsg("nick_not_found"), fNick);
-                } else {
-                    informPlayer(nick, getMsg("no_parameter"));
-                }
             }
         } else if (command.equals("fb") || command.equals("fbet")){
             if (isForcePlayAllowed(user, nick)){
@@ -745,8 +712,6 @@ public class TexasPoker extends CardGame{
         helpMap.clear();
         msgMap.clear();
         settingsMap.clear();
-        bot = null;
-        channel = null;
     }
     @Override
     public void resetGame() {

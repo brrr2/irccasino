@@ -6,13 +6,13 @@
 # No parameters #
 #################
 max_players=Unable to join. The maximum number of players has been reached.
-already_joined=You have already joined!
-already_joined_other_game=You're already joined in %s!
+is_joined=You have already joined!
+is_joined_other=You're already joined in a game of %s in %s!
 no_join=You are not currently joined!
 join_waitlist=You have joined the waitlist and will be automatically added next round.
 leave_waitlist=You have left the waitlist and will not be automatically added next round.
-already_waitlisted=You have already joined the waitlist!
-blacklisted=You have gone bankrupt. Please wait for a loan to join again.
+on_waitlist=You have already joined the waitlist!
+on_blacklist=You have gone bankrupt. Please wait for a loan to join again.
 wait_round_end=A round is in progress! Wait for the round to end.
 round_started=A round is in progress!
 no_start=No round in progress!
@@ -37,6 +37,10 @@ remove_end_round=You will be removed at the end of the round.
 ###################
 # With parameters #
 ###################
+is_joined_nick=%s is already joined!
+is_joined_other_nick=%s is already joined in a game of %s in %s!
+on_waitlist_nick=%s has already joined the waitlist!
+on_blacklist_nick=%s is bankrupt and cannot join!
 new_player=Welcome to %s! Here's $%,d to get you started!
 new_nick=Welcome to %s! For help, type %cghelp!
 nick_not_found=%s was not found.
