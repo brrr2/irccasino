@@ -38,6 +38,22 @@ import org.pircbotx.hooks.events.QuitEvent;
  * @author Yizhe Shen
  */
 public abstract class CardGame extends ListenerAdapter<PircBotX> {
+    
+    protected CasinoBot bot;
+    protected Channel channel;
+    protected char commandChar;
+    protected ArrayList<Player> joined, blacklist, waitlist; //Player lists
+    protected CardDeck deck; //the deck of cards
+    protected Player currentPlayer; //stores the player whose turn it is
+    protected Timer gameTimer; //All TimerTasks are scheduled on this Timer
+    protected HashMap<String,Integer> settingsMap;
+    protected HashMap<String,String> helpMap, msgMap;
+    private String name, iniFile, helpFile, strFile;
+    private IdleOutTask idleOutTask;
+    private IdleWarningTask idleWarningTask;
+    private StartRoundTask startRoundTask;
+    private ArrayList<RespawnTask> respawnTasks;
+    
     /* Start round task to be performed after post-start waiting period */
     public static class StartRoundTask extends TimerTask{
         CardGame game;
@@ -99,21 +115,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             tasks.remove(this);
         }
     }
-
-    protected CasinoBot bot;
-    protected Channel channel;
-    protected char commandChar;
-    protected ArrayList<Player> joined, blacklist, waitlist; //Player lists
-    protected CardDeck deck; //the deck of cards
-    protected Player currentPlayer; //stores the player whose turn it is
-    protected Timer gameTimer; //All TimerTasks are scheduled on this Timer
-    protected HashMap<String,Integer> settingsMap;
-    protected HashMap<String,String> helpMap, msgMap;
-    private String name, iniFile, helpFile, strFile;
-    private IdleOutTask idleOutTask;
-    private IdleWarningTask idleWarningTask;
-    private StartRoundTask startRoundTask;
-    private ArrayList<RespawnTask> respawnTasks;
     
     /**
      * Creates a generic CardGame.

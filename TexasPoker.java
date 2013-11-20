@@ -29,6 +29,13 @@ import java.util.*;
 import org.pircbotx.*;
 
 public class TexasPoker extends CardGame{
+    
+    private ArrayList<PokerPot> pots;
+    private PokerPot currentPot;
+    private PokerPlayer dealer, smallBlind, bigBlind, topBettor;
+    private Hand community;
+    private HouseStat house;
+    
     /* A pot class to handle bets and payouts in Texas Hold'em Poker. */
     public class PokerPot {
         private ArrayList<PokerPlayer> players;
@@ -168,24 +175,31 @@ public class TexasPoker extends CardGame{
             return "Biggest pot: $" + formatNumber(get("biggestpot")) + " (" + getToStringList() + ").";
         }
     }
-    
-    private ArrayList<PokerPot> pots;
-    private PokerPot currentPot;
-    private PokerPlayer dealer, smallBlind, bigBlind, topBettor;
-    private Hand community;
-    private HouseStat house;
 
     /**
-     * Constructor for TexasPoker, subclass of CardGame
+     * The default constructor for TexasPoker, subclass of CardGame.
+     * This constructor loads the default INI file.
      * 
      * @param parent The bot that uses an instance of this class
      * @param commChar The command char
      * @param gameChannel The IRC channel in which the game is to be run.
      */
     public TexasPoker(CasinoBot parent, char commChar, Channel gameChannel){
+        this(parent, commChar, gameChannel, "texaspoker.ini");
+    }
+    
+    /**
+     * Allows a custom INI file to be loaded.
+     * 
+     * @param parent The bot that uses an instance of this class
+     * @param commChar The command char
+     * @param gameChannel The IRC channel in which the game is to be run.
+     * @param customINI the file path to a custom INI file
+     */
+    public TexasPoker(CasinoBot parent, char commChar, Channel gameChannel, String customINI) {
         super(parent, commChar, gameChannel);
         setName("texaspoker");
-        setIniFile("texaspoker.ini");
+        setIniFile(customINI);
         setHelpFile("texaspoker.help");
         setStrFile("strlib.txt");
         loadLib(helpMap, getHelpFile());
@@ -1760,7 +1774,7 @@ public class TexasPoker extends CardGame{
     
     /* Formatted strings */
     @Override
-    public String getGameNameStr(){
+    public final String getGameNameStr(){
         return formatBold(getMsg("tp_game_name"));
     }
     

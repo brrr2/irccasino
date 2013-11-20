@@ -33,6 +33,12 @@ import org.pircbotx.*;
  * @author Yizhe Shen
  */
 public class Blackjack extends CardGame {
+    
+    private BlackjackPlayer dealer;
+    private ArrayList<HouseStat> houseStatsList;
+    private IdleShuffleTask idleShuffleTask;
+    private HouseStat house;
+    
     /* Nested class to create a shuffle timer thread */
     public class IdleShuffleTask extends TimerTask {
         private Blackjack game;
@@ -68,23 +74,31 @@ public class Blackjack extends CardGame {
                 + formatNumber(get("cash")) + " during those round(s).";
         }
     }
-    
-    private BlackjackPlayer dealer;
-    private ArrayList<HouseStat> houseStatsList;
-    private IdleShuffleTask idleShuffleTask;
-    private HouseStat house;
 
     /**
-     * Class constructor for Blackjack, a subclass of CardGame.
+     * The default constructor for Blackjack, subclass of CardGame.
+     * This constructor loads the default INI file.
      * 
      * @param parent The bot that uses an instance of this class
      * @param commChar The command char
      * @param gameChannel The IRC channel in which the game is to be run.
      */
     public Blackjack(CasinoBot parent, char commChar, Channel gameChannel) {
+        this(parent, commChar, gameChannel, "blackjack.ini");
+    }
+    
+    /**
+     * Allows a custom INI file to be loaded.
+     * 
+     * @param parent The bot that uses an instance of this class
+     * @param commChar The command char
+     * @param gameChannel The IRC channel in which the game is to be run
+     * @param customINI the file path to a custom INI file
+     */
+    public Blackjack(CasinoBot parent, char commChar, Channel gameChannel, String customINI) {
         super(parent, commChar, gameChannel);
         setName("blackjack");
-        setIniFile("blackjack.ini");
+        setIniFile(customINI);
         setHelpFile("blackjack.help");
         setStrFile("strlib.txt");
         loadLib(helpMap, getHelpFile());
@@ -1978,7 +1992,7 @@ public class Blackjack extends CardGame {
     
     /* Formatted strings */   
     @Override
-    public String getGameNameStr(){
+    public final String getGameNameStr(){
         return formatBold(getMsg("bj_game_name"));
     }
     
