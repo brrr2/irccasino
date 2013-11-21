@@ -1428,11 +1428,15 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         return false;
     }
 
+    /**
+     * Auto-generated hashCode method.
+     * @return the CardGame's hashCode
+     */
     @Override
     public int hashCode() {
         int hash = 7;
-        hash = 17 * hash + Objects.hashCode(this.channel);
-        hash = 17 * hash + Objects.hashCode(this.name);
+        hash = 17 * hash + channel.hashCode();
+        hash = 17 * hash + name.hashCode();
         return hash;
     }
 }

@@ -307,11 +307,7 @@ public class CasinoBot extends PircBotX {
                 if (name.equals("nick")) {
                     botNick = value;
                 } else if (name.equals("password")) {
-                    if (value == null){
-                        botPassword = "";
-                    } else {
-                        botPassword = value;
-                    }
+                    botPassword = value;
                 } else if (name.equals("channel")) {
                     StringTokenizer st2 = new StringTokenizer(value, ",");
                     while (st2.hasMoreTokens()){

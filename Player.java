@@ -19,7 +19,6 @@
 
 package irccasino;
 
-import java.util.Objects;
 import org.pircbotx.*;
 
 /**
@@ -172,8 +171,8 @@ public abstract class Player extends Stats{
     @Override
     public int hashCode() {
         int hash = 5;
-        hash = 29 * hash + Objects.hashCode(this.nick);
-        hash = 29 * hash + Objects.hashCode(this.host);
+        hash = 29 * hash + nick.hashCode();
+        hash = 29 * hash + host.hashCode();
         return hash;
     }
 }
