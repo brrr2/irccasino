@@ -198,12 +198,12 @@ public class TexasPoker extends CardGame{
      */
     public TexasPoker(CasinoBot parent, char commChar, Channel gameChannel, String customINI) {
         super(parent, commChar, gameChannel);
-        setName("texaspoker");
-        setIniFile(customINI);
-        setHelpFile("texaspoker.help");
-        setStrFile("strlib.txt");
-        loadLib(helpMap, getHelpFile());
-        loadLib(msgMap, getStrFile());
+        name = "texaspoker";
+        iniFile = customINI;
+        helpFile = "texaspoker.help";
+        strFile = "strlib.txt";
+        loadLib(helpMap, helpFile);
+        loadLib(msgMap, strFile);
         house = new HouseStat();
         loadHouseStats();
         initialize();
@@ -386,8 +386,8 @@ public class TexasPoker extends CardGame{
         } else if (command.equals("reload")) {
             if (isOpCommandAllowed(user, nick)){
                 loadIni();
-                loadLib(helpMap, getHelpFile());
-                loadLib(msgMap, getStrFile());
+                loadLib(helpMap, helpFile);
+                loadLib(msgMap, strFile);
                 showMsg(getMsg("reload"));
             }
         } else if (command.equals("test1")){
@@ -498,12 +498,12 @@ public class TexasPoker extends CardGame{
 
     /* Game management methods */
     @Override
-    public void addPlayer(String nick, String hostmask) {
-        addPlayer(new PokerPlayer(nick, hostmask));
+    public void addPlayer(String nick, String host) {
+        addPlayer(new PokerPlayer(nick, host));
     }
     @Override
-    public void addWaitlistPlayer(String nick, String hostmask) {
-        Player p = new PokerPlayer(nick, hostmask);
+    public void addWaitlistPlayer(String nick, String host) {
+        Player p = new PokerPlayer(nick, host);
         waitlist.add(p);
         informPlayer(p.getNick(), getMsg("join_waitlist"));
     }
@@ -579,8 +579,8 @@ public class TexasPoker extends CardGame{
                         showMsg(showdownStr);
                     }
                    
-                   // Add a 10 second delay for dramatic effect
-                   try { Thread.sleep(10000); } catch (InterruptedException e){}
+                   // Add a delay for dramatic effect
+                   try { Thread.sleep(get("showdown") * 1000); } catch (InterruptedException e){}
                 }
                 // Burn a card before turn and river
                 if (get("stage") != 1) {
@@ -900,6 +900,8 @@ public class TexasPoker extends CardGame{
         settingsMap.put("maxplayers", 22);
         settingsMap.put("minbet", 10);
         settingsMap.put("autostarts", 10);
+        settingsMap.put("startwait", 5);
+        settingsMap.put("showdown", 10);
         // In-game properties
         settingsMap.put("stage", 0);
         settingsMap.put("currentbet", 0);
@@ -908,7 +910,7 @@ public class TexasPoker extends CardGame{
     @Override
     protected final void saveIniFile() {
         try {
-            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(getIniFile())));
+            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(iniFile)));
             out.println("#Settings");
             out.println("#Number of seconds before a player idles out");
             out.println("idle=" + get("idle"));
@@ -924,9 +926,13 @@ public class TexasPoker extends CardGame{
             out.println("maxplayers=" + get("maxplayers"));
             out.println("#The maximum number of autostarts allowed");
             out.println("autostarts=" + get("autostarts"));
+            out.println("#The wait time in seconds after the start command is given");
+            out.println("startwait=" + get("startwait"));
+            out.println("#The wait time in seconds in between reveals during a showdown");
+            out.println("showdown=" + get("showdown"));
             out.close();
         } catch (IOException e) {
-            bot.log("Error creating " + getIniFile() + "!");
+            bot.log("Error creating " + iniFile + "!");
         }
     }
     

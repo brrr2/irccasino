@@ -34,7 +34,7 @@ import org.pircbotx.hooks.events.PartEvent;
 import org.pircbotx.hooks.events.QuitEvent;
 
 /**
- * Superclass for card games written for irccasino.
+ * Generic class for card games written for irccasino.
  * @author Yizhe Shen
  */
 public abstract class CardGame extends ListenerAdapter<PircBotX> {
@@ -48,13 +48,15 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected Timer gameTimer; //All TimerTasks are scheduled on this Timer
     protected HashMap<String,Integer> settingsMap;
     protected HashMap<String,String> helpMap, msgMap;
-    private String name, iniFile, helpFile, strFile;
-    private IdleOutTask idleOutTask;
-    private IdleWarningTask idleWarningTask;
-    private StartRoundTask startRoundTask;
-    private ArrayList<RespawnTask> respawnTasks;
+    protected String name, iniFile, helpFile, strFile;
+    protected IdleOutTask idleOutTask;
+    protected IdleWarningTask idleWarningTask;
+    protected StartRoundTask startRoundTask;
+    protected ArrayList<RespawnTask> respawnTasks;
     
-    /* Start round task to be performed after post-start waiting period */
+    /**
+     * Start round task to be performed after post-start waiting period.
+     */
     public static class StartRoundTask extends TimerTask{
         CardGame game;
         public StartRoundTask(CardGame g){
@@ -66,7 +68,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             game.startRound();
         }
     }
-    /* Idle task for removing idle players */
+    
+    /**
+     * Idle task for removing idle players.
+     */
     public static class IdleOutTask extends TimerTask {
         private Player player;
         private CardGame game;
@@ -81,7 +86,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             game.leave(player);
         }
     }
-    /* Idle warning task for reminding players they are about to idle out */
+    
+    /**
+     * Idle warning task for reminding players they are about to idle out.
+     */
     public static class IdleWarningTask extends TimerTask {
         private Player player;
         private CardGame game;
@@ -96,7 +104,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     player.getNickStr(), game.get("idle") - game.get("idlewarning"));
         }
     }
-    /* Respawn task for giving loans after bankruptcies */
+    
+    /**
+     * Respawn task for giving loans after bankruptcies.
+     */
     public static class RespawnTask extends TimerTask {
         Player player;
         CardGame game;
@@ -143,6 +154,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         checkPlayerFile();
     }
     
+    /**
+     * Occurs when a message is sent to the game channel.
+     * @param event message event
+     */
     @Override
     public void onMessage(MessageEvent<PircBotX> event){
         String msg = event.getMessage();
@@ -161,6 +176,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         }
     }
     
+    /**
+     * Occurs when a user joins the game channel.
+     * @param event join event
+     */
     @Override
     public void onJoin(JoinEvent<PircBotX> event){
         if (event.getChannel().equals(channel)){
@@ -168,6 +187,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         }
     }
 
+    /**
+     * Occurs when a user parts the game channel.
+     * @param event part event
+     */
     @Override
     public void onPart(PartEvent<PircBotX> event){
         if (event.getChannel().equals(channel)){
@@ -175,11 +198,19 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         }
     }
 
+    /**
+     * Occurs when a user disconnects from the IRC network.
+     * @param event quit event
+     */
     @Override
     public void onQuit(QuitEvent<PircBotX> event){
         processQuit(event.getUser());
     }
 
+    /**
+     * Occurs when a user changes nicks.
+     * @param event nick change event
+     */
     @Override
     public void onNickChange(NickChangeEvent<PircBotX> event){
         processNickChange(event.getUser(), event.getOldNick(), event.getNewNick());
@@ -441,7 +472,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     
     /**
-     * Processes a user join event in the channel where the game is running.
+     * Processes a user join event in the game channel.
      * 
      * @param user The IRC user who has joined.
      */
@@ -453,7 +484,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     
     /**
-     * Processes a user quit or part event in the channel where the game is running.
+     * Processes a user quit or part event in the game channel.
      * 
      * @param user The IRC user who has quit or parted.
      */
@@ -465,7 +496,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     
     /**
-     * Process a user change nick event in the channel where the game is running.
+     * Process a user change nick event in the game channel.
      * 
      * @param user The IRC user who has changed nicks.
      * @param oldNick The old nick of the user.
@@ -489,32 +520,12 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * Accessor methods 
      * Returns or sets object properties.
      */
-    public String getName() {
-        return name;
-    }
-    public void setName(String str) {
-        name = str;
-    }
+    /**
+     * Returns the game channel.
+     * @return the game channel
+     */
     public Channel getChannel(){
         return channel;
-    }
-    public void setIniFile(String file){
-        iniFile = file;
-    }
-    public String getIniFile(){
-        return iniFile;
-    }
-    public void setHelpFile(String file) {
-        helpFile = file;
-    }
-    public String getHelpFile(){
-        return helpFile;
-    }
-    public void setStrFile(String file) {
-        strFile = file;
-    }
-    public String getStrFile(){
-        return strFile;
     }
     
     /* 
@@ -528,12 +539,23 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     abstract public void resetGame();
     abstract public void leave(String nick);
     abstract protected void saveIniFile();
+    
+    /**
+     * Initializes game properties/settings in settingsMap.
+     */
     protected void initialize() {
         // In-game properties
         settingsMap.put("inprogress", 0);
         settingsMap.put("endround", 0);
         settingsMap.put("startcount", 0);
     }
+    
+    /**
+     * Overwrites the value of a setting in settingsMap, if it exists.
+     * @param setting setting name
+     * @param value new value
+     * @throws IllegalArgumentException bad setting
+     */
     protected void set(String setting, int value) throws IllegalArgumentException {
         if (settingsMap.containsKey(setting)) {
             settingsMap.put(setting, value);
@@ -542,6 +564,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         }
         saveIniFile();
     }
+    
+    /**
+     * Retrieves the value of a setting in settingsMap, if it exists.
+     * @param setting setting name
+     * @return the setting value
+     * @throws IllegalArgumentException bad setting
+     */
     protected int get(String setting) throws IllegalArgumentException {
         if (settingsMap.containsKey(setting)){
             return settingsMap.get(setting);
@@ -549,6 +578,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             throw new IllegalArgumentException();
         }
     }
+    
+    /**
+     * Returns whether or not a setting has a value greater than 0.
+     * @param setting setting name
+     * @return true if value is greater than 0
+     * @throws IllegalArgumentException bad setting
+     */
     public boolean has(String setting) throws IllegalArgumentException {
         if (settingsMap.containsKey(setting)){
             return get(setting) > 0;
@@ -556,6 +592,12 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             throw new IllegalArgumentException();
         }
     }
+    
+    /**
+     * Increments the value of a setting.
+     * @param setting setting name
+     * @throws IllegalArgumentException bad setting
+     */
     public void increment(String setting) throws IllegalArgumentException {
         if (settingsMap.containsKey(setting)){
             set(setting, get(setting) + 1);
@@ -563,6 +605,12 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             throw new IllegalArgumentException();
         }
     }
+    
+    /**
+     * Decrements the value of a setting
+     * @param setting setting name
+     * @throws IllegalArgumentException bad setting
+     */
     public void decrement(String setting) throws IllegalArgumentException {
         if (settingsMap.containsKey(setting)){
             set(setting, get(setting) - 1);
@@ -572,11 +620,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     
     /**
-     * Loads the settings from the game's INI file.
+     * Loads the settings from the INI file.
      */
     protected void loadIni() {
         try {
-            BufferedReader in = new BufferedReader(new FileReader(getIniFile()));
+            BufferedReader in = new BufferedReader(new FileReader(iniFile));
             String str;
             StringTokenizer st;
             while (in.ready()) {
@@ -589,7 +637,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             in.close();
         } catch (IOException e) {
             /* load defaults if INI file is not found */
-            bot.log(getIniFile()+" not found! Creating new " + getIniFile() + "...");
+            bot.log(iniFile + " not found! Creating new " + iniFile + "...");
             initialize();
             saveIniFile();
         }
@@ -722,19 +770,36 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             savePlayerData(p);
         }
     }
+    
+    /**
+     * Accessor for the respawnTasks ArrayList.
+     * @return respawnTasks ArrayList
+     */
     public ArrayList<RespawnTask> getRespawnTasks() {
         return respawnTasks;
     }
+    
+    /**
+     * Schedules a new startRoundTask.
+     */
     public void setStartRoundTask(){
         startRoundTask = new StartRoundTask(this);
-        gameTimer.schedule(startRoundTask, 5000);
+        gameTimer.schedule(startRoundTask, get("startwait") * 1000);
     }
+    
+    /**
+     * Cancels the any scheduled startRoundTask.
+     */
     public void cancelStartRoundTask(){
         if (startRoundTask != null){
             startRoundTask.cancel();
             gameTimer.purge();
         }
     }
+    
+    /**
+     * Schedules a new idleOutTask.
+     */
     public void setIdleOutTask() {
         if (get("idlewarning") < get("idle")) {
             idleWarningTask = new IdleWarningTask(currentPlayer, this);
@@ -743,6 +808,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         idleOutTask = new IdleOutTask(currentPlayer, this);
         gameTimer.schedule(idleOutTask, get("idle")*1000);
     }
+    
+    /**
+     * Cancels any scheduled idleOutTask.
+     */
     public void cancelIdleOutTask() {
         if (idleOutTask != null){
             idleWarningTask.cancel();
@@ -750,6 +819,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             gameTimer.purge();
         }
     }
+    
+    /**
+     * Checks if an Op command is allowed.
+     * @param user command issuer
+     * @param nick the user's nick
+     * @return 
+     */
     public boolean isOpCommandAllowed(User user, String nick){
         if (!channel.isOp(user)) {
             informPlayer(nick, getMsg("ops_only"));
@@ -766,8 +842,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * Controls joining, leaving, waitlisting, and bankruptcies. Also includes
      * toggling of simple, paying debt.
      */
-    abstract public void addPlayer(String nick, String hostmask);
-    abstract public void addWaitlistPlayer(String nick, String hostmask);
+    abstract public void addPlayer(String nick, String host);
+    abstract public void addWaitlistPlayer(String nick, String host);
+    
+    /**
+     * Adds a player to the joined list.
+     * @param p the player
+     */
     public void addPlayer(Player p){
         User user = findUser(p.getNick());
         joined.add(p);
@@ -777,28 +858,47 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         }
         showMsg(getMsg("join"), p.getNickStr(), joined.size());
     }
+    
+    /**
+     * Checks if the player is on the joined list.
+     * @param nick the player's nick
+     * @return true if on the joined list
+     */
     public boolean isJoined(String nick){
         return (findJoined(nick) != null);
     }
-    public boolean isJoined(Player p){
-        return joined.contains(p);
-    }
+    
+    /**
+     * Checks if the player is on the waitlist.
+     * @param nick the player's nick
+     * @return true if on the waitlist
+     */
     public boolean isWaitlisted(String nick){
         return (findWaitlisted(nick) != null);
     }
-    public boolean isWaitlisted(Player p){
-        return waitlist.contains(p);
-    }
+    
+    /**
+     * Checks if the player is on the blacklist.
+     * @param nick the player's nick
+     * @return true if on the blacklist
+     */
     public boolean isBlacklisted(String nick){
         return (findBlacklisted(nick) != null);
     }
-    public boolean isBlacklisted(Player p){
-        return blacklist.contains(p);
-    }
+    
+    /**
+     * Removes the specified player from the joined list, based on nick.
+     * @param nick the player's nick
+     */
     public void removeJoined(String nick){
         Player p = findJoined(nick);
         removeJoined(p);
     }
+    
+    /**
+     * Removes the specified player from the joined list.
+     * @param p the player
+     */
     public void removeJoined(Player p){
         User user = findUser(p.getNick());
         joined.remove(p);
@@ -812,20 +912,37 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
         }
     }
+    
+    /**
+     * Removes the specified player from the waitlist based on nick.
+     * @param nick the player's nick
+     */
     public void removeWaitlisted(String nick){
         Player p = findWaitlisted(nick);
         removeWaitlisted(p);
     }
+    
+    /**
+     * Removes the specified player from the waitlist.
+     * @param p the player
+     */
     public void removeWaitlisted(Player p){
         waitlist.remove(p);
     }
-    public void removeBlacklisted(String nick){
-        Player p = findBlacklisted(nick);
-        removeBlacklisted(p);
-    }
+
+    /**
+     * Removes the specified player from the blacklist.
+     * @param p the player
+     */
     public void removeBlacklisted(Player p){
         blacklist.remove(p);
     }
+    
+    /**
+     * Searches for a user in the game channel.
+     * @param nick the user's nick
+     * @return the User instance or null if not found
+     */
     public User findUser(String nick){
         User user;
         Iterator<User> it = bot.getUsers(channel).iterator();
@@ -837,6 +954,12 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         }
         return null;
     }
+    
+    /**
+     * Searches for a player who has joined.
+     * @param nick the player's nick
+     * @return the Player instance or null if not found
+     */
     public Player findJoined(String nick){
         for (int ctr=0; ctr< joined.size(); ctr++){
             Player p = joined.get(ctr);
@@ -846,6 +969,12 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         }
         return null;
     }
+    
+    /**
+     * Searches for a player on the waitlist.
+     * @param nick the player's nick
+     * @return the Player instance or null if not found
+     */
     public Player findWaitlisted(String nick){
         for (int ctr=0; ctr< waitlist.size(); ctr++){
             Player p = waitlist.get(ctr);
@@ -855,6 +984,12 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         }
         return null;
     }
+    
+    /**
+     * Searches for a player on the blacklist.
+     * @param nick the player's nick
+     * @return the Player instance or null if not found
+     */
     public Player findBlacklisted(String nick){
         for (int ctr=0; ctr< blacklist.size(); ctr++){
             Player p = blacklist.get(ctr);
@@ -959,14 +1094,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     
     /* Player file management methods
      * Methods for reading and saving player data.
-     */
-    
-    /**
-     * Returns the total number of players who have played this game.
-     * Counts the number of players who have played more than one round of this
-     * game.
-     * 
-     * @return the total counted from players.txt
      */
     abstract public int getTotalPlayers();
     
@@ -1218,9 +1345,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     public void showStartRound(){
         if (get("startcount") > 0){
-            showMsg(getMsg("start_round_auto"), getGameNameStr(), get("startcount"));
+            showMsg(getMsg("start_round_auto"), getGameNameStr(), get("startwait"), get("startcount"));
         } else {
-            showMsg(getMsg("start_round"), getGameNameStr());
+            showMsg(getMsg("start_round"), getGameNameStr(), get("startwait"));
         }
     }
     
@@ -1350,6 +1477,12 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     public static String formatNoPing(String str) {
         return str.substring(0,1) + "\u200b" + str.substring(1);
     }
+    
+    /**
+     * Generates a string from a list of players.
+     * @param playerList the list of players
+     * @return a string containing number of players and the players' nicks
+     */
     protected static String getPlayerListString(ArrayList<? extends Player> playerList){
         int size = playerList.size();
         String outStr = formatBold(size);
@@ -1420,7 +1553,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     public boolean equals(Object o) {
         if (o != null && o instanceof CardGame) {
             CardGame c = (CardGame) o;
-            if (channel.equals(c.channel) && getName().equals(c.getName()) &&
+            if (channel.equals(c.channel) && name.equals(c.name) &&
                 hashCode() == c.hashCode()) {
                 return true;
             }

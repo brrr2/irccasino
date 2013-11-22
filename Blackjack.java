@@ -97,12 +97,12 @@ public class Blackjack extends CardGame {
      */
     public Blackjack(CasinoBot parent, char commChar, Channel gameChannel, String customINI) {
         super(parent, commChar, gameChannel);
-        setName("blackjack");
-        setIniFile(customINI);
-        setHelpFile("blackjack.help");
-        setStrFile("strlib.txt");
-        loadLib(helpMap, getHelpFile());
-        loadLib(msgMap, getStrFile());
+        name = "blackjack";
+        iniFile = customINI;
+        helpFile = "blackjack.help";
+        strFile = "strlib.txt";
+        loadLib(helpMap, iniFile);
+        loadLib(msgMap, strFile);
         dealer = new BlackjackPlayer("Dealer", "");
         houseStatsList = new ArrayList<HouseStat>();
         loadHouseStats();
@@ -345,8 +345,8 @@ public class Blackjack extends CardGame {
             if (isOpCommandAllowed(user, nick)){
                 cancelIdleShuffleTask();
                 loadIni();
-                loadLib(helpMap, getHelpFile());
-                loadLib(msgMap, getStrFile());
+                loadLib(helpMap, helpFile);
+                loadLib(msgMap, strFile);
                 showMsg(getMsg("reload"));
             }
         } else if (command.equals("test1")){
@@ -409,6 +409,7 @@ public class Blackjack extends CardGame {
         settingsMap.put("shufflepoint", 10);
         settingsMap.put("soft17hit", 0);
         settingsMap.put("autostarts", 10);
+        settingsMap.put("startwait", 5);
         // In-game properties
         settingsMap.put("betting", 1);
         settingsMap.put("insurancebets", 0);
@@ -428,7 +429,7 @@ public class Blackjack extends CardGame {
     @Override
     protected void saveIniFile() {
         try {
-            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(getIniFile())));
+            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(iniFile)));
             out.println("#Settings");
             out.println("#Number of decks in the dealer's shoe");
             out.println("decks=" + get("decks"));
@@ -456,9 +457,11 @@ public class Blackjack extends CardGame {
             out.println("soft17hit=" + get("soft17hit"));
             out.println("#The maximum number of autostarts allowed");
             out.println("autostarts=" + get("autostarts"));
+            out.println("#The wait time in seconds after the start command is given");
+            out.println("startwait=" + get("startwait"));
             out.close();
         } catch (IOException e) {
-            bot.log("Error creating " + getIniFile() + "!");
+            bot.log("Error creating " + iniFile + "!");
         }
     }
 
@@ -588,12 +591,12 @@ public class Blackjack extends CardGame {
     
     /* Game management methods */
     @Override
-    public void addPlayer(String nick, String hostmask) {
-        addPlayer(new BlackjackPlayer(nick, hostmask));
+    public void addPlayer(String nick, String host) {
+        addPlayer(new BlackjackPlayer(nick, host));
     }
     @Override
-    public void addWaitlistPlayer(String nick, String hostmask) {
-        Player p = new BlackjackPlayer(nick, hostmask);
+    public void addWaitlistPlayer(String nick, String host) {
+        Player p = new BlackjackPlayer(nick, host);
         waitlist.add(p);
         informPlayer(p.getNick(), getMsg("join_waitlist"));
     }
