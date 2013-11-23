@@ -105,7 +105,7 @@ public class Blackjack extends CardGame {
         loadLib(msgMap, strFile);
         dealer = new BlackjackPlayer("Dealer", "");
         houseStatsList = new ArrayList<HouseStat>();
-        loadHouseStats();
+        loadGameStats();
         initialize();
         loadIni();
         idleShuffleTask = null;
@@ -121,9 +121,7 @@ public class Blackjack extends CardGame {
         super.processCommand(user, command, params);
         
         /* Parsing commands from the channel */
-        if (command.equals("join") || command.equals("j")){
-            join(nick, host);
-        } else if (command.equals("start") || command.equals("go")){
+        if (command.equals("start") || command.equals("go")){
             if (isStartAllowed(nick)) {
                 if (params.length > 0){
                     try {
@@ -465,8 +463,8 @@ public class Blackjack extends CardGame {
         }
     }
 
-    /* House stats management */
-    public final void loadHouseStats() {
+    /* Game stats management */
+    public final void loadGameStats() {
         try {
             BufferedReader in = new BufferedReader(new FileReader("housestats.txt"));
             String str;
@@ -500,7 +498,7 @@ public class Blackjack extends CardGame {
             }
         }
     }
-    public void saveHouseStats() {
+    public void saveGameStats() {
         boolean found = false;
         int index = 0;
         ArrayList<String> lines = new ArrayList<String>();
@@ -756,7 +754,7 @@ public class Blackjack extends CardGame {
                 }
                 resetPlayer(p);
             }
-            saveHouseStats();
+            saveGameStats();
         } else {
             showMsg(getMsg("no_players"));
         }
@@ -1433,13 +1431,6 @@ public class Blackjack extends CardGame {
         return red7;
     }
     
-    /**
-     * Returns the total number of players who have played this game.
-     * Counts the number of players who have played more than one round of this
-     * game.
-     * 
-     * @return the total counted from players.txt
-     */
     @Override
     public int getTotalPlayers(){
         try {
@@ -1460,14 +1451,6 @@ public class Blackjack extends CardGame {
     }
     
     /* Channel message output methods for Blackjack */
-    /**
-     * Displays the game stats.
-     */
-    @Override
-    public void showGameStats(){
-        showMsg(getMsg("bj_game_stats"), getTotalPlayers(), getGameNameStr(), getTotalRounds(), getTotalHouse());
-    }
-    
     /**
      * Shows house stats for a given shoe size.
      * @param n the number of decks in the shoe
@@ -1670,7 +1653,7 @@ public class Blackjack extends CardGame {
     }
     
     /**
-     * Displays the result of a player's hand.
+     * Outputs the result of a player's hand to the game channel.
      * @param p the player to show
      * @param h the player's hand of which the results are to be shown
      * @param index the hand index if the player has split
@@ -1714,10 +1697,6 @@ public class Blackjack extends CardGame {
         }
     }
     
-    /**
-     * Displays a player's Blackjack winnings.
-     * @param nick the player's nick
-     */
     @Override
     public void showPlayerWinnings(String nick){
         int winnings = getPlayerStat(nick, "bjwinnings");
@@ -1728,10 +1707,6 @@ public class Blackjack extends CardGame {
         }
     }
     
-    /**
-     * Displays a player's Blackjack win rate.
-     * @param nick the player's nick
-     */
     @Override
     public void showPlayerWinRate(String nick){
         double winnings = (double) getPlayerStat(nick, "bjwinnings");
@@ -1748,10 +1723,6 @@ public class Blackjack extends CardGame {
         }
     }
     
-    /**
-     * Displays the number of rounds of Blackjack a player has played.
-     * @param nick the player's nick
-     */
     @Override
     public void showPlayerRounds(String nick){
         int rounds = getPlayerStat(nick, "bjrounds");
@@ -1767,13 +1738,6 @@ public class Blackjack extends CardGame {
         }
     } 
     
-    /**
-     * Outputs all of a player's data relevant to this game.
-     * Sends a message to a player the list of statistics separated by '|'
-     * character.
-     * 
-     * @param nick the player's nick
-     */
     @Override
     public void showPlayerAllStats(String nick){
         int cash = getPlayerStat(nick, "cash");
@@ -1789,12 +1753,6 @@ public class Blackjack extends CardGame {
         }
     }
     
-    /**
-     * Outputs a player's rank given a nick and stat name.
-     * 
-     * @param nick player's nick
-     * @param stat the stat name
-     */
     @Override
     public void showPlayerRank(String nick, String stat){
         if (getPlayerStat(nick, "exists") != 1){
@@ -1888,13 +1846,6 @@ public class Blackjack extends CardGame {
         }
     }
         
-    /**
-     * Outputs the top N players for a given statistic.
-     * Sends a message to channel with the list of players sorted by ranking.
-     * 
-     * @param stat the statistic used for ranking
-     * @param n the length of the list up to n players
-     */
     @Override
     public void showTopPlayers(String stat, int n) {
         if (n < 1){
@@ -2000,20 +1951,17 @@ public class Blackjack extends CardGame {
     }
     
     @Override
-    public String getGameRulesStr() {
-        String str;
+    public final String getGameRulesStr() {
         if (has("soft17hit")){
-            str = "Dealer hits on soft 17. ";
+            return String.format(getMsg("bj_rules_soft17hit"), deck.getNumberDecks(), get("shufflepoint"), get("minbet"));
         } else {
-            str = "Dealer stands on soft 17. ";
+            return String.format(getMsg("bj_rules_soft17stand"), deck.getNumberDecks(), get("shufflepoint"), get("minbet"));
         }
-        return str + "The dealer's shoe has " + 
-            deck.getNumberDecks() + " deck(s) of cards. Discards are " +
-            "merged back into the shoe and the shoe is shuffled when " +
-            get("shufflepoint") + " card(s) remain in the shoe. Regular " + 
-            "wins are paid out at 1:1 and blackjacks are paid out at 3:2. " +
-            "Insurance wins are paid out at 2:1. Minimum bet is $" + 
-            get("minbet") + " or your stack, whichever is lower.";
+    }
+    
+    @Override
+    public final String getGameStatsStr(){
+        return String.format(getMsg("bj_stats"), getTotalPlayers(), getGameNameStr(), getTotalRounds(), getTotalHouse());
     }
     
     private static String getWinStr(){

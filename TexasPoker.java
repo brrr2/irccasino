@@ -205,7 +205,7 @@ public class TexasPoker extends CardGame{
         loadLib(helpMap, helpFile);
         loadLib(msgMap, strFile);
         house = new HouseStat();
-        loadHouseStats();
+        loadGameStats();
         initialize();
         loadIni();
         deck = new CardDeck();
@@ -230,9 +230,7 @@ public class TexasPoker extends CardGame{
         super.processCommand(user, command, params);
         
         /* Parsing commands from the channel */
-        if (command.equals("join") || command.equals("j")) {
-            join(nick, host);
-        } else if (command.equals("start") || command.equals("go")) {
+        if (command.equals("start") || command.equals("go")) {
             if (isStartAllowed(nick)){
                 if (params.length > 0){
                     try {
@@ -501,15 +499,14 @@ public class TexasPoker extends CardGame{
     public void addPlayer(String nick, String host) {
         addPlayer(new PokerPlayer(nick, host));
     }
+    
     @Override
     public void addWaitlistPlayer(String nick, String host) {
         Player p = new PokerPlayer(nick, host);
         waitlist.add(p);
         informPlayer(p.getNick(), getMsg("join_waitlist"));
     }
-    public Player getPlayerAfter(Player p){
-        return joined.get((joined.indexOf(p) + 1) % joined.size());
-    }
+    
     @Override
     public void startRound() {
         if (joined.size() < 2){
@@ -526,6 +523,7 @@ public class TexasPoker extends CardGame{
             setIdleOutTask();
         }
     }
+    
     @Override
     public void continueRound() {
         // Store currentPlayer as firstPlayer and find the next player
@@ -608,6 +606,7 @@ public class TexasPoker extends CardGame{
             setIdleOutTask();
         }
     }
+    
     @Override
     public void endRound() {
         set("endround", 1);
@@ -702,6 +701,7 @@ public class TexasPoker extends CardGame{
             }
         }
     }
+    
     @Override
     public void endGame() {
         cancelStartRoundTask();
@@ -727,6 +727,7 @@ public class TexasPoker extends CardGame{
         msgMap.clear();
         settingsMap.clear();
     }
+    
     @Override
     public void resetGame() {
         set("stage", 0);
@@ -742,6 +743,7 @@ public class TexasPoker extends CardGame{
         topBettor = null;
         deck.refillDeck();
     }
+    
     @Override
     public void leave(String nick) {
         // Check if the nick is even joined
@@ -797,6 +799,20 @@ public class TexasPoker extends CardGame{
             informPlayer(nick, getMsg("no_join"));
         }
     }
+    
+    /**
+     * Returns next player after the specified player.
+     * @param p the specified player
+     * @return the next player
+     */
+    public Player getPlayerAfter(Player p){
+        return joined.get((joined.indexOf(p) + 1) % joined.size());
+    }
+    
+    /**
+     * Resets the specified player.
+     * @param p the player to reset
+     */
     public void resetPlayer(PokerPlayer p) {
         discardPlayerHand(p);
         p.clear("fold");
@@ -804,6 +820,10 @@ public class TexasPoker extends CardGame{
         p.clear("allin");
         p.clear("change");
     }
+    
+    /**
+     * Assigns players to the dealer, small blind and big blind roles.
+     */
     public void setButton(){
         if (dealer == null){
             dealer = (PokerPlayer) joined.get(0);
@@ -817,6 +837,10 @@ public class TexasPoker extends CardGame{
         }
         bigBlind = (PokerPlayer) getPlayerAfter(smallBlind);
     }
+    
+    /**
+     * Sets the bets for the small and big blinds.
+     */
     public void setBlindBets(){
         // Set the small blind to minimum raise or the player's cash, 
         // whichever is less.
@@ -907,6 +931,7 @@ public class TexasPoker extends CardGame{
         settingsMap.put("currentbet", 0);
         settingsMap.put("minraise", 0);
     }
+    
     @Override
     protected final void saveIniFile() {
         try {
@@ -937,7 +962,8 @@ public class TexasPoker extends CardGame{
     }
     
     /* House stats management */
-    public final void loadHouseStats() {
+    @Override
+    public final void loadGameStats() {
         try {
             BufferedReader in = new BufferedReader(new FileReader("housestats.txt"));
             String str;
@@ -977,7 +1003,9 @@ public class TexasPoker extends CardGame{
             }
         }
     }
-    public void saveHouseStats() {
+    
+    @Override
+    public void saveGameStats() {
         boolean found = false;
         int index = 0;
         ArrayList<String> lines = new ArrayList<String>();
@@ -1084,8 +1112,9 @@ public class TexasPoker extends CardGame{
     }
     
     /* Texas Hold'em Poker gameplay methods */
+    
     /**
-     * Determine the number of players who have not folded.
+     * Determines the number of players who have not folded.
      * @return the number of non-folded players
      */
     public int getNumberNotFolded(){
@@ -1101,7 +1130,7 @@ public class TexasPoker extends CardGame{
     }
     
     /**
-     * Determine the number players who can still make a bet.
+     * Determines the number players who can still make a bet.
      * @return the number of players who can bet
      */
     public int getNumberCanBet(){
@@ -1117,7 +1146,8 @@ public class TexasPoker extends CardGame{
     }
     
     /**
-     * Determine the number of players who have made a bet in a round of betting.
+     * Determines the number of players who have made a bet in a round of 
+     * betting.
      * @return the number of bettors
      */
     public int getNumberBettors() {
@@ -1342,13 +1372,6 @@ public class TexasPoker extends CardGame{
         }
     }
     
-    /**
-     * Returns the total number of players who have played this game.
-     * Counts the number of players who have played more than one round of this
-     * game.
-     * 
-     * @return the total counted from players.txt
-     */
     @Override
     public int getTotalPlayers(){
         try {
@@ -1368,12 +1391,7 @@ public class TexasPoker extends CardGame{
         }
     }    
     
-    /* Channel message output methods for Texas Hold'em Poker*/
-    @Override
-    public void showGameStats() {
-        showMsg(getMsg("tp_game_stats"), getTotalPlayers(), getGameNameStr(), house);
-    }
-    
+    /* Channel message output methods for Texas Hold'em Poker*/    
     /**
      * Displays the players who are involved in a round. Players who have not
      * folded are displayed in bold. Designations for small blind, big blind,
@@ -1507,7 +1525,7 @@ public class TexasPoker extends CardGame{
                 for (int ctr2 = 0; ctr2 < winners; ctr2++){
                     house.addWinner(new PokerPlayer(currentPot.getPlayer(ctr2).getNick(), ""));
                 }
-                saveHouseStats();
+                saveGameStats();
             }
         }
     }
@@ -1552,13 +1570,6 @@ public class TexasPoker extends CardGame{
         }
     }
     
-    /**
-     * Outputs all of a player's data relevant to this game.
-     * Sends a message to a player the list of statistics separated by '|'
-     * character.
-     * 
-     * @param nick the player's nick
-     */
     @Override
     public void showPlayerAllStats(String nick){
         int cash = getPlayerStat(nick, "cash");
@@ -1573,13 +1584,7 @@ public class TexasPoker extends CardGame{
             showMsg(getMsg("no_data"), formatNoPing(nick));
         }
     }
-    
-    /**
-     * Outputs a player's rank given a nick and stat name.
-     * 
-     * @param nick player's nick
-     * @param stat the stat name
-     */
+
     @Override
     public void showPlayerRank(String nick, String stat){
         if (getPlayerStat(nick, "exists") != 1){
@@ -1673,13 +1678,6 @@ public class TexasPoker extends CardGame{
         }
     }
     
-    /**
-     * Outputs the top N players for a given statistic.
-     * Sends a message to channel with the list of players sorted by ranking.
-     * 
-     * @param stat the statistic used for ranking
-     * @param n the length of the list up to n players
-     */
     @Override
     public void showTopPlayers(String stat, int n) {
         if (n < 1){
@@ -1780,14 +1778,17 @@ public class TexasPoker extends CardGame{
     
     /* Formatted strings */
     @Override
-    public final String getGameNameStr(){
+    public final String getGameNameStr() {
         return formatBold(getMsg("tp_game_name"));
     }
     
     @Override
-    public String getGameRulesStr() {
-        return "This is no limit Texas Hold'em Poker. Blind bets are set at $" + 
-            formatNumber(get("minbet")/2) + "/$" + formatNumber(get("minbet")) + 
-            " or your stack, whichever is lower.";
+    public final String getGameRulesStr() {
+        return String.format(getMsg("tp_game_rules"), get("minbet")/2, get("minbet"));
+    }
+    
+    @Override
+    public final String getGameStatsStr() {
+        return String.format(getMsg("tp_stats"), getTotalPlayers(), getGameNameStr(), house);
     }
 }

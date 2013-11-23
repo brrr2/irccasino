@@ -104,27 +104,25 @@ public class CasinoBot extends PircBotX {
             if (channel.isOp(user)){
                 if (command.equals("blackjack") || command.equals("bj")) {
                     if (!bot.hasGame(channel)) {
+                        Blackjack newGame;
                         if (params.length > 0) {
-                            Blackjack newGame = new Blackjack(bot, commandChar, channel, params[0]);
-                            bot.gameList.add(newGame);
-                            bot.getListenerManager().addListener(newGame);
+                            newGame = new Blackjack(bot, commandChar, channel, params[0]);
                         } else {
-                            Blackjack newGame = new Blackjack(bot, commandChar, channel);
-                            bot.gameList.add(newGame);
-                            bot.getListenerManager().addListener(newGame);
+                            newGame = new Blackjack(bot, commandChar, channel);
                         }
+                        bot.gameList.add(newGame);
+                        bot.getListenerManager().addListener(newGame);
                     }
                 } else if (command.equals("texaspoker") || command.equals("tp")) {
                     if (!bot.hasGame(channel)) {
+                        TexasPoker newGame;
                         if (params.length > 0) {
-                            TexasPoker newGame = new TexasPoker(bot, commandChar, channel, params[0]);
-                            bot.gameList.add(newGame);
-                            bot.getListenerManager().addListener(newGame);
+                            newGame = new TexasPoker(bot, commandChar, channel, params[0]);
                         } else {
-                            TexasPoker newGame = new TexasPoker(bot, commandChar, channel);
-                            bot.gameList.add(newGame);
-                            bot.getListenerManager().addListener(newGame);
+                            newGame = new TexasPoker(bot, commandChar, channel);
                         }
+                        bot.gameList.add(newGame);
+                        bot.getListenerManager().addListener(newGame);
                     }
                 } else if (command.equals("endgame")) {
                     CardGame game = bot.getGame(channel);

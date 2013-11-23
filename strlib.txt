@@ -117,9 +117,6 @@ bj_zen=Zen count: %,d
 bj_hand=Your current hand is %s with a bet of $%,d.
 bj_hand_sum=Hand sum is %d.
 bj_hand_bet=You have bet $%,d on this hand.
-bj_rules_soft17hit=Dealer hits on soft 17. %,d deck(s) of cards. Discards are merged back into the shoe and the shoe is shuffled when %,d card(s) remain in the shoe. Regular wins are paid out at 1:1 and blackjacks are paid out at 3:2. Insurance wins are paid out at 2:1. Minimum bet is $%,d or your stack, whichever is lower.
-bj_rules_soft17stand=Dealer stands on soft 17. %,d deck(s) of cards. Discards are merged back into the shoe and the shoe is shuffled when %,d card(s) remain in the shoe. Regular wins are paid out at 1:1 and blackjacks are paid out at 3:2. Insurance wins are paid out at 2:1. Minimum bet is $%,d or your stack, whichever is lower.
-bj_game_stats=%,d player(s) have played %s. They have played a total of %,d rounds. The house has won $%,d in those rounds.
 bj_turn_betting=%s's turn. Stack: $%,d. Enter an initial bet up to $%,d.
 bj_turn_split=It's now %s-%d's turn.
 bj_turn=It's now %s's turn.
@@ -143,6 +140,9 @@ bj_result_surr=%s: %s has %d (%s). Stack: $%,d
 bj_insure_win=%s: %s wins $%,d. Stack: $%,d
 bj_insure_loss=%s: %s loses. Stack: $%,d
 bj_house_str=%,d round(s) have been played using %,d deck shoes. The house has won $%,d during those round(s).
+bj_stats=%,d player(s) have played %s. They have played a total of %,d rounds. The house has won $%,d in those rounds.
+bj_rules_soft17hit=Dealer hits on soft 17. The dealer's shoe has %,d deck(s) of cards. Discards are merged back into the shoe and the shoe is shuffled when %,d card(s) remain in the shoe. Regular wins are paid out at 1:1 and blackjacks are paid out at 3:2. Insurance wins are paid out at 2:1. Minimum bet is $%,d or your stack, whichever is lower.
+bj_rules_soft17stand=Dealer stands on soft 17. The dealer's shoe has %,d deck(s) of cards. Discards are merged back into the shoe and the shoe is shuffled when %,d card(s) remain in the shoe. Regular wins are paid out at 1:1 and blackjacks are paid out at 3:2. Insurance wins are paid out at 2:1. Minimum bet is $%,d or your stack, whichever is lower.
 ###################################
 ### Texaspoker strings ###
 ###################################
@@ -168,4 +168,5 @@ tp_check=%s has checked. Committed: $%,d. Stack: $%,d
 tp_fold=%s has folded. Stack: $%,d
 tp_player_result=%s (%s): %s, %s
 tp_hand=Your hand is %s.
-tp_game_stats=%,d players have played %s. %s
+tp_stats=%,d players have played %s. %s
+tp_rules=This is no limit Texas Hold'em Poker. Blind bets are set at $%,d/$%,d or your stack, whichever is lower.
