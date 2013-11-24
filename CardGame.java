@@ -39,7 +39,7 @@ import org.pircbotx.hooks.events.QuitEvent;
  */
 public abstract class CardGame extends ListenerAdapter<PircBotX> {
     
-    protected CasinoBot bot;
+    protected GameManager manager;
     protected Channel channel;
     protected char commandChar;
     protected ArrayList<Player> joined, blacklist, waitlist; //Player lists
@@ -128,6 +128,332 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     
     /**
+     * An object that represents a hand of cards.
+     * @author Yizhe Shen
+     */
+    protected class Hand {
+        /** An ArrayList of Card representing the Hand. */
+        protected ArrayList<Card> cards;
+
+        /**
+         * Creates a Hand with an empty ArrayList of cards.
+         */
+        public Hand(){
+            cards = new ArrayList<Card>();
+        }
+
+        /* Accessor methods */
+        /**
+         * Adds the specified card to the hand.
+         * @param card the card to add
+         */
+        public void add(Card card){
+            cards.add(card);
+        }
+
+        /**
+         * Adds the specified card to the hand at the specified index
+         * @param card the card to add
+         * @param index the index location to add the card
+         */
+        public void add(Card card, int index){
+            cards.add(index, card);
+        }
+
+        /**
+         * Adds the cardList to the end of this Hand.
+         * @param cardList an ArrayList of cards
+         */
+        public void addAll(ArrayList<Card> cardList){
+            if (cardList.size() > 0){
+                cards.addAll(cardList);
+            }
+        }
+
+        /**
+         * Adds the cards from another hand to the end of this Hand.
+         * @param hand the Hand to add
+         */
+        public void addAll(Hand hand){
+            if (hand.getSize() > 0){
+                cards.addAll(hand.getAllCards());
+            }
+        }
+
+        /**
+         * Removes the Card from this hand at the specified index.
+         * @param index the index of the Card to remove
+         */
+        public void remove(int index){
+            cards.remove(index);
+        }
+
+        /**
+         * Removes the specified Card from this hand.
+         * @param c the Card to remove
+         */
+        public void remove(Card c){
+            cards.remove(c);
+        }
+
+        /**
+         * Returns the Card at the specified index.
+         * @param index the index of the Card
+         * @return the desired Card
+         */
+        public Card get(int index){
+            return cards.get(index);
+        }
+
+        /**
+         * Returns the all Cards in the Hand in an ArrayList.
+         * @return an ArrayList of Cards
+         */
+        public ArrayList<Card> getAllCards(){
+            return cards;
+        }
+
+        /**
+         * Empties the cards ArrayList.
+         */
+        public void clear(){
+            cards.clear();
+        }
+
+        /**
+         * Returns the number of Cards in this Hand.
+         * @return the number of Cards
+         */
+        public int getSize(){
+            return cards.size();
+        }
+
+        /**
+         * Gets a sub-hand specified by the indices.
+         * The sub-hand includes the starting index and excludes the end index.
+         * 
+         * @param start Starting index.
+         * @param end End index.
+         * @return A sub-hand of the hand
+         */
+        public Hand subHand(int start, int end){
+            Hand h = new Hand();
+            for (int ctr = start; ctr < end; ctr++){
+                h.add(this.get(ctr));
+            }
+            return h;
+        }
+
+        /**
+         * Default toString returns all cards in the hand face-up.
+         * @return string representation of the cards in the hand all face-up
+         */
+        @Override
+        public String toString(){
+            return toString(0, getSize());
+        }
+
+        /**
+         * Gets a string representation of the hand with hidden cards.
+         * User can specify how many of the cards are hidden.
+         * 
+         * @param numHidden The number of hidden cards
+         * @return a String with the first numHidden cards replaced
+         */
+        public String toString(int numHidden){
+            if (getSize() == 0) {
+                return "<empty>";
+            }
+            String hiddenBlock = Colors.DARK_BLUE+",00\uFFFD";
+            String outStr= "";
+            for (int ctr=0; ctr<numHidden; ctr++){
+                outStr += hiddenBlock+" ";
+            }
+            for (int ctr=numHidden; ctr<getSize(); ctr++){
+                outStr += cards.get(ctr)+" ";
+            }
+            return outStr.substring(0, outStr.length()-1)+Colors.NORMAL;
+        }
+
+        /**
+         * Gets an index-select string representation of the hand.
+         * A space-delimited string of cards starting from start and excluding end.
+         * 
+         * @param start the start index.
+         * @param end the end index.
+         * @return a String showing the selected cards
+         */
+        public String toString(int start, int end){
+            if (getSize() == 0) {
+                return "<empty>";
+            }
+            String outStr= "";
+            int slimit = Math.max(0, start);
+            int elimit = Math.min(this.getSize(), end);
+            for (int ctr=slimit; ctr<elimit; ctr++){
+                outStr += cards.get(ctr)+" ";
+            }
+            return outStr.substring(0, outStr.length()-1)+Colors.NORMAL;
+        }
+    }
+    
+    /**
+     * A player class with common methods and members for all types of players.
+     * It serves as a template and should not be directly instantiated.
+     * @author Yizhe Shen
+     */
+    abstract protected class Player extends Stats{
+        /** Stores the player's nick. */
+        protected String nick;
+        /** Stores the player's host. */
+        protected String host;
+
+        /**
+         * Creates a new Player.
+         * Not to be instantiated directly. Serves as the template for specific types
+         * of players.
+         * 
+         * @param nick IRC user nick
+         * @param host IRC user host
+         */
+        public Player(String nick, String host){
+            super();
+            this.nick = nick;
+            this.host = host;
+            set("cash", 0);
+            set("bank", 0);
+            set("bankrupts", 0);
+            set("bjrounds", 0);
+            set("bjwinnings", 0);
+            set("tprounds", 0);
+            set("tpwinnings", 0);
+            set("simple", 1);
+            set("quit", 0);
+        }
+
+        /* Player info methods */
+        /**
+         * Returns the Player's nick.
+         * 
+         * @return the Player's nick
+         */
+        public String getNick(){
+            return getNick(true);
+        }
+
+        /**
+         * Allows a nick to be returned with a zero-space character.
+         * @param ping whether or not to add a zero-width character in nick
+         * @return the Player's nick
+         */
+        public String getNick(boolean ping) {
+            if (ping) {
+                return nick;
+            } else {
+                return nick.substring(0, 1) + "\u200b" + nick.substring(1);
+            }
+        }
+
+        /**
+         * Returns the player's nick formatted in IRC bold.
+         * 
+         * @return the bold-formatted nick
+         */
+        public String getNickStr(){
+            return getNickStr(true);
+        }
+
+        /**
+         * Allows a bolded nick to be returned with a zero-space character.
+         * 
+         * @param ping whether or not to add a zero-width character in nick
+         * @return the bold-formatted nick
+         */
+        public String getNickStr(boolean ping){
+            return Colors.BOLD + getNick(ping) + Colors.BOLD;
+        }
+
+        /**
+         * Returns the Player's host.
+         * 
+         * @return the Player's host
+         */
+        public String getHost() {
+            return host;
+        }
+
+        /**
+         * Returns the simple status of the Player.
+         * If simple is true, then game information is sent via notices. If simple
+         * is false, then game information is sent via private messages.
+         * 
+         * @return true if simple is turned on
+         */
+        public boolean isSimple(){
+            return get("simple") == 1;
+        }
+
+        @Override
+        public int get(String stat){
+            if (stat.equals("exists")){
+                return 1;
+            } else if (stat.equals("netcash")){
+                return get("cash") + get("bank");
+            }
+            return super.get(stat);
+        }
+
+        /**
+         * Transfers the specified amount from cash into bank.
+         * 
+         * @param amount the amount to transfer
+         */
+        public void bankTransfer(int amount){
+            add("bank", amount);
+            add("cash", -1 * amount);
+        }
+
+        /**
+         * String representation includes the Player's nick and host.
+         * 
+         * @return a String containing the Players nick and host
+         */
+        @Override
+        public String toString(){
+            return nick + " " + host;
+        }
+
+        /**
+         * Comparison of Player objects based on nick and host.
+         * @param o the Object to compare
+         * @return true if the properties are the same
+         */
+        @Override
+        public boolean equals(Object o) {
+            if (o != null && o instanceof Player) {
+                Player p = (Player) o;
+                if (nick.equals(p.nick) && host.equals(p.host) &&
+                    hashCode() == p.hashCode()) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /**
+         * Auto-generated hashCode method.
+         * @return the Player's hashCode
+         */
+        @Override
+        public int hashCode() {
+            int hash = 5;
+            hash = 29 * hash + nick.hashCode();
+            hash = 29 * hash + host.hashCode();
+            return hash;
+        }
+    }
+    
+    /**
      * Creates a generic CardGame.
      * Not to be directly instantiated.
      * 
@@ -135,8 +461,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param commChar The command char
      * @param gameChannel The IRC channel in which the game is to be run.
      */
-    public CardGame (CasinoBot parent, char commChar, Channel gameChannel){
-        bot = parent;
+    public CardGame (GameManager parent, char commChar, Channel gameChannel){
+        manager = parent;
         commandChar = commChar;
         channel = gameChannel;
         joined = new ArrayList<Player>();
@@ -510,7 +836,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         if (isJoined(oldNick) || isWaitlisted(oldNick)){
             informPlayer(newNick, getMsg("nick_change"));
             if (isJoined(oldNick)){
-                bot.deVoice(channel, user);
+                manager.deVoice(channel, user);
                 leave(oldNick);
             } else if(isWaitlisted(oldNick)){
                 removeWaitlisted(oldNick);
@@ -668,7 +994,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             in.close();
         } catch (IOException e) {
             /* load defaults if INI file is not found */
-            bot.log(iniFile + " not found! Creating new " + iniFile + "...");
+            manager.log(iniFile + " not found! Creating new " + iniFile + "...");
             initialize();
             saveIniFile();
         }
@@ -695,7 +1021,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             }
             in.close();
         } catch (IOException e) {
-            bot.log("Error reading from " + file + "!");
+            manager.log("Error reading from " + file + "!");
         }
     }
     
@@ -705,12 +1031,12 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param host the player's host
      */
     protected void join(String nick, String host) {
-        CardGame game = bot.getGame(nick);
+        CardGame game = manager.getGame(nick);
         if (joined.size() == get("maxplayers")){
             informPlayer(nick, getMsg("max_players"));
         } else if (isJoined(nick)) {
             informPlayer(nick, getMsg("is_joined"));
-        } else if (isBlacklisted(nick) || bot.isBlacklisted(nick)) {
+        } else if (isBlacklisted(nick) || manager.isBlacklisted(nick)) {
             informPlayer(nick, getMsg("on_blacklist"));
         } else if (game != null) {
             informPlayer(nick, getMsg("is_joined_other"), game.getGameNameStr(), game.getChannel().getName());
@@ -732,12 +1058,12 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param host the player's host
      */
     protected void fjoin(String OpNick, String nick, String host) {
-        CardGame game = bot.getGame(nick);
+        CardGame game = manager.getGame(nick);
         if (joined.size() == get("maxplayers")){
             informPlayer(OpNick, getMsg("max_players"));
         } else if (isJoined(nick)) {
             informPlayer(OpNick, getMsg("is_joined_nick"), nick);
-        } else if (isBlacklisted(nick) || bot.isBlacklisted(nick)) {
+        } else if (isBlacklisted(nick) || manager.isBlacklisted(nick)) {
             informPlayer(OpNick, getMsg("on_blacklist_nick"), nick);
         } else if (game != null) {
             informPlayer(OpNick, getMsg("is_joined_other_nick"), nick, game.getGameNameStr(), game.getChannel().getName());
@@ -885,7 +1211,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         joined.add(p);
         loadPlayerData(p);
         if (user != null){
-            bot.voice(channel, user);
+            manager.voice(channel, user);
         }
         showMsg(getMsg("join"), p.getNickStr(), joined.size());
     }
@@ -935,7 +1261,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         joined.remove(p);
         savePlayerData(p);
         if (user != null){
-            bot.deVoice(channel, user);
+            manager.deVoice(channel, user);
         }
         if (!p.has("cash")) {
             showMsg(getMsg("unjoin_bankrupt"), p.getNickStr(), joined.size());
@@ -976,7 +1302,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     protected User findUser(String nick){
         User user;
-        Iterator<User> it = bot.getUsers(channel).iterator();
+        Iterator<User> it = manager.getUsers(channel).iterator();
         while(it.hasNext()){
             user = it.next();
             if (user.getNick().equalsIgnoreCase(nick)){
@@ -1057,9 +1383,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         Player p = findJoined(nick);
         p.set("simple", (p.get("simple") + 1) % 2);
         if (p.isSimple()){
-            bot.sendNotice(nick, "Game info will now be noticed to you.");
+            manager.sendNotice(nick, "Game info will now be noticed to you.");
         } else {
-            bot.sendMessage(nick, "Game info will now be messaged to you.");
+            manager.sendMessage(nick, "Game info will now be messaged to you.");
         }
     }
     
@@ -1112,14 +1438,14 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             nickStr += " " + p.getNick();
             count++;
             if (count % 4 == 0) {
-                bot.sendRawLine ("MODE " + channel.getName() + " -" + modeSet + nickStr);
+                manager.sendRawLine ("MODE " + channel.getName() + " -" + modeSet + nickStr);
                 nickStr = "";
                 modeSet = "";
                 count = 0;
             }
         }
         if (count > 0) {
-            bot.sendRawLine ("MODE " + channel.getName() + " -" + modeSet + nickStr);
+            manager.sendRawLine ("MODE " + channel.getName() + " -" + modeSet + nickStr);
         }
     }
     
@@ -1178,7 +1504,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             }
             return Integer.MIN_VALUE;
         } catch (IOException e){
-            bot.log("Error reading players.txt!");
+            manager.log("Error reading players.txt!");
             return Integer.MIN_VALUE;
         }
     }
@@ -1222,7 +1548,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 informPlayer(p.getNick(), getMsg("new_player"), getGameNameStr(), get("cash"));
             }
         } catch (IOException e) {
-            bot.log("Error reading players.txt!");
+            manager.log("Error reading players.txt!");
         }
     }
     
@@ -1266,13 +1592,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 statList.add(statLine);
             }
         } catch (IOException e) {
-            bot.log("Error reading players.txt!");
+            manager.log("Error reading players.txt!");
         }
 
         try {
             savePlayerFile(statList);
         } catch (IOException e) {
-            bot.log("Error writing to players.txt!");
+            manager.log("Error writing to players.txt!");
         }
     }
     
@@ -1284,12 +1610,12 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             BufferedReader out = new BufferedReader(new FileReader("players.txt"));
             out.close();
         } catch (IOException e){
-            bot.log("players.txt not found! Creating new players.txt...");
+            manager.log("players.txt not found! Creating new players.txt...");
             try {
                 PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("players.txt")));
                 out.close();
             } catch (IOException f){
-                bot.log("Error creating players.txt.");
+                manager.log("Error creating players.txt.");
             }
         }
     }
@@ -1426,7 +1752,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param args the parameters for the message
      */
     protected void showMsg(String msg, Object... args){
-        bot.sendMessage(channel, String.format(msg, args));
+        manager.sendMessage(channel, String.format(msg, args));
     }
     
     /**
@@ -1506,9 +1832,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     protected void informPlayer(String nick, String message, Object... args){
         if (getPlayerStat(nick, "simple") > 0) {
-            bot.sendNotice(nick, String.format(message, args));
+            manager.sendNotice(nick, String.format(message, args));
         } else {
-            bot.sendMessage(nick, String.format(message, args));
+            manager.sendMessage(nick, String.format(message, args));
         }
     }
     

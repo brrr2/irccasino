@@ -39,8 +39,10 @@ public class Blackjack extends CardGame {
     private IdleShuffleTask idleShuffleTask;
     private HouseStat house;
     
-    /* Nested class to create a shuffle timer thread */
-    public class IdleShuffleTask extends TimerTask {
+    /**
+     * Idle shuffle task for shuffling the shoe when nobody is playing.
+     */
+    private class IdleShuffleTask extends TimerTask {
         private Blackjack game;
         public IdleShuffleTask(Blackjack g) {
             game = g;
@@ -51,8 +53,11 @@ public class Blackjack extends CardGame {
             game.shuffleShoe();
         }
     }
-    /* Nested class to store statistics, based on number of decks used, for the house */
-    public class HouseStat extends Stats {
+    
+    /**
+     * Stores house statistics for individual shoe sizes.
+     */
+    private class HouseStat extends Stats {
         public HouseStat() {
             this(0, 0, 0);
         }
@@ -72,6 +77,310 @@ public class Blackjack extends CardGame {
             return formatNumber(get("rounds")) + " round(s) have been played using " 
                 + formatNumber(get("decks")) + " deck shoes. The house has won $"
                 + formatNumber(get("cash")) + " during those round(s).";
+        }
+    }
+
+    /**
+     * Extends Hand with extra blackjack-related methods.
+     * @author Yizhe Shen
+     */
+    private class BlackjackHand extends Hand implements Comparable<BlackjackHand>{
+        /** Stores the bet on the BlackjackHand. */
+        private int bet;
+
+        /**
+         * Creates a Blackjack hand with no initial bet.
+         * Initializes the bet to 0.
+         */
+        public BlackjackHand(){
+            super();
+            bet = 0;
+        }
+
+        /* Blackjack specific methods */
+        /**
+         * Sets the bet on this Hand to the specified amount.
+         * @param amount the amount to set
+         */
+        public void setBet(int amount){
+            bet = amount;
+        }
+
+        /**
+         * Adds the specified amount to the existing bet.
+         * @param amount the amount to add
+         */
+        public void addBet(int amount){
+            bet += amount;
+        }
+
+        /**
+         * Returns the bet on this Hand.
+         * @return the bet on this Hand.
+         */
+        public int getBet(){
+            return bet;
+        }
+
+        /**
+         * Clears the bet on this Hand.
+         */
+        public void clearBet(){
+            bet = 0;
+        }
+
+        /**
+         * Returns whether or not this Hand has been hit.
+         * @return true if only contains 2 cards
+         */
+        public boolean hasHit(){
+            return getSize() != 2;
+        }
+
+        /**
+         * Determines if a hand is blackjack.
+         * If the sum is 21 and there are only 2 cards then it is blackjack.
+         * 
+         * @return true if the hand is blackjack
+         */
+        public boolean isBlackjack() {
+            return calcSum() == 21 && getSize() == 2;
+        }
+
+        /**
+         * Determines if a hand is bust.
+         * If the sum is greater than 21 then it is bust.
+         * 
+         * @return true if the hand is bust
+         */
+        public boolean isBust() {
+            return calcSum() > 21;
+        }
+
+        /**
+         * Determines if a BlackjackHand is a pair.
+         * Useful when determining if splitting is possible. Pairs are determined
+         * by their blackjack values.
+         * 
+         * @return true if the hand is a pair
+         */
+        public boolean isPair() {
+            return getSize() == 2 && get(0).getBlackjackValue() == get(1).getBlackjackValue();
+        }
+
+        /**
+         * Determines if a hand is a soft 17.
+         * Used for determining if the dealer needs to hit if the game has been set
+         * for the dealer to hit on soft 17.
+         * 
+         * @return true if the hand is a soft 17
+         */
+        public boolean isSoft17(){
+            if (calcSum() == 17){
+                //Recalculate with aces valued at 1 and check if the sum is lower than 17
+                int sum=0;
+                Card card;
+                for (int ctr = 0; ctr < getSize(); ctr++) {
+                    card = get(ctr);
+                    if (card.getFace().equals("A")){
+                        sum += 1;
+                    } else {
+                        sum += get(ctr).getBlackjackValue();
+                    }
+                }
+                return sum < 17;
+            }
+            return false;
+        }
+
+        /**
+         * Calculates the highest non-busting sum of a BlackjackHand.
+         * The highest non-busting sum is returned whenever possible.
+         * 
+         * @return the sum of the BlackjackHand.
+         */
+        public int calcSum() {
+            int sum = 0, numAces = 0;
+            Card card;
+            // Add up all the cards and keep track of the number of aces
+            for (int ctr = 0; ctr < getSize(); ctr++) {
+                card = get(ctr);
+                if (card.getFace().equals("A")) {
+                    numAces++;
+                }
+                sum += card.getBlackjackValue();
+            }
+            // Use the lower of each ace while the sum is greater than 21
+            for (int ctr = 0; ctr < numAces; ctr++){
+                if (sum > 21){
+                    sum -= 10;
+                } else { 
+                    break;
+                }
+            }
+            return sum;
+        }
+
+        /**
+         * Compares this BlackjackHand to another based on sum.
+         * A blackjack is greater than all BlackjackHands except for another
+         * blackjack. This method is usually only called when comparing a player's
+         * hand to the dealer's.
+         * 
+         * @param h the BlackjackHand to compare
+         * @return -1 if this hand's sum is less or bust, zero for a push, or 1 
+         * if this hand's sum is greater
+         * @throws NullPointerException if the specified BlackjackHand is null
+         */
+        @Override
+        public int compareTo(BlackjackHand h) {
+            if (h == null) {
+                throw new NullPointerException();
+            }
+            int sum = calcSum(), hsum = h.calcSum();
+            boolean BJ = isBlackjack();
+            boolean hBJ = h.isBlackjack();
+            if (sum > 21) {
+                return -1;
+            } else if (sum == 21) {
+                /* Different cases at 21 */
+                if (BJ && !hBJ) {
+                    return 2;
+                } else if (BJ && hBJ) {
+                    return 0;
+                } else if (!BJ && hBJ) {
+                    return -1;
+                } else {
+                    if (hsum == 21) {
+                        return 0;
+                    } else {
+                        return 1;
+                    }
+                }
+            } else {
+                /* Any case other than 21 */
+                if (hsum > 21 || hsum < sum) {
+                    return 1;
+                } else if (hsum == sum) {
+                    return 0;
+                } else {
+                    return -1;
+                }
+            }
+        }
+    }
+    
+    /**
+     * Extends the Player class for players playing Blackjack.
+     * @author Yizhe Shen
+     */
+    private class BlackjackPlayer extends Player{
+        /** ArrayList containing the player's BlackjackHands. */
+        private ArrayList<BlackjackHand> hands;
+
+        /**
+         * Creates a new BlackjackPlayer.
+         * Creates the new player with the specified parameters.
+         * 
+         * @param nick IRC user's nick.
+         * @param hostmask IRC user's hostmask.
+         */
+        public BlackjackPlayer(String nick, String hostmask){
+            super(nick, hostmask);
+            hands = new ArrayList<BlackjackHand>();
+            set("initialbet", 0);
+            set("insurebet", 0);
+            set("surrender", 0);
+            set("currentindex", 0);
+        }
+
+        /* Blackjack-specific card/hand manipulation methods */
+        /**
+         * Adds a new hand to the ArrayList of BlackjackHands.
+         */
+        public void addHand(){
+            hands.add(new BlackjackHand());
+        }
+
+        /**
+         * Gets the BlackjackHand at the specified index.
+         * @param num the specified index
+         * @return the BlackjackHand at the index
+         */
+        public BlackjackHand getHand(int num){
+            return hands.get(num);
+        }
+
+        /**
+         * Gets the player's current BlackjackHand.
+         * @return the BlackjackHand at the current index
+         */
+        public BlackjackHand getHand(){
+            return hands.get(get("currentindex"));
+        }
+
+        /**
+         * Increments the current index in order to get the next hand.
+         * @return the BlackjackHand at the incremented index
+         */
+        public BlackjackHand getNextHand(){
+            increment("currentindex");
+            return getHand(get("currentindex"));
+        }
+
+        /**
+         * Returns the number BlackjackHands the player has.
+         * @return the number of BlackjackHands
+         */
+        public int getNumberHands(){
+            return hands.size();
+        }
+
+        /**
+         * Whether or not the player has any BlackjackHands.
+         * @return true if the player has any BlackjackHands
+         */
+        public boolean hasHands(){
+            return hands.size() > 0;
+        }
+
+        /**
+         * Clears all of the player's hands.
+         */
+        public void resetHands(){
+            hands.clear();
+        }
+
+        /**
+         * Whether or not the player has surrendered.
+         * @return true if the player has surrendered.
+         */
+        public boolean hasSurrendered(){
+            return get("surrender") == 1;
+        }
+
+        /* Methods related to splitting hands */
+        /**
+         * Whether or not the player has split his initial hand.
+         * @return true if hands contains more than one BlackjackHand
+         */
+        public boolean hasSplit(){
+            return hands.size() > 1;
+        }
+
+        /**
+         * Splits a BlackjackHand into two BlackjackHands.
+         * Creates a new BlackjackHand and gives it the second card of the original.
+         * The card is then removed from the original BlackjackHand. The new
+         * BlackjackHand is added to the end of the ArrayList of BlackjackHands.
+         */
+        public void splitHand(){
+            BlackjackHand tHand = new BlackjackHand();
+            BlackjackHand cHand = getHand();
+            tHand.add(cHand.get(1));
+            cHand.remove(1);
+
+            hands.add(get("currentindex") + 1, tHand);
         }
     }
 
@@ -459,7 +768,7 @@ public class Blackjack extends CardGame {
             out.println("startwait=" + get("startwait"));
             out.close();
         } catch (IOException e) {
-            bot.log("Error creating " + iniFile + "!");
+            manager.log("Error creating " + iniFile + "!");
         }
     }
 
@@ -489,12 +798,12 @@ public class Blackjack extends CardGame {
             }
             in.close();
         } catch (IOException e) {
-            bot.log("housestats.txt not found! Creating new housestats.txt...");
+            manager.log("housestats.txt not found! Creating new housestats.txt...");
             try {
                 PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("housestats.txt")));
                 out.close();
             } catch (IOException f) {
-                bot.log("Error creating housestats.txt!");
+                manager.log("Error creating housestats.txt!");
             }
         }
     }
@@ -527,7 +836,7 @@ public class Blackjack extends CardGame {
             in.close();
         } catch (IOException e) {
             /* housestats.txt is not found */
-            bot.log("Error reading housestats.txt!");
+            manager.log("Error reading housestats.txt!");
         }
         if (!found) {
             lines.add("#blackjack");
@@ -543,7 +852,7 @@ public class Blackjack extends CardGame {
             }
             out.close();
         } catch (IOException e) {
-            bot.log("Error writing to housestats.txt!");
+            manager.log("Error writing to housestats.txt!");
         }
     }
     
@@ -1445,7 +1754,7 @@ public class Blackjack extends CardGame {
             }
             return total;
         } catch (IOException e){
-            bot.log("Error reading players.txt!");
+            manager.log("Error reading players.txt!");
             return 0;
         }
     }
@@ -1842,7 +2151,7 @@ public class Blackjack extends CardGame {
             }
             showMsg(line);
         } catch (IOException e) {
-            bot.log("Error reading players.txt!");
+            manager.log("Error reading players.txt!");
         }
     }
         
@@ -1940,7 +2249,7 @@ public class Blackjack extends CardGame {
             }
             showMsg(list);
         } catch (IOException e) {
-            bot.log("Error reading players.txt!");
+            manager.log("Error reading players.txt!");
         }
     }
     

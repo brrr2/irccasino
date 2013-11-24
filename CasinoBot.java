@@ -40,7 +40,7 @@ import org.pircbotx.hooks.managers.ThreadedListenerManager;
  * own channel. It also logs all activity to log.txt.
  * @author Yizhe Shen
  */
-public class CasinoBot extends PircBotX {
+public class CasinoBot extends PircBotX implements GameManager {
     
     public static CasinoBot bot;
     public static String configFile;
@@ -179,11 +179,7 @@ public class CasinoBot extends PircBotX {
         }
     }
     
-    /**
-     * Checks if a game is running in the specified channel.
-     * @param channel the channel to check
-     * @return true if the channel has a game already running
-     */
+    @Override
     public boolean hasGame(Channel channel) {
         CardGame game = getGame(channel);
         if (game == null) {
@@ -194,11 +190,7 @@ public class CasinoBot extends PircBotX {
         }
     }
         
-    /**
-     * Returns the CardGame that's running in the specified channel.
-     * @param channel the channel to check
-     * @return the CardGame or null if no game is running
-     */
+    @Override
     public CardGame getGame(Channel channel) {
         for (int ctr = 0; ctr < gameList.size(); ctr++){
             if (gameList.get(ctr).getChannel().equals(channel)){
@@ -208,12 +200,7 @@ public class CasinoBot extends PircBotX {
         return null;
     }
     
-    /**
-     * Returns the CardGame that the specified nick has joined or is on the 
-     * waitlist.
-     * @param nick the player's nick
-     * @return the CardGame or null if not joined or waitlisted
-     */
+    @Override
     public CardGame getGame(String nick) {
         CardGame game;
         for (int ctr = 0; ctr < gameList.size(); ctr++) {
@@ -225,11 +212,7 @@ public class CasinoBot extends PircBotX {
         return null;
     }
     
-    /**
-     * Checks if a player is bankrupt.
-     * @param nick the player's nick
-     * @return true if the player is bankrupt
-     */
+    @Override
     public boolean isBlacklisted(String nick) {
         CardGame game;
         for (int ctr = 0; ctr < gameList.size(); ctr++) {
@@ -241,10 +224,7 @@ public class CasinoBot extends PircBotX {
         return false;
     }
         
-    /**
-     * Checks if any games have rounds in progress.
-     * @return true if any game has a round in progress
-     */
+    @Override
     public boolean checkGamesInProgress() {
         boolean inProgress = false;
         CardGame game;
@@ -260,9 +240,7 @@ public class CasinoBot extends PircBotX {
         return inProgress;
     }
         
-    /**
-     * Shuts down all games.
-     */
+    @Override
     public void endAllGames() {
         for (int ctr = 0; ctr < gameList.size(); ctr++){
             endGame(gameList.get(ctr));
@@ -270,10 +248,7 @@ public class CasinoBot extends PircBotX {
         }
     }
     
-    /**
-     * Shuts down the specified game.
-     * @param game the game to shut down
-     */
+    @Override
     public void endGame(CardGame game) {
         game.endGame();
         getListenerManager().removeListener(game);
