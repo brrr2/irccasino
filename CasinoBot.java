@@ -36,20 +36,34 @@ import org.pircbotx.hooks.events.*;
 import org.pircbotx.hooks.managers.ThreadedListenerManager;
 
 /**
- * A sample bot that will load an instance of each game in its own channel.
- * It also logs all activity to log.txt.
+ * The default standalone bot that allows any number of games, each in their
+ * own channel. It also logs all activity to log.txt.
  * @author Yizhe Shen
  */
-public class CasinoBot extends PircBotX {
-    /* Listener for CasinoBot initialization */
+public class CasinoBot extends PircBotX implements GameManager {
+    
+    public static CasinoBot bot;
+    public static String configFile;
+    public static String botNick, botPassword, network;
+    public static ArrayList<String> channelList;
+    public ArrayList<CardGame> gameList;
+    public String logFile;
+    
+    /**
+     * Listener for CasinoBot initialization 
+     */
     public static class InitListener extends ListenerAdapter<PircBotX> {
-        CasinoBot bot;
-        char commandChar;
+        protected CasinoBot bot;
+        protected char commandChar;
         public InitListener(CasinoBot parent, char commChar) {
             bot = parent;
             commandChar = commChar;
         }
         
+        /**
+         * Joins the channels in the config file upon successful connection.
+         * @param event Connect event
+         */
         @Override
         public void onConnect(ConnectEvent<PircBotX> event){
             for (int ctr = 0; ctr < channelList.size(); ctr++){
@@ -57,6 +71,10 @@ public class CasinoBot extends PircBotX {
             }
         }
         
+        /**
+         * Parses channel messages for commands and parameters.
+         * @param event Message event
+         */
         @Override
         public void onMessage(MessageEvent<PircBotX> event){
             String msg = event.getMessage();
@@ -75,7 +93,7 @@ public class CasinoBot extends PircBotX {
         }
 
         /**
-         * Processes commands for this bot.
+         * Processes initialization commands for this bot.
          * 
          * @param channel the originating channel of the command
          * @param user the user who gave the command
@@ -84,68 +102,53 @@ public class CasinoBot extends PircBotX {
          */
         public void processCommand(Channel channel, User user, String command, String[] params){
             if (channel.isOp(user)){
-                CasinoBot cbot = (CasinoBot) bot;
-                if (command.equals("blackjack") || command.equals("bj")) {
-                    if (cbot.tpgame != null && cbot.tpgame.getChannel().equals(channel)){
-                        bot.sendMessage(channel, "Currently running "+cbot.tpgame.getGameNameStr()+" in this channel.");
-                    } else if (cbot.bjgame != null) {
-                        bot.sendMessage(channel, cbot.bjgame.getGameNameStr()+" is already running in "+cbot.bjgame.getChannel().getName());
+                if (command.equals("games")) {
+                    CardGame game;
+                    String str = "Currently running: ";
+                    if (bot.gameList.isEmpty()) {
+                        str += "No games";
                     } else {
-                        cbot.bjgame = new Blackjack(cbot, commandChar, channel);
-                        cbot.getListenerManager().addListener(cbot.bjgame);
+                        for (int ctr = 0; ctr < bot.gameList.size(); ctr++){
+                            game = bot.gameList.get(ctr);
+                            str += game.getGameNameStr() + " in " + game.getChannel().getName() + ", ";
+                        }
+                        str = str.substring(0, str.length() - 2);
+                    }
+                    bot.sendMessage(channel, str);
+                } else if (command.equals("blackjack") || command.equals("bj")) {
+                    if (!bot.hasGame(channel)) {
+                        Blackjack newGame;
+                        if (params.length > 0) {
+                            newGame = new Blackjack(bot, commandChar, channel, params[0]);
+                        } else {
+                            newGame = new Blackjack(bot, commandChar, channel);
+                        }
+                        bot.gameList.add(newGame);
+                        bot.getListenerManager().addListener(newGame);
                     }
                 } else if (command.equals("texaspoker") || command.equals("tp")) {
-                    if (cbot.bjgame != null && cbot.bjgame.getChannel().equals(channel)){
-                        bot.sendMessage(channel, "Currently running "+cbot.bjgame.getGameNameStr()+" in this channel.");
-                    } else if (cbot.tpgame != null) {
-                        bot.sendMessage(channel, cbot.tpgame.getGameNameStr()+" is already running in "+cbot.tpgame.getChannel().getName());
-                    } else {
-                        cbot.tpgame = new TexasPoker(cbot, commandChar, channel);
-                        cbot.getListenerManager().addListener(cbot.tpgame);
+                    if (!bot.hasGame(channel)) {
+                        TexasPoker newGame;
+                        if (params.length > 0) {
+                            newGame = new TexasPoker(bot, commandChar, channel, params[0]);
+                        } else {
+                            newGame = new TexasPoker(bot, commandChar, channel);
+                        }
+                        bot.gameList.add(newGame);
+                        bot.getListenerManager().addListener(newGame);
                     }
                 } else if (command.equals("endgame")) {
-                    if (cbot.bjgame != null && cbot.bjgame.getChannel().equals(channel)){
-                        if (cbot.bjgame.has("inprogress")){
+                    CardGame game = bot.getGame(channel);
+                    if (game != null) {
+                        if (game.has("inprogress")){
                             bot.sendMessage(channel, "Please wait for the current round to finish.");
                         } else {
-                            cbot.bjgame.endGame();
-                            cbot.getListenerManager().removeListener(cbot.bjgame);
-                            cbot.bjgame = null;
-                        }
-                    }
-                    if (cbot.tpgame != null && cbot.tpgame.getChannel().equals(channel)){
-                        if (cbot.tpgame.has("inprogress")){
-                            bot.sendMessage(channel, "Please wait for the current round to finish.");
-                        } else {
-                            cbot.tpgame.endGame();
-                            cbot.getListenerManager().removeListener(cbot.tpgame);
-                            cbot.tpgame = null;
+                            bot.endGame(game);
                         }
                     }
                 } else if (command.equals("shutdown") || command.equals("botquit")) {
-                    if (cbot.bjgame != null || cbot.tpgame != null){
-                        if (cbot.bjgame != null && cbot.bjgame.has("inprogress")){
-                            bot.sendMessage(channel, "A round of "+cbot.bjgame.getGameNameStr()+" is in progress. Please wait for it to finish.");
-                        } else if (cbot.tpgame != null && cbot.tpgame.has("inprogress")){
-                            bot.sendMessage(channel, "A round of "+cbot.tpgame.getGameNameStr()+" is in progress. Please wait for it to finish.");
-                        } else {
-                            if (cbot.bjgame != null){
-                                cbot.bjgame.endGame();
-                                cbot.getListenerManager().removeListener(cbot.bjgame);
-                                cbot.bjgame = null;
-                            }
-                            if (cbot.tpgame != null){
-                                cbot.tpgame.endGame();
-                                cbot.getListenerManager().removeListener(cbot.tpgame);
-                                cbot.tpgame = null;
-                            }
-                            try {
-                                bot.quitServer("Bye.");
-                            } catch (Exception e){
-                                System.out.println("Error: " + e);
-                            }
-                        }
-                    } else {
+                    if (!bot.checkGamesInProgress()){
+                        bot.endAllGames();
                         try {
                             bot.quitServer("Bye.");
                         } catch (Exception e){
@@ -157,65 +160,114 @@ public class CasinoBot extends PircBotX {
         }
     }
     
-    public static CasinoBot bot;
-    public static String configFile;
-    public static String botNick, botPassword, network;
-    public static ArrayList<String> channelList;
-    public CardGame bjgame, tpgame;
-    public String logFile;
-    
+    /**
+     * Initializes the gameList, sets the log file and other bot settings.
+     * @param fileName the file path to the log file
+     */
     public CasinoBot(String fileName){
         super();
         version = "CasinoBot using PircBotX";
         logFile = fileName;
-        bjgame = null;
-        tpgame = null;
+        gameList = new ArrayList<CardGame>();
         setMessageDelay(200);
     }
     
+    /**
+     * Retains the original PircBotX.log() functionality, while adding the 
+     * ability to output the log to a file.
+     * @param line the line to add to the log
+     */
     @Override
     public void log(String line){
-        if (!verbose) { return; }
         super.log(line);
-        try{
-            PrintWriter out;
-            out = new PrintWriter(new BufferedWriter(new FileWriter(logFile,true)));
-            out.println(System.currentTimeMillis() + " " + line);
-            out.close();
-        } catch(IOException e) {
-            System.err.println("Error: unable to write to "+logFile);
+        if (verbose) {
+            try{
+                PrintWriter out;
+                out = new PrintWriter(new BufferedWriter(new FileWriter(logFile,true)));
+                out.println(System.currentTimeMillis() + " " + line);
+                out.close();
+            } catch(IOException e) {
+                System.err.println("Error: unable to write to " + logFile);
+            }
         }
     }
     
-    public static void main(String[] args) throws Exception {
-        bot = new CasinoBot("log.txt");
-        channelList = new ArrayList<String>();
-        loadConfig("irccasino.conf");
-        InitListener init = new InitListener(bot, '.');
-        ThreadedListenerManager<PircBotX> manager = new ThreadedListenerManager<PircBotX>();
-        
-        manager.addListener(init);
-        bot.setListenerManager(manager);
-        bot.setVerbose(true);
-        bot.setAutoNickChange(true);
-        bot.setAutoReconnect(true);
-        bot.setCapEnabled(true);
-        bot.setName(botNick);
-        bot.setLogin(botNick);
-        
-        if (botPassword != null){
-            bot.getCapHandlers().add(new SASLCapHandler(botNick, botPassword));
-        }
-        
-        try {
-            bot.connect(network);
-        } catch (IrcException e){
-            System.out.println("Error: " + e);
-        } catch (IOException e){
-            System.out.println("Error: " + e);
+    @Override
+    public boolean hasGame(Channel channel) {
+        CardGame game = getGame(channel);
+        if (game == null) {
+            return false;
+        } else {
+            sendMessage(channel, game.getGameNameStr() + " is already running in this channel.");
+            return true;
         }
     }
-	
+        
+    @Override
+    public CardGame getGame(Channel channel) {
+        for (int ctr = 0; ctr < gameList.size(); ctr++){
+            if (gameList.get(ctr).getChannel().equals(channel)){
+                return gameList.get(ctr);
+            }
+        }
+        return null;
+    }
+    
+    @Override
+    public CardGame getGame(String nick) {
+        CardGame game;
+        for (int ctr = 0; ctr < gameList.size(); ctr++) {
+            game = gameList.get(ctr);
+            if (game.isJoined(nick) || game.isWaitlisted(nick)) {
+                return game;
+            }
+        }
+        return null;
+    }
+    
+    @Override
+    public boolean isBlacklisted(String nick) {
+        CardGame game;
+        for (int ctr = 0; ctr < gameList.size(); ctr++) {
+            game = gameList.get(ctr);
+            if (game.isBlacklisted(nick)) {
+                return true;
+            }
+        }
+        return false;
+    }
+        
+    @Override
+    public boolean checkGamesInProgress() {
+        boolean inProgress = false;
+        CardGame game;
+        for (int ctr = 0; ctr < gameList.size(); ctr++){
+            game = gameList.get(ctr);
+            if (game.has("inprogress")){
+                sendMessage(game.getChannel(), "A round of " + game.getGameNameStr() + 
+                        " is in progress in " + game.getChannel().getName() + 
+                        ". Please wait for it to finish.");
+                inProgress = true;
+            }
+        }
+        return inProgress;
+    }
+        
+    @Override
+    public void endAllGames() {
+        for (int ctr = 0; ctr < gameList.size(); ctr++){
+            endGame(gameList.get(ctr));
+            ctr--;
+        }
+    }
+    
+    @Override
+    public void endGame(CardGame game) {
+        game.endGame();
+        getListenerManager().removeListener(game);
+        gameList.remove(game);
+    }
+    
     /**
      * Loads configuration file for this bot.
      * 
@@ -239,28 +291,16 @@ public class CasinoBot extends PircBotX {
                     value = null;
                 }
                 if (name.equals("nick")) {
-                    if (value == null){
-                        botNick = "CasinoBot";
-                    } else {
-                        botNick = value;
-                    }
+                    botNick = value;
                 } else if (name.equals("password")) {
                     botPassword = value;
                 } else if (name.equals("channel")) {
-                    if (value == null){
-                        channelList.add("##CasinoBot");
-                    } else {
-                        StringTokenizer st2 = new StringTokenizer(value, ",");
-                        while (st2.hasMoreTokens()){
-                            channelList.add(st2.nextToken());
-                        }
+                    StringTokenizer st2 = new StringTokenizer(value, ",");
+                    while (st2.hasMoreTokens()){
+                        channelList.add(st2.nextToken());
                     }
                 } else if (name.equals("network")) {
-                    if (value == null){
-                        network = "chat.freenode.net";
-                    } else {
-                        network = value;
-                    }
+                    network = "chat.freenode.net";
                 }
             }
             in.close();
@@ -284,8 +324,46 @@ public class CasinoBot extends PircBotX {
                 out.println("channel=" + channelList.get(0));
                 out.close();
             } catch (IOException f) {
-                bot.log("Error creating "+configFile+"!");
+                bot.log("Error creating " + configFile + "!");
             }
+        }
+    }
+    
+    /**
+     * Creates and initializes a new CasinoBot and connects it to an IRC network.
+     * @param args alternate config file path
+     * @throws Exception 
+     */
+    public static void main(String[] args) throws Exception {
+        bot = new CasinoBot("log.txt");
+        channelList = new ArrayList<String>();
+        if (args.length > 0) {
+            loadConfig(args[0]);
+        } else {
+            loadConfig("irccasino.conf");
+        }
+        InitListener init = new InitListener(bot, '.');
+        ThreadedListenerManager<PircBotX> manager = new ThreadedListenerManager<PircBotX>();
+        
+        manager.addListener(init);
+        bot.setListenerManager(manager);
+        bot.setVerbose(true);
+        bot.setAutoNickChange(true);
+        bot.setAutoReconnect(true);
+        bot.setCapEnabled(true);
+        bot.setName(botNick);
+        bot.setLogin(botNick);
+        
+        if (botPassword != null){
+            bot.getCapHandlers().add(new SASLCapHandler(botNick, botPassword));
+        }
+        
+        try {
+            bot.connect(network);
+        } catch (IrcException e){
+            System.out.println("Error: " + e);
+        } catch (IOException e){
+            System.out.println("Error: " + e);
         }
     }
 }
