@@ -33,35 +33,72 @@ public abstract class Stats {
         statsMap = new HashMap<String,Integer>();
     }
     
-    public void set(String stat, int value){
+    /**
+     * Sets a new value for a stat.
+     * @param stat the stat
+     * @param value the new value
+     */
+    protected void set(String stat, int value){
         statsMap.put(stat, value);
     }
     
-    public int get(String stat){
+    /**
+     * Gets the value of a stat.
+     * @param stat the stat
+     * @return the value
+     */
+    protected int get(String stat){
         return statsMap.get(stat);
     }
     
-    public void increment(String stat){
+    /**
+     * Increments the value of a stat.
+     * @param stat the stat
+     */
+    protected void increment(String stat){
         statsMap.put(stat, get(stat) + 1);
     }
     
-    public void decrement(String stat){
+    /**
+     * Decrements the value of a stat.
+     * @param stat the stat
+     */
+    protected void decrement(String stat){
         statsMap.put(stat, get(stat) - 1);
     }
     
-    public void add(String stat, int amount){
+    /**
+     * Adds the specified amount to the value of a stat.
+     * @param stat the stat
+     * @param amount the amount to add
+     */
+    protected void add(String stat, int amount){
         statsMap.put(stat, get(stat) + amount);
     }
     
-    public boolean has(String stat){
+    /**
+     * Determines whether or not a stat has a positive value.
+     * @param stat the stat
+     * @return true if the value of the stat is greater than 0
+     */
+    protected boolean has(String stat){
         return statsMap.get(stat) > 0;
     }
     
-    public void clear(String stat){
+    /**
+     * Sets the value of a stat to 0.
+     * @param stat the stat
+     */
+    protected void clear(String stat){
         set(stat, 0);
     }
     
-    public boolean exists(String stat){
+    /**
+     * Determines whether or not a stat exists in the statsMap.
+     * @param stat the stat
+     * @return true if statsMap contains the stat key
+     */
+    protected boolean exists(String stat){
         return statsMap.containsKey(stat);
     }
 }

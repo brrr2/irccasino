@@ -147,7 +147,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
          * Adds the specified card to the hand.
          * @param card the card to add
          */
-        public void add(Card card){
+        protected void add(Card card){
             cards.add(card);
         }
 
@@ -156,7 +156,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
          * @param card the card to add
          * @param index the index location to add the card
          */
-        public void add(Card card, int index){
+        protected void add(Card card, int index){
             cards.add(index, card);
         }
 
@@ -164,7 +164,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
          * Adds the cardList to the end of this Hand.
          * @param cardList an ArrayList of cards
          */
-        public void addAll(ArrayList<Card> cardList){
+        protected void addAll(ArrayList<Card> cardList){
             if (cardList.size() > 0){
                 cards.addAll(cardList);
             }
@@ -174,7 +174,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
          * Adds the cards from another hand to the end of this Hand.
          * @param hand the Hand to add
          */
-        public void addAll(Hand hand){
+        protected void addAll(Hand hand){
             if (hand.getSize() > 0){
                 cards.addAll(hand.getAllCards());
             }
@@ -184,7 +184,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
          * Removes the Card from this hand at the specified index.
          * @param index the index of the Card to remove
          */
-        public void remove(int index){
+        protected void remove(int index){
             cards.remove(index);
         }
 
@@ -192,7 +192,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
          * Removes the specified Card from this hand.
          * @param c the Card to remove
          */
-        public void remove(Card c){
+        protected void remove(Card c){
             cards.remove(c);
         }
 
@@ -201,7 +201,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
          * @param index the index of the Card
          * @return the desired Card
          */
-        public Card get(int index){
+        protected Card get(int index){
             return cards.get(index);
         }
 
@@ -209,14 +209,14 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
          * Returns the all Cards in the Hand in an ArrayList.
          * @return an ArrayList of Cards
          */
-        public ArrayList<Card> getAllCards(){
+        protected ArrayList<Card> getAllCards(){
             return cards;
         }
 
         /**
          * Empties the cards ArrayList.
          */
-        public void clear(){
+        protected void clear(){
             cards.clear();
         }
 
@@ -224,7 +224,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
          * Returns the number of Cards in this Hand.
          * @return the number of Cards
          */
-        public int getSize(){
+        protected int getSize(){
             return cards.size();
         }
 
@@ -236,7 +236,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
          * @param end End index.
          * @return A sub-hand of the hand
          */
-        public Hand subHand(int start, int end){
+        protected Hand subHand(int start, int end){
             Hand h = new Hand();
             for (int ctr = start; ctr < end; ctr++){
                 h.add(this.get(ctr));
@@ -260,7 +260,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
          * @param numHidden The number of hidden cards
          * @return a String with the first numHidden cards replaced
          */
-        public String toString(int numHidden){
+        protected String toString(int numHidden){
             if (getSize() == 0) {
                 return "<empty>";
             }
@@ -283,7 +283,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
          * @param end the end index.
          * @return a String showing the selected cards
          */
-        public String toString(int start, int end){
+        protected String toString(int start, int end){
             if (getSize() == 0) {
                 return "<empty>";
             }
@@ -337,7 +337,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
          * 
          * @return the Player's nick
          */
-        public String getNick(){
+        protected String getNick(){
             return getNick(true);
         }
 
@@ -346,7 +346,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
          * @param ping whether or not to add a zero-width character in nick
          * @return the Player's nick
          */
-        public String getNick(boolean ping) {
+        protected String getNick(boolean ping) {
             if (ping) {
                 return nick;
             } else {
@@ -359,7 +359,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
          * 
          * @return the bold-formatted nick
          */
-        public String getNickStr(){
+        protected String getNickStr(){
             return getNickStr(true);
         }
 
@@ -369,7 +369,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
          * @param ping whether or not to add a zero-width character in nick
          * @return the bold-formatted nick
          */
-        public String getNickStr(boolean ping){
+        protected String getNickStr(boolean ping){
             return Colors.BOLD + getNick(ping) + Colors.BOLD;
         }
 
@@ -378,7 +378,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
          * 
          * @return the Player's host
          */
-        public String getHost() {
+        protected String getHost() {
             return host;
         }
 
@@ -389,12 +389,12 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
          * 
          * @return true if simple is turned on
          */
-        public boolean isSimple(){
+        protected boolean isSimple(){
             return get("simple") == 1;
         }
 
         @Override
-        public int get(String stat){
+        protected int get(String stat){
             if (stat.equals("exists")){
                 return 1;
             } else if (stat.equals("netcash")){
@@ -408,7 +408,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
          * 
          * @param amount the amount to transfer
          */
-        public void bankTransfer(int amount){
+        protected void bankTransfer(int amount){
             add("bank", amount);
             add("cash", -1 * amount);
         }

@@ -102,7 +102,20 @@ public class CasinoBot extends PircBotX implements GameManager {
          */
         public void processCommand(Channel channel, User user, String command, String[] params){
             if (channel.isOp(user)){
-                if (command.equals("blackjack") || command.equals("bj")) {
+                if (command.equals("games")) {
+                    CardGame game;
+                    String str = "Currently running: ";
+                    if (bot.gameList.isEmpty()) {
+                        str += "No games";
+                    } else {
+                        for (int ctr = 0; ctr < bot.gameList.size(); ctr++){
+                            game = bot.gameList.get(ctr);
+                            str += game.getGameNameStr() + " in " + game.getChannel().getName() + ", ";
+                        }
+                        str = str.substring(0, str.length() - 2);
+                    }
+                    bot.sendMessage(channel, str);
+                } else if (command.equals("blackjack") || command.equals("bj")) {
                     if (!bot.hasGame(channel)) {
                         Blackjack newGame;
                         if (params.length > 0) {

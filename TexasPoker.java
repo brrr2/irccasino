@@ -111,26 +111,26 @@ public class TexasPoker extends CardGame{
             winners = new ArrayList<PokerPlayer>();
         }
         
-        public int getNumDonors() {
+        protected int getNumDonors() {
             return donors.size();
         }
-        public void addDonor(PokerPlayer p){
+        protected void addDonor(PokerPlayer p){
             donors.add(p);
         }
-        public void clearDonors(){
+        protected void clearDonors(){
             donors.clear();
         }
-        public int getNumWinners() {
+        protected int getNumWinners() {
             return winners.size();
         }
-        public void addWinner(PokerPlayer p){
+        protected void addWinner(PokerPlayer p){
             winners.add(p);
         }
-        public void clearWinners(){
+        protected void clearWinners(){
             winners.clear();
         }
         
-        public String getDonorsString(){
+        protected String getDonorsString(){
             String outStr = "";
             for (int ctr = 0; ctr < donors.size(); ctr++){
                 outStr += donors.get(ctr).getNick() + " ";
@@ -138,7 +138,7 @@ public class TexasPoker extends CardGame{
             return outStr.substring(0, outStr.length() - 1);
         }
         
-        public String getWinnersString(){
+        protected String getWinnersString(){
             String outStr = "";
             for (int ctr = 0; ctr < winners.size(); ctr++){
                 outStr += winners.get(ctr).getNick() + " ";
@@ -146,7 +146,7 @@ public class TexasPoker extends CardGame{
             return outStr.substring(0, outStr.length() - 1);
         }
         
-        public String getToStringList(){
+        protected String getToStringList(){
             String outStr;
             int size = donors.size();
             if (size == 0){
@@ -303,7 +303,7 @@ public class TexasPoker extends CardGame{
          * Calls calcValue() if it hasn't been called yet.
          * @return the value
          */
-        public int getValue(){
+        protected int getValue(){
             if (value == -1){
                 value = calcValue();
             }
@@ -313,7 +313,7 @@ public class TexasPoker extends CardGame{
         /**
          * Resets the value to the default.
          */
-        public void resetValue(){
+        protected void resetValue(){
             value = -1;
         }
 
@@ -321,7 +321,7 @@ public class TexasPoker extends CardGame{
          * Name of the hand.
          * @return the name of the hand based on value.
          */
-        public String getName(){
+        protected String getName(){
             return handNames[getValue()];
         }
 
@@ -374,7 +374,7 @@ public class TexasPoker extends CardGame{
          * @param h the PokerHand to be calculated
          * @return value corresponding to hand-type.
          */
-        public int calcValue(){
+        protected int calcValue(){
             // Always check the hands in order of descending value
             if (hasStraightFlush()){	
                 if (get(0).getFace().equals("A")){
@@ -405,7 +405,7 @@ public class TexasPoker extends CardGame{
          * @param h the PokerHand to search
          * @return true if it contains a pair
          */
-        public boolean hasPair(){
+        protected boolean hasPair(){
             Card a,b;
             for (int ctr = 0; ctr < getSize()-1; ctr++){
                 a = get(ctr);
@@ -426,7 +426,7 @@ public class TexasPoker extends CardGame{
          * @param h the PokerHand to search
          * @return true if it contains two pairs
          */
-        public boolean hasTwoPair(){
+        protected boolean hasTwoPair(){
             Card a,b;
             for (int ctr = 0; ctr < getSize()-3; ctr++){
                 a = get(ctr);
@@ -453,7 +453,7 @@ public class TexasPoker extends CardGame{
          * @param h the PokerHand to search
          * @return true if it contains three of a kind
          */
-        public boolean hasThreeOfAKind(){
+        protected boolean hasThreeOfAKind(){
             Card a,b,c;
             for (int ctr = 0; ctr < getSize()-2; ctr++){
                 a = get(ctr);
@@ -477,7 +477,7 @@ public class TexasPoker extends CardGame{
          * @param h the PokerHand to search
          * @return true if it contains a straight
          */
-        public boolean hasStraight(){
+        protected boolean hasStraight(){
             /* Create a boolean array to determine which face cards exist in the hand.
              * An extra index is added at the beginning for the value duality of aces.
              */
@@ -516,7 +516,7 @@ public class TexasPoker extends CardGame{
          * @param h the PokerHand to search
          * @return true if it contains a flush
          */
-        public boolean hasFlush(){
+        protected boolean hasFlush(){
             int[] suitCount = new int[CardDeck.suits.length];
             Card c;
             for (int ctr = 0; ctr < getSize(); ctr++){
@@ -544,7 +544,7 @@ public class TexasPoker extends CardGame{
          * @param h the PokerHand to search
          * @return true if it contains a full house
          */
-        public boolean hasFullHouse(){
+        protected boolean hasFullHouse(){
             Card a,b,c;
             for (int ctr = 0; ctr < getSize()-2; ctr++){
                 a = get(ctr);
@@ -576,7 +576,7 @@ public class TexasPoker extends CardGame{
          * @param h the PokerHand to search
          * @return true if it contains four of a kind
          */
-        public boolean hasFourOfAKind(){
+        protected boolean hasFourOfAKind(){
             Card a,b,c,d;
             for (int ctr = 0; ctr < getSize()-3; ctr++){
                 a = get(ctr);
@@ -609,7 +609,7 @@ public class TexasPoker extends CardGame{
          * @param h the PokerHand to search
          * @return true if it contains a straight flush
          */
-        public boolean hasStraightFlush(){
+        protected boolean hasStraightFlush(){
             int[] suitCount = new int[CardDeck.suits.length];
             Hand nonFlushCards = new Hand();
             Card c;
@@ -675,7 +675,7 @@ public class TexasPoker extends CardGame{
          * Returns whether the player has cards in his Hand.
          * @return true if player has any cards
          */
-        public boolean hasHand(){
+        protected boolean hasHand(){
             return (hand.getSize() > 0);
         }
 
@@ -684,7 +684,7 @@ public class TexasPoker extends CardGame{
          * This includes the player's Hand and any community cards.
          * @return the player's PokerHand
          */
-        public PokerHand getPokerHand(){
+        protected PokerHand getPokerHand(){
             return pHand;
         }
 
@@ -692,14 +692,14 @@ public class TexasPoker extends CardGame{
          * Returns the player's Hand.
          * @return the player's Hand.
          */
-        public Hand getHand(){
+        protected Hand getHand(){
             return hand;
         }
 
         /**
          * Clears the cards in the player's Hand and PokerHand.
          */
-        public void resetHand(){
+        protected void resetHand(){
             hand.clear();
             pHand.clear();
             pHand.resetValue();

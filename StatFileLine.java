@@ -25,10 +25,25 @@ package irccasino;
 public class StatFileLine extends Stats{
     private String nick;
     
+    /**
+     * Initializes an empty stat file line.
+     */
     public StatFileLine(){
         this("",0,0,0,0,0,0,0,0);
     }
     
+    /**
+     * Initializes a stat file line with the given values.
+     * @param nick
+     * @param cash
+     * @param bank
+     * @param bankrupts
+     * @param bjwinnings
+     * @param bjrounds
+     * @param tpwinnings
+     * @param tprounds
+     * @param simple 
+     */
     public StatFileLine(String nick, int cash, int bank, int bankrupts, 
             int bjwinnings, int bjrounds, int tpwinnings, int tprounds,
             int simple){
@@ -44,16 +59,24 @@ public class StatFileLine extends Stats{
         set("simple", simple);
     }
     
-    public String getNick(){
+    /**
+     * Returns the stored nick.
+     * @return the stored nick
+     */
+    protected String getNick(){
         return nick;
     }
     
-    public void setNick(String value){
+    /**
+     * Sets the stored nick.
+     * @param value the new nick
+     */
+    protected void setNick(String value){
         nick = value;
     }
     
     @Override
-    public int get(String stat){
+    protected int get(String stat){
         if (stat.equals("exists")){
             return 1;
         } else if (stat.equals("netcash")){

@@ -31,7 +31,7 @@ Standalone Setup
 ### Run standalone bot ###
 1. Run the project.
 2. Give the bot Op status in the channels that will run the games.
-3. While as channel Op in those channls, type the command ".texaspoker" or ".blackjack" to start the desired game in the channel.
+3. While as channel Op in those channels, type the command ".texaspoker" or ".blackjack" to start that game in the channel.
 
 [1]: http://code.google.com/p/pircbotx/ "PircBotX"
 [2]: http://www.oracle.com/technetwork/java/javase/downloads/index.html "Java SE"

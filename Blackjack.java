@@ -68,7 +68,7 @@ public class Blackjack extends CardGame {
             set("cash", c);
         }
         
-        public String toFileString() {
+        protected String toFileString() {
             return get("decks") + " " + get("rounds") + " " + get("cash");
         }
         
@@ -102,7 +102,7 @@ public class Blackjack extends CardGame {
          * Sets the bet on this Hand to the specified amount.
          * @param amount the amount to set
          */
-        public void setBet(int amount){
+        protected void setBet(int amount){
             bet = amount;
         }
 
@@ -110,7 +110,7 @@ public class Blackjack extends CardGame {
          * Adds the specified amount to the existing bet.
          * @param amount the amount to add
          */
-        public void addBet(int amount){
+        protected void addBet(int amount){
             bet += amount;
         }
 
@@ -118,14 +118,14 @@ public class Blackjack extends CardGame {
          * Returns the bet on this Hand.
          * @return the bet on this Hand.
          */
-        public int getBet(){
+        protected int getBet(){
             return bet;
         }
 
         /**
          * Clears the bet on this Hand.
          */
-        public void clearBet(){
+        protected void clearBet(){
             bet = 0;
         }
 
@@ -133,7 +133,7 @@ public class Blackjack extends CardGame {
          * Returns whether or not this Hand has been hit.
          * @return true if only contains 2 cards
          */
-        public boolean hasHit(){
+        protected boolean hasHit(){
             return getSize() != 2;
         }
 
@@ -143,7 +143,7 @@ public class Blackjack extends CardGame {
          * 
          * @return true if the hand is blackjack
          */
-        public boolean isBlackjack() {
+        protected boolean isBlackjack() {
             return calcSum() == 21 && getSize() == 2;
         }
 
@@ -153,7 +153,7 @@ public class Blackjack extends CardGame {
          * 
          * @return true if the hand is bust
          */
-        public boolean isBust() {
+        protected boolean isBust() {
             return calcSum() > 21;
         }
 
@@ -164,7 +164,7 @@ public class Blackjack extends CardGame {
          * 
          * @return true if the hand is a pair
          */
-        public boolean isPair() {
+        protected boolean isPair() {
             return getSize() == 2 && get(0).getBlackjackValue() == get(1).getBlackjackValue();
         }
 
@@ -175,7 +175,7 @@ public class Blackjack extends CardGame {
          * 
          * @return true if the hand is a soft 17
          */
-        public boolean isSoft17(){
+        protected boolean isSoft17(){
             if (calcSum() == 17){
                 //Recalculate with aces valued at 1 and check if the sum is lower than 17
                 int sum=0;
@@ -199,7 +199,7 @@ public class Blackjack extends CardGame {
          * 
          * @return the sum of the BlackjackHand.
          */
-        public int calcSum() {
+        protected int calcSum() {
             int sum = 0, numAces = 0;
             Card card;
             // Add up all the cards and keep track of the number of aces
@@ -298,7 +298,7 @@ public class Blackjack extends CardGame {
         /**
          * Adds a new hand to the ArrayList of BlackjackHands.
          */
-        public void addHand(){
+        protected void addHand(){
             hands.add(new BlackjackHand());
         }
 
@@ -307,7 +307,7 @@ public class Blackjack extends CardGame {
          * @param num the specified index
          * @return the BlackjackHand at the index
          */
-        public BlackjackHand getHand(int num){
+        protected BlackjackHand getHand(int num){
             return hands.get(num);
         }
 
@@ -315,7 +315,7 @@ public class Blackjack extends CardGame {
          * Gets the player's current BlackjackHand.
          * @return the BlackjackHand at the current index
          */
-        public BlackjackHand getHand(){
+        protected BlackjackHand getHand(){
             return hands.get(get("currentindex"));
         }
 
@@ -323,7 +323,7 @@ public class Blackjack extends CardGame {
          * Increments the current index in order to get the next hand.
          * @return the BlackjackHand at the incremented index
          */
-        public BlackjackHand getNextHand(){
+        protected BlackjackHand getNextHand(){
             increment("currentindex");
             return getHand(get("currentindex"));
         }
@@ -332,7 +332,7 @@ public class Blackjack extends CardGame {
          * Returns the number BlackjackHands the player has.
          * @return the number of BlackjackHands
          */
-        public int getNumberHands(){
+        protected int getNumberHands(){
             return hands.size();
         }
 
@@ -340,14 +340,14 @@ public class Blackjack extends CardGame {
          * Whether or not the player has any BlackjackHands.
          * @return true if the player has any BlackjackHands
          */
-        public boolean hasHands(){
+        protected boolean hasHands(){
             return hands.size() > 0;
         }
 
         /**
          * Clears all of the player's hands.
          */
-        public void resetHands(){
+        protected void resetHands(){
             hands.clear();
         }
 
@@ -355,7 +355,7 @@ public class Blackjack extends CardGame {
          * Whether or not the player has surrendered.
          * @return true if the player has surrendered.
          */
-        public boolean hasSurrendered(){
+        protected boolean hasSurrendered(){
             return get("surrender") == 1;
         }
 
@@ -364,7 +364,7 @@ public class Blackjack extends CardGame {
          * Whether or not the player has split his initial hand.
          * @return true if hands contains more than one BlackjackHand
          */
-        public boolean hasSplit(){
+        protected boolean hasSplit(){
             return hands.size() > 1;
         }
 
@@ -374,7 +374,7 @@ public class Blackjack extends CardGame {
          * The card is then removed from the original BlackjackHand. The new
          * BlackjackHand is added to the end of the ArrayList of BlackjackHands.
          */
-        public void splitHand(){
+        protected void splitHand(){
             BlackjackHand tHand = new BlackjackHand();
             BlackjackHand cHand = getHand();
             tHand.add(cHand.get(1));
