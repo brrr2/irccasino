@@ -25,7 +25,7 @@ Standalone Setup
 
 		nick=bot nick
 		password=bot password (optional)
-		network=IRC network
+		network=IRC network (e.g. chat.freenode.net)
 		channel=IRC channels to auto-join (comma delimited)
 
 ### Run standalone bot ###
