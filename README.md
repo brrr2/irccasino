@@ -24,7 +24,7 @@ Standalone Setup
 2.  Create *irccasino.conf* in the project run directory with the following contents:
 
 		nick=bot nick
-		password=bot password
+		password=bot password (optional)
 		network=IRC network
 		channel=IRC channels to auto-join (comma delimited)
 
