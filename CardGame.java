@@ -986,7 +986,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             StringTokenizer st;
             while (in.ready()) {
                 str = in.readLine();
-                if (!str.startsWith("#")) {
+                if (!str.startsWith("#") && str.contains("=")) {
                     st = new StringTokenizer(str, "=");
                     set(st.nextToken(), Integer.parseInt(st.nextToken()));
                 }
@@ -1014,7 +1014,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 // Replace all unicode
                 str = in.readLine().replaceAll("u0002", Colors.BOLD);
                 // Skips all lines that begin with #
-                if (!str.startsWith("#")) {
+                if (!str.startsWith("#") && str.contains("=")) {
                     st = new StringTokenizer(str, "=");
                     stringMap.put(st.nextToken(), st.nextToken());
                 }

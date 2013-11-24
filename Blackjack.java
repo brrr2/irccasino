@@ -410,7 +410,7 @@ public class Blackjack extends CardGame {
         iniFile = customINI;
         helpFile = "blackjack.help";
         strFile = "strlib.txt";
-        loadLib(helpMap, iniFile);
+        loadLib(helpMap, helpFile);
         loadLib(msgMap, strFile);
         dealer = new BlackjackPlayer("Dealer", "");
         houseStatsList = new ArrayList<HouseStat>();

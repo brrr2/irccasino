@@ -2325,7 +2325,7 @@ public class TexasPoker extends CardGame{
     
     @Override
     public final String getGameRulesStr() {
-        return String.format(getMsg("tp_game_rules"), get("minbet")/2, get("minbet"));
+        return String.format(getMsg("tp_rules"), get("minbet")/2, get("minbet"));
     }
     
     @Override
