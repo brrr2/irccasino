@@ -125,7 +125,7 @@ public interface GameManager {
      * Retrieves the Users in a Channel as a Set. Automatically implemented by
      * any PircBotX which implements this interface.
      * @param channel
-     * @return 
+     * @return a Set of Users
      */
     public Set<User> getUsers(Channel channel);
     

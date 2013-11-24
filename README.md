@@ -37,4 +37,4 @@ Standalone Setup
 [2]: http://www.oracle.com/technetwork/java/javase/downloads/index.html "Java SE"
 [3]: http://repo1.maven.org/maven2/org/pircbotx/pircbotx/1.9/pircbotx-1.9.jar "pircbotx-1.9"
 [4]: https://github.com/brrr2/irccasino/wiki "Wiki"
-[5]: irc://chat.freenode.net "Freenode"
+[5]: https://webchat.freenode.net "Freenode"

@@ -1181,7 +1181,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * Checks if an Op command is allowed.
      * @param user command issuer
      * @param nick the user's nick
-     * @return 
+     * @return true if the User is allowed use Op commands
      */
     protected boolean isOpCommandAllowed(User user, String nick){
         if (!channel.isOp(user)) {
