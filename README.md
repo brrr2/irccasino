@@ -20,12 +20,12 @@ Standalone Setup
 4. Set the project to run *CasinoBot.java*.
 
 ### Configuration ###
-1.  Copy the *.help* files to the project run directory.
+1.  Copy the *.help* files and *strlib.txt* to the project run directory.
 2.  Create *irccasino.conf* in the project run directory with the following contents:
 
 		nick=bot nick
-		password=bot password
-		network=IRC network
+		password=bot password (optional)
+		network=IRC network (e.g. chat.freenode.net)
 		channel=IRC channels to auto-join (comma delimited)
 
 ### Run standalone bot ###
