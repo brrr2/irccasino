@@ -283,10 +283,10 @@ public class Blackjack extends CardGame {
          * Creates the new player with the specified parameters.
          * 
          * @param nick IRC user's nick.
-         * @param hostmask IRC user's hostmask.
+         * @param hostmask IRC user's host.
          */
-        public BlackjackPlayer(String nick, String hostmask){
-            super(nick, hostmask);
+        public BlackjackPlayer(String nick, String host){
+            super(nick, host);
             hands = new ArrayList<BlackjackHand>();
             set("initialbet", 0);
             set("insurebet", 0);

@@ -667,6 +667,7 @@ public class TexasPoker extends CardGame{
             set("change", 0);
             set("fold", 0);
             set("allin", 0);
+            set("winprob", 0);
             hand = new Hand();
             pHand = new PokerHand();
         }
@@ -714,6 +715,123 @@ public class TexasPoker extends CardGame{
         @Override
         public int compareTo(PokerPlayer p){
             return this.getPokerHand().compareTo(p.getPokerHand());
+        }
+    }
+    
+    /**
+     * Game simulator for calculating winning percentages.
+     * @author Yizhe Shen
+     */
+    private class PokerSimulator {
+        private CardDeck simDeck;
+        private ArrayList<PokerPlayer> simList;
+        private Hand simComm;
+        private int rounds;
+        
+        public PokerSimulator(ArrayList<PokerPlayer> list, Hand comm) {
+            simDeck = new CardDeck(1);
+            simList = new ArrayList<PokerPlayer>();
+            simComm = new Hand();
+            rounds = 0;
+            
+            PokerPlayer simP;
+
+            // Give simulated players simulated cards matching the real hands.
+            for (PokerPlayer p : list) {
+                if (!p.has("fold")) {
+                    simP = new PokerPlayer(p.getNick(), p.getHost());
+                    for (Card aCard : p.getHand().getAllCards()){
+                       simP.getHand().add(simDeck.takeCard(aCard));
+                       simP.set("wins", 0);
+                       simP.set("splits", 0);
+                    }
+                    simList.add(simP);
+                }
+            }
+
+            // Give simulated community cards matching the real community.
+            for (Card aCard : comm.getAllCards()) {
+                simComm.add(simDeck.takeCard(aCard));
+            }
+            
+            // Run simulation
+            simulate(0);
+        }
+
+        /**
+         * Simulates games by sequentially adding cards to simComm until full
+         * and determining winners and ties. Uses a recursive algorithm.
+         * The number of rounds generated will be nCr, where n is the number of
+         * cards remaining in the simDeck and r is the number of cards required
+         * to fill simComm.
+         * @param index the index in simDeck from which to start adding cards
+         *              to simComm
+         */
+        private void simulate(int index) {
+            Card c;
+            // Add another card if the simulated community isn't full
+            if (simComm.getSize() < 5) {
+                for (int ctr = index; ctr < simDeck.getNumberCards(); ctr++) {
+                    c = simDeck.peekCard(ctr);
+                    simComm.add(c);
+                    simulate(ctr + 1);
+                    simComm.remove(c);
+                }
+            } else {
+                rounds++;
+                int winners = 1;
+                
+                // System.out.println(simComm);
+                
+                // Create PokerHands
+                for (PokerPlayer p : simList) {
+                    p.getPokerHand().addAll(p.getHand());
+                    p.getPokerHand().addAll(simComm);
+                    Collections.sort(p.getPokerHand().getAllCards());
+                    Collections.reverse(p.getPokerHand().getAllCards());
+                }
+                
+                // Sort players by PokerHand
+                Collections.sort(simList);
+                Collections.reverse(simList);
+                
+                // Determine number of winners
+                for (int ctr = 1; ctr < simList.size(); ctr++){
+                    if (simList.get(0).compareTo(simList.get(ctr)) == 0){
+                        winners++;
+                    }
+                }
+                
+                // Increment win count for winners
+                if (winners == 1) {
+                    simList.get(0).increment("wins");
+                } else {
+                    for (int ctr = 0; ctr < winners; ctr++){
+                        simList.get(ctr).increment("splits");
+                    }
+                }
+                
+                // Clear PokerHands
+                for (PokerPlayer p : simList) {
+                    p.getPokerHand().clear();
+                    p.getPokerHand().resetValue();
+                }
+            }
+        }
+
+        /**
+         * Produces a String that contains every player's cards and their
+         * percentages for wins and splits.
+         * @return a ready-to-display String
+         */
+        @Override
+        public String toString() {
+            String out = "Showdown: ";
+            for (PokerPlayer p : simList) {
+                //out += p.getNickStr() + " (" + p.getHand() + ", " + p.get("wins") +  "/" + p.get("splits") + "/" + rounds + "), ";
+                out += p.getNick() + " (" + p.getHand() + ", " + Math.round((double) p.get("wins") / (double) rounds * 100) + "%%, " + Math.round((double) p.get("splits") / (double) rounds * 100) + "%%), ";
+            }
+            return out.substring(0, out.length() - 2);
         }
     }
     
@@ -1032,6 +1150,72 @@ public class TexasPoker extends CardGame{
                 }
                 
             }
+        } else if (command.equals("test3")){
+            // 3. Tests the percentage calculator for 2-5 players
+            if (isOpCommandAllowed(user, nick)){
+                if (params.length > 0){
+                    try {
+                        int number = Integer.parseInt(params[0]);
+                        if (number > 5 || number < 2){
+                            throw new NumberFormatException();
+                        }
+                        ArrayList<PokerPlayer> peeps = new ArrayList<PokerPlayer>();
+                        PokerPlayer p;
+                        Hand comm = new Hand();
+                        PokerSimulator sim;
+
+                        // Generate players and deal cards
+                        for (int ctr = 0; ctr < number; ctr++) {
+                            p = new PokerPlayer(ctr + "", ctr + "");
+                            peeps.add(p);
+                            dealHand(p);
+                            showMsg("Player "+p.getNickStr()+": "+p.getHand().toString());
+                        }
+
+                        // Calculate percentages
+                        sim = new PokerSimulator(peeps, comm);
+                        showMsg(sim.toString());
+
+                        // Deal flop
+                        for (int ctr = 0; ctr < 3; ctr++){
+                            dealCard(comm);
+                        }
+                        showMsg(formatHeader(" Community Cards: ") + " " + comm.toString());
+
+                        // Recalculate percentages
+                        sim = new PokerSimulator(peeps, comm);
+                        showMsg(sim.toString());
+
+                        // Deal turn
+                        dealCard(comm);
+                        showMsg(formatHeader(" Community Cards: ") + " " + comm.toString());
+
+                        // Recalculate percentages
+                        sim = new PokerSimulator(peeps, comm);
+                        showMsg(sim.toString());
+
+                        // Deal river
+                        dealCard(comm);
+                        showMsg(formatHeader(" Community Cards: ") + " " + comm.toString());
+                        
+                        // Recalculate percentages
+                        sim = new PokerSimulator(peeps, comm);
+                        showMsg(sim.toString());
+
+                        // Discard and shuffle
+                        for (int ctr=0; ctr < number; ctr++){
+                            resetPlayer(peeps.get(ctr));
+                        }
+                        deck.addToDiscard(comm.getAllCards());
+                        comm.clear();
+                        deck.refillDeck();
+                    } catch (NumberFormatException e) {
+                        informPlayer(nick, getMsg("bad_parameter"));
+                    }
+                } else {
+                    informPlayer(nick, getMsg("no_parameter"));
+                }
+            }
         }
     }
 
@@ -1346,7 +1530,7 @@ public class TexasPoker extends CardGame{
      * @param p the specified player
      * @return the next player
      */
-    public Player getPlayerAfter(Player p){
+    private Player getPlayerAfter(Player p){
         return joined.get((joined.indexOf(p) + 1) % joined.size());
     }
     
@@ -1354,7 +1538,7 @@ public class TexasPoker extends CardGame{
      * Resets the specified player.
      * @param p the player to reset
      */
-    public void resetPlayer(PokerPlayer p) {
+    private void resetPlayer(PokerPlayer p) {
         discardPlayerHand(p);
         p.clear("fold");
         p.clear("quit");
@@ -1365,7 +1549,7 @@ public class TexasPoker extends CardGame{
     /**
      * Assigns players to the dealer, small blind and big blind roles.
      */
-    public void setButton(){
+    private void setButton(){
         if (dealer == null){
             dealer = (PokerPlayer) joined.get(0);
         } else {
@@ -1382,7 +1566,7 @@ public class TexasPoker extends CardGame{
     /**
      * Sets the bets for the small and big blinds.
      */
-    public void setBlindBets(){
+    private void setBlindBets(){
         // Set the small blind to minimum raise or the player's cash, 
         // whichever is less.
         smallBlind.set("bet", Math.min(get("minbet")/2, smallBlind.get("cash")));
@@ -1594,10 +1778,11 @@ public class TexasPoker extends CardGame{
     }
     
     /* Card management methods for Texas Hold'em Poker */
+    
     /**
      * Deals cards to the community hand.
      */
-    public void dealCommunity(){
+    private void dealCommunity(){
         if (get("stage") == 1) {
             for (int ctr = 1; ctr <= 3; ctr++){
                 dealCard(community);
@@ -1610,14 +1795,14 @@ public class TexasPoker extends CardGame{
      * Deals two cards to the specified player.
      * @param p the player to be dealt to
      */
-    public void dealHand(PokerPlayer p) {
+    private void dealHand(PokerPlayer p) {
         dealCard(p.getHand());
         dealCard(p.getHand());
     }
     /**
      * Deals hands to everybody at the table.
      */
-    public void dealTable() {
+    private void dealTable() {
         PokerPlayer p;
         for (int ctr = 0; ctr < joined.size(); ctr++) {
             p = (PokerPlayer) joined.get(ctr);
@@ -1629,7 +1814,7 @@ public class TexasPoker extends CardGame{
      * Discards a player's hand into the discard pile.
      * @param p the player whose hand is to be discarded
      */
-    public void discardPlayerHand(PokerPlayer p) {
+    private void discardPlayerHand(PokerPlayer p) {
         if (p.hasHand()) {
             deck.addToDiscard(p.getHand().getAllCards());
             p.resetHand();
@@ -1638,7 +1823,7 @@ public class TexasPoker extends CardGame{
     /**
      * Discards the community cards into the discard pile.
      */
-    public void discardCommunity(){
+    private void discardCommunity(){
         if (community.getSize() > 0){
             deck.addToDiscard(community.getAllCards());
             community.clear();
@@ -1647,61 +1832,12 @@ public class TexasPoker extends CardGame{
     /**
      * Merges the discards and shuffles the deck.
      */
-    public void shuffleDeck() {
+    private void shuffleDeck() {
         deck.refillDeck();
         showMsg(getMsg("tp_shuffle_deck"));
     }
     
     /* Texas Hold'em Poker gameplay methods */
-    
-    /**
-     * Determines the number of players who have not folded.
-     * @return the number of non-folded players
-     */
-    public int getNumberNotFolded(){
-        PokerPlayer p;
-        int numberNotFolded = 0;
-        for (int ctr = 0; ctr < joined.size(); ctr++){
-            p = (PokerPlayer) joined.get(ctr);
-            if (!p.has("fold")){
-                numberNotFolded++;
-            }
-        }
-        return numberNotFolded;
-    }
-    
-    /**
-     * Determines the number players who can still make a bet.
-     * @return the number of players who can bet
-     */
-    public int getNumberCanBet(){
-        PokerPlayer p;
-        int numberCanBet = 0;
-        for (int ctr = 0; ctr < joined.size(); ctr++){
-            p = (PokerPlayer) joined.get(ctr);
-            if (!p.has("fold") && !p.has("allin")){
-                numberCanBet++;
-            }
-        }
-        return numberCanBet;
-    }
-    
-    /**
-     * Determines the number of players who have made a bet in a round of 
-     * betting.
-     * @return the number of bettors
-     */
-    public int getNumberBettors() {
-        PokerPlayer p;
-        int numberBettors = 0;
-        for (int ctr = 0; ctr < joined.size(); ctr++){
-            p = (PokerPlayer) joined.get(ctr);
-            if (p.has("bet")){
-                numberBettors++;
-            }
-        }
-        return numberBettors;
-    }
     
     /**
      * Processes a bet command.
@@ -1837,11 +1973,62 @@ public class TexasPoker extends CardGame{
         continueRound();
     }
     
+    /* Behind the scenes methods */
+    
+    /**
+     * Determines the number of players who have not folded.
+     * @return the number of non-folded players
+     */
+    private int getNumberNotFolded(){
+        PokerPlayer p;
+        int numberNotFolded = 0;
+        for (int ctr = 0; ctr < joined.size(); ctr++){
+            p = (PokerPlayer) joined.get(ctr);
+            if (!p.has("fold")){
+                numberNotFolded++;
+            }
+        }
+        return numberNotFolded;
+    }
+    
+    /**
+     * Determines the number players who can still make a bet.
+     * @return the number of players who can bet
+     */
+    private int getNumberCanBet(){
+        PokerPlayer p;
+        int numberCanBet = 0;
+        for (int ctr = 0; ctr < joined.size(); ctr++){
+            p = (PokerPlayer) joined.get(ctr);
+            if (!p.has("fold") && !p.has("allin")){
+                numberCanBet++;
+            }
+        }
+        return numberCanBet;
+    }
+    
+    /**
+     * Determines the number of players who have made a bet in a round of 
+     * betting.
+     * @return the number of bettors
+     */
+    private int getNumberBettors() {
+        PokerPlayer p;
+        int numberBettors = 0;
+        for (int ctr = 0; ctr < joined.size(); ctr++){
+            p = (PokerPlayer) joined.get(ctr);
+            if (p.has("bet")){
+                numberBettors++;
+            }
+        }
+        return numberBettors;
+    }
+    
     /**
      * Adds the bets during a round of betting to the pot.
      * If no pot exists, a new one is created. Sidepots are created as necessary.
      */
-    public void addBetsToPot(){
+    private void addBetsToPot(){
         PokerPlayer p;
         int lowBet;
         while(get("currentbet") != 0){
@@ -1932,7 +2119,8 @@ public class TexasPoker extends CardGame{
         }
     }    
     
-    /* Channel message output methods for Texas Hold'em Poker*/    
+    /* Channel message output methods for Texas Hold'em Poker*/
+    
     /**
      * Displays the players who are involved in a round. Players who have not
      * folded are displayed in bold. Designations for small blind, big blind,

@@ -204,6 +204,19 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         protected Card get(int index){
             return cards.get(index);
         }
+        
+        /**
+         * Returns the Card that matches the specified card.
+         * @param c the card to match to
+         * @return the matched card or null if not found
+         */
+        protected Card get(Card c){
+            int index = cards.indexOf(c);
+            if (index == -1) {
+                return null;
+            }
+            return cards.get(index);
+        }
 
         /**
          * Returns the all Cards in the Hand in an ArrayList.

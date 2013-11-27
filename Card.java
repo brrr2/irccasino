@@ -153,4 +153,33 @@ public class Card implements Comparable<Card>{
         
         return color+",00"+face+suit;
     }
+    
+    /**
+     * Checks equality based on suit and face.
+     * @param o the other Card
+     * @return true if the other Card has the same suit and face
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (o != null && o instanceof Card) {
+            Card c = (Card) o;
+            if (face.equals(c.face) && suit.equals(c.suit) &&
+                hashCode() == c.hashCode()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Hash code based on suit and face.
+     * @return the hash
+     */
+    @Override
+    public int hashCode() {
+        int hash = 5;
+        hash = 83 * hash + suit.hashCode();
+        hash = 83 * hash + face.hashCode();
+        return hash;
+    }
 }

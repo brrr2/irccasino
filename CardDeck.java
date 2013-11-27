@@ -110,9 +110,29 @@ public class CardDeck {
      * @return the card taken
      */
     public Card takeCard(){
-        Card temp = cards.get(0);
-        cards.remove(0);
-        return temp;
+        return cards.remove(0);
+    }
+    
+    /**
+     * Takes the Card from this deck that matches the specified card.
+     * @param c the card to match to
+     * @return the matched card or null if not found
+     */
+    public Card takeCard(Card c){
+        int index = cards.indexOf(c);
+        if (index == -1) {
+            return null;
+        }
+        return cards.remove(index);
+    }
+    
+    /**
+     * Returns the Card at the index without removing it from the deck.
+     * @param index the index of the Card
+     * @return the Card at the index
+     */
+    public Card peekCard(int index) {
+        return cards.get(index);
     }
     
     /**
@@ -175,10 +195,10 @@ public class CardDeck {
      * Generates numDecks sets of cards.
      */
     private void makeCards(){
-        for (int n=0; n<numDecks; n++){
-            for (int ctr=0; ctr<suits.length; ctr++){
-                for (int ctr2=0; ctr2<faces.length; ctr2++){
-                    cards.add(new Card(suits[ctr],faces[ctr2]));
+        for (int n = 0; n < numDecks; n++){
+            for (String suit : suits) {
+                for (String face : faces) {
+                    cards.add(new Card(suit, face));
                 }
             }
         }

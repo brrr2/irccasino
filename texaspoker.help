@@ -82,3 +82,4 @@ get=Usage: get <setting> | Alias: | Op command that gets the value for the speci
 set=Usage: set <setting> <value> | Alias: | Op command that sets the specified value for the specified setting, if a round is not in progress. Setting names are as specified in the texaspoker.ini file.
 test1=Usage: test1 <numPlayers> | Alias: | Op command that provides a simple test to determine the winner of a simulated game with 2-5 players.
 test2=Usage: test2 <handSize> | Alias: | Op command that provides a simple test to determine the type and value of a hand based on the specified number of cards dealt.
+test3=Usage: test3 <numPlayers> | Alias: | Op command that provides a test of the algorithm for calculating the winning percentages of a simulated game with 2-5 players.
