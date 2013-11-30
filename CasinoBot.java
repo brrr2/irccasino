@@ -66,8 +66,8 @@ public class CasinoBot extends PircBotX implements GameManager {
          */
         @Override
         public void onConnect(ConnectEvent<PircBotX> event){
-            for (int ctr = 0; ctr < channelList.size(); ctr++){
-                bot.joinChannel(channelList.get(ctr));
+            for (String channel : channelList) {
+                bot.joinChannel(channel);
             }
         }
         
@@ -103,13 +103,11 @@ public class CasinoBot extends PircBotX implements GameManager {
         public void processCommand(Channel channel, User user, String command, String[] params){
             if (channel.isOp(user)){
                 if (command.equals("games")) {
-                    CardGame game;
-                    String str = "Currently running: ";
+                    String str = "Games: ";
                     if (bot.gameList.isEmpty()) {
                         str += "No games";
                     } else {
-                        for (int ctr = 0; ctr < bot.gameList.size(); ctr++){
-                            game = bot.gameList.get(ctr);
+                        for (CardGame game : bot.gameList) {
                             str += game.getGameNameStr() + " in " + game.getChannel().getName() + ", ";
                         }
                         str = str.substring(0, str.length() - 2);
@@ -117,25 +115,19 @@ public class CasinoBot extends PircBotX implements GameManager {
                     bot.sendMessage(channel, str);
                 } else if (command.equals("blackjack") || command.equals("bj")) {
                     if (!bot.hasGame(channel)) {
-                        Blackjack newGame;
                         if (params.length > 0) {
-                            newGame = new Blackjack(bot, commandChar, channel, params[0]);
+                            bot.startGame(new Blackjack(bot, commandChar, channel, params[0]));
                         } else {
-                            newGame = new Blackjack(bot, commandChar, channel);
+                            bot.startGame(new Blackjack(bot, commandChar, channel));
                         }
-                        bot.gameList.add(newGame);
-                        bot.getListenerManager().addListener(newGame);
                     }
                 } else if (command.equals("texaspoker") || command.equals("tp")) {
                     if (!bot.hasGame(channel)) {
-                        TexasPoker newGame;
                         if (params.length > 0) {
-                            newGame = new TexasPoker(bot, commandChar, channel, params[0]);
+                            bot.startGame(new TexasPoker(bot, commandChar, channel, params[0]));
                         } else {
-                            newGame = new TexasPoker(bot, commandChar, channel);
+                            bot.startGame(new TexasPoker(bot, commandChar, channel));
                         }
-                        bot.gameList.add(newGame);
-                        bot.getListenerManager().addListener(newGame);
                     }
                 } else if (command.equals("endgame")) {
                     CardGame game = bot.getGame(channel);
@@ -205,9 +197,9 @@ public class CasinoBot extends PircBotX implements GameManager {
         
     @Override
     public CardGame getGame(Channel channel) {
-        for (int ctr = 0; ctr < gameList.size(); ctr++){
-            if (gameList.get(ctr).getChannel().equals(channel)){
-                return gameList.get(ctr);
+        for (CardGame game : gameList) {
+            if (game.getChannel().equals(channel)){
+                return game;
             }
         }
         return null;
@@ -215,9 +207,7 @@ public class CasinoBot extends PircBotX implements GameManager {
     
     @Override
     public CardGame getGame(String nick) {
-        CardGame game;
-        for (int ctr = 0; ctr < gameList.size(); ctr++) {
-            game = gameList.get(ctr);
+        for (CardGame game : gameList) {
             if (game.isJoined(nick) || game.isWaitlisted(nick)) {
                 return game;
             }
@@ -227,9 +217,7 @@ public class CasinoBot extends PircBotX implements GameManager {
     
     @Override
     public boolean isBlacklisted(String nick) {
-        CardGame game;
-        for (int ctr = 0; ctr < gameList.size(); ctr++) {
-            game = gameList.get(ctr);
+        for (CardGame game : gameList) {
             if (game.isBlacklisted(nick)) {
                 return true;
             }
@@ -240,9 +228,7 @@ public class CasinoBot extends PircBotX implements GameManager {
     @Override
     public boolean checkGamesInProgress() {
         boolean inProgress = false;
-        CardGame game;
-        for (int ctr = 0; ctr < gameList.size(); ctr++){
-            game = gameList.get(ctr);
+        for (CardGame game : gameList) {
             if (game.has("inprogress")){
                 sendMessage(game.getChannel(), "A round of " + game.getGameNameStr() + 
                         " is in progress in " + game.getChannel().getName() + 
@@ -252,13 +238,11 @@ public class CasinoBot extends PircBotX implements GameManager {
         }
         return inProgress;
     }
-        
+    
     @Override
-    public void endAllGames() {
-        for (int ctr = 0; ctr < gameList.size(); ctr++){
-            endGame(gameList.get(ctr));
-            ctr--;
-        }
+    public void startGame(CardGame game) {
+        bot.gameList.add(game);
+        bot.getListenerManager().addListener(game);
     }
     
     @Override
@@ -266,6 +250,13 @@ public class CasinoBot extends PircBotX implements GameManager {
         game.endGame();
         getListenerManager().removeListener(game);
         gameList.remove(game);
+    }
+    
+    @Override
+    public void endAllGames() {
+        while(!gameList.isEmpty()){
+            endGame(gameList.get(0));
+        }
     }
     
     /**

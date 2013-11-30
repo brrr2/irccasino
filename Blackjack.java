@@ -392,7 +392,7 @@ public class Blackjack extends CardGame {
      * @param commChar The command char
      * @param gameChannel The IRC channel in which the game is to be run.
      */
-    public Blackjack(CasinoBot parent, char commChar, Channel gameChannel) {
+    public Blackjack(GameManager parent, char commChar, Channel gameChannel) {
         this(parent, commChar, gameChannel, "blackjack.ini");
     }
     
@@ -404,7 +404,7 @@ public class Blackjack extends CardGame {
      * @param gameChannel The IRC channel in which the game is to be run
      * @param customINI the file path to a custom INI file
      */
-    public Blackjack(CasinoBot parent, char commChar, Channel gameChannel, String customINI) {
+    public Blackjack(GameManager parent, char commChar, Channel gameChannel, String customINI) {
         super(parent, commChar, gameChannel);
         name = "blackjack";
         iniFile = customINI;
@@ -679,6 +679,7 @@ public class Blackjack extends CardGame {
                 }
                 showMsg(outStr);
                 resetPlayer(dealer);
+                showMsg(getMsg("separator"));
             }
         }
     }
@@ -848,7 +849,7 @@ public class Blackjack extends CardGame {
         try {
             PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("housestats.txt")));
             for (int ctr = 0; ctr < lines.size(); ctr++) {
-                    out.println(lines.get(ctr));
+                out.println(lines.get(ctr));
             }
             out.close();
         } catch (IOException e) {
@@ -861,10 +862,8 @@ public class Blackjack extends CardGame {
      * @param numDecks shoe size in number of decks
      * @return the house stats
      */
-    public HouseStat getHouseStat(int numDecks) {
-        HouseStat hs;
-        for (int ctr = 0; ctr < houseStatsList.size(); ctr++) {
-            hs = houseStatsList.get(ctr);
+    private HouseStat getHouseStat(int numDecks) {
+        for (HouseStat hs : houseStatsList) {
             if (hs.get("decks") == numDecks) {
                 return hs;
             }
@@ -876,10 +875,10 @@ public class Blackjack extends CardGame {
      * Calculates the total number of rounds played by all players.
      * @return the total number of rounds
      */
-    public int getTotalRounds(){
+    private int getTotalRounds(){
         int total=0;
-        for (int ctr=0; ctr < houseStatsList.size(); ctr++){
-            total += houseStatsList.get(ctr).get("rounds");
+        for (HouseStat hs : houseStatsList) {
+            total += hs.get("rounds");
         }
         return total;
     }
@@ -888,10 +887,10 @@ public class Blackjack extends CardGame {
      * Calculates the total amount won by the house.
      * @return the total amount won by the house
      */
-    public int getTotalHouse(){
+    private int getTotalHouse(){
         int total=0;
-        for (int ctr=0; ctr < houseStatsList.size(); ctr++){
-            total += houseStatsList.get(ctr).get("cash");
+        for (HouseStat hs : houseStatsList) {
+            total += hs.get("cash");
         }
         return total;
     }
@@ -1124,7 +1123,7 @@ public class Blackjack extends CardGame {
      * 
      * @param p the player
      */
-    public void resetPlayer(BlackjackPlayer p) {
+    private void resetPlayer(BlackjackPlayer p) {
         discardPlayerHand(p);
         p.clear("currentindex");
         p.clear("initialbet");
@@ -1345,7 +1344,7 @@ public class Blackjack extends CardGame {
      * Deals two cards to the specified player.
      * @param p the player to be dealt to
      */
-    public void dealHand(BlackjackPlayer p) {
+    private void dealHand(BlackjackPlayer p) {
         p.addHand();
         dealCard(p.getHand());
         dealCard(p.getHand());
@@ -1376,7 +1375,7 @@ public class Blackjack extends CardGame {
      * Loops through each hand that the player has.
      * @param p the player whose hands are to be discarded
      */
-    public void discardPlayerHand(BlackjackPlayer p) {
+    private void discardPlayerHand(BlackjackPlayer p) {
         if (p.hasHands()) {
             for (int ctr = 0; ctr < p.getNumberHands(); ctr++) {
                 deck.addToDiscard(p.getHand(ctr).getAllCards());

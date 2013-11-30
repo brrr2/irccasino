@@ -335,18 +335,15 @@ public class TexasPoker extends CardGame{
         public String toString(){
             String out;
             switch (this.getValue()) {
-                // Royal flush, straight flush, full house, flush, straight, high card
+                // Royal/straight flush, full house, flush, straight, high card
                 case 9: case 8: case 6: case 5: case 4: case 0: 
                     out = toString(0,5);
                     break;
-                case 7: // 4 of a kind
+                case 7: case 2: // 4 of a kind, 2 pairs
                     out = toString(0,4)+"/"+toString(4,5);
                     break;
                 case 3: // 3 of a kind
                     out = toString(0,3)+"/"+toString(3,5);
-                    break;
-                case 2: // 2 pairs
-                    out = toString(0,4)+"/"+toString(4,5);
                     break;
                 case 1: // 1 pair
                     out = toString(0,2)+"/"+toString(2,5);
@@ -667,7 +664,6 @@ public class TexasPoker extends CardGame{
             set("change", 0);
             set("fold", 0);
             set("allin", 0);
-            set("winprob", 0);
             hand = new Hand();
             pHand = new PokerHand();
         }
@@ -743,7 +739,7 @@ public class TexasPoker extends CardGame{
                     for (Card aCard : p.getHand().getAllCards()){
                        simP.getHand().add(simDeck.takeCard(aCard));
                        simP.set("wins", 0);
-                       simP.set("splits", 0);
+                       simP.set("ties", 0);
                     }
                     simList.add(simP);
                 }
@@ -781,8 +777,6 @@ public class TexasPoker extends CardGame{
                 rounds++;
                 int winners = 1;
                 
-                // System.out.println(simComm);
-                
                 // Create PokerHands
                 for (PokerPlayer p : simList) {
                     p.getPokerHand().addAll(p.getHand());
@@ -807,7 +801,7 @@ public class TexasPoker extends CardGame{
                     simList.get(0).increment("wins");
                 } else {
                     for (int ctr = 0; ctr < winners; ctr++){
-                        simList.get(ctr).increment("splits");
+                        simList.get(ctr).increment("ties");
                     }
                 }
                 
@@ -820,6 +814,34 @@ public class TexasPoker extends CardGame{
         }
 
         /**
+         * Returns the win percentage for the specified player.
+         * @param p the player
+         * @return the win percentage or -1 if the player is not found
+         */
+        public int getWinPct(PokerPlayer p) {
+            for (PokerPlayer simP : simList) {
+                if (simP.equals(p)) {
+                    return (int) Math.round((double) simP.get("wins") / (double) rounds * 100);
+                }
+            }
+            return -1;
+        }
+        
+        /**
+         * Returns the tie percentage for the specified player.
+         * @param p the player
+         * @return the tie percentage or -1 if the player is not found
+         */
+        public int getTiePct(PokerPlayer p) {
+            for (PokerPlayer simP : simList) {
+                if (simP.equals(p)) {
+                    return (int) Math.round((double) simP.get("ties") / (double) rounds * 100);
+                }
+            }
+            return -1;
+        }
+        
+        /**
          * Produces a String that contains every player's cards and their
          * percentages for wins and splits.
          * @return a ready-to-display String
@@ -829,7 +851,7 @@ public class TexasPoker extends CardGame{
             String out = "Showdown: ";
             for (PokerPlayer p : simList) {
                 //out += p.getNickStr() + " (" + p.getHand() + ", " + p.get("wins") +  "/" + p.get("splits") + "/" + rounds + "), ";
-                out += p.getNick() + " (" + p.getHand() + ", " + Math.round((double) p.get("wins") / (double) rounds * 100) + "%%, " + Math.round((double) p.get("splits") / (double) rounds * 100) + "%%), ";
+                out += p.getNick() + " (" + p.getHand() + ", " + Math.round((double) p.get("wins") / (double) rounds * 100) + "%%, " + Math.round((double) p.get("ties") / (double) rounds * 100) + "%%), ";
             }
             return out.substring(0, out.length() - 2);
         }
@@ -843,7 +865,7 @@ public class TexasPoker extends CardGame{
      * @param commChar The command char
      * @param gameChannel The IRC channel in which the game is to be run.
      */
-    public TexasPoker(CasinoBot parent, char commChar, Channel gameChannel){
+    public TexasPoker(GameManager parent, char commChar, Channel gameChannel){
         this(parent, commChar, gameChannel, "texaspoker.ini");
     }
     
@@ -855,7 +877,7 @@ public class TexasPoker extends CardGame{
      * @param gameChannel The IRC channel in which the game is to be run.
      * @param customINI the file path to a custom INI file
      */
-    public TexasPoker(CasinoBot parent, char commChar, Channel gameChannel, String customINI) {
+    public TexasPoker(GameManager parent, char commChar, Channel gameChannel, String customINI) {
         super(parent, commChar, gameChannel);
         name = "texaspoker";
         iniFile = customINI;
@@ -1072,7 +1094,7 @@ public class TexasPoker extends CardGame{
                         for (int ctr=0; ctr<5; ctr++){
                             dealCard(comm);
                         }
-                        showMsg("Community: " + comm.toString());
+                        showMsg(formatHeader(" Community: ") + " " + comm.toString());
                         // Propagate poker hands
                         for (int ctr=0; ctr < number; ctr++){
                             p = peeps.get(ctr);
@@ -1114,6 +1136,7 @@ public class TexasPoker extends CardGame{
                         deck.addToDiscard(comm.getAllCards());
                         comm.clear();
                         deck.refillDeck();
+                        showMsg(getMsg("separator"));
                     } catch (NumberFormatException e) {
                         informPlayer(nick, getMsg("bad_parameter"));
                     }
@@ -1142,6 +1165,7 @@ public class TexasPoker extends CardGame{
                         deck.addToDiscard(h.getAllCards());
                         h.clear();
                         deck.refillDeck();
+                        showMsg(getMsg("separator"));
                     } catch (NumberFormatException e) {
                         informPlayer(nick, getMsg("bad_parameter"));
                     }
@@ -1180,7 +1204,7 @@ public class TexasPoker extends CardGame{
                         for (int ctr = 0; ctr < 3; ctr++){
                             dealCard(comm);
                         }
-                        showMsg(formatHeader(" Community Cards: ") + " " + comm.toString());
+                        showMsg(formatHeader(" Community: ") + " " + comm.toString());
 
                         // Recalculate percentages
                         sim = new PokerSimulator(peeps, comm);
@@ -1188,7 +1212,7 @@ public class TexasPoker extends CardGame{
 
                         // Deal turn
                         dealCard(comm);
-                        showMsg(formatHeader(" Community Cards: ") + " " + comm.toString());
+                        showMsg(formatHeader(" Community: ") + " " + comm.toString());
 
                         // Recalculate percentages
                         sim = new PokerSimulator(peeps, comm);
@@ -1196,7 +1220,7 @@ public class TexasPoker extends CardGame{
 
                         // Deal river
                         dealCard(comm);
-                        showMsg(formatHeader(" Community Cards: ") + " " + comm.toString());
+                        showMsg(formatHeader(" Community: ") + " " + comm.toString());
                         
                         // Recalculate percentages
                         sim = new PokerSimulator(peeps, comm);
@@ -1209,6 +1233,7 @@ public class TexasPoker extends CardGame{
                         deck.addToDiscard(comm.getAllCards());
                         comm.clear();
                         deck.refillDeck();
+                        showMsg(getMsg("separator"));
                     } catch (NumberFormatException e) {
                         informPlayer(nick, getMsg("bad_parameter"));
                     }
@@ -1255,6 +1280,7 @@ public class TexasPoker extends CardGame{
         Player firstPlayer = currentPlayer;
         currentPlayer = getPlayerAfter(currentPlayer);
         PokerPlayer p = (PokerPlayer) currentPlayer;
+        PokerSimulator sim;
         
         /*
          * Look for a player who can bet that is not the firstPlayer or the
@@ -1288,19 +1314,18 @@ public class TexasPoker extends CardGame{
                 * 10-second delay in between each line.
                 */
                 if (getNumberCanBet() < 2 && getNumberNotFolded() > 1) {
-                    if (currentPlayer == topBettor){
-                        ArrayList<PokerPlayer> players;
-                        players = pots.get(0).getPlayers();
-                        String showdownStr = formatHeader(" Showdown: ") + " ";
-                        for (int ctr = 0; ctr < players.size(); ctr++) {
-                            p = players.get(ctr);
-                            showdownStr += p.getNickStr() + " (" + p.getHand() + ")";
-                            if (ctr < players.size()-1){
-                                showdownStr += ", ";
-                            }
+                    ArrayList<PokerPlayer> players;
+                    players = pots.get(0).getPlayers();
+                    sim = new PokerSimulator(players, community);
+                    String showdownStr = formatHeader(" Showdown: ") + " ";
+                    for (int ctr = 0; ctr < players.size(); ctr++) {
+                        p = players.get(ctr);
+                        showdownStr += p.getNickStr() + " (" + p.getHand() + "||" + formatBold(sim.getWinPct(p) + "/" + sim.getTiePct(p) + "%%") + ")";
+                        if (ctr < players.size()-1){
+                            showdownStr += ", ";
                         }
-                        showMsg(showdownStr);
                     }
+                    showMsg(showdownStr);
                    
                    // Add a delay for dramatic effect
                    try { Thread.sleep(get("showdown") * 1000); } catch (InterruptedException e){}
@@ -1791,6 +1816,7 @@ public class TexasPoker extends CardGame{
             dealCard(community);
         }
     }
+    
     /**
      * Deals two cards to the specified player.
      * @param p the player to be dealt to
@@ -1799,6 +1825,7 @@ public class TexasPoker extends CardGame{
         dealCard(p.getHand());
         dealCard(p.getHand());
     }
+    
     /**
      * Deals hands to everybody at the table.
      */
@@ -1810,6 +1837,7 @@ public class TexasPoker extends CardGame{
             informPlayer(p.getNick(), getMsg("tp_hand"), p.getHand());
         }
     }
+    
     /**
      * Discards a player's hand into the discard pile.
      * @param p the player whose hand is to be discarded
@@ -1820,6 +1848,7 @@ public class TexasPoker extends CardGame{
             p.resetHand();
         }
     }
+    
     /**
      * Discards the community cards into the discard pile.
      */
@@ -1829,6 +1858,7 @@ public class TexasPoker extends CardGame{
             community.clear();
         }
     }
+    
     /**
      * Merges the discards and shuffles the deck.
      */
@@ -1964,10 +1994,9 @@ public class TexasPoker extends CardGame{
         if (currentPot != null && currentPot.hasPlayer(p)){
             currentPot.removePlayer(p);
         }
-        for (int ctr = 0; ctr < pots.size(); ctr++){
-            PokerPot cPot = pots.get(ctr);
-            if (cPot.hasPlayer(p)){
-                cPot.removePlayer(p);
+        for (PokerPot pot : pots) {
+            if (pot.hasPlayer(p)){
+                pot.removePlayer(p);
             }
         }
         continueRound();
@@ -2105,10 +2134,10 @@ public class TexasPoker extends CardGame{
         try {
             ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
             loadPlayerFile(statList);
-            int total = 0, numLines = statList.size();
+            int total = 0;
             
-            for (int ctr = 0; ctr < numLines; ctr++){
-                if (statList.get(ctr).has("tprounds")){
+            for (StatFileLine statLine : statList) {
+                if (statLine.has("tprounds")){
                     total++;
                 }
             }
@@ -2168,7 +2197,7 @@ public class TexasPoker extends CardGame{
         PokerPlayer p;
         StringBuilder msg = new StringBuilder();
         // Append community cards to StringBuilder
-        String str = formatHeader(" Community Cards: ") + " " + community.toString() + " ";
+        String str = formatHeader(" Community: ") + " " + community.toString() + " ";
         msg.append(str);
         
         // Append existing pots to StringBuilder

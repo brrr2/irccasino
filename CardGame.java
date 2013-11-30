@@ -1103,8 +1103,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * Moves players on the waitlist to the joined list and clears the waitlist.
      */
     protected void mergeWaitlist(){
-        for (int ctr = 0; ctr < waitlist.size(); ctr++){
-            addPlayer(waitlist.get(ctr));
+        for (Player p : waitlist) {
+            addPlayer(p);
         }
         waitlist.clear();
     }
@@ -1126,15 +1126,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * Cancels all RespawnTasks.
      */
     protected void cancelRespawnTasks() {
-        Player p;
-        for (int ctr = 0; ctr < respawnTasks.size(); ctr++) {
-            respawnTasks.get(ctr).cancel();
+        for (RespawnTask task : respawnTasks) {
+            task.cancel();
         }
         respawnTasks.clear();
         gameTimer.purge();
         // Fast-track loans
-        for (int ctr = 0; ctr < blacklist.size(); ctr++){
-            p = blacklist.get(ctr);
+        for (Player p : blacklist) {
             p.set("cash", get("cash"));
             p.add("bank", -get("cash"));
             savePlayerData(p);
@@ -1212,7 +1210,19 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * Controls joining, leaving, waitlisting, and bankruptcies. Also includes
      * toggling of simple, paying debt.
      */
+    
+    /**
+     * Adds a player to the joined list.
+     * @param nick the player's nick
+     * @param host the player's host
+     */
     abstract protected void addPlayer(String nick, String host);
+    
+    /**
+     * Adds a player to the waitlist.
+     * @param nick the player's nick
+     * @param host the player's host
+     */
     abstract protected void addWaitlistPlayer(String nick, String host);
     
     /**
@@ -1314,10 +1324,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @return the User instance or null if not found
      */
     protected User findUser(String nick){
-        User user;
-        Iterator<User> it = manager.getUsers(channel).iterator();
-        while(it.hasNext()){
-            user = it.next();
+        for (User user : manager.getUsers(channel)) {
             if (user.getNick().equalsIgnoreCase(nick)){
                 return user;
             }
@@ -1331,8 +1338,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @return the Player instance or null if not found
      */
     protected Player findJoined(String nick){
-        for (int ctr=0; ctr< joined.size(); ctr++){
-            Player p = joined.get(ctr);
+        for (Player p : joined) {
             if (p.getNick().equalsIgnoreCase(nick)){
                 return p;
             }  
@@ -1346,8 +1352,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @return the Player instance or null if not found
      */
     protected Player findWaitlisted(String nick){
-        for (int ctr=0; ctr< waitlist.size(); ctr++){
-            Player p = waitlist.get(ctr);
+        for (Player p : waitlist) {
             if (p.getNick().equalsIgnoreCase(nick)){
                 return p;
             }  
@@ -1361,8 +1366,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @return the Player instance or null if not found
      */
     protected Player findBlacklisted(String nick){
-        for (int ctr=0; ctr< blacklist.size(); ctr++){
-            Player p = blacklist.get(ctr);
+        for (Player p : blacklist) {
             if (p.getNick().equalsIgnoreCase(nick)){
                 return p;
             }  
@@ -1440,12 +1444,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * This method only needs to be called when a game is shutdown.
      */
     protected void devoiceAll(){
-        Player p;
         String modeSet = "";
         String nickStr = "";
         int count = 0;
-        for (int ctr = 0; ctr < joined.size(); ctr++){
-            p = joined.get(ctr);
+        for (Player p : joined) {
             savePlayerData(p);
             modeSet += "v";
             nickStr += " " + p.getNick();
@@ -1506,11 +1508,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected int loadPlayerStat(String nick, String stat){
         try {
             ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
-            StatFileLine statLine;
             loadPlayerFile(statList);
-            int numLines = statList.size();
-            for (int ctr = 0; ctr < numLines; ctr++){
-                statLine = statList.get(ctr);
+            for (StatFileLine statLine : statList) {
                 if (nick.equalsIgnoreCase(statLine.getNick())){
                     return statLine.get(stat);
                 }
@@ -1533,12 +1532,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         try {
             boolean found = false;
             ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
-            StatFileLine statLine;
             loadPlayerFile(statList);
-            int numLines = statList.size();
 
-            for (int ctr = 0; ctr < numLines; ctr++) {
-                statLine = statList.get(ctr);
+            for (StatFileLine statLine : statList) {
                 if (p.getNick().equalsIgnoreCase(statLine.getNick())) {
                     if (statLine.get("cash") <= 0) {
                         p.set("cash", get("cash"));
@@ -1575,14 +1571,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected void savePlayerData(Player p){
         boolean found = false;
         ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
-        StatFileLine statLine;
-        int numLines;
         
         try {
             loadPlayerFile(statList);
-            numLines = statList.size();
-            for (int ctr = 0; ctr < numLines; ctr++) {
-                statLine = statList.get(ctr);
+            for (StatFileLine statLine : statList) {
                 if (p.getNick().equalsIgnoreCase(statLine.getNick())) {
                     statLine.set("cash", p.get("cash"));
                     statLine.set("bank", p.get("bank"));
@@ -1597,12 +1589,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 }
             }
             if (!found) {
-                statLine = new StatFileLine(p.getNick(), p.get("cash"),
+                statList.add(new StatFileLine(p.getNick(), p.get("cash"),
                                         p.get("bank"), p.get("bankrupts"),
                                         p.get("bjwinnings"), p.get("bjrounds"),
                                         p.get("tpwinnings"), p.get("tprounds"),
-                                        p.get("simple"));
-                statList.add(statLine);
+                                        p.get("simple")));
             }
         } catch (IOException e) {
             manager.log("Error reading players.txt!");
@@ -1671,11 +1662,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @throws IOException
      */
     protected void savePlayerFile(ArrayList<StatFileLine> statList) throws IOException {
-        int numLines = statList.size();
         PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("players.txt")));
         
-        for (int ctr = 0; ctr<numLines; ctr++){
-            out.println(statList.get(ctr));
+        for (StatFileLine statLine : statList) {
+            out.println(statLine);
         }
         out.close();
     }
@@ -1907,12 +1897,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @return a list of commands
      */
     protected String getGameCommandStr() {
-        StringBuilder commandList = new StringBuilder();
-        Set<String> commandSet = helpMap.keySet();
-        Iterator<String> it = commandSet.iterator();
-        while (it.hasNext()) {
-            commandList.append(it.next());
-            commandList.append(", ");
+        String commandList = "";
+        String[] keys = helpMap.keySet().toArray(new String[0]);
+        Arrays.sort(keys);
+        for (String key : keys) {
+            commandList += key + ", ";
         }
         return commandList.substring(0, commandList.length() - 2);
     }
