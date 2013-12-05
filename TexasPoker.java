@@ -228,7 +228,7 @@ public class TexasPoker extends CardGame{
                 // Calculate comparisons for each card
                 int[] comps = new int[5];
                 for (int ctr = 0; ctr < 5; ctr++){
-                    comps[ctr] = this.get(ctr).getFaceValue() - h.get(ctr).getFaceValue();
+                    comps[ctr] = get(ctr).getFaceValue() - h.get(ctr).getFaceValue();
                 }
 
                 switch (value) {
@@ -351,8 +351,8 @@ public class TexasPoker extends CardGame{
                 default:
                     out = "";
             }
-            if (this.getSize() > 5){
-                out += "||"+toString(5, this.getSize());
+            if (size() > 5){
+                out += "||" + toString(5, size());
             }
             return out;
         }
@@ -374,7 +374,7 @@ public class TexasPoker extends CardGame{
         protected int calcValue(){
             // Always check the hands in order of descending value
             if (hasStraightFlush()){	
-                if (get(0).getFace().equals("A")){
+                if (get(0).isFace("A")){
                     return 9; // Royal flush = 9
                 }
                 return 8;   // Straight flush = 8
@@ -404,14 +404,14 @@ public class TexasPoker extends CardGame{
          */
         protected boolean hasPair(){
             Card a,b;
-            for (int ctr = 0; ctr < getSize()-1; ctr++){
+            for (int ctr = 0; ctr < size()-1; ctr++){
                 a = get(ctr);
                 b = get(ctr+1);
-                if (a.getFace().equals(b.getFace())){
+                if (a.sameFace(b)){
                     remove(a);
                     remove(b);
-                    add(a, 0);
-                    add(b, 1);
+                    add(0, a);
+                    add(1, b);
                     return true;
                 }
             }
@@ -425,19 +425,19 @@ public class TexasPoker extends CardGame{
          */
         protected boolean hasTwoPair(){
             Card a,b;
-            for (int ctr = 0; ctr < getSize()-3; ctr++){
+            for (int ctr = 0; ctr < size()-3; ctr++){
                 a = get(ctr);
                 b = get(ctr+1);
-                if (a.getFace().equals(b.getFace())){
+                if (a.sameFace(b)){
                     remove(a);
                     remove(b);
                     if (hasPair()){
-                        add(a, 0);
-                        add(b, 1);
+                        add(0, a);
+                        add(1, b);
                         return true;
                     } else {
-                        add(a, ctr);
-                        add(b, ctr+1);
+                        add(ctr, a);
+                        add(ctr+1, b);
                         return false;
                     }
                 }
@@ -452,17 +452,17 @@ public class TexasPoker extends CardGame{
          */
         protected boolean hasThreeOfAKind(){
             Card a,b,c;
-            for (int ctr = 0; ctr < getSize()-2; ctr++){
+            for (int ctr = 0; ctr < size()-2; ctr++){
                 a = get(ctr);
                 b = get(ctr+1);
                 c = get(ctr+2);
-                if (a.getFace().equals(b.getFace()) && b.getFace().equals(c.getFace())){
+                if (a.sameFace(b) && b.sameFace(c)){
                     remove(a);
                     remove(b);
                     remove(c);
-                    add(a, 0);
-                    add(b, 1);
-                    add(c, 2);
+                    add(0, a);
+                    add(1, b);
+                    add(2, c);
                     return true;
                 }
             }
@@ -479,25 +479,24 @@ public class TexasPoker extends CardGame{
              * An extra index is added at the beginning for the value duality of aces.
              */
             boolean[] cardValues = new boolean[CardDeck.faces.length+1];
-            Card c;
-            for (int ctr = 0; ctr < getSize(); ctr++){
-                c = get(ctr);
-                if (c.getFace().equals("A")){
+            for (Card c : this) {
+                if (c.isFace("A")){
                     cardValues[0] = true;
                 }
                 cardValues[c.getFaceValue()+1] = true;
             }
+            Card c;
             // Determine if any sequence of 5 consecutive cards exist
             for (int ctr = cardValues.length-1; ctr >= 4; ctr--){
                 if (cardValues[ctr] && cardValues[ctr-1] && cardValues[ctr-2] && 
                     cardValues[ctr-3] && cardValues[ctr-4]){
                     // Move the sequence in descending order to the beginning of the hand
                     for (int ctr2 = 0; ctr2 < 5; ctr2++){
-                        for (int ctr3=0; ctr3 < getSize(); ctr3++){
+                        for (int ctr3 = 0; ctr3 < size(); ctr3++){
                             c = get(ctr3);
                             if ((ctr-ctr2 == 0 && c.getFace().equals("A")) || c.getFaceValue()+1 == ctr-ctr2){
                                 remove(c);
-                                add(c,ctr2);
+                                add(ctr2, c);
                                 break;
                             }
                         }
@@ -515,22 +514,23 @@ public class TexasPoker extends CardGame{
          */
         protected boolean hasFlush(){
             int[] suitCount = new int[CardDeck.suits.length];
-            Card c;
-            for (int ctr = 0; ctr < getSize(); ctr++){
-                c = get(ctr);
+            for (Card c : this){
                 suitCount[c.getSuitValue()]++;
             }
+            Card c;
             for (int ctr = 0; ctr < suitCount.length; ctr++){
                 if (suitCount[ctr] >= 5){
                     int count = 0;
-                    for (int ctr3=0; ctr3 < getSize(); ctr3++){
+                    for (int ctr3 = 0; ctr3 < size(); ctr3++){
                         c = get(ctr3);
                         if (c.getSuitValue() == ctr){
                             remove(c);
-                            add(c,count++);
+                            add(count++, c);
+                        }
+                        if (count == 5) {
+                            return true;
                         }
                     }
-                    return true;
                 }
             }
             return false;
@@ -543,24 +543,23 @@ public class TexasPoker extends CardGame{
          */
         protected boolean hasFullHouse(){
             Card a,b,c;
-            for (int ctr = 0; ctr < getSize()-2; ctr++){
+            for (int ctr = 0; ctr < size()-2; ctr++){
                 a = get(ctr);
                 b = get(ctr+1);
                 c = get(ctr+2);
-                if (a.getFace().equals(b.getFace()) && a.getFace().equals(c.getFace())){
+                if (a.sameFace(b) && a.sameFace(c)){
                     remove(a);
                     remove(b);
                     remove(c);
-                    boolean hp = hasPair();
-                    if (hp){
-                        add(a,0);
-                        add(b,1);
-                        add(c,2);
+                    if (hasPair()){
+                        add(0, a);
+                        add(1, b);
+                        add(2, c);
                         return true;
                     } else {
-                        add(a,ctr);
-                        add(b,ctr+1);
-                        add(c,ctr+2);
+                        add(ctr, a);
+                        add(ctr+1, b);
+                        add(ctr+2, c);
                         return false;
                     }
                 }
@@ -575,21 +574,20 @@ public class TexasPoker extends CardGame{
          */
         protected boolean hasFourOfAKind(){
             Card a,b,c,d;
-            for (int ctr = 0; ctr < getSize()-3; ctr++){
+            for (int ctr = 0; ctr < size()-3; ctr++){
                 a = get(ctr);
                 b = get(ctr+1);
                 c = get(ctr+2);
                 d = get(ctr+3);
-                if (a.getFace().equals(b.getFace()) && b.getFace().equals(c.getFace()) 
-                        && c.getFace().equals(d.getFace())){
+                if (a.sameFace(b) && b.sameFace(c) && c.sameFace(d)){
                     remove(a);
                     remove(b);
                     remove(c);
                     remove(d);
-                    add(a,0);
-                    add(b,1);
-                    add(c,2);
-                    add(d,3);
+                    add(0, a);
+                    add(1, b);
+                    add(2, c);
+                    add(3, d);
                     return true;
                 }
             }
@@ -609,16 +607,14 @@ public class TexasPoker extends CardGame{
         protected boolean hasStraightFlush(){
             int[] suitCount = new int[CardDeck.suits.length];
             Hand nonFlushCards = new Hand();
-            Card c;
-            for (int ctr = 0; ctr < getSize(); ctr++){
-                c = get(ctr);
+            for (Card c : this) {
                 suitCount[c.getSuitValue()]++;
             }
             /* Reorganizes the cards to reveal the first suit that has 
              * a straight flush. */
             for (int ctr = 0; ctr < CardDeck.suits.length; ctr++){
                 if (suitCount[ctr] >= 5){
-                    for (int ctr2 = 0; ctr2 < getSize(); ctr2++){
+                    for (int ctr2 = 0; ctr2 < size(); ctr2++){
                         if (get(ctr2).getSuitValue() != ctr){
                             nonFlushCards.add(get(ctr2));
                             remove(ctr2--);
@@ -635,8 +631,8 @@ public class TexasPoker extends CardGame{
                 }
             }
             // Re-sorts the hand in descending order if no straight flush is found
-            Collections.sort(getAllCards());
-            Collections.reverse(getAllCards());
+            Collections.sort(this);
+            Collections.reverse(this);
             return false;
         }
     }
@@ -673,7 +669,7 @@ public class TexasPoker extends CardGame{
          * @return true if player has any cards
          */
         protected boolean hasHand(){
-            return (hand.getSize() > 0);
+            return (hand.size() > 0);
         }
 
         /**
@@ -732,24 +728,26 @@ public class TexasPoker extends CardGame{
             
             PokerPlayer simP;
 
+            // Give simulated community cards matching the real community.
+            for (Card aCard : comm) {
+                simComm.add(simDeck.takeCard(aCard));
+            }
+            
             // Give simulated players simulated cards matching the real hands.
             for (PokerPlayer p : list) {
                 if (!p.has("fold")) {
                     simP = new PokerPlayer(p.getNick(), p.getHost());
-                    for (Card aCard : p.getHand().getAllCards()){
+                    for (Card aCard : p.getHand()){
                        simP.getHand().add(simDeck.takeCard(aCard));
                        simP.set("wins", 0);
                        simP.set("ties", 0);
                     }
                     simList.add(simP);
+                    simP.getPokerHand().addAll(simP.getHand());
+                    simP.getPokerHand().addAll(simComm);
                 }
             }
 
-            // Give simulated community cards matching the real community.
-            for (Card aCard : comm.getAllCards()) {
-                simComm.add(simDeck.takeCard(aCard));
-            }
-            
             // Run simulation
             simulate(0);
         }
@@ -766,12 +764,18 @@ public class TexasPoker extends CardGame{
         private void simulate(int index) {
             Card c;
             // Add another card if the simulated community isn't full
-            if (simComm.getSize() < 5) {
+            if (simComm.size() < 5) {
                 for (int ctr = index; ctr < simDeck.getNumberCards(); ctr++) {
                     c = simDeck.peekCard(ctr);
                     simComm.add(c);
+                    for (PokerPlayer p : simList) {
+                        p.getPokerHand().add(c);
+                    }
                     simulate(ctr + 1);
                     simComm.remove(c);
+                    for (PokerPlayer p : simList) {
+                        p.getPokerHand().remove(c);
+                    }
                 }
             } else {
                 rounds++;
@@ -779,10 +783,8 @@ public class TexasPoker extends CardGame{
                 
                 // Create PokerHands
                 for (PokerPlayer p : simList) {
-                    p.getPokerHand().addAll(p.getHand());
-                    p.getPokerHand().addAll(simComm);
-                    Collections.sort(p.getPokerHand().getAllCards());
-                    Collections.reverse(p.getPokerHand().getAllCards());
+                    Collections.sort(p.getPokerHand());
+                    Collections.reverse(p.getPokerHand());
                 }
                 
                 // Sort players by PokerHand
@@ -807,7 +809,6 @@ public class TexasPoker extends CardGame{
                 
                 // Clear PokerHands
                 for (PokerPlayer p : simList) {
-                    p.getPokerHand().clear();
                     p.getPokerHand().resetValue();
                 }
             }
@@ -1101,8 +1102,8 @@ public class TexasPoker extends CardGame{
                             ph = p.getPokerHand();
                             ph.addAll(p.getHand());
                             ph.addAll(comm);
-                            Collections.sort(ph.getAllCards());
-                            Collections.reverse(ph.getAllCards());
+                            Collections.sort(ph);
+                            Collections.reverse(ph);
                             ph.getValue();
                         }
                         // Sort hands in descending order
@@ -1133,7 +1134,7 @@ public class TexasPoker extends CardGame{
                         for (int ctr=0; ctr < number; ctr++){
                             resetPlayer(peeps.get(ctr));
                         }
-                        deck.addToDiscard(comm.getAllCards());
+                        deck.addToDiscard(comm);
                         comm.clear();
                         deck.refillDeck();
                         showMsg(getMsg("separator"));
@@ -1157,12 +1158,12 @@ public class TexasPoker extends CardGame{
                         for (int ctr = 0; ctr < number; ctr++){
                             dealCard(h);
                         }
-                        showMsg(h.toString(0, h.getSize()));
-                        Collections.sort(h.getAllCards());
-                        Collections.reverse(h.getAllCards());
+                        showMsg(h.toString(0, h.size()));
+                        Collections.sort(h);
+                        Collections.reverse(h);
                         h.getValue();
                         showMsg(h.getName()+": " + h);
-                        deck.addToDiscard(h.getAllCards());
+                        deck.addToDiscard(h);
                         h.clear();
                         deck.refillDeck();
                         showMsg(getMsg("separator"));
@@ -1230,7 +1231,7 @@ public class TexasPoker extends CardGame{
                         for (int ctr=0; ctr < number; ctr++){
                             resetPlayer(peeps.get(ctr));
                         }
-                        deck.addToDiscard(comm.getAllCards());
+                        deck.addToDiscard(comm);
                         comm.clear();
                         deck.refillDeck();
                         showMsg(getMsg("separator"));
@@ -1371,8 +1372,8 @@ public class TexasPoker extends CardGame{
                 if (!p.has("fold")){
                     p.getPokerHand().addAll(p.getHand());
                     p.getPokerHand().addAll(community);
-                    Collections.sort(p.getPokerHand().getAllCards());
-                    Collections.reverse(p.getPokerHand().getAllCards());
+                    Collections.sort(p.getPokerHand());
+                    Collections.reverse(p.getPokerHand());
                 }
             }
 
@@ -1844,7 +1845,7 @@ public class TexasPoker extends CardGame{
      */
     private void discardPlayerHand(PokerPlayer p) {
         if (p.hasHand()) {
-            deck.addToDiscard(p.getHand().getAllCards());
+            deck.addToDiscard(p.getHand());
             p.resetHand();
         }
     }
@@ -1853,8 +1854,8 @@ public class TexasPoker extends CardGame{
      * Discards the community cards into the discard pile.
      */
     private void discardCommunity(){
-        if (community.getSize() > 0){
-            deck.addToDiscard(community.getAllCards());
+        if (community.size() > 0){
+            deck.addToDiscard(community);
             community.clear();
         }
     }

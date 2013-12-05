@@ -134,7 +134,7 @@ public class Blackjack extends CardGame {
          * @return true if only contains 2 cards
          */
         protected boolean hasHit(){
-            return getSize() != 2;
+            return size() != 2;
         }
 
         /**
@@ -144,7 +144,7 @@ public class Blackjack extends CardGame {
          * @return true if the hand is blackjack
          */
         protected boolean isBlackjack() {
-            return calcSum() == 21 && getSize() == 2;
+            return calcSum() == 21 && size() == 2;
         }
 
         /**
@@ -165,7 +165,7 @@ public class Blackjack extends CardGame {
          * @return true if the hand is a pair
          */
         protected boolean isPair() {
-            return getSize() == 2 && get(0).getBlackjackValue() == get(1).getBlackjackValue();
+            return size() == 2 && get(0).getBlackjackValue() == get(1).getBlackjackValue();
         }
 
         /**
@@ -178,14 +178,12 @@ public class Blackjack extends CardGame {
         protected boolean isSoft17(){
             if (calcSum() == 17){
                 //Recalculate with aces valued at 1 and check if the sum is lower than 17
-                int sum=0;
-                Card card;
-                for (int ctr = 0; ctr < getSize(); ctr++) {
-                    card = get(ctr);
-                    if (card.getFace().equals("A")){
+                int sum = 0;
+                for (Card c : this) {
+                    if (c.isFace("A")){
                         sum += 1;
                     } else {
-                        sum += get(ctr).getBlackjackValue();
+                        sum += c.getBlackjackValue();
                     }
                 }
                 return sum < 17;
@@ -201,14 +199,12 @@ public class Blackjack extends CardGame {
          */
         protected int calcSum() {
             int sum = 0, numAces = 0;
-            Card card;
             // Add up all the cards and keep track of the number of aces
-            for (int ctr = 0; ctr < getSize(); ctr++) {
-                card = get(ctr);
-                if (card.getFace().equals("A")) {
+            for (Card c : this) {
+                if (c.isFace("A")) {
                     numAces++;
                 }
-                sum += card.getBlackjackValue();
+                sum += c.getBlackjackValue();
             }
             // Use the lower of each ace while the sum is greater than 21
             for (int ctr = 0; ctr < numAces; ctr++){
@@ -1378,7 +1374,7 @@ public class Blackjack extends CardGame {
     private void discardPlayerHand(BlackjackPlayer p) {
         if (p.hasHands()) {
             for (int ctr = 0; ctr < p.getNumberHands(); ctr++) {
-                deck.addToDiscard(p.getHand(ctr).getAllCards());
+                deck.addToDiscard(p.getHand(ctr));
             }
             p.resetHands();
         }
@@ -1620,7 +1616,7 @@ public class Blackjack extends CardGame {
      * @return true if it is an Ace
      */
     private boolean dealerUpcardAce() {
-        return dealer.getHand().get(1).getFace().equals("A");
+        return dealer.getHand().get(1).isFace("A");
     }
     
     /**
@@ -1794,7 +1790,7 @@ public class Blackjack extends CardGame {
      * @param index the index of the hand
      * @param forceNoHole whether to force reveal hole card
      */
-    public void showPlayerHand(BlackjackPlayer p, BlackjackHand h, int index, boolean forceNoHole) {
+    private void showPlayerHand(BlackjackPlayer p, BlackjackHand h, int index, boolean forceNoHole) {
         if (index == 0) {
             if (forceNoHole){
                 if (h.isBlackjack()) {
@@ -1844,7 +1840,7 @@ public class Blackjack extends CardGame {
      * @param h the hand
      * @param index the index of the hand
      */
-    public void showPlayerHandWithBet(BlackjackPlayer p, BlackjackHand h, int index) {
+    private void showPlayerHandWithBet(BlackjackPlayer p, BlackjackHand h, int index) {
         if (has("hole")) {
             showMsg(getMsg("bj_show_split_hand_bet"), p.getNickStr(), index, h.toString(1), h.getBet());
         } else {
@@ -1856,7 +1852,7 @@ public class Blackjack extends CardGame {
      * Method to display all of a player's split hands after a split.
      * @param p the player
      */
-    public void showSplitHands(BlackjackPlayer p) {
+    private void showSplitHands(BlackjackPlayer p) {
         BlackjackHand h;
         showMsg(getMsg("bj_split"), p.getNickStr(), p.getNickStr());
         for (int ctr = 0; ctr < p.getNumberHands(); ctr++) {
@@ -1871,7 +1867,7 @@ public class Blackjack extends CardGame {
      * @param p the player
      * @param h the player's hand
      */
-    public void showHitResult(BlackjackPlayer p, BlackjackHand h){
+    private void showHitResult(BlackjackPlayer p, BlackjackHand h){
         if (p.hasSplit()) {
             showPlayerHand(p, h, p.get("currentindex") + 1, false);
         } else {
@@ -1966,7 +1962,7 @@ public class Blackjack extends CardGame {
      * @param h the player's hand of which the results are to be shown
      * @param index the hand index if the player has split
      */
-    public void showPlayerResult(BlackjackPlayer p, BlackjackHand h, int index) {
+    private void showPlayerResult(BlackjackPlayer p, BlackjackHand h, int index) {
         String nickStr;
         if (index > 0){
             nickStr = p.getNickStr() + "-" + index;
@@ -1997,7 +1993,7 @@ public class Blackjack extends CardGame {
      * Displays the result of a player's insurance bet.
      * @param p a player who has made an insurance bet
      */
-    public void showPlayerInsuranceResult(BlackjackPlayer p) {
+    private void showPlayerInsuranceResult(BlackjackPlayer p) {
         if (dealer.getHand().isBlackjack()) {
             showMsg(getMsg("bj_insure_win"), getWinStr(), p.getNickStr(), calcInsurancePayout(p), p.get("cash"));
         } else {

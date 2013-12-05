@@ -131,130 +131,25 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * An object that represents a hand of cards.
      * @author Yizhe Shen
      */
-    protected class Hand {
-        /** An ArrayList of Card representing the Hand. */
-        protected ArrayList<Card> cards;
-
+    protected class Hand extends ArrayList<Card>{
         /**
          * Creates a Hand with an empty ArrayList of cards.
          */
         public Hand(){
-            cards = new ArrayList<Card>();
+            super();
         }
 
-        /* Accessor methods */
-        /**
-         * Adds the specified card to the hand.
-         * @param card the card to add
-         */
-        protected void add(Card card){
-            cards.add(card);
-        }
-
-        /**
-         * Adds the specified card to the hand at the specified index
-         * @param card the card to add
-         * @param index the index location to add the card
-         */
-        protected void add(Card card, int index){
-            cards.add(index, card);
-        }
-
-        /**
-         * Adds the cardList to the end of this Hand.
-         * @param cardList an ArrayList of cards
-         */
-        protected void addAll(ArrayList<Card> cardList){
-            if (cardList.size() > 0){
-                cards.addAll(cardList);
-            }
-        }
-
-        /**
-         * Adds the cards from another hand to the end of this Hand.
-         * @param hand the Hand to add
-         */
-        protected void addAll(Hand hand){
-            if (hand.getSize() > 0){
-                cards.addAll(hand.getAllCards());
-            }
-        }
-
-        /**
-         * Removes the Card from this hand at the specified index.
-         * @param index the index of the Card to remove
-         */
-        protected void remove(int index){
-            cards.remove(index);
-        }
-
-        /**
-         * Removes the specified Card from this hand.
-         * @param c the Card to remove
-         */
-        protected void remove(Card c){
-            cards.remove(c);
-        }
-
-        /**
-         * Returns the Card at the specified index.
-         * @param index the index of the Card
-         * @return the desired Card
-         */
-        protected Card get(int index){
-            return cards.get(index);
-        }
-        
         /**
          * Returns the Card that matches the specified card.
          * @param c the card to match to
          * @return the matched card or null if not found
          */
         protected Card get(Card c){
-            int index = cards.indexOf(c);
+            int index = indexOf(c);
             if (index == -1) {
                 return null;
             }
-            return cards.get(index);
-        }
-
-        /**
-         * Returns the all Cards in the Hand in an ArrayList.
-         * @return an ArrayList of Cards
-         */
-        protected ArrayList<Card> getAllCards(){
-            return cards;
-        }
-
-        /**
-         * Empties the cards ArrayList.
-         */
-        protected void clear(){
-            cards.clear();
-        }
-
-        /**
-         * Returns the number of Cards in this Hand.
-         * @return the number of Cards
-         */
-        protected int getSize(){
-            return cards.size();
-        }
-
-        /**
-         * Gets a sub-hand specified by the indices.
-         * The sub-hand includes the starting index and excludes the end index.
-         * 
-         * @param start Starting index.
-         * @param end End index.
-         * @return A sub-hand of the hand
-         */
-        protected Hand subHand(int start, int end){
-            Hand h = new Hand();
-            for (int ctr = start; ctr < end; ctr++){
-                h.add(this.get(ctr));
-            }
-            return h;
+            return get(index);
         }
 
         /**
@@ -263,7 +158,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
          */
         @Override
         public String toString(){
-            return toString(0, getSize());
+            return toString(0, size());
         }
 
         /**
@@ -274,18 +169,18 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
          * @return a String with the first numHidden cards replaced
          */
         protected String toString(int numHidden){
-            if (getSize() == 0) {
+            if (size() == 0) {
                 return "<empty>";
             }
             String hiddenBlock = Colors.DARK_BLUE+",00\uFFFD";
-            String outStr= "";
-            for (int ctr=0; ctr<numHidden; ctr++){
-                outStr += hiddenBlock+" ";
+            String outStr = "";
+            for (int ctr = 0; ctr < numHidden; ctr++){
+                outStr += hiddenBlock + " ";
             }
-            for (int ctr=numHidden; ctr<getSize(); ctr++){
-                outStr += cards.get(ctr)+" ";
+            for (int ctr = numHidden; ctr < size(); ctr++){
+                outStr += get(ctr) + " ";
             }
-            return outStr.substring(0, outStr.length()-1)+Colors.NORMAL;
+            return outStr.substring(0, outStr.length() - 1) + Colors.NORMAL;
         }
 
         /**
@@ -297,16 +192,16 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
          * @return a String showing the selected cards
          */
         protected String toString(int start, int end){
-            if (getSize() == 0) {
+            if (size() == 0) {
                 return "<empty>";
             }
-            String outStr= "";
+            String outStr = "";
             int slimit = Math.max(0, start);
-            int elimit = Math.min(this.getSize(), end);
-            for (int ctr=slimit; ctr<elimit; ctr++){
-                outStr += cards.get(ctr)+" ";
+            int elimit = Math.min(size(), end);
+            for (int ctr = slimit; ctr < elimit; ctr++){
+                outStr += get(ctr) + " ";
             }
-            return outStr.substring(0, outStr.length()-1)+Colors.NORMAL;
+            return outStr.substring(0, outStr.length() - 1) + Colors.NORMAL;
         }
     }
     
