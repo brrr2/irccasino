@@ -1,6 +1,7 @@
 ##### Player commands #####
 go=Usage: go | Alias: start <auto-starts> | Starts a new round of Blackjack if there are sufficient players. An optional parameter can be added to specify the number of auto-starts.
 start=Usage: start | Alias: go  <auto-starts> | Starts a new round of Blackjack if there are sufficient players. An optional parameter can be added to specify the number of auto-starts.
+stop=Usage: stop | Alias: | Cancels any remaining auto-starts.
 join=Usage: join | Alias: j | Joins the game. If a round is in progress, you will be added to a waiting list and automatically added to the next round.
 j=Usage: j | Alias: join | Joins the game. If a round is in progress, you will be added to a waiting list and automatically added to the next round.
 quit=Usage: quit | Alias: q, leave, l | Leaves the current game if joined, or the waiting list if on the waiting list.
@@ -98,4 +99,5 @@ cards=Usage: cards <number> | Alias: | Op command that shows the specified numbe
 discards=Usage: discards <number> | Alias: | Op command that shows the specified number of discards in the order they were discarded, if a round is not in progress.
 get=Usage: get <setting> | Alias: | Op command that gets the value for the specified setting, if a round is not in progress. Setting name is as specified in the blackjack.ini file.
 set=Usage: set <setting> <value> | Alias: | Op command that sets the specified value for the specified setting, if a round is not in progress. Setting names are as specified in the blackjack.ini file.
+settings=Usage: settings | Alias: | Op command that lists the settings available for Blackjack.
 test1=Usage: test1 | Alias: | Op command that provides a simple test to test the dealer's AI and card calculations.

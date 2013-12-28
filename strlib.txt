@@ -34,6 +34,8 @@ no_players=Not enough players.
 separator=u0002------------------------------------------------------------------u0002
 reload=Configuration and library files have been reloaded.
 remove_end_round=You will be removed at the end of the round.
+stop=All remaining auto-starts have been canceled.
+stop_no_autostarts=No auto-starts are scheduled after this round.
 ###################
 # With parameters #
 ###################

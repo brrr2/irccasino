@@ -468,6 +468,14 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             join(nick, host);
         } else if (command.equals("leave") || command.equals("quit") || command.equals("l") || command.equals("q")){
             leave(nick);
+        } else if (command.equals("stop")) {
+            if (!isJoined(nick)) {
+                informPlayer(nick, getMsg("no_join"));
+            } else if (!has("inprogress")) {
+                informPlayer(nick, getMsg("no_start"));
+            } else {
+                cancelAutoStarts(nick);
+            }
         } else if (command.equals("cash")) {
             if (params.length > 0){
                 showPlayerCash(params[0]);
@@ -603,7 +611,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             }
         } else if (command.equals("gcommands")) {
             informPlayer(nick, getGameNameStr() + " commands:");
-            informPlayer(nick, getGameCommandStr());
+            informPlayer(nick, getCommandsStr());
         } else if (command.equals("game")) {
             showMsg(getMsg("game_name"), getGameNameStr());
         // Op Commands
@@ -679,6 +687,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 } else {
                     informPlayer(nick, getMsg("no_parameter"));
                 }
+            }
+        } else if (command.equals("settings")) {
+            if (isOpCommandAllowed(user, nick)) {
+                informPlayer(nick, getGameNameStr() + " settings:");
+                informPlayer(nick, getSettingsStr());
             }
         } else if (command.equals("set")){
             if (isOpCommandAllowed(user, nick)){
@@ -1002,6 +1015,15 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             addPlayer(p);
         }
         waitlist.clear();
+    }
+    
+    protected void cancelAutoStarts(String nick){
+        if (get("startcount") != 0) {
+            set("startcount", 0);
+            showMsg(getMsg("stop"));
+        } else {
+            informPlayer(nick, getMsg("stop_no_autostarts"));
+        }
     }
     
     /**
@@ -1791,7 +1813,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * Returns a list of commands for this game based on its help file.
      * @return a list of commands
      */
-    protected String getGameCommandStr() {
+    protected String getCommandsStr() {
         String commandList = "";
         String[] keys = helpMap.keySet().toArray(new String[0]);
         Arrays.sort(keys);
@@ -1799,6 +1821,20 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             commandList += key + ", ";
         }
         return commandList.substring(0, commandList.length() - 2);
+    }
+    
+    /**
+     * Returns a list of settings for this game based on settingsMap.
+     * @return a list of settings
+     */
+    protected String getSettingsStr() {
+        String settingsList = "";
+        String[] keys = settingsMap.keySet().toArray(new String[0]);
+        Arrays.sort(keys);
+        for (String key : keys) {
+            settingsList += key + ", ";
+        }
+        return settingsList.substring(0, settingsList.length() - 2);
     }
     
     public static String formatDecimal(double n) {
