@@ -128,7 +128,7 @@ public class CasinoBot extends PircBotX implements GameManager {
                 } else if (command.equals("endgame")) {
                     CardGame game = bot.getGame(channel);
                     if (game != null) {
-                        if (game.has("inprogress")){
+                        if (game.isInProgress()){
                             bot.sendMessage(channel, "Please wait for the current round to finish.");
                         } else {
                             bot.endGame(game);
@@ -237,7 +237,7 @@ public class CasinoBot extends PircBotX implements GameManager {
     public boolean checkGamesInProgress() {
         boolean inProgress = false;
         for (CardGame game : gameList) {
-            if (game.has("inprogress")){
+            if (game.isInProgress()){
                 sendMessage(game.getChannel(), "A round of " + game.getGameNameStr() + 
                         " is in progress in " + game.getChannel().getName() + 
                         ". Please wait for it to finish.");

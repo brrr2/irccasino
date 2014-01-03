@@ -46,9 +46,14 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected CardDeck deck; //the deck of cards
     protected Player currentPlayer; //stores the player whose turn it is
     protected Timer gameTimer; //All TimerTasks are scheduled on this Timer
-    protected HashMap<String,Integer> settingsMap;
-    protected HashMap<String,String> helpMap, msgMap;
+    /** INI file settings **/
+    protected HashMap<String,Integer> settings;
+    // In-game properties
+    protected boolean inProgress, roundEnded;
+    protected int startCount;
+    protected HashMap<String,String> cmdMap, opCmdMap, aliasMap, msgMap;
     protected String name, iniFile, helpFile, strFile;
+    // TimerTasks
     protected IdleOutTask idleOutTask;
     protected IdleWarningTask idleWarningTask;
     protected StartRoundTask startRoundTask;
@@ -377,8 +382,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         blacklist = new ArrayList<Player>();
         waitlist = new ArrayList<Player>();
         respawnTasks = new ArrayList<RespawnTask>();
-        settingsMap = new HashMap<String,Integer>();
-        helpMap = new HashMap<String,String>();
+        settings = new HashMap<String,Integer>();
+        cmdMap = new HashMap<String,String>();
+        opCmdMap = new HashMap<String,String>();
+        aliasMap = new HashMap<String,String>();
         msgMap = new HashMap<String,String>();
         gameTimer = new Timer("Game Timer");
         startRoundTask = null;
@@ -471,7 +478,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         } else if (command.equals("stop")) {
             if (!isJoined(nick)) {
                 informPlayer(nick, getMsg("no_join"));
-            } else if (!has("inprogress")) {
+            } else if (!inProgress) {
                 informPlayer(nick, getMsg("no_start"));
             } else {
                 cancelAutoStarts(nick);
@@ -524,16 +531,15 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             } else {
                 showPlayerAllStats(nick);
             }
-        } else if (command.equals("transfer") || command.equals("deposit") || 
-                    command.equals("withdraw")) {
+        } else if (command.equals("deposit") || command.equals("withdraw")) {
             if (!isJoined(nick)) {
                 informPlayer(nick, getMsg("no_join"));
-            } else if (has("inprogress")) {
+            } else if (inProgress) {
                 informPlayer(nick, getMsg("wait_round_end"));
             } else {
                 if (params.length > 0){
                     try {
-                        if (command.equals("transfer") || command.equals("deposit")) {
+                        if (command.equals("deposit")) {
                             transfer(nick, Integer.parseInt(params[0]));
                         } else {
                             transfer(nick, -Integer.parseInt(params[0]));
@@ -550,7 +556,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         } else if (command.equals("blacklist")) {
             showMsg(getMsg("blacklist"), getPlayerListString(blacklist));
         } else if (command.equals("rank")) {
-            if (has("inprogress")) {
+            if (inProgress) {
                 informPlayer(nick, getMsg("wait_round_end"));
             } else {
                 if (params.length > 1){
@@ -570,7 +576,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 }
             }
         } else if (command.equals("top")) {
-            if (has("inprogress")) {
+            if (inProgress) {
                 informPlayer(nick, getMsg("wait_round_end"));
             } else {
                 if (params.length > 1){
@@ -596,7 +602,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 togglePlayerSimple(nick);
             }
         } else if (command.equals("stats")){
-            if (has("inprogress")) {
+            if (inProgress) {
                 informPlayer(nick, getMsg("wait_round_end"));
             } else {
                 showMsg(getGameStatsStr());
@@ -612,6 +618,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         } else if (command.equals("gcommands")) {
             informPlayer(nick, getGameNameStr() + " commands:");
             informPlayer(nick, getCommandsStr());
+            if (channel.isOp(user)) {
+                informPlayer(nick, getGameNameStr() + " Op commands:");
+                informPlayer(nick, getOpCommandsStr());
+            }
         } else if (command.equals("game")) {
             showMsg(getMsg("game_name"), getGameNameStr());
         // Op Commands
@@ -644,19 +654,18 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     informPlayer(nick, getMsg("no_parameter"));
                 }
             }
-        } else if (command.equals("ftransfer") || command.equals("fdeposit") ||
-                command.equals("fwithdraw")) {
+        } else if (command.equals("fdeposit") || command.equals("fwithdraw")) {
             if (!channel.isOp(user)) {
                 informPlayer(nick, getMsg("ops_only"));
             } else {
                 if (params.length > 1) {
                     if (!isJoined(params[0])) {
                         informPlayer(nick, params[0] + " is not currently joined!");
-                    } else if (has("inprogress")) {
+                    } else if (inProgress) {
                         informPlayer(nick, getMsg("wait_round_end"));
                     } else {
                         try {
-                            if (command.equals("ftransfer") || command.equals("fdeposit")) {
+                            if (command.equals("fdeposit")) {
                                 transfer(params[0], Integer.parseInt(params[1]));
                             } else {
                                 transfer(params[0], -Integer.parseInt(params[1]));
@@ -698,6 +707,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 if (params.length > 1){
                     try {
                         set(params[0].toLowerCase(), Integer.parseInt(params[1]));
+                        saveIniFile();
                         showMsg(getMsg("setting_updated"), params[0].toLowerCase());
                     } catch (IllegalArgumentException e) {
                         informPlayer(nick, getMsg("bad_parameter"));
@@ -729,7 +739,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected void processJoin(User user){
         String nick = user.getNick();
         if (loadPlayerStat(nick, "exists") != 1){
-            informPlayer(nick, getMsg("new_nick"), getGameNameStr(), commandChar);
+            // informPlayer(nick, getMsg("new_nick"), getGameNameStr(), commandChar);
         }
     }
     
@@ -778,6 +788,14 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         return channel;
     }
     
+    /**
+     * Public accessor required for GameManager.
+     * @return true if a round is in progress
+     */
+    public boolean isInProgress() {
+        return inProgress;
+    }
+    
     /* 
      * Game management methods
      * These methods control the game flow. 
@@ -819,42 +837,39 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     abstract protected void saveIniFile();
     
     /**
-     * Initializes game properties/settings in settingsMap.
+     * Initializes game settings and properties.
      */
     protected void initialize() {
         // In-game properties
-        settingsMap.put("inprogress", 0);
-        settingsMap.put("endround", 0);
-        settingsMap.put("startcount", 0);
+        inProgress = false;
+        roundEnded = false;
+        startCount = 0;
     }
     
     /**
-     * Overwrites the value of a setting in settingsMap, if it exists.
+     * Overwrites the value of a setting, if it exists.
      * @param setting setting name
      * @param value new value
      * @throws IllegalArgumentException bad setting
      */
     protected void set(String setting, int value) throws IllegalArgumentException {
-        if (settingsMap.containsKey(setting)) {
-            settingsMap.put(setting, value);
-        } else {
+        if (!settings.containsKey(setting)) {
             throw new IllegalArgumentException();
         }
-        saveIniFile();
+        settings.put(setting, value);
     }
     
     /**
-     * Retrieves the value of a setting in settingsMap, if it exists.
+     * Retrieves the value of a setting, if it exists.
      * @param setting setting name
      * @return the setting value
      * @throws IllegalArgumentException bad setting
      */
     protected int get(String setting) throws IllegalArgumentException {
-        if (settingsMap.containsKey(setting)){
-            return settingsMap.get(setting);
-        } else {
+        if (!settings.containsKey(setting)){
             throw new IllegalArgumentException();
         }
+        return settings.get(setting);
     }
     
     /**
@@ -864,37 +879,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @throws IllegalArgumentException bad setting
      */
     public boolean has(String setting) throws IllegalArgumentException {
-        if (settingsMap.containsKey(setting)){
-            return get(setting) > 0;
-        } else {
+        if (!settings.containsKey(setting)){
             throw new IllegalArgumentException();
         }
-    }
-    
-    /**
-     * Increments the value of a setting.
-     * @param setting setting name
-     * @throws IllegalArgumentException bad setting
-     */
-    protected void increment(String setting) throws IllegalArgumentException {
-        if (settingsMap.containsKey(setting)){
-            set(setting, get(setting) + 1);
-        } else {
-            throw new IllegalArgumentException();
-        }
-    }
-    
-    /**
-     * Decrements the value of a setting
-     * @param setting setting name
-     * @throws IllegalArgumentException bad setting
-     */
-    protected void decrement(String setting) throws IllegalArgumentException {
-        if (settingsMap.containsKey(setting)){
-            set(setting, get(setting) - 1);
-        } else {
-            throw new IllegalArgumentException();
-        }
+        return get(setting) > 0;
     }
     
     /**
@@ -922,11 +910,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     
     /**
-     * Loads String-to-String mapping data from a file.
-     * @param stringMap a String-to-String HashMap
-     * @param file path to file to load
+     * Loads data from strlib file.
+     * @param file file path
      */
-    protected void loadLib(HashMap<String,String> stringMap, String file) {
+    protected void loadStrLib(String file) {
         try {
             BufferedReader in = new BufferedReader(new FileReader(file));
             StringTokenizer st;
@@ -937,7 +924,68 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 // Skips all lines that begin with #
                 if (!str.startsWith("#") && str.contains("=")) {
                     st = new StringTokenizer(str, "=");
-                    stringMap.put(st.nextToken(), st.nextToken());
+                    msgMap.put(st.nextToken(), st.nextToken());
+                }
+            }
+            in.close();
+        } catch (IOException e) {
+            manager.log("Error reading from " + file + "!");
+        }
+    }
+    
+    /**
+     * Loads data from help file.
+     * @param file file path
+     */
+    protected void loadHelp(String file) {
+        try {
+            BufferedReader in = new BufferedReader(new FileReader(file));
+            String[] st, st2;
+            String str, cmd, params, alias, def, line;
+            while (in.ready()){
+                str = in.readLine();
+                // Skips all lines that begin with #
+                if (!str.startsWith("#") && str.contains("|")) {
+                    st = str.split("\\|");
+                    
+                    // Command name
+                    if (st[0].equals("")) {
+                        cmd = "---";
+                    } else {
+                        cmd = st[0];
+                    }
+                    
+                    // Parameters
+                    if (st[1].equals("")) {
+                        params = "---";
+                    } else {
+                        params = st[1];
+                    }
+                    
+                    // Aliases
+                    if (st[2].equals("")) {
+                        alias = "---";
+                    } else {
+                        alias = st[2];
+                        st2 = st[2].split(",");
+                        for (String a : st2) {
+                            aliasMap.put(a, cmd);
+                        }
+                    }
+                    
+                    // Definition
+                    if (st[3].equals("")) {
+                        def = "---";
+                    } else {
+                        def = st[3];
+                    }
+                    
+                    line = String.format(getMsg("help_def"), cmd, params, alias, def);
+                    if (def.contains("Op command")) {
+                        opCmdMap.put(cmd, line);
+                    } else {
+                        cmdMap.put(cmd, line);
+                    }
                 }
             }
             in.close();
@@ -961,7 +1009,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             informPlayer(nick, getMsg("on_blacklist"));
         } else if (game != null) {
             informPlayer(nick, getMsg("is_joined_other"), game.getGameNameStr(), game.getChannel().getName());
-        } else if (has("inprogress")) {
+        } else if (inProgress) {
             if (isWaitlisted(nick)) {
                 informPlayer(nick, getMsg("on_waitlist"));
             } else {
@@ -988,7 +1036,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             informPlayer(OpNick, getMsg("on_blacklist_nick"), nick);
         } else if (game != null) {
             informPlayer(OpNick, getMsg("is_joined_other_nick"), nick, game.getGameNameStr(), game.getChannel().getName());
-        } else if (has("inprogress")) {
+        } else if (inProgress) {
             if (isWaitlisted(nick)) {
                 informPlayer(OpNick, getMsg("on_waitlist_nick"), nick);
             } else {
@@ -1018,8 +1066,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     
     protected void cancelAutoStarts(String nick){
-        if (get("startcount") != 0) {
-            set("startcount", 0);
+        if (startCount != 0) {
+            startCount = 0;
             showMsg(getMsg("stop"));
         } else {
             informPlayer(nick, getMsg("stop_no_autostarts"));
@@ -1114,7 +1162,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected boolean isOpCommandAllowed(User user, String nick){
         if (!channel.isOp(user)) {
             informPlayer(nick, getMsg("ops_only"));
-        } else if (has("inprogress")) {
+        } else if (inProgress) {
             informPlayer(nick, getMsg("wait_round_end"));
         } else {
             return true;
@@ -1679,8 +1727,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * Outputs the start round message to the game channel.
      */
     protected void showStartRound(){
-        if (get("startcount") > 0){
-            showMsg(getMsg("start_round_auto"), getGameNameStr(), get("startwait"), get("startcount"));
+        if (startCount > 0){
+            showMsg(getMsg("start_round_auto"), getGameNameStr(), get("startwait"), startCount);
         } else {
             showMsg(getMsg("start_round"), getGameNameStr(), get("startwait"));
         }
@@ -1815,7 +1863,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     protected String getCommandsStr() {
         String commandList = "";
-        String[] keys = helpMap.keySet().toArray(new String[0]);
+        String[] keys = cmdMap.keySet().toArray(new String[0]);
         Arrays.sort(keys);
         for (String key : keys) {
             commandList += key + ", ";
@@ -1824,12 +1872,26 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     
     /**
-     * Returns a list of settings for this game based on settingsMap.
+     * Returns a list of Op commands for this game based on its help file.
+     * @return a list of Op commands
+     */
+    protected String getOpCommandsStr() {
+        String commandList = "";
+        String[] keys = opCmdMap.keySet().toArray(new String[0]);
+        Arrays.sort(keys);
+        for (String key : keys) {
+            commandList += key + ", ";
+        }
+        return commandList.substring(0, commandList.length() - 2);
+    }
+    
+    /**
+     * Returns a list of settings for this game based on settings.
      * @return a list of settings
      */
     protected String getSettingsStr() {
         String settingsList = "";
-        String[] keys = settingsMap.keySet().toArray(new String[0]);
+        String[] keys = settings.keySet().toArray(new String[0]);
         Arrays.sort(keys);
         for (String key : keys) {
             settingsList += key + ", ";
@@ -1890,8 +1952,16 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @return the help data for the command
      */
     protected String getCommandHelp(String command){
-        if (helpMap.containsKey(command)){
-            return helpMap.get(command);
+        if (cmdMap.containsKey(command)){
+            return cmdMap.get(command);
+        } else if (opCmdMap.containsKey(command)) {
+            return opCmdMap.get(command);
+        } else if (aliasMap.containsKey(command)) {
+            if (cmdMap.containsKey(aliasMap.get(command))) {
+                return cmdMap.get(aliasMap.get(command));
+            } else {
+                return opCmdMap.get(aliasMap.get(command));
+            }
         } else {
             return "Error: Help for \'" + command + "\' not found!";
         }

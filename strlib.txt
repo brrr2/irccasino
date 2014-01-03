@@ -83,6 +83,8 @@ player_no_rounds=%s has not played any rounds of %s.
 player_rounds=%s has played %,d round(s) of %s.
 player_winrate=%s has won $%,.2f per round in %s.
 player_all_stats=%s | Cash: $%,d | Bank: $%,d | Net: $%,d | Bankrupts: %,d | Winnings: $%,d | Rounds: %,d
+help_def=%s | Parameters: %s | Alias: %s | %s
+setting_def=%s | %s
 #####################
 # Blackjack strings #
 #####################
