@@ -993,7 +993,7 @@ public class TexasPoker extends CardGame{
                 informPlayer(nick, getMsg("no_start"));
             } else {
                 showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentPlayer.get("bet"), 
-                        currentPlayer.get("cash")-currentPlayer.get("bet"), currentBet);
+                        currentPlayer.get("cash")-currentPlayer.get("bet"), currentBet, getCashInPlay());
             }
         } else if (command.equals("players")) {
             if (inProgress){
@@ -1276,7 +1276,7 @@ public class TexasPoker extends CardGame{
             setBlindBets();
             currentPlayer = getPlayerAfter(bigBlind);
             showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentPlayer.get("bet"), 
-                        currentPlayer.get("cash")-currentPlayer.get("bet"), currentBet);
+                        currentPlayer.get("cash")-currentPlayer.get("bet"), currentBet, getCashInPlay());
             setIdleOutTask();
         }
     }
@@ -1359,7 +1359,7 @@ public class TexasPoker extends CardGame{
         // Continue to the next bettor
         } else {
             showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentPlayer.get("bet"), 
-                        currentPlayer.get("cash")-currentPlayer.get("bet"), currentBet);
+                        currentPlayer.get("cash")-currentPlayer.get("bet"), currentBet, getCashInPlay());
             setIdleOutTask();
         }
     }
@@ -2061,6 +2061,28 @@ public class TexasPoker extends CardGame{
             }
         }
         return numberBettors;
+    }
+    
+    /**
+     * Determines total amount committed by all players.
+     * @return the total running amount 
+     */
+    private int getCashInPlay() {
+        int total = 0;
+        PokerPlayer p;
+        
+        // Add in the processed pots
+        for (PokerPot pp : pots) {
+            total += pp.getTotal();
+        }
+        
+        // Add in the amounts currently being betted
+        for (int ctr = 0; ctr < joined.size(); ctr++) {
+            p = (PokerPlayer) joined.get(ctr);
+            total += p.get("bet");
+        }
+        
+        return total;
     }
     
     /**
