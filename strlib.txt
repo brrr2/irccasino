@@ -34,6 +34,8 @@ no_players=Not enough players.
 separator=u0002------------------------------------------------------------------u0002
 reload=Configuration and library files have been reloaded.
 remove_end_round=You will be removed at the end of the round.
+stop=All remaining auto-starts have been canceled.
+stop_no_autostarts=No auto-starts are scheduled after this round.
 ###################
 # With parameters #
 ###################
@@ -81,6 +83,8 @@ player_no_rounds=%s has not played any rounds of %s.
 player_rounds=%s has played %,d round(s) of %s.
 player_winrate=%s has won $%,.2f per round in %s.
 player_all_stats=%s | Cash: $%,d | Bank: $%,d | Net: $%,d | Bankrupts: %,d | Winnings: $%,d | Rounds: %,d
+help_def=%s | Parameters: %s | Alias: %s | %s
+setting_def=%s | %s
 #####################
 # Blackjack strings #
 #####################
@@ -143,9 +147,9 @@ bj_house_str=%,d round(s) have been played using %,d deck shoes. The house has w
 bj_stats=%,d player(s) have played %s. They have played a total of %,d rounds. The house has won $%,d in those rounds.
 bj_rules_soft17hit=Dealer hits on soft 17. The dealer's shoe has %,d deck(s) of cards. Discards are merged back into the shoe and the shoe is shuffled when %,d card(s) remain in the shoe. Regular wins are paid out at 1:1 and blackjacks are paid out at 3:2. Insurance wins are paid out at 2:1. Minimum bet is $%,d or your stack, whichever is lower.
 bj_rules_soft17stand=Dealer stands on soft 17. The dealer's shoe has %,d deck(s) of cards. Discards are merged back into the shoe and the shoe is shuffled when %,d card(s) remain in the shoe. Regular wins are paid out at 1:1 and blackjacks are paid out at 3:2. Insurance wins are paid out at 2:1. Minimum bet is $%,d or your stack, whichever is lower.
-###################################
+##########################
 ### Texaspoker strings ###
-###################################
+##########################
 #################
 # No parameters #
 #################
@@ -159,7 +163,7 @@ tp_shuffle_deck=The deck has been shuffled.
 tp_bet_too_low=Bet too low. Current bet is $%,d.
 raise_too_low=Minimum raise is $%,d. Try again.
 no_checking=Current bet is $%,d. You must call or raise.
-tp_turn=%s's turn. Committed: $%,d. Stack: $%,d. Current bet: u0002$%,du0002
+tp_turn=%s's turn. Committed: u0002$%,du0002. Stack: $%,d. Current bet: u0002$%,du0002. In-play: u0002$%,du0002
 tp_bet=%s bets $%,d. Stack: $%,d
 tp_raise=%s has raised to $%,d. Stack: $%,d
 tp_allin=%s has gone all in! Committed: $%,d. Stack: $%,d

@@ -72,7 +72,7 @@ public class Card implements Comparable<Card>{
             num = 11; // Give aces a default value of 11
         } else {
             try {
-                num = Integer.parseInt(getFace());
+                num = Integer.parseInt(face);
             } catch (NumberFormatException e) {
                 num = 10;
             }
@@ -108,6 +108,42 @@ public class Card implements Comparable<Card>{
             }
         }
         return -1;
+    }
+    
+    /**
+     * Determines if this card is of the same suit as another card.
+     * @param c the other card
+     * @return true if they have the same suit
+     */
+    public boolean sameSuit(Card c) {
+        return isSuit(c.suit);
+    }
+    
+    /**
+     * Determines if this card has the same face as another card.
+     * @param c the other card
+     * @return true if they have the same face
+     */
+    public boolean sameFace(Card c) {
+        return isFace(c.face);
+    }
+    
+    /**
+     * Determines if this card is of the specified suit.
+     * @param tsuit the specified suit
+     * @return true if this card of that suit
+     */
+    public boolean isSuit(String tsuit) {
+        return suit.equals(tsuit);
+    }
+    
+    /**
+     * Determines if this card has the specified face.
+     * @param tface the specified face
+     * @return true if this card has that face
+     */
+    public boolean isFace(String tface) {
+        return face.equals(tface);
     }
     
     /** 
@@ -152,5 +188,34 @@ public class Card implements Comparable<Card>{
         }
         
         return color+",00"+face+suit;
+    }
+    
+    /**
+     * Checks equality based on suit and face.
+     * @param o the other Card
+     * @return true if the other Card has the same suit and face
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (o != null && o instanceof Card) {
+            Card c = (Card) o;
+            if (face.equals(c.face) && suit.equals(c.suit) &&
+                hashCode() == c.hashCode()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Hash code based on suit and face.
+     * @return the hash
+     */
+    @Override
+    public int hashCode() {
+        int hash = 5;
+        hash = 83 * hash + suit.hashCode();
+        hash = 83 * hash + face.hashCode();
+        return hash;
     }
 }

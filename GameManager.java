@@ -62,17 +62,23 @@ public interface GameManager {
      * @return true if any game has a round in progress
      */
     public boolean checkGamesInProgress();
-        
+    
     /**
-     * Shuts down all games.
+     * Starts a new game.
+     * @param game the new game
      */
-    public void endAllGames();
+    public void startGame(CardGame game);
     
     /**
      * Shuts down the specified game.
      * @param game the game to shut down
      */
     public void endGame(CardGame game);
+    
+    /**
+     * Shuts down all games.
+     */
+    public void endAllGames();
     
     /**
      * Sends a message to a channel. Automatically implemented by any PircBotX
