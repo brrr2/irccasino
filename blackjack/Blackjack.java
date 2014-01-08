@@ -581,6 +581,7 @@ public class Blackjack extends CardGame {
                 // If in the betting or post-start wait phase
                 if (betting || currentPlayer == null){
                     if (p == currentPlayer){
+                        cancelIdleOutTask();
                         currentPlayer = getNextPlayer();
                         removeJoined(p);
                         if (currentPlayer == null) {
