@@ -1,5 +1,5 @@
 /*
-    Copyright (C) 2013 Yizhe Shen <brrr@live.ca>
+    Copyright (C) 2013-2014 Yizhe Shen <brrr@live.ca>
 
     This file is part of irccasino.
 
@@ -38,7 +38,7 @@ public abstract class Stats {
      * @param stat the stat
      * @param value the new value
      */
-    protected void set(String stat, int value){
+    public void set(String stat, int value){
         statsMap.put(stat, value);
     }
     
@@ -47,7 +47,7 @@ public abstract class Stats {
      * @param stat the stat
      * @return the value
      */
-    protected int get(String stat){
+    public int get(String stat){
         return statsMap.get(stat);
     }
     
@@ -55,7 +55,7 @@ public abstract class Stats {
      * Increments the value of a stat.
      * @param stat the stat
      */
-    protected void increment(String stat){
+    public void increment(String stat){
         statsMap.put(stat, get(stat) + 1);
     }
     
@@ -63,7 +63,7 @@ public abstract class Stats {
      * Decrements the value of a stat.
      * @param stat the stat
      */
-    protected void decrement(String stat){
+    public void decrement(String stat){
         statsMap.put(stat, get(stat) - 1);
     }
     
@@ -72,7 +72,7 @@ public abstract class Stats {
      * @param stat the stat
      * @param amount the amount to add
      */
-    protected void add(String stat, int amount){
+    public void add(String stat, int amount){
         statsMap.put(stat, get(stat) + amount);
     }
     
@@ -81,7 +81,7 @@ public abstract class Stats {
      * @param stat the stat
      * @return true if the value of the stat is greater than 0
      */
-    protected boolean has(String stat){
+    public boolean has(String stat){
         return statsMap.get(stat) > 0;
     }
     
@@ -89,7 +89,7 @@ public abstract class Stats {
      * Sets the value of a stat to 0.
      * @param stat the stat
      */
-    protected void clear(String stat){
+    public void clear(String stat){
         set(stat, 0);
     }
     
@@ -98,7 +98,7 @@ public abstract class Stats {
      * @param stat the stat
      * @return true if statsMap contains the stat key
      */
-    protected boolean exists(String stat){
+    public boolean exists(String stat){
         return statsMap.containsKey(stat);
     }
 }

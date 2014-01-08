@@ -1,5 +1,5 @@
 /*
-    Copyright (C) 2013 Yizhe Shen <brrr@live.ca>
+    Copyright (C) 2013-2014 Yizhe Shen <brrr@live.ca>
 
     This file is part of irccasino.
 
@@ -18,6 +18,7 @@
 */
 package irccasino;
 
+import irccasino.cardgame.CardGame;
 import java.util.Set;
 import org.pircbotx.Channel;
 import org.pircbotx.User;

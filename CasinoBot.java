@@ -1,5 +1,5 @@
 /*
-    Copyright (C) 2013 Yizhe Shen <brrr@live.ca>
+    Copyright (C) 2013-2014 Yizhe Shen <brrr@live.ca>
 
     This file is part of irccasino.
 
@@ -18,6 +18,9 @@
 */
 package irccasino;
 
+import irccasino.blackjack.Blackjack;
+import irccasino.texaspoker.TexasPoker;
+import irccasino.cardgame.CardGame;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.FileReader;

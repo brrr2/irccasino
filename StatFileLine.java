@@ -1,5 +1,5 @@
 /*
-    Copyright (C) 2013 Yizhe Shen <brrr@live.ca>
+    Copyright (C) 2013-2014 Yizhe Shen <brrr@live.ca>
 
     This file is part of irccasino.
 
@@ -63,7 +63,7 @@ public class StatFileLine extends Stats{
      * Returns the stored nick.
      * @return the stored nick
      */
-    protected String getNick(){
+    public String getNick(){
         return nick;
     }
     
@@ -71,12 +71,12 @@ public class StatFileLine extends Stats{
      * Sets the stored nick.
      * @param value the new nick
      */
-    protected void setNick(String value){
+    public void setNick(String value){
         nick = value;
     }
     
     @Override
-    protected int get(String stat){
+    public int get(String stat){
         if (stat.equals("exists")){
             return 1;
         } else if (stat.equals("netcash")){
