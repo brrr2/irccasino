@@ -174,3 +174,10 @@ tp_player_result=%s (%s): %s, %s
 tp_hand=Your hand is %s.
 tp_stats=%,d players have played %s. %s
 tp_rules=This is no limit Texas Hold'em Poker. Blind bets are set at $%,d/$%,d or your stack, whichever is lower.
+############################
+### TexasTourney strings ###
+############################
+tt_game_name=No Limit Texas Hold'em Tournament
+tt_rules=This is no limit Texas Hold'em Poker. Blind bets are set at $%,d/$%,d or your stack, whichever is lower.
+tt_no_winner=Everybody has left the tournament. Nobody wins.
+tt_winner=%s has won the tournament. Tournament Wins: u0002%,du0002
