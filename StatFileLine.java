@@ -29,7 +29,7 @@ public class StatFileLine extends Stats{
      * Initializes an empty stat file line.
      */
     public StatFileLine(){
-        this("",0,0,0,0,0,0,0,0);
+        this("",0,0,0,0,0,0,0,0,0,0);
     }
     
     /**
@@ -42,11 +42,13 @@ public class StatFileLine extends Stats{
      * @param bjrounds
      * @param tpwinnings
      * @param tprounds
+     * @param ttwins
+     * @param ttplayed
      * @param simple 
      */
     public StatFileLine(String nick, int cash, int bank, int bankrupts, 
             int bjwinnings, int bjrounds, int tpwinnings, int tprounds,
-            int simple){
+            int ttwins, int ttplayed, int simple){
         super();
         this.nick = nick;
         set("cash", cash);
@@ -56,6 +58,8 @@ public class StatFileLine extends Stats{
         set("bjrounds", bjrounds);
         set("tpwinnings", tpwinnings);
         set("tprounds", tprounds);
+        set("ttwins", ttwins);
+        set("ttplayed", ttplayed);
         set("simple", simple);
     }
     
@@ -90,6 +94,7 @@ public class StatFileLine extends Stats{
         return getNick() + " " + get("cash") + " " + get("bank") + 
                 " " + get("bankrupts") + " " + get("bjwinnings") + 
                 " " + get("bjrounds") + " " + get("tpwinnings") + 
-                " " + get("tprounds") + " " + get("simple");
+                " " + get("tprounds") + " " + get("ttwins") +
+                " " + get("ttplayed") + " " + get("simple");
     }
 }

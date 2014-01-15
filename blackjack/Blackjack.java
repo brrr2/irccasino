@@ -45,6 +45,10 @@ public class Blackjack extends CardGame {
     // In-game properties
     private boolean betting, insuranceBets;
 
+    public Blackjack() {
+        super();
+    }
+    
     /**
      * The default constructor for Blackjack, subclass of CardGame.
      * This constructor loads the default INI file.
@@ -940,6 +944,8 @@ public class Blackjack extends CardGame {
             informPlayer(nick, getMsg("ops_only"));
         } else if (!inProgress) {
             informPlayer(nick, getMsg("no_start"));
+        } else if (currentPlayer == null) {
+            informPlayer(nick, getMsg("no_force_play"));
         } else if (betting) {
             informPlayer(nick, getMsg("no_cards"));
         } else {
@@ -960,6 +966,8 @@ public class Blackjack extends CardGame {
             informPlayer(nick, getMsg("ops_only"));
         } else if (!inProgress) {
             informPlayer(nick, getMsg("no_start"));
+        } else if (currentPlayer == null) {
+            informPlayer(nick, getMsg("no_force_play"));
         } else if (!betting) {
             informPlayer(nick, getMsg("no_betting"));
         } else {

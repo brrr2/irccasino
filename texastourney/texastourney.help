@@ -1,0 +1,42 @@
+##### Player commands #####
+start||go|Starts a new round of Texas Hold'em Poker if there are sufficient players. An optional parameter can be added to specify the number of auto-starts.
+stop|||Cancels any remaining auto-starts.
+join|||Joins the game. If a round is in progress, you will be added to a waiting list and automatically added to the next round.
+quit||q,leave,l|Leaves the current game if joined, or the waiting list if on the waiting list.
+bet|value|b|Commits the specified amount to the pot.
+raise|value|r|Raises the current bet by the specified amount.
+allin||a|Bets all your cash.
+check||x,ch|Equivalent to a bet of 0.
+call||c,ca|Matches your bet to that of the current bet.
+fold||f|Forfeits your hand and bets.
+community||comm|Shows the current community cards that have been dealt.
+hand|||Tells you your current hand.
+turn|||Shows whose turn it is at present.
+cash|nick||Shows the current cash amount for the specified player. Shows your own cash amount if no nick is provided.
+tourneys|nick||Shows the number of tournaments the specified player has played. Shows your own number if no nick is specified.
+wins|nick||Shows the number of tournament wins for the specified player. Shows your own number if no nick is specified.
+player|nick|p|Shows all the statistics for the specified player. Shows your own statistics if no nick is specified.
+simple|||Toggles whether player receives hand information via message or notice.
+players|||Shows the current players who have joined the game.
+blacklist|||Shows the players who are no longer in the current tournament.
+stats|||Shows the current overall statistics for the game.
+rank|statistic,nick||Shows the rank of the player in the specified statistic. Shows your own rank if no nick is specified.
+top|number,statistic||Shows the specified number of top players ranked in descending order based on the specified statistic.
+game|||Shows the name of the game currently being played.
+ghelp|command||Tells you the help commands or help for the specified command.
+grules|||Tells you the house rules for this game.
+gcommands|||Tells you the list of commands supported by this game.
+##### Op Commands #####
+fstart||fgo|Op command that forces a new round to start, if possible.
+fjoin|nick|fj|Op command that forces a user to join the game or waiting list.
+fquit|nick|fq,fleave,fl|Op command that forces a player to leave the game or waiting list.
+fbet|value|fb|Op command that forces the current player to bet the specified amount, if possible.
+fraise|value|fr|Op command that forces the current player to raise by the specified amount, if possible.
+fallin||fa|Op command that forces the current player to go all in, if possible.
+fcheck||fx,fch|Op command that forces the current player to check, if possible.
+fcall||fc,fca|Op command that forces the current player to call, if possible.
+ffold||ff|Op command that forces the current player to fold, if possible.
+reload|||Op command that reloads the texaspoker.help, texaspoker.ini and strlib.txt files, if a round is not in progress.
+get|setting||Op command that gets the value for the specified setting, if a round is not in progress. Setting name is as specified in the texaspoker.ini file.
+set|setting,value||Op command that sets the specified value for the specified setting, if a round is not in progress. Setting names are as specified in the texaspoker.ini file.
+settings|settings||Op command that lists the settings available for Texas Hold'em.

@@ -25,7 +25,7 @@ import java.util.ArrayList;
  * A pot class to handle bets and payouts in Texas Hold'em Poker.
  * @author Yizhe Shen
  */
-class PokerPot {
+public class PokerPot {
     private ArrayList<PokerPlayer> players;
     private ArrayList<PokerPlayer> donors;
     private int total;
@@ -36,46 +36,46 @@ class PokerPot {
         donors = new ArrayList<PokerPlayer>();
     }
 
-    protected int getTotal(){
+    public int getTotal(){
         return total;
     }
-    protected void add(int amount){
+    public void add(int amount){
         total += amount;
     }
-    protected void addPlayer(PokerPlayer p){
+    public void addPlayer(PokerPlayer p){
         players.add(p);
     }
-    protected void removePlayer(PokerPlayer p){
+    public void removePlayer(PokerPlayer p){
         players.remove(p);
     }
-    protected void addDonor(PokerPlayer p) {
+    public void addDonor(PokerPlayer p) {
         donors.add(p);
     }
-    protected void removeDonor(PokerPlayer p) {
+    public void removeDonor(PokerPlayer p) {
         donors.remove(p);
     }
-    protected PokerPlayer getPlayer(int c){
+    public PokerPlayer getPlayer(int c){
         return players.get(c);
     }
-    protected ArrayList<PokerPlayer> getPlayers(){
+    public ArrayList<PokerPlayer> getPlayers(){
         return players;
     }
-    protected PokerPlayer getDonor(int c) {
+    public PokerPlayer getDonor(int c) {
         return donors.get(c);
     }
-    protected ArrayList<PokerPlayer> getDonors() {
+    public ArrayList<PokerPlayer> getDonors() {
         return donors;
     }
-    protected boolean hasPlayer(PokerPlayer p){
+    public boolean hasPlayer(PokerPlayer p){
         return players.contains(p);
     }
-    protected boolean hasDonor(PokerPlayer p) {
+    public boolean hasDonor(PokerPlayer p) {
         return donors.contains(p);
     }
-    protected int getNumPlayers(){
+    public int getNumPlayers(){
         return players.size();
     }
-    protected int getNumDonors() {
+    public int getNumDonors() {
         return donors.size();
     }
 }

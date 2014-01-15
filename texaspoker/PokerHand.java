@@ -28,7 +28,7 @@ import java.util.Collections;
  * Extends Hand with extra methods for Poker hand comparisons.
  * @author Yizhe Shen
  */
-class PokerHand extends Hand implements Comparable<PokerHand>{
+public class PokerHand extends Hand implements Comparable<PokerHand>{
     /** Stores the calculated value of the PokerHand. */
     private int value;
 
@@ -147,7 +147,7 @@ class PokerHand extends Hand implements Comparable<PokerHand>{
      * Calls calcValue() if it hasn't been called yet.
      * @return the value
      */
-    protected int getValue(){
+    public int getValue(){
         if (value == -1){
             value = calcValue();
         }
@@ -157,7 +157,7 @@ class PokerHand extends Hand implements Comparable<PokerHand>{
     /**
      * Resets the value to the default.
      */
-    protected void resetValue(){
+    public void resetValue(){
         value = -1;
     }
 
@@ -165,7 +165,7 @@ class PokerHand extends Hand implements Comparable<PokerHand>{
      * Name of the hand.
      * @return the name of the hand based on value.
      */
-    protected String getName(){
+    public String getName(){
         return handNames[getValue()];
     }
 
@@ -212,10 +212,9 @@ class PokerHand extends Hand implements Comparable<PokerHand>{
      * the PokerHand is found to have a certain hand-type, the method stops
      * searching for hand-types of lower value.
      * 
-     * @param h the PokerHand to be calculated
      * @return value corresponding to hand-type.
      */
-    protected int calcValue(){
+    public int calcValue(){
         // Always check the hands in order of descending value
         if (hasStraightFlush()){	
             if (get(0).isFace("A")){
@@ -243,10 +242,9 @@ class PokerHand extends Hand implements Comparable<PokerHand>{
 
     /**
      * Determines if a PokerHand has a pair.
-     * @param h the PokerHand to search
      * @return true if it contains a pair
      */
-    protected boolean hasPair(){
+    public boolean hasPair(){
         Card a,b;
         for (int ctr = 0; ctr < size()-1; ctr++){
             a = get(ctr);
@@ -264,10 +262,9 @@ class PokerHand extends Hand implements Comparable<PokerHand>{
 
     /**
      * Determines if a PokerHand has two pairs.
-     * @param h the PokerHand to search
      * @return true if it contains two pairs
      */
-    protected boolean hasTwoPair(){
+    public boolean hasTwoPair(){
         Card a,b;
         for (int ctr = 0; ctr < size()-3; ctr++){
             a = get(ctr);
@@ -291,10 +288,9 @@ class PokerHand extends Hand implements Comparable<PokerHand>{
 
     /**
      * Determines if a PokerHand has three of a kind.
-     * @param h the PokerHand to search
      * @return true if it contains three of a kind
      */
-    protected boolean hasThreeOfAKind(){
+    public boolean hasThreeOfAKind(){
         Card a,b,c;
         for (int ctr = 0; ctr < size()-2; ctr++){
             a = get(ctr);
@@ -315,10 +311,9 @@ class PokerHand extends Hand implements Comparable<PokerHand>{
 
     /**
      * Determines if a PokerHand has a straight.
-     * @param h the PokerHand to search
      * @return true if it contains a straight
      */
-    protected boolean hasStraight(){
+    public boolean hasStraight(){
         /* Create a boolean array to determine which face cards exist in the hand.
          * An extra index is added at the beginning for the value duality of aces.
          */
@@ -353,10 +348,9 @@ class PokerHand extends Hand implements Comparable<PokerHand>{
 
     /**
      * Determines if a PokerHand has a flush.
-     * @param h the PokerHand to search
      * @return true if it contains a flush
      */
-    protected boolean hasFlush(){
+    public boolean hasFlush(){
         int[] suitCount = new int[CardDeck.suits.length];
         for (Card c : this){
             suitCount[c.getSuitValue()]++;
@@ -382,10 +376,9 @@ class PokerHand extends Hand implements Comparable<PokerHand>{
 
     /**
      * Determines if a PokerHand has a full house.
-     * @param h the PokerHand to search
      * @return true if it contains a full house
      */
-    protected boolean hasFullHouse(){
+    public boolean hasFullHouse(){
         Card a,b,c;
         for (int ctr = 0; ctr < size()-2; ctr++){
             a = get(ctr);
@@ -413,10 +406,9 @@ class PokerHand extends Hand implements Comparable<PokerHand>{
 
     /**
      * Determines if a PokerHand has four of a kind.
-     * @param h the PokerHand to search
      * @return true if it contains four of a kind
      */
-    protected boolean hasFourOfAKind(){
+    public boolean hasFourOfAKind(){
         Card a,b,c,d;
         for (int ctr = 0; ctr < size()-3; ctr++){
             a = get(ctr);
@@ -445,10 +437,9 @@ class PokerHand extends Hand implements Comparable<PokerHand>{
      * that this method will not always reveal the highest straight flush of a 
      * hand. However, in most Poker variants, this will suffice.
      * 
-     * @param h the PokerHand to search
      * @return true if it contains a straight flush
      */
-    protected boolean hasStraightFlush(){
+    public boolean hasStraightFlush(){
         int[] suitCount = new int[CardDeck.suits.length];
         Hand nonFlushCards = new Hand();
         for (Card c : this) {

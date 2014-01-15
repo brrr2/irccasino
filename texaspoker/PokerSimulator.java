@@ -29,7 +29,7 @@ import java.util.Collections;
  * Game simulator for calculating winning percentages.
  * @author Yizhe Shen
  */
-class PokerSimulator {
+public class PokerSimulator {
     private CardDeck simDeck;
     private ArrayList<PokerPlayer> simList;
     private Hand simComm;

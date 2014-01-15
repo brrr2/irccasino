@@ -21,6 +21,7 @@ package irccasino;
 import irccasino.blackjack.Blackjack;
 import irccasino.texaspoker.TexasPoker;
 import irccasino.cardgame.CardGame;
+import irccasino.texastourney.TexasTourney;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.FileReader;
@@ -126,6 +127,14 @@ public class CasinoBot extends PircBotX implements GameManager {
                             bot.startGame(new TexasPoker(bot, commandChar, channel, params[0]));
                         } else {
                             bot.startGame(new TexasPoker(bot, commandChar, channel));
+                        }
+                    }
+                } else if (command.equals("texastourney") || command.equals("tt")) {
+                    if (!bot.hasGame(channel)) {
+                        if (params.length > 0) {
+                            bot.startGame(new TexasTourney(bot, commandChar, channel, params[0]));
+                        } else {
+                            bot.startGame(new TexasTourney(bot, commandChar, channel));
                         }
                     }
                 } else if (command.equals("endgame")) {

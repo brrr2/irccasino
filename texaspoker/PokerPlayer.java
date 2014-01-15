@@ -26,7 +26,7 @@ import irccasino.cardgame.Player;
  * Extends the Player class for players playing Poker games.
  * @author Yizhe Shen
  */
-class PokerPlayer extends Player implements Comparable<PokerPlayer> {
+public class PokerPlayer extends Player implements Comparable<PokerPlayer> {
     /** The player's cards. */
     private Hand hand;
     /** The player's cards plus any community cards. */
@@ -53,7 +53,7 @@ class PokerPlayer extends Player implements Comparable<PokerPlayer> {
      * Returns whether the player has cards in his Hand.
      * @return true if player has any cards
      */
-    protected boolean hasHand(){
+    public boolean hasHand(){
         return (hand.size() > 0);
     }
 
@@ -62,7 +62,7 @@ class PokerPlayer extends Player implements Comparable<PokerPlayer> {
      * This includes the player's Hand and any community cards.
      * @return the player's PokerHand
      */
-    protected PokerHand getPokerHand(){
+    public PokerHand getPokerHand(){
         return pHand;
     }
 
@@ -70,14 +70,14 @@ class PokerPlayer extends Player implements Comparable<PokerPlayer> {
      * Returns the player's Hand.
      * @return the player's Hand.
      */
-    protected Hand getHand(){
+    public Hand getHand(){
         return hand;
     }
 
     /**
      * Clears the cards in the player's Hand and PokerHand.
      */
-    protected void resetHand(){
+    public void resetHand(){
         hand.clear();
         pHand.clear();
         pHand.resetValue();

@@ -71,6 +71,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected StartRoundTask startRoundTask;
     protected ArrayList<RespawnTask> respawnTasks;
 
+    public CardGame() {
+        super();
+    }
+    
     /**
      * Creates a generic CardGame.
      * Not to be directly instantiated.
@@ -79,7 +83,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param commChar The command char
      * @param gameChannel The IRC channel in which the game is to be run.
      */
-    public CardGame (GameManager parent, char commChar, Channel gameChannel){
+    public CardGame(GameManager parent, char commChar, Channel gameChannel){
         manager = parent;
         commandChar = commChar;
         channel = gameChannel;
@@ -1217,6 +1221,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     p.set("bjrounds", statLine.get("bjrounds"));
                     p.set("tpwinnings", statLine.get("tpwinnings"));
                     p.set("tprounds", statLine.get("tprounds"));
+                    p.set("ttwins", statLine.get("ttwins"));
+                    p.set("ttplayed", statLine.get("ttplayed"));
                     p.set("simple", statLine.get("simple"));
                     found = true;
                     break;
@@ -1253,6 +1259,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     statLine.set("bjrounds", p.get("bjrounds"));
                     statLine.set("tpwinnings", p.get("tpwinnings"));
                     statLine.set("tprounds", p.get("tprounds"));
+                    statLine.set("ttwins", p.get("ttwins"));
+                    statLine.set("ttplayed", p.get("ttplayed"));
                     statLine.set("simple", p.get("simple"));
                     found = true;
                     break;
@@ -1263,6 +1271,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                                         p.get("bank"), p.get("bankrupts"),
                                         p.get("bjwinnings"), p.get("bjrounds"),
                                         p.get("tpwinnings"), p.get("tprounds"),
+                                        p.get("ttwins"), p.get("ttplayed"),
                                         p.get("simple")));
             }
         } catch (IOException e) {
@@ -1303,7 +1312,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     protected void loadPlayerFile(ArrayList<StatFileLine> statList) throws IOException {
         String nick;
-        int cash, bank, bankrupts, bjwinnings, bjrounds, tpwinnings, tprounds, simple;
+        int cash, bank, bankrupts, bjwinnings, bjrounds, tpwinnings, tprounds, ttwins, ttplayed, simple;
         
         BufferedReader in = new BufferedReader(new FileReader("players.txt"));
         StringTokenizer st;
@@ -1317,9 +1326,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             bjrounds = Integer.parseInt(st.nextToken());
             tpwinnings = Integer.parseInt(st.nextToken());
             tprounds = Integer.parseInt(st.nextToken());
+            ttwins = Integer.parseInt(st.nextToken());
+            ttplayed = Integer.parseInt(st.nextToken());
             simple = Integer.parseInt(st.nextToken());
             statList.add(new StatFileLine(nick, cash, bank, bankrupts, bjwinnings, 
-                                        bjrounds, tpwinnings, tprounds, simple));
+                                        bjrounds, tpwinnings, tprounds, ttwins, ttplayed, simple));
         }
         in.close();
     }

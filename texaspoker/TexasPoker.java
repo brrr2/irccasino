@@ -36,13 +36,17 @@ import org.pircbotx.*;
 
 public class TexasPoker extends CardGame{
     
-    private ArrayList<PokerPot> pots;
-    private PokerPot currentPot;
-    private PokerPlayer dealer, smallBlind, bigBlind, topBettor;
-    private Hand community;
-    private HouseStat house;
+    protected ArrayList<PokerPot> pots;
+    protected PokerPot currentPot;
+    protected PokerPlayer dealer, smallBlind, bigBlind, topBettor;
+    protected Hand community;
+    protected HouseStat house;
     // In-game properties
-    private int stage, currentBet, minRaise;
+    protected int stage, currentBet, minRaise;
+    
+    public TexasPoker() {
+        super();
+    }
     
     /**
      * The default constructor for TexasPoker, subclass of CardGame.
@@ -176,8 +180,8 @@ public class TexasPoker extends CardGame{
             } else if (!inProgress) {
                 informPlayer(nick, getMsg("no_start"));
             } else {
-                showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentPlayer.get("bet"), 
-                        currentPlayer.get("cash")-currentPlayer.get("bet"), currentBet, getCashInPlay());
+                showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentPlayer.get("cash")-currentPlayer.get("bet"), 
+                        currentPlayer.get("bet"), currentBet, getCashInPlay());
             }
         } else if (command.equals("players")) {
             if (inProgress){
@@ -459,8 +463,8 @@ public class TexasPoker extends CardGame{
             dealTable();
             setBlindBets();
             currentPlayer = getPlayerAfter(bigBlind);
-            showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentPlayer.get("bet"), 
-                        currentPlayer.get("cash")-currentPlayer.get("bet"), currentBet, getCashInPlay());
+            showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentPlayer.get("cash")-currentPlayer.get("bet"), 
+                        currentPlayer.get("bet"), currentBet, getCashInPlay());
             setIdleOutTask();
         }
     }
@@ -542,8 +546,8 @@ public class TexasPoker extends CardGame{
             continueRound();
         // Continue to the next bettor
         } else {
-            showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentPlayer.get("bet"), 
-                        currentPlayer.get("cash")-currentPlayer.get("bet"), currentBet, getCashInPlay());
+            showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentPlayer.get("cash")-currentPlayer.get("bet"),
+                        currentPlayer.get("bet"), currentBet, getCashInPlay());
             setIdleOutTask();
         }
     }
@@ -749,7 +753,7 @@ public class TexasPoker extends CardGame{
      * @param p the specified player
      * @return the next player
      */
-    private Player getPlayerAfter(Player p){
+    protected Player getPlayerAfter(Player p){
         return joined.get((joined.indexOf(p) + 1) % joined.size());
     }
     
@@ -757,7 +761,7 @@ public class TexasPoker extends CardGame{
      * Resets the specified player.
      * @param p the player to reset
      */
-    private void resetPlayer(PokerPlayer p) {
+    protected void resetPlayer(PokerPlayer p) {
         discardPlayerHand(p);
         p.clear("fold");
         p.clear("quit");
@@ -768,7 +772,7 @@ public class TexasPoker extends CardGame{
     /**
      * Assigns players to the dealer, small blind and big blind roles.
      */
-    private void setButton(){
+    protected void setButton(){
         if (dealer == null){
             dealer = (PokerPlayer) joined.get(0);
         } else {
@@ -785,7 +789,7 @@ public class TexasPoker extends CardGame{
     /**
      * Sets the bets for the small and big blinds.
      */
-    private void setBlindBets(){
+    protected void setBlindBets(){
         // Set the small blind to minimum raise or the player's cash, 
         // whichever is less.
         smallBlind.set("bet", Math.min(get("minbet")/2, smallBlind.get("cash")));
@@ -849,6 +853,8 @@ public class TexasPoker extends CardGame{
             informPlayer(nick, getMsg("ops_only"));
         } else if (!inProgress) {
             informPlayer(nick, getMsg("no_start"));
+        } else if (currentPlayer == null) {
+            informPlayer(nick, getMsg("no_force_play"));
         } else {
             return true;
         }
@@ -857,7 +863,7 @@ public class TexasPoker extends CardGame{
     
     /* Game settings management */
     @Override
-    protected final void initialize(){
+    protected void initialize(){
         super.initialize();
         // Do not use set()
         // Ini file settings
@@ -877,7 +883,7 @@ public class TexasPoker extends CardGame{
     }
     
     @Override
-    protected final void saveIniFile() {
+    protected void saveIniFile() {
         try {
             PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(iniFile)));
             out.println("#Settings");
@@ -907,7 +913,7 @@ public class TexasPoker extends CardGame{
     
     /* House stats management */
     @Override
-    public final void loadGameStats() {
+    public void loadGameStats() {
         try {
             BufferedReader in = new BufferedReader(new FileReader("housestats.txt"));
             String str;
@@ -1001,7 +1007,7 @@ public class TexasPoker extends CardGame{
     /**
      * Deals cards to the community hand.
      */
-    private void dealCommunity(){
+    protected void dealCommunity(){
         if (stage == 1) {
             for (int ctr = 1; ctr <= 3; ctr++){
                 dealCard(community);
@@ -1015,7 +1021,7 @@ public class TexasPoker extends CardGame{
      * Deals two cards to the specified player.
      * @param p the player to be dealt to
      */
-    private void dealHand(PokerPlayer p) {
+    protected void dealHand(PokerPlayer p) {
         dealCard(p.getHand());
         dealCard(p.getHand());
     }
@@ -1023,7 +1029,7 @@ public class TexasPoker extends CardGame{
     /**
      * Deals hands to everybody at the table.
      */
-    private void dealTable() {
+    protected void dealTable() {
         PokerPlayer p;
         for (int ctr = 0; ctr < joined.size(); ctr++) {
             p = (PokerPlayer) joined.get(ctr);
@@ -1036,7 +1042,7 @@ public class TexasPoker extends CardGame{
      * Discards a player's hand into the discard pile.
      * @param p the player whose hand is to be discarded
      */
-    private void discardPlayerHand(PokerPlayer p) {
+    protected void discardPlayerHand(PokerPlayer p) {
         if (p.hasHand()) {
             deck.addToDiscard(p.getHand());
             p.resetHand();
@@ -1046,7 +1052,7 @@ public class TexasPoker extends CardGame{
     /**
      * Discards the community cards into the discard pile.
      */
-    private void discardCommunity(){
+    protected void discardCommunity(){
         if (community.size() > 0){
             deck.addToDiscard(community);
             community.clear();
@@ -1056,7 +1062,7 @@ public class TexasPoker extends CardGame{
     /**
      * Merges the discards and shuffles the deck.
      */
-    private void shuffleDeck() {
+    protected void shuffleDeck() {
         deck.refillDeck();
         showMsg(getMsg("tp_shuffle_deck"));
     }
@@ -1202,7 +1208,7 @@ public class TexasPoker extends CardGame{
      * Determines the number of players who have not folded.
      * @return the number of non-folded players
      */
-    private int getNumberNotFolded(){
+    protected int getNumberNotFolded(){
         PokerPlayer p;
         int numberNotFolded = 0;
         for (int ctr = 0; ctr < joined.size(); ctr++){
@@ -1218,7 +1224,7 @@ public class TexasPoker extends CardGame{
      * Determines the number players who can still make a bet.
      * @return the number of players who can bet
      */
-    private int getNumberCanBet(){
+    protected int getNumberCanBet(){
         PokerPlayer p;
         int numberCanBet = 0;
         for (int ctr = 0; ctr < joined.size(); ctr++){
@@ -1235,7 +1241,7 @@ public class TexasPoker extends CardGame{
      * betting.
      * @return the number of bettors
      */
-    private int getNumberBettors() {
+    protected int getNumberBettors() {
         PokerPlayer p;
         int numberBettors = 0;
         for (int ctr = 0; ctr < joined.size(); ctr++){
@@ -1251,7 +1257,7 @@ public class TexasPoker extends CardGame{
      * Determines total amount committed by all players.
      * @return the total running amount 
      */
-    private int getCashInPlay() {
+    protected int getCashInPlay() {
         int total = 0;
         PokerPlayer p;
         
@@ -1273,7 +1279,7 @@ public class TexasPoker extends CardGame{
      * Adds the bets during a round of betting to the pot.
      * If no pot exists, a new one is created. Sidepots are created as necessary.
      */
-    private void addBetsToPot(){
+    protected void addBetsToPot(){
         PokerPlayer p;
         int lowBet;
         while(currentBet != 0){
@@ -1752,17 +1758,17 @@ public class TexasPoker extends CardGame{
     
     /* Formatted strings */
     @Override
-    public final String getGameNameStr() {
+    public String getGameNameStr() {
         return formatBold(getMsg("tp_game_name"));
     }
     
     @Override
-    public final String getGameRulesStr() {
+    public String getGameRulesStr() {
         return String.format(getMsg("tp_rules"), get("minbet")/2, get("minbet"));
     }
     
     @Override
-    public final String getGameStatsStr() {
+    public String getGameStatsStr() {
         return String.format(getMsg("tp_stats"), getTotalPlayers(), getGameNameStr(), house);
     }
 }

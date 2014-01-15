@@ -52,6 +52,8 @@ abstract public class Player extends Stats{
         set("bjwinnings", 0);
         set("tprounds", 0);
         set("tpwinnings", 0);
+        set("ttwins", 0);
+        set("ttplayed", 0);
         set("simple", 1);
         set("quit", 0);
     }

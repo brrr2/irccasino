@@ -17,6 +17,7 @@ wait_round_end=A round is in progress! Wait for the round to end.
 round_started=A round is in progress!
 no_start=No round in progress!
 no_betting=No betting in progress!
+no_force_play=It is not currently anybody's turn!
 wrong_turn=It's not your turn!
 no_cards=No cards have been dealt yet!
 ops_only=This command may only be used by channel Ops.
@@ -163,7 +164,7 @@ tp_shuffle_deck=The deck has been shuffled.
 tp_bet_too_low=Bet too low. Current bet is $%,d.
 raise_too_low=Minimum raise is $%,d. Try again.
 no_checking=Current bet is $%,d. You must call or raise.
-tp_turn=%s's turn. Committed: u0002$%,du0002. Stack: $%,d. Current bet: u0002$%,du0002. In-play: u0002$%,du0002
+tp_turn=%s's turn. Stack: u0002$%,du0002. Committed: u0002$%,du0002. Current bet: u0002$%,du0002. In-play: u0002$%,du0002
 tp_bet=%s bets $%,d. Stack: $%,d
 tp_raise=%s has raised to $%,d. Stack: $%,d
 tp_allin=%s has gone all in! Committed: $%,d. Stack: $%,d
@@ -177,7 +178,26 @@ tp_rules=This is no limit Texas Hold'em Poker. Blind bets are set at $%,d/$%,d o
 ############################
 ### TexasTourney strings ###
 ############################
+#################
+# No parameters #
+#################
 tt_game_name=No Limit Texas Hold'em Tournament
-tt_rules=This is no limit Texas Hold'em Poker. Blind bets are set at $%,d/$%,d or your stack, whichever is lower.
+tt_started=A tournament is already in progress.
+tt_started_unable_join=Unable to join a tournament that is already in progress. Please wait for it to finish.
 tt_no_winner=Everybody has left the tournament. Nobody wins.
-tt_winner=%s has won the tournament. Tournament Wins: u0002%,du0002
+tt_wait_for_end=Unable to use this command while a tournament is in progress. Please wait for it to finish.
+tt_no_start=No tournament in progress!
+tt_new_tourney=Starting a new No Limit Texas Hold'em Tournament!
+###################
+# With parameters #
+###################
+tt_rules=This is no limit Texas Hold'em Poker. Blind bets are set at $%,d/$%,d or your stack, whichever is lower.
+tt_winner=%s has won the tournament! Tournament Wins: u0002%,du0002
+tt_player_all_stats=%s | Tournament Wins: %,d | Tournaments Played: %,d
+tt_player_played=%s has played in %,d tournaments.
+tt_player_wins=%s has won %,d tournaments.
+tt_double_blinds=u0002%,du0002 rounds completed. Doubling blinds to u0002$%,du0002/u0002$%,du0002.
+tt_stats=%,d players have played %s.
+tt_start_round=u0002----------u0002 Starting round u0002%,du0002 in %d seconds... u0002----------u0002
+tt_end_round=u0002----------u0002 End of round u0002%,du0002. u0002----------u0002
+tt_out_of_tourney=Out: %s
