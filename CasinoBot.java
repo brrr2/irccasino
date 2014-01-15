@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.StringTokenizer;
 import org.pircbotx.Channel;
 import org.pircbotx.PircBotX;
@@ -201,6 +202,66 @@ public class CasinoBot extends PircBotX implements GameManager {
             } catch(IOException e) {
                 System.err.println("Error: unable to write to " + logFile);
             }
+        }
+    }
+    
+    /**
+     * Patch to eliminate exceptions during shutdown of the bot. Channel caching
+     * now only occurs if a reconnect is required.
+     * @param noReconnect Toggle whether to reconnect if enabled. Set to true to
+     * 100% shutdown the bot
+     */
+    @Override
+    public void shutdown(boolean noReconnect) {
+        try {
+            outputThread.interrupt();
+            inputThread.interrupt();
+        } catch (Exception e) {
+            logException(e);
+        }
+        
+        //Close the socket from here and let the threads die
+        if (!socket.isClosed())
+            try {
+                socket.shutdownInput();
+                socket.close();
+            } catch (Exception e) {
+                logException(e);
+            }
+        
+        //Close the DCC Manager
+        try {
+            dccManager.close();
+        } catch (Exception ex) {
+            //Not much we can do with it here. And throwing it would not let other things shutdown
+            logException(ex);
+        }
+        
+        //Clear relevant variables of information
+        userChanInfo.clear();
+        userNickMap.clear();
+        channelListBuilder.finish();
+        
+        //Dispatch event
+        if (autoReconnect && !noReconnect) {
+            try {
+                //Cache channels for reconnect
+                Map<String, String> previousChannels = new HashMap();
+                for (Channel curChannel : getChannels()) {
+                    String key = (curChannel.getChannelKey() == null) ? "" : curChannel.getChannelKey();
+                    previousChannels.put(curChannel.getName(), key);
+                }
+                reconnect();
+                if (autoReconnectChannels)
+                    for (Map.Entry<String, String> curEntry : previousChannels.entrySet())
+                        joinChannel(curEntry.getKey(), curEntry.getValue());
+            } catch (Exception e) {
+                //Not much we can do with it
+                throw new RuntimeException("Can't reconnect to server", e);
+            }
+        } else {
+            getListenerManager().dispatchEvent(new DisconnectEvent(this));
+            log("*** Disconnected.");
         }
     }
     
