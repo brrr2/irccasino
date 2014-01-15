@@ -260,8 +260,8 @@ public class TexasPoker extends CardGame{
                 opCmdMap.clear();
                 aliasMap.clear();
                 msgMap.clear();
-                loadHelp(helpFile);
                 loadStrLib(strFile);
+                loadHelp(helpFile);
                 showMsg(getMsg("reload"));
             }
         } else if (command.equals("test1")){

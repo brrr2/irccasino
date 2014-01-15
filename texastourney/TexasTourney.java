@@ -293,7 +293,9 @@ public class TexasTourney extends TexasPoker {
             if (channel.isOp(user)) {
                 informPlayer(nick, getGameNameStr() + " Op commands:");
                 informPlayer(nick, getOpCommandsStr());
-            }  
+            }
+        } else if (command.equals("game")) {
+            showMsg(getMsg("game_name"), getGameNameStr());
         /* Op commands */
         } else if (command.equals("fj") || command.equals("fjoin")){
             if (!channel.isOp(user)) {
@@ -396,8 +398,8 @@ public class TexasTourney extends TexasPoker {
                 opCmdMap.clear();
                 aliasMap.clear();
                 msgMap.clear();
-                loadHelp(helpFile);
                 loadStrLib(strFile);
+                loadHelp(helpFile);
                 showMsg(getMsg("reload"));
             }
         } else if (command.equals("settings")) {
