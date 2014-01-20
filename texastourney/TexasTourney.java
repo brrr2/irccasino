@@ -19,7 +19,7 @@
 
 package irccasino.texastourney;
 
-import irccasino.CardDeck;
+import irccasino.cardgame.CardDeck;
 import irccasino.GameManager;
 import irccasino.StatFileLine;
 import irccasino.cardgame.CardGame;

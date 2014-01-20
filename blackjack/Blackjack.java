@@ -28,6 +28,8 @@ import java.io.PrintWriter;
 import java.util.*;
 import org.pircbotx.*;
 import irccasino.*;
+import irccasino.cardgame.Card;
+import irccasino.cardgame.CardDeck;
 import irccasino.cardgame.CardGame;
 import irccasino.cardgame.Hand;
 import irccasino.cardgame.Player;

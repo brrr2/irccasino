@@ -19,8 +19,8 @@
 
 package irccasino.texaspoker;
 
-import irccasino.Card;
-import irccasino.CardDeck;
+import irccasino.cardgame.Card;
+import irccasino.cardgame.CardDeck;
 import irccasino.cardgame.Hand;
 import java.util.ArrayList;
 import java.util.Collections;

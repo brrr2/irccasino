@@ -19,7 +19,7 @@
 
 package irccasino.blackjack;
 
-import irccasino.Card;
+import irccasino.cardgame.Card;
 import irccasino.cardgame.Hand;
 
 /**

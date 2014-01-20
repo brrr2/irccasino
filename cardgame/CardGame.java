@@ -18,8 +18,6 @@
 */
 package irccasino.cardgame;
 
-import irccasino.Card;
-import irccasino.CardDeck;
 import irccasino.GameManager;
 import irccasino.StatFileLine;
 import java.io.BufferedReader;

@@ -19,7 +19,6 @@
 
 package irccasino.cardgame;
 
-import irccasino.Card;
 import java.util.ArrayList;
 import org.pircbotx.Colors;
 
