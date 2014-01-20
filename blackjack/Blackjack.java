@@ -1086,7 +1086,7 @@ public class Blackjack extends CardGame {
             p.add("cash", -1 * amount);
             p.add("bjwinnings", -1 * amount);
             house.add("cash", amount);
-            showMsg(getMsg("bj_bet"), p.getNickStr(), p.get("initialbet"), p.get("cash"));
+            showMsg(getMsg("bj_bet"), p.getNickStr(false), p.get("initialbet"), p.get("cash"));
             currentPlayer = getNextPlayer();
             if (currentPlayer == null) {
                 betting = false;
@@ -1145,7 +1145,7 @@ public class Blackjack extends CardGame {
             p.add("bjwinnings", -1 * h.getBet());
             house.add("cash", h.getBet());
             h.addBet(h.getBet());
-            showMsg(getMsg("bj_dd"), p.getNickStr(), h.getBet(), p.get("cash"));
+            showMsg(getMsg("bj_dd"), p.getNickStr(false), h.getBet(), p.get("cash"));
             dealCard(h);
             showHitResult(p,h);
             continueRound();
@@ -1171,7 +1171,7 @@ public class Blackjack extends CardGame {
             p.add("bjwinnings", calcHalf(p.get("initialbet")));
             house.add("cash", -1 * calcHalf(p.get("initialbet")));
             p.set("surrender", 1);
-            showMsg(getMsg("bj_surr"), p.getNickStr(), p.get("cash"));
+            showMsg(getMsg("bj_surr"), p.getNickStr(false), p.get("cash"));
             continueRound();
         }
     }
@@ -1205,7 +1205,7 @@ public class Blackjack extends CardGame {
             p.add("cash", -1 * amount);
             p.add("bjwinnings", -1 * amount);
             house.add("cash", amount);
-            showMsg(getMsg("bj_insure"), p.getNickStr(), p.get("insurebet"), p.get("cash"));
+            showMsg(getMsg("bj_insure"), p.getNickStr(false), p.get("insurebet"), p.get("cash"));
         }
         setIdleOutTask();
     }
@@ -1536,7 +1536,7 @@ public class Blackjack extends CardGame {
      */
     private void showSplitHands(BlackjackPlayer p) {
         BlackjackHand h;
-        showMsg(getMsg("bj_split"), p.getNickStr(), p.getNickStr());
+        showMsg(getMsg("bj_split"), p.getNickStr(false), p.getNickStr(false));
         for (int ctr = 0; ctr < p.getNumberHands(); ctr++) {
             h = p.getHand(ctr);
             showPlayerHandWithBet(p, h, ctr + 1);
