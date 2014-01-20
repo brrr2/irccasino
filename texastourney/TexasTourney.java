@@ -444,6 +444,52 @@ public class TexasTourney extends TexasPoker {
     }
     
     @Override
+    protected void removeJoined(Player p){
+        User user = findUser(p.getNick());
+        joined.remove(p);
+        if (inProgress) {
+            showMsg(getMsg("tt_unjoin"), p.getNickStr());
+        } else {
+            if (user != null){
+                manager.deVoice(channel, user);
+            }
+            showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
+        }
+    }
+    
+    @Override
+    protected void devoiceAll(){
+        String modeSet = "";
+        String nickStr = "";
+        int count = 0;
+        for (Player p : joined) {
+            modeSet += "v";
+            nickStr += " " + p.getNick();
+            count++;
+            if (count % 4 == 0) {
+                manager.sendRawLine ("MODE " + channel.getName() + " -" + modeSet + nickStr);
+                nickStr = "";
+                modeSet = "";
+                count = 0;
+            }
+        }
+        for (Player p : blacklist) {
+            modeSet += "v";
+            nickStr += " " + p.getNick();
+            count++;
+            if (count % 4 == 0) {
+                manager.sendRawLine ("MODE " + channel.getName() + " -" + modeSet + nickStr);
+                nickStr = "";
+                modeSet = "";
+                count = 0;
+            }
+        }
+        if (count > 0) {
+            manager.sendRawLine ("MODE " + channel.getName() + " -" + modeSet + nickStr);
+        }
+    }
+    
+    @Override
     public void startRound() {
         if (joined.size() < 2){
             endRound();
@@ -545,12 +591,12 @@ public class TexasTourney extends TexasPoker {
     
     @Override
     public void endRound() {
-        roundEnded = true;
         PokerPlayer p;
+        
+        roundEnded = true;
 
         // Check if anybody left during post-start waiting period
         if (joined.size() > 1 && pots.size() > 0) {
-            String netResults = Colors.YELLOW + ",01 Change: ";
             // Give all non-folded players the community cards
             for (int ctr = 0; ctr < joined.size(); ctr++){
                 p = (PokerPlayer) joined.get(ctr);
@@ -565,15 +611,18 @@ public class TexasTourney extends TexasPoker {
             // Determine the winners of each pot
             showResults();
 
-            /* Clean-up tasks
-             * 1. Increment the number of rounds played for player
-             * 2. Remove players who have quit mid-round
-             * 3. Save player data
-             * 4. Reset the player
+            // Show player stack changes
+            showStackChange();
+            
+            // Show updated player stacks sorted in descending order
+            showStacks();
+            
+            /* Clean-up tasks necessarily in this order
+             * 1. Remove players who have quit mid-round or have gone bankrupt
+             * 2. Reset all players
              */
             for (int ctr = 0; ctr < joined.size(); ctr++){
                 p = (PokerPlayer) joined.get(ctr);
-                p.increment("tprounds");
                 
                 // Bankrupts
                 if (!p.has("cash")) {
@@ -589,22 +638,11 @@ public class TexasTourney extends TexasPoker {
                     ctr--;
                 }
                 
-                // Add player to list of net results
-                if (p.get("change") > 0) {
-                     netResults += Colors.WHITE + ",01 " + p.getNick(false) + " (" + Colors.GREEN + ",01$" + formatNumber(p.get("change")) + Colors.WHITE + ",01), ";
-                } else if (p.get("change") < 0) {
-                    netResults += Colors.WHITE + ",01 " + p.getNick(false) + " (" + Colors.RED + ",01$" + formatNumber(p.get("change")) + Colors.WHITE + ",01), ";
-                } else {
-                    netResults += Colors.WHITE + ",01 " + p.getNick(false) + " (" + Colors.WHITE + ",01$" + formatNumber(p.get("change")) + Colors.WHITE + ",01), ";
-                }
                 resetPlayer(p);
-            }
-            showMsg(netResults.substring(0, netResults.length()-2));
-        } else {
-            showMsg(getMsg("no_players"));
+            } 
         }
         resetGame();
-        tourneyRounds++;
+        tourneyRounds++;        
         showMsg(getMsg("tt_end_round"), tourneyRounds);
         checkTourneyStatus();
     }
@@ -1027,7 +1065,7 @@ public class TexasTourney extends TexasPoker {
                 p.add("change", currentPot.getTotal()/winners);
                 showMsg(Colors.YELLOW+",01 Pot #" + (ctr+1) + ": " + Colors.NORMAL + " " + 
                     p.getNickStr() + " wins $" + formatNumber(currentPot.getTotal()/winners) + 
-                    ". Stack: $" + formatNumber(p.get("cash"))+ " (" + getPlayerListString(currentPot.getPlayers()) + ")");
+                    ". (" + getPlayerListString(currentPot.getPlayers()) + ")");
             }
         }
     }
@@ -1207,6 +1245,29 @@ public class TexasTourney extends TexasPoker {
         } catch (IOException e) {
             manager.log("Error reading players.txt!");
         }
+    }
+    
+    @Override
+    public void showStacks() {
+        ArrayList<Player> list = new ArrayList<Player>(joined);
+        String msg = Colors.YELLOW + ",01 Stacks: " + Colors.NORMAL + " ";
+        Collections.sort(list, Player.getCashComparator());
+        
+        // Add players still in the tournament
+        for (Player p : list) {
+            if (p.get("cash") == 0) {
+                msg += p.getNick(false) + " (" + Colors.RED + formatBold("OUT") + Colors.NORMAL + "), ";
+            } else {
+                msg += p.getNick(false) + " (" + formatBold("$" + formatNumber(p.get("cash"))) + "), ";
+            }
+        }
+        
+        // Add players who are no longer in the tournament
+        for (Player p : blacklist) {
+            msg += p.getNick(false) + " (" + Colors.RED + formatBold("OUT") + Colors.NORMAL + "), ";
+        }
+        
+        showMsg(msg.substring(0, msg.length()-2));
     }
     
     /* Formatted strings */

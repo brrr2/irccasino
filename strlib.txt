@@ -201,3 +201,4 @@ tt_stats=%,d players have played %s.
 tt_start_round=u0002----------u0002 Starting round u0002%,du0002 in %d seconds... u0002----------u0002
 tt_end_round=u0002----------u0002 End of round u0002%,du0002. u0002----------u0002
 tt_out_of_tourney=Out: %s
+tt_unjoin=%s is out of the tournament!

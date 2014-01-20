@@ -20,6 +20,7 @@
 package irccasino.cardgame;
 
 import irccasino.Stats;
+import java.util.Comparator;
 import org.pircbotx.Colors;
 
 /**
@@ -27,7 +28,7 @@ import org.pircbotx.Colors;
  * It serves as a template and should not be directly instantiated.
  * @author Yizhe Shen
  */
-abstract public class Player extends Stats{
+abstract public class Player extends Stats {
     /** Stores the player's nick. */
     private String nick;
     /** Stores the player's host. */
@@ -177,5 +178,23 @@ abstract public class Player extends Stats{
         hash = 29 * hash + nick.hashCode();
         hash = 29 * hash + host.hashCode();
         return hash;
+    }
+    
+    /**
+     * Returns a comparator that compares the player's cash.
+     * @return a new comparator
+     */
+    public static Comparator<Player> getCashComparator() {
+        return new Comparator<Player>() {
+            @Override
+            public int compare(Player one, Player two) {
+                if (one.get("cash") < two.get("cash")) {
+                    return 1;
+                } else if (one.get("cash") > two.get("cash")) {
+                    return -1;
+                }
+                return 0;
+            }
+        };
     }
 }

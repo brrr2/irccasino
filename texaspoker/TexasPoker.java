@@ -554,12 +554,13 @@ public class TexasPoker extends CardGame{
     
     @Override
     public void endRound() {
-        roundEnded = true;
         PokerPlayer p;
+        ArrayList<Player> roundPlayers = new ArrayList<Player>(joined);
+        
+        roundEnded = true;
 
         // Check if anybody left during post-start waiting period
         if (joined.size() > 1 && pots.size() > 0) {
-            String netResults = Colors.YELLOW + ",01 Change: ";
             // Give all non-folded players the community cards
             for (int ctr = 0; ctr < joined.size(); ctr++){
                 p = (PokerPlayer) joined.get(ctr);
@@ -574,6 +575,12 @@ public class TexasPoker extends CardGame{
             // Determine the winners of each pot
             showResults();
 
+            // Show the stack changes
+            showStackChange();
+
+            // Show updated player stacks sorted in descending order
+            showStacks();
+            
             /* Clean-up tasks
              * 1. Increment the number of rounds played for player
              * 2. Remove players who have gone bankrupt and set respawn timers
@@ -615,23 +622,17 @@ public class TexasPoker extends CardGame{
                     savePlayerData(p);
                 }
                 
-                // Add player to list of net results
-                if (p.get("change") > 0) {
-                     netResults += Colors.WHITE + ",01 " + p.getNick(false) + " (" + Colors.GREEN + ",01$" + formatNumber(p.get("change")) + Colors.WHITE + ",01), ";
-                } else if (p.get("change") < 0) {
-                    netResults += Colors.WHITE + ",01 " + p.getNick(false) + " (" + Colors.RED + ",01$" + formatNumber(p.get("change")) + Colors.WHITE + ",01), ";
-                } else {
-                    netResults += Colors.WHITE + ",01 " + p.getNick(false) + " (" + Colors.WHITE + ",01$" + formatNumber(p.get("change")) + Colors.WHITE + ",01), ";
-                }
+                // Reset player
                 resetPlayer(p);
             }
-            showMsg(netResults.substring(0, netResults.length()-2));
         } else {
             showMsg(getMsg("no_players"));
         }
-        resetGame();
+        
+        resetGame(); 
         showMsg(getMsg("end_round"), getGameNameStr(), commandChar);
         mergeWaitlist();
+        
         // Check if auto-starts remaining
         if (startCount > 0){
             startCount--;
@@ -1424,7 +1425,7 @@ public class TexasPoker extends CardGame{
         
         // Append existing pots to StringBuilder
         for (int ctr = 0; ctr < pots.size(); ctr++){
-            str = Colors.YELLOW+",01Pot #"+(ctr+1)+": "+Colors.GREEN+",01$"+formatNumber(pots.get(ctr).getTotal())+Colors.NORMAL+" ";
+            str = Colors.YELLOW+",01 Pot #"+(ctr+1)+": "+Colors.GREEN+",01$"+formatNumber(pots.get(ctr).getTotal())+" "+Colors.NORMAL+" ";
             msg.append(str);
         }
         
@@ -1489,7 +1490,7 @@ public class TexasPoker extends CardGame{
                 p.add("change", currentPot.getTotal()/winners);
                 showMsg(Colors.YELLOW+",01 Pot #" + (ctr+1) + ": " + Colors.NORMAL + " " + 
                     p.getNickStr() + " wins $" + formatNumber(currentPot.getTotal()/winners) + 
-                    ". Stack: $" + formatNumber(p.get("cash"))+ " (" + getPlayerListString(currentPot.getPlayers()) + ")");
+                    ". (" + getPlayerListString(currentPot.getPlayers()) + ")");
             }
             
             // Check if it's the biggest pot
@@ -1754,6 +1755,43 @@ public class TexasPoker extends CardGame{
         } catch (IOException e) {
             manager.log("Error reading players.txt!");
         }
+    }
+    
+    /**
+     * Displays the stack change of each player in the given list.
+     */
+    public void showStackChange() {
+        PokerPlayer p;
+        String msg = Colors.YELLOW + ",01 Change: " + Colors.NORMAL + " ";
+        
+        for (int ctr = 0; ctr < joined.size(); ctr++) {
+            p = (PokerPlayer) joined.get(ctr);
+            // Add player to list of net results
+            if (p.get("change") > 0) {
+                msg += p.getNick(false) + " (" + Colors.DARK_GREEN + Colors.BOLD + "$" + formatNumber(p.get("change")) + Colors.NORMAL + "), ";
+            } else if (p.get("change") < 0) {
+                msg += p.getNick(false) + " (" + Colors.RED + Colors.BOLD + "$" + formatNumber(p.get("change")) + Colors.NORMAL + "), ";
+            } else {
+                msg += p.getNick(false) + " ($" + Colors.BOLD + formatNumber(p.get("change")) + "), ";
+            }
+        }
+        
+        showMsg(msg.substring(0, msg.length()-2));
+    }
+    
+    /**
+     * Displays the stack of each player in the given list in descending order.
+     */
+    public void showStacks() {
+        ArrayList<Player> list = new ArrayList<Player>(joined);
+        String msg = Colors.YELLOW + ",01 Stacks: " + Colors.NORMAL + " ";
+        Collections.sort(list, Player.getCashComparator());
+        
+        for (Player p : list) {
+            msg += p.getNick(false) + " (" + formatBold("$" + formatNumber(p.get("cash"))) + "), ";
+        }
+        
+        showMsg(msg.substring(0, msg.length()-2));
     }
     
     /* Formatted strings */
