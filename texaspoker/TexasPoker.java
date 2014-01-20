@@ -525,11 +525,11 @@ public class TexasPoker extends CardGame{
                    // Add a delay for dramatic effect
                    try { Thread.sleep(get("showdown") * 1000); } catch (InterruptedException e){}
                 }
-                // Burn a card before turn and river
-                if (stage != 1) {
-                    burnCard();
-                }
+                
+                // Burn a card before flop, turn and river
+                burnCard();
                 dealCommunity();
+                
                 /* Only show dealt community cards when there are 
                  * more than 1 non-folded player remaining. */
                 if (getNumberNotFolded() > 1){

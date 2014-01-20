@@ -27,6 +27,7 @@ import irccasino.cardgame.Hand;
 import irccasino.cardgame.Player;
 import irccasino.texaspoker.PokerPot;
 import irccasino.texaspoker.PokerPlayer;
+import irccasino.texaspoker.PokerSimulator;
 import irccasino.texaspoker.TexasPoker;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
@@ -452,6 +453,90 @@ public class TexasTourney extends TexasPoker {
             dealTable();
             setBlindBets();
             currentPlayer = getPlayerAfter(bigBlind);
+            showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentPlayer.get("cash")-currentPlayer.get("bet"),
+                        currentPlayer.get("bet"), currentBet, getCashInPlay());
+            setIdleOutTask();
+        }
+    }
+    
+    @Override
+    public void continueRound() {
+        // Store currentPlayer as firstPlayer and find the next player
+        Player firstPlayer = currentPlayer;
+        currentPlayer = getPlayerAfter(currentPlayer);
+        PokerPlayer p = (PokerPlayer) currentPlayer;
+        PokerSimulator sim;
+        
+        /*
+         * Look for a player who can bet that is not the firstPlayer or the
+         * topBettor. If we reach the firstPlayer or topBettor then stop
+         * looking.
+         */
+        while ((p.has("fold") || p.has("allin")) && currentPlayer != firstPlayer
+                        && currentPlayer != topBettor) {
+            currentPlayer = getPlayerAfter(currentPlayer);
+            p = (PokerPlayer) currentPlayer;
+        }
+        
+        /* If we reach the firstPlayer or topBettor, then we have reached the
+         * end of a round of betting and we should deal community cards. */
+        if (currentPlayer == topBettor || currentPlayer == firstPlayer) {
+            // Reset minimum raise (override)
+            minRaise = (int) (get("minbet")*(Math.pow(2, tourneyRounds/get("doubleblinds"))));
+            
+            // Add bets from this round of betting to the pot
+            addBetsToPot();
+            stage++;
+            
+            // If all community cards have been dealt, move to end of round
+            if (stage == 4){
+                endRound();
+            // Otherwise, deal community cards
+            } else {
+                /* 
+                * If fewer than two players can bet and there are more
+                * than 1 non-folded player remaining, only show hands once
+                * before dealing the rest of the community cards. Adds a
+                * 10-second delay in between each line.
+                */
+                if (getNumberCanBet() < 2 && getNumberNotFolded() > 1) {
+                    ArrayList<PokerPlayer> players;
+                    players = pots.get(0).getPlayers();
+                    sim = new PokerSimulator(players, community);
+                    String showdownStr = formatHeader(" Showdown: ") + " ";
+                    for (int ctr = 0; ctr < players.size(); ctr++) {
+                        p = players.get(ctr);
+                        showdownStr += p.getNickStr() + " (" + p.getHand() + "||" + formatBold(sim.getWinPct(p) + "/" + sim.getTiePct(p) + "%%") + ")";
+                        if (ctr < players.size()-1){
+                            showdownStr += ", ";
+                        }
+                    }
+                    showMsg(showdownStr);
+                   
+                   // Add a delay for dramatic effect
+                   try { Thread.sleep(get("showdown") * 1000); } catch (InterruptedException e){}
+                }
+                
+                // Burn a card before flop, turn and river
+                burnCard();
+                dealCommunity();
+                
+                /* Only show dealt community cards when there are 
+                 * more than 1 non-folded player remaining. */
+                if (getNumberNotFolded() > 1){
+                    showCommunityCards();
+                }
+                topBettor = null;
+                /* Set the currentPlayer to be dealer to determine who bets
+                 * first in the next round of betting. */
+                currentPlayer = dealer;
+                continueRound();
+            }
+        // Continue round, if less than 2 players can bet
+        } else if (getNumberCanBet() < 2 && topBettor == null){
+            continueRound();
+        // Continue to the next bettor
+        } else {
             showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentPlayer.get("cash")-currentPlayer.get("bet"),
                         currentPlayer.get("bet"), currentBet, getCashInPlay());
             setIdleOutTask();
