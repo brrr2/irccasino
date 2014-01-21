@@ -1772,7 +1772,7 @@ public class TexasPoker extends CardGame{
             } else if (p.get("change") < 0) {
                 msg += p.getNick(false) + " (" + Colors.RED + Colors.BOLD + "$" + formatNumber(p.get("change")) + Colors.NORMAL + "), ";
             } else {
-                msg += p.getNick(false) + " ($" + Colors.BOLD + formatNumber(p.get("change")) + "), ";
+                msg += p.getNick(false) + " (" + Colors.BOLD + "$" + formatNumber(p.get("change")) + Colors.NORMAL + "), ";
             }
         }
         

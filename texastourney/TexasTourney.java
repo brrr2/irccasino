@@ -36,9 +36,15 @@ import java.io.PrintWriter;
 import java.util.*;
 import org.pircbotx.*;
 
+/**
+ * Extends TexasPoker to work as a tournament mode.
+ * @author Yizhe Shen
+ */
 public class TexasTourney extends TexasPoker {
     
-    int tourneyRounds;
+    ArrayList<Player> newOutList;
+    int tourneyRounds, numOuts;
+    boolean newPlayerOut;
     
     public TexasTourney() {
         super();
@@ -93,6 +99,7 @@ public class TexasTourney extends TexasPoker {
         deck = new CardDeck();
         deck.shuffleCards();
         pots = new ArrayList<PokerPot>();
+        newOutList = new ArrayList<Player>();
         community = new Hand();
         currentPot = null;
         dealer = null;
@@ -436,6 +443,22 @@ public class TexasTourney extends TexasPoker {
             }
         }
     }
+    
+    /**
+     * If a joined player changes nick, then unfortunately they are out of the
+     * tournament.
+     * @param user
+     * @param oldNick
+     * @param newNick 
+     */
+    @Override
+    protected void processNickChange(User user, String oldNick, String newNick){
+        if (isJoined(oldNick)){
+            informPlayer(newNick, getMsg("tt_nick_change"));
+            manager.deVoice(channel, user);
+            leave(oldNick);
+        }
+    }
 
     /* Game management methods */
     @Override
@@ -631,6 +654,8 @@ public class TexasTourney extends TexasPoker {
                     blacklist.add(0, p);
                     removeJoined(p);
                     ctr--;
+                    newPlayerOut = true;
+                    newOutList.add(p);
                 // Quitters
                 } else if (p.has("quit")) {
                     removeJoined(p);
@@ -665,6 +690,7 @@ public class TexasTourney extends TexasPoker {
         showMsg(getMsg("game_end"), getGameNameStr());
         joined.clear();
         blacklist.clear();
+        newOutList.clear();
         cmdMap.clear();
         opCmdMap.clear();
         aliasMap.clear();
@@ -691,6 +717,9 @@ public class TexasTourney extends TexasPoker {
     public void resetTourney() {
         inProgress = false;
         tourneyRounds = 0;
+        numOuts = 0;
+        newPlayerOut = false;
+        newOutList.clear();
         devoiceAll();
         joined.clear();
         blacklist.clear();
@@ -722,8 +751,23 @@ public class TexasTourney extends TexasPoker {
             resetTourney();
         // Automatically start a new round if more than 1 player left
         } else {
+            if (newPlayerOut) {
+                numOuts++;
+                int newBlind = (int) (get("minbet")*(Math.pow(2, tourneyRounds/get("doubleblinds") + numOuts)));
+                if (newOutList.size() > 1) {
+                    String nicks = "";
+                    for (Player o : newOutList) {
+                        nicks += o.getNickStr(false) + ", ";
+                    }
+                    showMsg(getMsg("tt_double_blinds_multi_out"), nicks.substring(0, nicks.length()-2), newBlind/2, newBlind);
+                } else {
+                    showMsg(getMsg("tt_double_blinds_single_out"), newOutList.get(0).getNickStr(false), newBlind/2, newBlind);
+                }
+                newPlayerOut = false;
+                newOutList.clear();
+            }
             if (tourneyRounds % get("doubleblinds") == 0) {
-                int newBlind = (int) (get("minbet")*(Math.pow(2, tourneyRounds/get("doubleblinds"))));
+                int newBlind = (int) (get("minbet")*(Math.pow(2, tourneyRounds/get("doubleblinds") + numOuts)));
                 showMsg(getMsg("tt_double_blinds"), tourneyRounds, newBlind/2, newBlind);
             }
             showStartRound();
@@ -826,7 +870,7 @@ public class TexasTourney extends TexasPoker {
     @Override
     protected void setBlindBets(){
         // Calculate the current blind bet
-        int newBlind = (int) (get("minbet")*(Math.pow(2, tourneyRounds/get("doubleblinds"))));
+        int newBlind = (int) (get("minbet")*(Math.pow(2, tourneyRounds/get("doubleblinds") + numOuts)));
         // Set the small blind to minimum raise or the player's cash, 
         // whichever is less.
         smallBlind.set("bet", Math.min(newBlind/2, smallBlind.get("cash")));
@@ -899,11 +943,14 @@ public class TexasTourney extends TexasPoker {
         settings.put("startwait", 5);
         settings.put("showdown", 10);
         settings.put("doubleblinds", 10);
+        settings.put("doubleonbankrupt", 0);
         // In-game properties
         stage = 0;
         currentBet = 0;
         minRaise = 0;
         tourneyRounds = 0;
+        newPlayerOut = false;
+        numOuts = 0;
     }
     
     @Override
@@ -919,7 +966,7 @@ public class TexasTourney extends TexasPoker {
             out.println("cash=" + get("cash"));
             out.println("#Minimum bet (big blind), preferably an even number");
             out.println("minbet=" + get("minbet"));
-            out.println("#The maximum number of players allowed to join a tournament");
+            out.println("#The maximum umber of players allowed to join a tournament");
             out.println("maxplayers=" + get("maxplayers"));
             out.println("#The minimum number of players required to start a tournament");
             out.println("minplayers=" + get("minplayers"));
@@ -929,6 +976,8 @@ public class TexasTourney extends TexasPoker {
             out.println("showdown=" + get("showdown"));
             out.println("#The number of rounds in between doubling of blinds");
             out.println("doubleblinds=" + get("doubleblinds"));
+            out.println("#Whether or not to double blinds when a player goes out");
+            out.println("doubleonbankrupt=" + get("doubleonbankrupt"));
             out.close();
         } catch (IOException e) {
             manager.log("Error creating " + iniFile + "!");

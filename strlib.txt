@@ -188,6 +188,7 @@ tt_no_winner=Everybody has left the tournament. Nobody wins.
 tt_wait_for_end=Unable to use this command while a tournament is in progress. Please wait for it to finish.
 tt_no_start=No tournament in progress!
 tt_new_tourney=Starting a new No Limit Texas Hold'em Tournament!
+tt_nick_change=You have changed nicks while joined and will be removed from this tournament.
 ###################
 # With parameters #
 ###################
@@ -197,6 +198,8 @@ tt_player_all_stats=%s | Tournament Wins: %,d | Tournaments Played: %,d
 tt_player_played=%s has played in %,d tournaments.
 tt_player_wins=%s has won %,d tournaments.
 tt_double_blinds=u0002%,du0002 rounds completed. Doubling blinds to u0002$%,du0002/u0002$%,du0002.
+tt_double_blinds_single_out=%s is bankrupt! Doubling blinds to u0002$%,du0002/u0002$%,du0002.
+tt_double_blinds_multi_out=%s are bankrupt! Doubling blinds to u0002$%,du0002/u0002$%,du0002.
 tt_stats=%,d players have played %s.
 tt_start_round=u0002----------u0002 Starting round u0002%,du0002 in %d seconds... u0002----------u0002
 tt_end_round=u0002----------u0002 End of round u0002%,du0002. u0002----------u0002
