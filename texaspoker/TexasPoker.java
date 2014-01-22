@@ -475,7 +475,6 @@ public class TexasPoker extends CardGame{
         Player firstPlayer = currentPlayer;
         currentPlayer = getPlayerAfter(currentPlayer);
         PokerPlayer p = (PokerPlayer) currentPlayer;
-        PokerSimulator sim;
         
         /*
          * Look for a player who can bet that is not the firstPlayer or the
@@ -510,6 +509,7 @@ public class TexasPoker extends CardGame{
                 */
                 if (getNumberCanBet() < 2 && getNumberNotFolded() > 1) {
                     ArrayList<PokerPlayer> players;
+                    PokerSimulator sim;
                     players = pots.get(0).getPlayers();
                     sim = new PokerSimulator(players, community);
                     String showdownStr = formatHeader(" Showdown: ") + " ";
@@ -531,10 +531,14 @@ public class TexasPoker extends CardGame{
                 dealCommunity();
                 
                 /* Only show dealt community cards when there are 
-                 * more than 1 non-folded player remaining. */
-                if (getNumberNotFolded() > 1){
+                 * more than 1 non-folded player remaining. Also
+                 * show community if stage = 3 and "revealcommunity"
+                 * is set to true. */
+                if (getNumberNotFolded() > 1 || 
+                        stage == 3 && settings.get("revealcommunity") == 1){
                     showCommunityCards();
                 }
+                
                 topBettor = null;
                 /* Set the currentPlayer to be dealer to determine who bets
                  * first in the next round of betting. */
@@ -542,7 +546,7 @@ public class TexasPoker extends CardGame{
                 continueRound();
             }
         // Continue round, if less than 2 players can bet
-        } else if (getNumberCanBet() < 2 && topBettor == null){
+        } else if (getNumberCanBet() < 2 && topBettor == null){           
             continueRound();
         // Continue to the next bettor
         } else {
@@ -877,6 +881,7 @@ public class TexasPoker extends CardGame{
         settings.put("autostarts", 10);
         settings.put("startwait", 5);
         settings.put("showdown", 10);
+        settings.put("revealcommunity", 0);
         // In-game properties
         stage = 0;
         currentBet = 0;
@@ -906,6 +911,8 @@ public class TexasPoker extends CardGame{
             out.println("startwait=" + get("startwait"));
             out.println("#The wait time in seconds in between reveals during a showdown");
             out.println("showdown=" + get("showdown"));
+            out.println("#Whether or not to reveal community when not required");
+            out.println("revealcommunity=" + get("revealcommunity"));
             out.close();
         } catch (IOException e) {
             manager.log("Error creating " + iniFile + "!");

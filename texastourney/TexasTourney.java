@@ -534,7 +534,6 @@ public class TexasTourney extends TexasPoker {
         Player firstPlayer = currentPlayer;
         currentPlayer = getPlayerAfter(currentPlayer);
         PokerPlayer p = (PokerPlayer) currentPlayer;
-        PokerSimulator sim;
         
         /*
          * Look for a player who can bet that is not the firstPlayer or the
@@ -570,6 +569,7 @@ public class TexasTourney extends TexasPoker {
                 */
                 if (getNumberCanBet() < 2 && getNumberNotFolded() > 1) {
                     ArrayList<PokerPlayer> players;
+                    PokerSimulator sim;
                     players = pots.get(0).getPlayers();
                     sim = new PokerSimulator(players, community);
                     String showdownStr = formatHeader(" Showdown: ") + " ";
@@ -591,10 +591,14 @@ public class TexasTourney extends TexasPoker {
                 dealCommunity();
                 
                 /* Only show dealt community cards when there are 
-                 * more than 1 non-folded player remaining. */
-                if (getNumberNotFolded() > 1){
+                 * more than 1 non-folded player remaining. Also
+                 * show community if stage = 3 and "revealcommunity"
+                 * is set to true. */
+                if (getNumberNotFolded() > 1 || 
+                        stage == 3 && settings.get("revealcommunity") == 1){
                     showCommunityCards();
                 }
+                
                 topBettor = null;
                 /* Set the currentPlayer to be dealer to determine who bets
                  * first in the next round of betting. */
@@ -942,6 +946,7 @@ public class TexasTourney extends TexasPoker {
         settings.put("minbet", 10);
         settings.put("startwait", 5);
         settings.put("showdown", 10);
+        settings.put("revealcommunity", 0);
         settings.put("doubleblinds", 10);
         settings.put("doubleonbankrupt", 0);
         // In-game properties
@@ -974,6 +979,8 @@ public class TexasTourney extends TexasPoker {
             out.println("startwait=" + get("startwait"));
             out.println("#The wait time in seconds in between reveals during a showdown");
             out.println("showdown=" + get("showdown"));
+            out.println("#Whether or not to reveal community when not required");
+            out.println("revealcommunity=" + get("revealcommunity"));
             out.println("#The number of rounds in between doubling of blinds");
             out.println("doubleblinds=" + get("doubleblinds"));
             out.println("#Whether or not to double blinds when a player goes out");
