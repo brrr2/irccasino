@@ -966,7 +966,7 @@ public class TexasTourney extends TexasPoker {
             out.println("cash=" + get("cash"));
             out.println("#Minimum bet (big blind), preferably an even number");
             out.println("minbet=" + get("minbet"));
-            out.println("#The maximum umber of players allowed to join a tournament");
+            out.println("#The maximum number of players allowed to join a tournament");
             out.println("maxplayers=" + get("maxplayers"));
             out.println("#The minimum number of players required to start a tournament");
             out.println("minplayers=" + get("minplayers"));

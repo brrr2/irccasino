@@ -30,7 +30,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.StringTokenizer;
 import org.pircbotx.Channel;
 import org.pircbotx.PircBotX;
@@ -245,16 +244,7 @@ public class CasinoBot extends PircBotX implements GameManager {
         //Dispatch event
         if (autoReconnect && !noReconnect) {
             try {
-                //Cache channels for reconnect
-                Map<String, String> previousChannels = new HashMap();
-                for (Channel curChannel : getChannels()) {
-                    String key = (curChannel.getChannelKey() == null) ? "" : curChannel.getChannelKey();
-                    previousChannels.put(curChannel.getName(), key);
-                }
                 reconnect();
-                if (autoReconnectChannels)
-                    for (Map.Entry<String, String> curEntry : previousChannels.entrySet())
-                        joinChannel(curEntry.getKey(), curEntry.getValue());
             } catch (Exception e) {
                 //Not much we can do with it
                 throw new RuntimeException("Can't reconnect to server", e);
