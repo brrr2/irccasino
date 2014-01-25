@@ -35,7 +35,6 @@ import org.pircbotx.Channel;
 import org.pircbotx.PircBotX;
 import org.pircbotx.User;
 import org.pircbotx.cap.SASLCapHandler;
-import org.pircbotx.exception.IrcException;
 import org.pircbotx.hooks.ListenerAdapter;
 import org.pircbotx.hooks.events.*;
 
@@ -149,11 +148,12 @@ public class CasinoBot extends PircBotX implements GameManager {
                 } else if (command.equals("shutdown") || command.equals("botquit")) {
                     if (!bot.checkGamesInProgress()){
                         bot.endAllGames();
-                        try {
-                            bot.quitServer("Bye.");
-                        } catch (Exception e){
-                            System.out.println("Error: " + e);
-                        }
+                        bot.setAutoReconnect(false);
+                        bot.quitServer("Bye.");
+                    }
+                } else if (command.equals("reconnect") || command.equals("reboot")) {
+                    if (!bot.checkGamesInProgress()){
+                        bot.quitServer("Reconnecting...");
                     }
                 }
             }
@@ -175,7 +175,6 @@ public class CasinoBot extends PircBotX implements GameManager {
         
         loadConfig(config);
         
-        getListenerManager().addListener(new InitListener('.'));
         setVerbose(true);
         setAutoNickChange(true);
         setAutoReconnect(true);
@@ -205,8 +204,8 @@ public class CasinoBot extends PircBotX implements GameManager {
     }
     
     /**
-     * Patch to eliminate exceptions during shutdown of the bot. Channel caching
-     * now only occurs if a reconnect is required.
+     * Patch to eliminate exceptions during shutdown of the bot. All channel
+     * caching has been removed. 
      * @param noReconnect Toggle whether to reconnect if enabled. Set to true to
      * 100% shutdown the bot
      */
@@ -242,17 +241,8 @@ public class CasinoBot extends PircBotX implements GameManager {
         channelListBuilder.finish();
         
         //Dispatch event
-        if (autoReconnect && !noReconnect) {
-            try {
-                reconnect();
-            } catch (Exception e) {
-                //Not much we can do with it
-                throw new RuntimeException("Can't reconnect to server", e);
-            }
-        } else {
-            getListenerManager().dispatchEvent(new DisconnectEvent(this));
-            log("*** Disconnected.");
-        }
+        getListenerManager().dispatchEvent(new DisconnectEvent(this));
+        log("*** Disconnected.");
     }
     
     @Override
@@ -380,27 +370,71 @@ public class CasinoBot extends PircBotX implements GameManager {
     
     /**
      * Creates and initializes a new CasinoBot and connects it to an IRC network.
+     * Also attempts reconnect on connection failure or disconnection.
      * @param args alternate config file path
      * @throws Exception 
      */
     public static void main(String[] args) throws Exception {
         CasinoBot bot;
+        int timeInt = 10000, attempt = 0;
+        
+        // Check for alternate config file
         if (args.length > 0) {
             bot = new CasinoBot(args[0], "log.txt");
         } else {
             bot = new CasinoBot("irccasino.conf", "log.txt");
         }
         
-        if (bot.configMap.get("password") != null){
-            bot.getCapHandlers().add(new SASLCapHandler(bot.configMap.get("nick"), bot.configMap.get("password")));
-        }
+        // Add listener for initialization commands
+        bot.getListenerManager().addListener(new InitListener('.'));
         
-        try {
-            bot.connect(bot.configMap.get("network"));
-        } catch (IrcException e){
-            System.out.println("Error: " + e);
-        } catch (IOException e){
-            System.out.println("Error: " + e);
+        // Continue trying to connect to the server if not in a connected state
+        while (!bot.isConnected()) {
+            try {
+                attempt++;
+                if (bot.configMap.get("password") != null){
+                    bot.getCapHandlers().clear();
+                    bot.getCapHandlers().add(new SASLCapHandler(bot.configMap.get("nick"), bot.configMap.get("password")));
+                }
+                
+                // Reset IRC threads
+                bot.inputThread = null;
+                bot.outputThread = null;
+                
+                // Attempt to connect
+                bot.log("Connection attempt " + attempt + "...");
+                bot.connect(bot.configMap.get("network"));
+            } catch (Exception e){
+                // Log the exception that caused connection failure
+                bot.logException(e);
+                
+                // Wait for IRC threads to die
+                bot.inputThread.join();
+                bot.outputThread.join();
+                
+                // Set delay up to 300 seconds or 5 minutes
+                int delay = Math.min(attempt * timeInt, timeInt * 30);
+                bot.log("Attempt to reconnect in " + (delay/1000) + " seconds...");
+                Thread.sleep(delay);
+                
+                // Retry
+                continue;
+            }
+            
+            // If we make it here that means we're connected, reset attempts
+            attempt = 0;
+            
+            // Wait for any disconnections
+            bot.inputThread.join();
+            bot.outputThread.join();
+            
+            // Terminate if no auto-reconnect is required
+            if (!bot.autoReconnect) {
+                break;
+            }
+            
+            // Otherwise wait the 10 seconds to reconnect
+            Thread.sleep(timeInt);
         }
     }
 }
