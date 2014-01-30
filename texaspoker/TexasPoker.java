@@ -180,8 +180,8 @@ public class TexasPoker extends CardGame{
             } else if (!inProgress) {
                 informPlayer(nick, getMsg("no_start"));
             } else {
-                showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentPlayer.get("cash")-currentPlayer.get("bet"), 
-                        currentPlayer.get("bet"), currentBet, getCashInPlay());
+                showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentBet-currentPlayer.get("bet"), 
+                        currentPlayer.get("bet"), currentBet, getCashInPlay(), currentPlayer.get("cash")-currentPlayer.get("bet"));
             }
         } else if (command.equals("players")) {
             if (inProgress){
@@ -463,8 +463,8 @@ public class TexasPoker extends CardGame{
             dealTable();
             setBlindBets();
             currentPlayer = getPlayerAfter(bigBlind);
-            showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentPlayer.get("cash")-currentPlayer.get("bet"), 
-                        currentPlayer.get("bet"), currentBet, getCashInPlay());
+            showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentBet-currentPlayer.get("bet"), 
+                        currentPlayer.get("bet"), currentBet, getCashInPlay(), currentPlayer.get("cash")-currentPlayer.get("bet"));
             setIdleOutTask();
         }
     }
@@ -550,8 +550,8 @@ public class TexasPoker extends CardGame{
             continueRound();
         // Continue to the next bettor
         } else {
-            showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentPlayer.get("cash")-currentPlayer.get("bet"),
-                        currentPlayer.get("bet"), currentBet, getCashInPlay());
+            showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentBet-currentPlayer.get("bet"), 
+                        currentPlayer.get("bet"), currentBet, getCashInPlay(), currentPlayer.get("cash")-currentPlayer.get("bet"));
             setIdleOutTask();
         }
     }
@@ -559,7 +559,6 @@ public class TexasPoker extends CardGame{
     @Override
     public void endRound() {
         PokerPlayer p;
-        ArrayList<Player> roundPlayers = new ArrayList<Player>(joined);
         
         roundEnded = true;
 
@@ -633,8 +632,12 @@ public class TexasPoker extends CardGame{
             showMsg(getMsg("no_players"));
         }
         
-        resetGame(); 
-        showMsg(getMsg("end_round"), getGameNameStr(), commandChar);
+        resetGame();
+        if (startCount > 0) {
+            showMsg(getMsg("end_round_auto"), getGameNameStr(), commandChar);
+        } else {
+            showMsg(getMsg("end_round"), getGameNameStr(), commandChar);
+        }
         mergeWaitlist();
         
         // Check if auto-starts remaining
@@ -1792,7 +1795,7 @@ public class TexasPoker extends CardGame{
     public void showStacks() {
         ArrayList<Player> list = new ArrayList<Player>(joined);
         String msg = Colors.YELLOW + ",01 Stacks: " + Colors.NORMAL + " ";
-        Collections.sort(list, Player.getCashComparator());
+        Collections.sort(list, Player.getComparator("cash"));
         
         for (Player p : list) {
             msg += p.getNick(false) + " (" + formatBold("$" + formatNumber(p.get("cash"))) + "), ";

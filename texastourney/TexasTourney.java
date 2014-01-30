@@ -220,8 +220,8 @@ public class TexasTourney extends TexasPoker {
             } else if (!inProgress) {
                 informPlayer(nick, getMsg("no_start"));
             } else {
-                showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentPlayer.get("cash")-currentPlayer.get("bet"),
-                        currentPlayer.get("bet"), currentBet, getCashInPlay());
+                showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentBet-currentPlayer.get("bet"), 
+                        currentPlayer.get("bet"), currentBet, getCashInPlay(), currentPlayer.get("cash")-currentPlayer.get("bet"));
             }
         } else if (command.equals("players")) {
             if (inProgress){
@@ -522,8 +522,8 @@ public class TexasTourney extends TexasPoker {
             dealTable();
             setBlindBets();
             currentPlayer = getPlayerAfter(bigBlind);
-            showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentPlayer.get("cash")-currentPlayer.get("bet"),
-                        currentPlayer.get("bet"), currentBet, getCashInPlay());
+            showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentBet-currentPlayer.get("bet"), 
+                        currentPlayer.get("bet"), currentBet, getCashInPlay(), currentPlayer.get("cash")-currentPlayer.get("bet"));
             setIdleOutTask();
         }
     }
@@ -610,8 +610,8 @@ public class TexasTourney extends TexasPoker {
             continueRound();
         // Continue to the next bettor
         } else {
-            showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentPlayer.get("cash")-currentPlayer.get("bet"),
-                        currentPlayer.get("bet"), currentBet, getCashInPlay());
+            showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentBet-currentPlayer.get("bet"), 
+                        currentPlayer.get("bet"), currentBet, getCashInPlay(), currentPlayer.get("cash")-currentPlayer.get("bet"));
             setIdleOutTask();
         }
     }
@@ -1283,7 +1283,7 @@ public class TexasTourney extends TexasPoker {
     public void showStacks() {
         ArrayList<Player> list = new ArrayList<Player>(joined);
         String msg = Colors.YELLOW + ",01 Stacks: " + Colors.NORMAL + " ";
-        Collections.sort(list, Player.getCashComparator());
+        Collections.sort(list, Player.getComparator("cash"));
         
         // Add players still in the tournament
         for (Player p : list) {

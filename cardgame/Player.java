@@ -181,16 +181,17 @@ abstract public class Player extends Stats {
     }
     
     /**
-     * Returns a comparator that compares the player's cash.
+     * Returns a comparator that compares the given stat.
+     * @param stat the stat to use for comparison
      * @return a new comparator
      */
-    public static Comparator<Player> getCashComparator() {
+    public static Comparator<Player> getComparator(final String stat) {
         return new Comparator<Player>() {
             @Override
-            public int compare(Player one, Player two) {
-                if (one.get("cash") < two.get("cash")) {
+            public int compare(Player a, Player b) {
+                if (a.get(stat) < b.get(stat)) {
                     return 1;
-                } else if (one.get("cash") > two.get("cash")) {
+                } else if (a.get(stat) > b.get(stat)) {
                     return -1;
                 }
                 return 0;
