@@ -20,8 +20,8 @@
 package irccasino.texastourney;
 
 import irccasino.cardgame.CardDeck;
+import irccasino.cardgame.PlayerRecord;
 import irccasino.GameManager;
-import irccasino.StatFileLine;
 import irccasino.cardgame.CardGame;
 import irccasino.cardgame.Hand;
 import irccasino.cardgame.Player;
@@ -252,7 +252,7 @@ public class TexasTourney extends TexasPoker {
                         informPlayer(nick, getMsg("bad_parameter"));
                     }
                 } else {
-                    showPlayerRank(nick, "cash");
+                    showPlayerRank(nick, "wins");
                 }
             }
         } else if (command.equals("top")) {
@@ -991,14 +991,19 @@ public class TexasTourney extends TexasPoker {
         }
     }
     
+    /**
+     * For tournament mode, we don't want to load a player's cash accumulated
+     * from other games.
+     * @param p the player to load
+     */
     @Override
     protected void loadPlayerData(Player p) {
         try {
             boolean found = false;
-            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
-            loadPlayerFile(statList);
+            ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
+            loadPlayerFile(records);
 
-            for (StatFileLine statLine : statList) {
+            for (PlayerRecord statLine : records) {
                 if (p.getNick().equalsIgnoreCase(statLine.getNick())) {
                     p.set("cash", get("cash"));
                     p.set("ttwins", statLine.get("ttwins"));
@@ -1016,24 +1021,29 @@ public class TexasTourney extends TexasPoker {
         }
     }
     
+    /**
+     * For tournament mode, we don't want to save a player's cash. Also, only
+     * values which are applicable will be overwritten.
+     * @param p the player to save
+     */
     @Override
     protected void savePlayerData(Player p){
         boolean found = false;
-        ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
+        ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
         
         try {
-            loadPlayerFile(statList);
-            for (StatFileLine statLine : statList) {
-                if (p.getNick().equalsIgnoreCase(statLine.getNick())) {
-                    statLine.set("ttwins", p.get("ttwins"));
-                    statLine.set("ttplayed", p.get("ttplayed"));
-                    statLine.set("simple", p.get("simple"));
+            loadPlayerFile(records);
+            for (PlayerRecord record : records) {
+                if (p.getNick().equalsIgnoreCase(record.getNick())) {
+                    record.set("ttwins", p.get("ttwins"));
+                    record.set("ttplayed", p.get("ttplayed"));
+                    record.set("simple", p.get("simple"));
                     found = true;
                     break;
                 }
             }
             if (!found) {
-                statList.add(new StatFileLine(p.getNick(), p.get("cash"),
+                records.add(new PlayerRecord(p.getNick(), get("cash"),
                                         p.get("bank"), p.get("bankrupts"),
                                         p.get("bjwinnings"), p.get("bjrounds"),
                                         p.get("tpwinnings"), p.get("tprounds"),
@@ -1045,7 +1055,7 @@ public class TexasTourney extends TexasPoker {
         }
 
         try {
-            savePlayerFile(statList);
+            savePlayerFile(records);
         } catch (IOException e) {
             manager.log("Error writing to players.txt!");
         }
@@ -1065,12 +1075,12 @@ public class TexasTourney extends TexasPoker {
     @Override
     public int getTotalPlayers(){
         try {
-            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
-            loadPlayerFile(statList);
+            ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
+            loadPlayerFile(records);
             int total = 0;
             
-            for (StatFileLine statLine : statList) {
-                if (statLine.has("ttplayed")){
+            for (PlayerRecord record : records) {
+                if (record.has("ttplayed")){
                     total++;
                 }
             }
@@ -1187,49 +1197,33 @@ public class TexasTourney extends TexasPoker {
             return;
         }
         
-        int highIndex, rank = 0;
         try {
-            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
-            loadPlayerFile(statList);
-            ArrayList<String> nicks = new ArrayList<String>();
-            ArrayList<Double> test = new ArrayList<Double>();
-            int length = statList.size();
+            ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
+            loadPlayerFile(records);
+            PlayerRecord aRecord;
+            int length = records.size();
             String line = Colors.BLACK + ",08";
-            
-            for (int ctr = 0; ctr < statList.size(); ctr++) {
-                nicks.add(statList.get(ctr).getNick());
-            }
+            String statName = "";
             
             if (stat.equals("wins")){
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add((double) statList.get(ctr).get("ttwins"));
-                }
+                statName = "ttwins";
                 line += "Texas Hold'em Tournament Wins: ";
             } else if (stat.equals("tourneys")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add((double) statList.get(ctr).get("ttplayed"));
-                }
+                statName = "ttplayed";
                 line += "Texas Hold'em Tournaments Played: ";
             } else {
                 throw new IllegalArgumentException();
             }
             
-            // Find the player with the highest value, add to output string and remove.
-            // Repeat n times or for the length of the list.
-            for (int ctr = 1; ctr <= length; ctr++){
-                highIndex = 0;
-                rank++;
-                for (int ctr2 = 0; ctr2 < nicks.size(); ctr2++) {
-                    if (test.get(ctr2) > test.get(highIndex)) {
-                        highIndex = ctr2;
-                    }
-                }
-                if (nick.equalsIgnoreCase(nicks.get(highIndex))){
-                    line += "#" + rank + " " + Colors.WHITE + ",04 " + formatNoPing(nick) + " " + formatNoDecimal(test.get(highIndex)) + " ";
+            // Sort based on stat
+            Collections.sort(records, PlayerRecord.getComparator(statName));
+            
+            // Find the player in the records and output rank
+            for (int ctr = 0; ctr < length; ctr++){
+                aRecord = records.get(ctr);
+                if (nick.equalsIgnoreCase(aRecord.getNick())){
+                    line += "#" + (ctr+1) + " " + Colors.WHITE + ",04 " + formatNoPing(nick) + " " + formatNoDecimal(aRecord.get(statName)) + " ";
                     break;
-                } else {
-                    nicks.remove(highIndex);
-                    test.remove(highIndex);
                 }
             }
             showMsg(line);
@@ -1244,55 +1238,37 @@ public class TexasTourney extends TexasPoker {
             throw new IllegalArgumentException();
         }
         
-        int highIndex;
         try {
-            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
-            loadPlayerFile(statList);
-            ArrayList<String> nicks = new ArrayList<String>();
-            ArrayList<Double> test = new ArrayList<Double>();
-            int length = Math.min(n, statList.size());
+            ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
+            loadPlayerFile(records);
+            PlayerRecord aRecord;
+            int length = Math.min(n, records.size());
             String title = Colors.BOLD + Colors.BLACK + ",08 Top " + length;
             String list = Colors.BLACK + ",08";
-            
-            for (int ctr = 0; ctr < statList.size(); ctr++) {
-                nicks.add(statList.get(ctr).getNick());
-            }
+            String statName = "";
             
             if (stat.equals("wins")){
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add((double) statList.get(ctr).get("ttwins"));
-                }
+                statName = "ttwins";
                 title += " Texas Hold'em Tournament Wins ";
             } else if (stat.equals("tourneys")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add((double) statList.get(ctr).get("ttplayed"));
-                }
+                statName = "ttplayed";
                 title += " Texas Hold'em Tournaments Played ";
             } else {
                 throw new IllegalArgumentException();
             }
 
+            // Show title and sort based on stat
             showMsg(title);
+            Collections.sort(records, PlayerRecord.getComparator(statName));
             
             // Find the player with the highest value, add to output string and remove.
             // Repeat n times or for the length of the list.
-            for (int ctr = 1; ctr <= length; ctr++){
-                highIndex = 0;
-                for (int ctr2 = 0; ctr2 < nicks.size(); ctr2++) {
-                    if (test.get(ctr2) > test.get(highIndex)) {
-                        highIndex = ctr2;
-                    }
-                }
-                
-                list += " #" + ctr + ": " + Colors.WHITE + ",04 " + formatNoPing(nicks.get(highIndex)) + " " + formatNoDecimal(test.get(highIndex)) + " " + Colors.BLACK + ",08";
-                
-                nicks.remove(highIndex);
-                test.remove(highIndex);
-                if (nicks.isEmpty() || ctr == length) {
-                    break;
-                }
+            for (int ctr = 0; ctr < length; ctr++){
+                aRecord = records.get(ctr);
+                list += " #" + (ctr+1) + ": " + Colors.WHITE + ",04 " + formatNoPing(aRecord.getNick()) + " " + formatNoDecimal(aRecord.get(statName)) + " " + Colors.BLACK + ",08";
+
                 // Output and reset after 10 players
-                if (ctr % 10 == 0){
+                if (ctr % 10 == 9){
                     showMsg(list);
                     list = Colors.BLACK + ",08";
                 }

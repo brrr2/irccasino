@@ -33,6 +33,7 @@ import irccasino.cardgame.CardDeck;
 import irccasino.cardgame.CardGame;
 import irccasino.cardgame.Hand;
 import irccasino.cardgame.Player;
+import irccasino.cardgame.PlayerRecord;
 
 /**
  * Class for IRC Blackjack.
@@ -1420,12 +1421,12 @@ public class Blackjack extends CardGame {
     @Override
     public int getTotalPlayers(){
         try {
-            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
-            loadPlayerFile(statList);
-            int total = 0, numLines = statList.size();
+            ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
+            loadPlayerFile(records);
+            int total = 0, numLines = records.size();
             
-            for (int ctr = 0; ctr < numLines; ctr++){
-                if (statList.get(ctr).has("bjrounds")){
+            for (PlayerRecord record : records){
+                if (record.has("bjrounds")){
                     total++;
                 }
             }
@@ -1748,53 +1749,54 @@ public class Blackjack extends CardGame {
         
         int highIndex, rank = 0;
         try {
-            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
-            loadPlayerFile(statList);
+            ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
+            loadPlayerFile(records);
+            PlayerRecord aRecord;
             ArrayList<String> nicks = new ArrayList<String>();
             ArrayList<Double> test = new ArrayList<Double>();
-            int length = statList.size();
+            int length = records.size();
             String line = Colors.BLACK + ",08";
             
-            for (int ctr = 0; ctr < statList.size(); ctr++) {
-                nicks.add(statList.get(ctr).getNick());
+            for (int ctr = 0; ctr < records.size(); ctr++) {
+                nicks.add(records.get(ctr).getNick());
             }
             
             if (stat.equals("cash")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add((double) statList.get(ctr).get(stat));
+                for (int ctr = 0; ctr < records.size(); ctr++) {
+                    test.add((double) records.get(ctr).get(stat));
                 }
                 line += "Cash: ";
             } else if (stat.equals("bank")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add((double) statList.get(ctr).get(stat));
+                for (int ctr = 0; ctr < records.size(); ctr++) {
+                    test.add((double) records.get(ctr).get(stat));
                 }
                 line += "Bank: ";
             } else if (stat.equals("bankrupts")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add((double) statList.get(ctr).get(stat));
+                for (int ctr = 0; ctr < records.size(); ctr++) {
+                    test.add((double) records.get(ctr).get(stat));
                 }
                 line += "Bankrupts: ";
             } else if (stat.equals("net") || stat.equals("netcash")) {
                 for (int ctr = 0; ctr < nicks.size(); ctr++) {
-                    test.add((double) statList.get(ctr).get("netcash"));
+                    test.add((double) records.get(ctr).get("netcash"));
                 }
                 line += "Net Cash: ";
             } else if (stat.equals("winnings")){
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add((double) statList.get(ctr).get("bjwinnings"));
+                for (int ctr = 0; ctr < records.size(); ctr++) {
+                    test.add((double) records.get(ctr).get("bjwinnings"));
                 }
                 line += "Blackjack Winnings: ";
             } else if (stat.equals("rounds")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add((double) statList.get(ctr).get("bjrounds"));
+                for (int ctr = 0; ctr < records.size(); ctr++) {
+                    test.add((double) records.get(ctr).get("bjrounds"));
                 }
                 line += "Blackjack Rounds: ";
             } else if (stat.equals("winrate")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    if (statList.get(ctr).get("bjrounds") == 0){
+                for (int ctr = 0; ctr < records.size(); ctr++) {
+                    if (records.get(ctr).get("bjrounds") == 0){
                         test.add(0.);
                     } else {
-                        test.add((double) statList.get(ctr).get("bjwinnings") / (double) statList.get(ctr).get("bjrounds"));
+                        test.add((double) records.get(ctr).get("bjwinnings") / (double) records.get(ctr).get("bjrounds"));
                     }
                 }
                 line += "Blackjack Win Rate: ";
@@ -1840,7 +1842,7 @@ public class Blackjack extends CardGame {
         
         int highIndex;
         try {
-            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
+            ArrayList<PlayerRecord> statList = new ArrayList<PlayerRecord>();
             loadPlayerFile(statList);
             ArrayList<String> nicks = new ArrayList<String>();
             ArrayList<Double> test = new ArrayList<Double>();

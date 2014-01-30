@@ -16,24 +16,27 @@
     You should have received a copy of the GNU General Public License
     along with irccasino.  If not, see <http://www.gnu.org/licenses/>.
 */
-package irccasino;
+package irccasino.cardgame;
+
+import irccasino.Stats;
+import java.util.Comparator;
 
 /**
- * Stores a single line of data read from the players' stats file.
+ * Stores a player's stats. 
  * @author Yizhe Shen
  */
-public class StatFileLine extends Stats{
+public class PlayerRecord extends Stats{
     private String nick;
     
     /**
-     * Initializes an empty stat file line.
+     * Initializes an empty PlayerRecord.
      */
-    public StatFileLine(){
+    public PlayerRecord(){
         this("",0,0,0,0,0,0,0,0,0,0);
     }
     
     /**
-     * Initializes a stat file line with the given values.
+     * Initializes a PlayerRecord with the given values.
      * @param nick
      * @param cash
      * @param bank
@@ -46,7 +49,7 @@ public class StatFileLine extends Stats{
      * @param ttplayed
      * @param simple 
      */
-    public StatFileLine(String nick, int cash, int bank, int bankrupts, 
+    public PlayerRecord(String nick, int cash, int bank, int bankrupts, 
             int bjwinnings, int bjrounds, int tpwinnings, int tprounds,
             int ttwins, int ttplayed, int simple){
         super();
@@ -89,6 +92,24 @@ public class StatFileLine extends Stats{
         return super.get(stat);
     }
     
+    /**
+     * Copies the values from another PlayerRecord to this one.
+     * @param a the other PlayerRecord
+     */
+    public void copy(PlayerRecord a) {
+        nick = a.getNick();
+        set("cash", a.get("cash"));
+        set("bank", a.get("bank"));
+        set("bankrupts", a.get("bankrupts"));
+        set("bjwinnings", a.get("bjwinnings"));
+        set("bjrounds", a.get("bjrounds"));
+        set("tpwinnings", a.get("tpwinnings"));
+        set("tprounds", a.get("tprounds"));
+        set("ttwins", a.get("ttwins"));
+        set("ttplayed", a.get("ttplayed"));
+        set("simple", a.get("simple"));
+    }
+    
     @Override
     public String toString(){
         return getNick() + " " + get("cash") + " " + get("bank") + 
@@ -96,5 +117,24 @@ public class StatFileLine extends Stats{
                 " " + get("bjrounds") + " " + get("tpwinnings") + 
                 " " + get("tprounds") + " " + get("ttwins") +
                 " " + get("ttplayed") + " " + get("simple");
+    }
+    
+    /**
+     * Returns a comparator for PlayerRecord based on the specified stat.
+     * @param stat the name of the stat
+     * @return a comparator that ranks in descending order
+     */
+    public static Comparator<PlayerRecord> getComparator(final String stat) {
+        return new Comparator<PlayerRecord>() {
+            @Override
+            public int compare(PlayerRecord a, PlayerRecord b) {
+                if (a.get(stat) < b.get(stat)) {
+                    return 1;
+                } else if (a.get(stat) > b.get(stat)) {
+                    return -1;
+                }
+                return 0;
+            }
+        };
     }
 }

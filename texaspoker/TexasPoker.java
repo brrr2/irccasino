@@ -20,8 +20,8 @@
 package irccasino.texaspoker;
 
 import irccasino.cardgame.CardDeck;
+import irccasino.cardgame.PlayerRecord;
 import irccasino.GameManager;
-import irccasino.StatFileLine;
 import irccasino.cardgame.CardGame;
 import irccasino.cardgame.Hand;
 import irccasino.cardgame.Player;
@@ -1362,12 +1362,12 @@ public class TexasPoker extends CardGame{
     @Override
     public int getTotalPlayers(){
         try {
-            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
-            loadPlayerFile(statList);
+            ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
+            loadPlayerFile(records);
             int total = 0;
             
-            for (StatFileLine statLine : statList) {
-                if (statLine.has("tprounds")){
+            for (PlayerRecord record : records) {
+                if (record.has("tprounds")){
                     total++;
                 }
             }
@@ -1582,7 +1582,7 @@ public class TexasPoker extends CardGame{
         
         int highIndex, rank = 0;
         try {
-            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
+            ArrayList<PlayerRecord> statList = new ArrayList<PlayerRecord>();
             loadPlayerFile(statList);
             ArrayList<String> nicks = new ArrayList<String>();
             ArrayList<Double> test = new ArrayList<Double>();
@@ -1674,54 +1674,54 @@ public class TexasPoker extends CardGame{
         
         int highIndex;
         try {
-            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
-            loadPlayerFile(statList);
+            ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
+            loadPlayerFile(records);
             ArrayList<String> nicks = new ArrayList<String>();
             ArrayList<Double> test = new ArrayList<Double>();
-            int length = Math.min(n, statList.size());
+            int length = Math.min(n, records.size());
             String title = Colors.BOLD + Colors.BLACK + ",08 Top " + length;
             String list = Colors.BLACK + ",08";
             
-            for (int ctr = 0; ctr < statList.size(); ctr++) {
-                nicks.add(statList.get(ctr).getNick());
+            for (int ctr = 0; ctr < records.size(); ctr++) {
+                nicks.add(records.get(ctr).getNick());
             }
             
             if (stat.equals("cash")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add((double) statList.get(ctr).get(stat));
+                for (int ctr = 0; ctr < records.size(); ctr++) {
+                    test.add((double) records.get(ctr).get(stat));
                 }
                 title += " Cash ";
             } else if (stat.equals("bank")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add((double) statList.get(ctr).get(stat));
+                for (int ctr = 0; ctr < records.size(); ctr++) {
+                    test.add((double) records.get(ctr).get(stat));
                 }
                 title += " Bank ";
             } else if (stat.equals("bankrupts")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add((double) statList.get(ctr).get(stat));
+                for (int ctr = 0; ctr < records.size(); ctr++) {
+                    test.add((double) records.get(ctr).get(stat));
                 }
                 title += " Bankrupts ";
             } else if (stat.equals("net") || stat.equals("netcash")) {
                 for (int ctr = 0; ctr < nicks.size(); ctr++) {
-                    test.add((double) statList.get(ctr).get("netcash"));
+                    test.add((double) records.get(ctr).get("netcash"));
                 }
                 title += " Net Cash ";
             } else if (stat.equals("winnings")){
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add((double) statList.get(ctr).get("tpwinnings"));
+                for (int ctr = 0; ctr < records.size(); ctr++) {
+                    test.add((double) records.get(ctr).get("tpwinnings"));
                 }
                 title += " Texas Hold'em Winnings ";
             } else if (stat.equals("rounds")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add((double) statList.get(ctr).get("tprounds"));
+                for (int ctr = 0; ctr < records.size(); ctr++) {
+                    test.add((double) records.get(ctr).get("tprounds"));
                 }
                 title += " Texas Hold'em Rounds ";
             } else if (stat.equals("winrate")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    if (statList.get(ctr).get("tprounds") == 0){
+                for (int ctr = 0; ctr < records.size(); ctr++) {
+                    if (records.get(ctr).get("tprounds") == 0){
                         test.add(0.);
                     } else {
-                        test.add((double) statList.get(ctr).get("tpwinnings") / (double) statList.get(ctr).get("tprounds"));
+                        test.add((double) records.get(ctr).get("tpwinnings") / (double) records.get(ctr).get("tprounds"));
                     }
                 }
                 title += " Texas Hold'em Win Rate ";

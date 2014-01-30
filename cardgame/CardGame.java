@@ -19,7 +19,6 @@
 package irccasino.cardgame;
 
 import irccasino.GameManager;
-import irccasino.StatFileLine;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.FileReader;
@@ -1179,11 +1178,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     protected int loadPlayerStat(String nick, String stat){
         try {
-            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
-            loadPlayerFile(statList);
-            for (StatFileLine statLine : statList) {
-                if (nick.equalsIgnoreCase(statLine.getNick())){
-                    return statLine.get(stat);
+            ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
+            loadPlayerFile(records);
+            for (PlayerRecord record : records) {
+                if (nick.equalsIgnoreCase(record.getNick())){
+                    return record.get(stat);
                 }
             }
             return Integer.MIN_VALUE;
@@ -1203,25 +1202,25 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected void loadPlayerData(Player p) {
         try {
             boolean found = false;
-            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
-            loadPlayerFile(statList);
+            ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
+            loadPlayerFile(records);
 
-            for (StatFileLine statLine : statList) {
-                if (p.getNick().equalsIgnoreCase(statLine.getNick())) {
-                    if (statLine.get("cash") <= 0) {
+            for (PlayerRecord record : records) {
+                if (p.getNick().equalsIgnoreCase(record.getNick())) {
+                    if (record.get("cash") <= 0) {
                         p.set("cash", get("cash"));
                     } else {
-                        p.set("cash", statLine.get("cash"));
+                        p.set("cash", record.get("cash"));
                     }
-                    p.set("bank", statLine.get("bank"));
-                    p.set("bankrupts", statLine.get("bankrupts"));
-                    p.set("bjwinnings", statLine.get("bjwinnings"));
-                    p.set("bjrounds", statLine.get("bjrounds"));
-                    p.set("tpwinnings", statLine.get("tpwinnings"));
-                    p.set("tprounds", statLine.get("tprounds"));
-                    p.set("ttwins", statLine.get("ttwins"));
-                    p.set("ttplayed", statLine.get("ttplayed"));
-                    p.set("simple", statLine.get("simple"));
+                    p.set("bank", record.get("bank"));
+                    p.set("bankrupts", record.get("bankrupts"));
+                    p.set("bjwinnings", record.get("bjwinnings"));
+                    p.set("bjrounds", record.get("bjrounds"));
+                    p.set("tpwinnings", record.get("tpwinnings"));
+                    p.set("tprounds", record.get("tprounds"));
+                    p.set("ttwins", record.get("ttwins"));
+                    p.set("ttplayed", record.get("ttplayed"));
+                    p.set("simple", record.get("simple"));
                     found = true;
                     break;
                 }
@@ -1244,28 +1243,28 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     protected void savePlayerData(Player p){
         boolean found = false;
-        ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
+        ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
         
         try {
-            loadPlayerFile(statList);
-            for (StatFileLine statLine : statList) {
-                if (p.getNick().equalsIgnoreCase(statLine.getNick())) {
-                    statLine.set("cash", p.get("cash"));
-                    statLine.set("bank", p.get("bank"));
-                    statLine.set("bankrupts", p.get("bankrupts"));
-                    statLine.set("bjwinnings", p.get("bjwinnings"));
-                    statLine.set("bjrounds", p.get("bjrounds"));
-                    statLine.set("tpwinnings", p.get("tpwinnings"));
-                    statLine.set("tprounds", p.get("tprounds"));
-                    statLine.set("ttwins", p.get("ttwins"));
-                    statLine.set("ttplayed", p.get("ttplayed"));
-                    statLine.set("simple", p.get("simple"));
+            loadPlayerFile(records);
+            for (PlayerRecord record : records) {
+                if (p.getNick().equalsIgnoreCase(record.getNick())) {
+                    record.set("cash", p.get("cash"));
+                    record.set("bank", p.get("bank"));
+                    record.set("bankrupts", p.get("bankrupts"));
+                    record.set("bjwinnings", p.get("bjwinnings"));
+                    record.set("bjrounds", p.get("bjrounds"));
+                    record.set("tpwinnings", p.get("tpwinnings"));
+                    record.set("tprounds", p.get("tprounds"));
+                    record.set("ttwins", p.get("ttwins"));
+                    record.set("ttplayed", p.get("ttplayed"));
+                    record.set("simple", p.get("simple"));
                     found = true;
                     break;
                 }
             }
             if (!found) {
-                statList.add(new StatFileLine(p.getNick(), p.get("cash"),
+                records.add(new PlayerRecord(p.getNick(), p.get("cash"),
                                         p.get("bank"), p.get("bankrupts"),
                                         p.get("bjwinnings"), p.get("bjrounds"),
                                         p.get("tpwinnings"), p.get("tprounds"),
@@ -1277,7 +1276,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         }
 
         try {
-            savePlayerFile(statList);
+            savePlayerFile(records);
         } catch (IOException e) {
             manager.log("Error writing to players.txt!");
         }
@@ -1303,12 +1302,12 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     
     /**
      * Loads players.txt.
-     * Reads the file's contents into an ArrayList of StatFileLine.
+     * Reads the file's contents into an ArrayList of PlayerRecord.
      * 
-     * @param statList 
+     * @param records stores the records read from file
      * @throws IOException
      */
-    protected void loadPlayerFile(ArrayList<StatFileLine> statList) throws IOException {
+    protected void loadPlayerFile(ArrayList<PlayerRecord> records) throws IOException {
         String nick;
         int cash, bank, bankrupts, bjwinnings, bjrounds, tpwinnings, tprounds, ttwins, ttplayed, simple;
         
@@ -1327,7 +1326,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             ttwins = Integer.parseInt(st.nextToken());
             ttplayed = Integer.parseInt(st.nextToken());
             simple = Integer.parseInt(st.nextToken());
-            statList.add(new StatFileLine(nick, cash, bank, bankrupts, bjwinnings, 
+            records.add(new PlayerRecord(nick, cash, bank, bankrupts, bjwinnings, 
                                         bjrounds, tpwinnings, tprounds, ttwins, ttplayed, simple));
         }
         in.close();
@@ -1337,14 +1336,14 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * Saves data to players.txt.
      * Saves an ArrayList of StatFileLine to the file.
      * 
-     * @param statList
+     * @param records
      * @throws IOException
      */
-    protected void savePlayerFile(ArrayList<StatFileLine> statList) throws IOException {
+    protected void savePlayerFile(ArrayList<PlayerRecord> records) throws IOException {
         PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("players.txt")));
         
-        for (StatFileLine statLine : statList) {
-            out.println(statLine);
+        for (PlayerRecord record : records) {
+            out.println(record);
         }
         out.close();
     }
