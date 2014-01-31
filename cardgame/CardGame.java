@@ -1,5 +1,5 @@
 /*
-    Copyright (C) 2013 Yizhe Shen <brrr@live.ca>
+    Copyright (C) 2013-2014 Yizhe Shen <brrr@live.ca>
 
     This file is part of irccasino.
 
@@ -16,16 +16,25 @@
     You should have received a copy of the GNU General Public License
     along with irccasino.  If not, see <http://www.gnu.org/licenses/>.
 */
-package irccasino;
+package irccasino.cardgame;
 
+import irccasino.GameManager;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.*;
-import org.pircbotx.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.StringTokenizer;
+import java.util.Timer;
+import org.pircbotx.Channel;
+import org.pircbotx.Colors;
+import org.pircbotx.PircBotX;
+import org.pircbotx.User;
 import org.pircbotx.hooks.ListenerAdapter;
 import org.pircbotx.hooks.events.JoinEvent;
 import org.pircbotx.hooks.events.MessageEvent;
@@ -58,312 +67,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected IdleWarningTask idleWarningTask;
     protected StartRoundTask startRoundTask;
     protected ArrayList<RespawnTask> respawnTasks;
-    
-    /**
-     * Start round task to be performed after post-start waiting period.
-     */
-    private class StartRoundTask extends TimerTask{
-        CardGame game;
-        public StartRoundTask(CardGame g){
-            game = g;
-        }
-        
-        @Override
-        public void run(){
-            game.startRound();
-        }
-    }
-    
-    /**
-     * Idle task for removing idle players.
-     */
-    private class IdleOutTask extends TimerTask {
-        private Player player;
-        private CardGame game;
-        public IdleOutTask(Player p, CardGame g) {
-            player = p;
-            game = g;
-        }
 
-        @Override
-        public void run() {
-            game.showMsg(game.getMsg("idle_out"), player.getNickStr());
-            game.leave(player);
-        }
-    }
-    
-    /**
-     * Idle warning task for reminding players they are about to idle out.
-     */
-    private class IdleWarningTask extends TimerTask {
-        private Player player;
-        private CardGame game;
-        public IdleWarningTask(Player p, CardGame g) {
-            player = p;
-            game = g;
-        }
-        
-        @Override
-        public void run(){
-            game.informPlayer(player.getNick(), game.getMsg("idle_warning"),
-                    player.getNickStr(), game.get("idle") - game.get("idlewarning"));
-        }
-    }
-    
-    /**
-     * Respawn task for giving loans after bankruptcies.
-     */
-    private class RespawnTask extends TimerTask {
-        Player player;
-        CardGame game;
-        public RespawnTask(Player p, CardGame g) {
-            player = p;
-            game = g;
-        }
-        @Override
-        public void run() {
-            ArrayList<RespawnTask> tasks = game.getRespawnTasks();
-            player.set("cash", game.get("cash"));
-            player.add("bank", -game.get("cash"));
-            game.showMsg(game.getMsg("respawn"), player.getNickStr(), game.get("cash"));
-            game.savePlayerData(player);
-            game.removeBlacklisted(player);
-            tasks.remove(this);
-        }
-    }
-    
-    /**
-     * An object that represents a hand of cards.
-     * @author Yizhe Shen
-     */
-    protected class Hand extends ArrayList<Card>{
-        /**
-         * Creates a Hand with an empty ArrayList of cards.
-         */
-        public Hand(){
-            super();
-        }
-
-        /**
-         * Returns the Card that matches the specified card.
-         * @param c the card to match to
-         * @return the matched card or null if not found
-         */
-        protected Card get(Card c){
-            int index = indexOf(c);
-            if (index == -1) {
-                return null;
-            }
-            return get(index);
-        }
-
-        /**
-         * Default toString returns all cards in the hand face-up.
-         * @return string representation of the cards in the hand all face-up
-         */
-        @Override
-        public String toString(){
-            return toString(0, size());
-        }
-
-        /**
-         * Gets a string representation of the hand with hidden cards.
-         * User can specify how many of the cards are hidden.
-         * 
-         * @param numHidden The number of hidden cards
-         * @return a String with the first numHidden cards replaced
-         */
-        protected String toString(int numHidden){
-            if (size() == 0) {
-                return "<empty>";
-            }
-            String hiddenBlock = Colors.DARK_BLUE+",00\uFFFD";
-            String outStr = "";
-            for (int ctr = 0; ctr < numHidden; ctr++){
-                outStr += hiddenBlock + " ";
-            }
-            for (int ctr = numHidden; ctr < size(); ctr++){
-                outStr += get(ctr) + " ";
-            }
-            return outStr.substring(0, outStr.length() - 1) + Colors.NORMAL;
-        }
-
-        /**
-         * Gets an index-select string representation of the hand.
-         * A space-delimited string of cards starting from start and excluding end.
-         * 
-         * @param start the start index.
-         * @param end the end index.
-         * @return a String showing the selected cards
-         */
-        protected String toString(int start, int end){
-            if (size() == 0) {
-                return "<empty>";
-            }
-            String outStr = "";
-            int slimit = Math.max(0, start);
-            int elimit = Math.min(size(), end);
-            for (int ctr = slimit; ctr < elimit; ctr++){
-                outStr += get(ctr) + " ";
-            }
-            return outStr.substring(0, outStr.length() - 1) + Colors.NORMAL;
-        }
-    }
-    
-    /**
-     * A player class with common methods and members for all types of players.
-     * It serves as a template and should not be directly instantiated.
-     * @author Yizhe Shen
-     */
-    abstract protected class Player extends Stats{
-        /** Stores the player's nick. */
-        protected String nick;
-        /** Stores the player's host. */
-        protected String host;
-
-        /**
-         * Creates a new Player.
-         * Not to be instantiated directly. Serves as the template for specific types
-         * of players.
-         * 
-         * @param nick IRC user nick
-         * @param host IRC user host
-         */
-        public Player(String nick, String host){
-            super();
-            this.nick = nick;
-            this.host = host;
-            set("cash", 0);
-            set("bank", 0);
-            set("bankrupts", 0);
-            set("bjrounds", 0);
-            set("bjwinnings", 0);
-            set("tprounds", 0);
-            set("tpwinnings", 0);
-            set("simple", 1);
-            set("quit", 0);
-        }
-
-        /* Player info methods */
-        /**
-         * Returns the Player's nick.
-         * 
-         * @return the Player's nick
-         */
-        protected String getNick(){
-            return getNick(true);
-        }
-
-        /**
-         * Allows a nick to be returned with a zero-space character.
-         * @param ping whether or not to add a zero-width character in nick
-         * @return the Player's nick
-         */
-        protected String getNick(boolean ping) {
-            if (ping) {
-                return nick;
-            } else {
-                return nick.substring(0, 1) + "\u200b" + nick.substring(1);
-            }
-        }
-
-        /**
-         * Returns the player's nick formatted in IRC bold.
-         * 
-         * @return the bold-formatted nick
-         */
-        protected String getNickStr(){
-            return getNickStr(true);
-        }
-
-        /**
-         * Allows a bolded nick to be returned with a zero-space character.
-         * 
-         * @param ping whether or not to add a zero-width character in nick
-         * @return the bold-formatted nick
-         */
-        protected String getNickStr(boolean ping){
-            return Colors.BOLD + getNick(ping) + Colors.BOLD;
-        }
-
-        /**
-         * Returns the Player's host.
-         * 
-         * @return the Player's host
-         */
-        protected String getHost() {
-            return host;
-        }
-
-        /**
-         * Returns the simple status of the Player.
-         * If simple is true, then game information is sent via notices. If simple
-         * is false, then game information is sent via private messages.
-         * 
-         * @return true if simple is turned on
-         */
-        protected boolean isSimple(){
-            return get("simple") == 1;
-        }
-
-        @Override
-        protected int get(String stat){
-            if (stat.equals("exists")){
-                return 1;
-            } else if (stat.equals("netcash")){
-                return get("cash") + get("bank");
-            }
-            return super.get(stat);
-        }
-
-        /**
-         * Transfers the specified amount from cash into bank.
-         * 
-         * @param amount the amount to transfer
-         */
-        protected void bankTransfer(int amount){
-            add("bank", amount);
-            add("cash", -1 * amount);
-        }
-
-        /**
-         * String representation includes the Player's nick and host.
-         * 
-         * @return a String containing the Players nick and host
-         */
-        @Override
-        public String toString(){
-            return nick + " " + host;
-        }
-
-        /**
-         * Comparison of Player objects based on nick and host.
-         * @param o the Object to compare
-         * @return true if the properties are the same
-         */
-        @Override
-        public boolean equals(Object o) {
-            if (o != null && o instanceof Player) {
-                Player p = (Player) o;
-                if (nick.equals(p.nick) && host.equals(p.host) &&
-                    hashCode() == p.hashCode()) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        /**
-         * Auto-generated hashCode method.
-         * @return the Player's hashCode
-         */
-        @Override
-        public int hashCode() {
-            int hash = 5;
-            hash = 29 * hash + nick.hashCode();
-            hash = 29 * hash + host.hashCode();
-            return hash;
-        }
+    public CardGame() {
+        super();
     }
     
     /**
@@ -374,7 +80,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param commChar The command char
      * @param gameChannel The IRC channel in which the game is to be run.
      */
-    public CardGame (GameManager parent, char commChar, Channel gameChannel){
+    public CardGame(GameManager parent, char commChar, Channel gameChannel){
         manager = parent;
         commandChar = commChar;
         channel = gameChannel;
@@ -1472,11 +1178,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     protected int loadPlayerStat(String nick, String stat){
         try {
-            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
-            loadPlayerFile(statList);
-            for (StatFileLine statLine : statList) {
-                if (nick.equalsIgnoreCase(statLine.getNick())){
-                    return statLine.get(stat);
+            ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
+            loadPlayerFile(records);
+            for (PlayerRecord record : records) {
+                if (nick.equalsIgnoreCase(record.getNick())){
+                    return record.get(stat);
                 }
             }
             return Integer.MIN_VALUE;
@@ -1496,23 +1202,25 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected void loadPlayerData(Player p) {
         try {
             boolean found = false;
-            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
-            loadPlayerFile(statList);
+            ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
+            loadPlayerFile(records);
 
-            for (StatFileLine statLine : statList) {
-                if (p.getNick().equalsIgnoreCase(statLine.getNick())) {
-                    if (statLine.get("cash") <= 0) {
+            for (PlayerRecord record : records) {
+                if (p.getNick().equalsIgnoreCase(record.getNick())) {
+                    if (record.get("cash") <= 0) {
                         p.set("cash", get("cash"));
                     } else {
-                        p.set("cash", statLine.get("cash"));
+                        p.set("cash", record.get("cash"));
                     }
-                    p.set("bank", statLine.get("bank"));
-                    p.set("bankrupts", statLine.get("bankrupts"));
-                    p.set("bjwinnings", statLine.get("bjwinnings"));
-                    p.set("bjrounds", statLine.get("bjrounds"));
-                    p.set("tpwinnings", statLine.get("tpwinnings"));
-                    p.set("tprounds", statLine.get("tprounds"));
-                    p.set("simple", statLine.get("simple"));
+                    p.set("bank", record.get("bank"));
+                    p.set("bankrupts", record.get("bankrupts"));
+                    p.set("bjwinnings", record.get("bjwinnings"));
+                    p.set("bjrounds", record.get("bjrounds"));
+                    p.set("tpwinnings", record.get("tpwinnings"));
+                    p.set("tprounds", record.get("tprounds"));
+                    p.set("ttwins", record.get("ttwins"));
+                    p.set("ttplayed", record.get("ttplayed"));
+                    p.set("simple", record.get("simple"));
                     found = true;
                     break;
                 }
@@ -1535,29 +1243,32 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     protected void savePlayerData(Player p){
         boolean found = false;
-        ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
+        ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
         
         try {
-            loadPlayerFile(statList);
-            for (StatFileLine statLine : statList) {
-                if (p.getNick().equalsIgnoreCase(statLine.getNick())) {
-                    statLine.set("cash", p.get("cash"));
-                    statLine.set("bank", p.get("bank"));
-                    statLine.set("bankrupts", p.get("bankrupts"));
-                    statLine.set("bjwinnings", p.get("bjwinnings"));
-                    statLine.set("bjrounds", p.get("bjrounds"));
-                    statLine.set("tpwinnings", p.get("tpwinnings"));
-                    statLine.set("tprounds", p.get("tprounds"));
-                    statLine.set("simple", p.get("simple"));
+            loadPlayerFile(records);
+            for (PlayerRecord record : records) {
+                if (p.getNick().equalsIgnoreCase(record.getNick())) {
+                    record.set("cash", p.get("cash"));
+                    record.set("bank", p.get("bank"));
+                    record.set("bankrupts", p.get("bankrupts"));
+                    record.set("bjwinnings", p.get("bjwinnings"));
+                    record.set("bjrounds", p.get("bjrounds"));
+                    record.set("tpwinnings", p.get("tpwinnings"));
+                    record.set("tprounds", p.get("tprounds"));
+                    record.set("ttwins", p.get("ttwins"));
+                    record.set("ttplayed", p.get("ttplayed"));
+                    record.set("simple", p.get("simple"));
                     found = true;
                     break;
                 }
             }
             if (!found) {
-                statList.add(new StatFileLine(p.getNick(), p.get("cash"),
+                records.add(new PlayerRecord(p.getNick(), p.get("cash"),
                                         p.get("bank"), p.get("bankrupts"),
                                         p.get("bjwinnings"), p.get("bjrounds"),
                                         p.get("tpwinnings"), p.get("tprounds"),
+                                        p.get("ttwins"), p.get("ttplayed"),
                                         p.get("simple")));
             }
         } catch (IOException e) {
@@ -1565,7 +1276,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         }
 
         try {
-            savePlayerFile(statList);
+            savePlayerFile(records);
         } catch (IOException e) {
             manager.log("Error writing to players.txt!");
         }
@@ -1591,14 +1302,14 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     
     /**
      * Loads players.txt.
-     * Reads the file's contents into an ArrayList of StatFileLine.
+     * Reads the file's contents into an ArrayList of PlayerRecord.
      * 
-     * @param statList 
+     * @param records stores the records read from file
      * @throws IOException
      */
-    protected void loadPlayerFile(ArrayList<StatFileLine> statList) throws IOException {
+    protected void loadPlayerFile(ArrayList<PlayerRecord> records) throws IOException {
         String nick;
-        int cash, bank, bankrupts, bjwinnings, bjrounds, tpwinnings, tprounds, simple;
+        int cash, bank, bankrupts, bjwinnings, bjrounds, tpwinnings, tprounds, ttwins, ttplayed, simple;
         
         BufferedReader in = new BufferedReader(new FileReader("players.txt"));
         StringTokenizer st;
@@ -1612,9 +1323,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             bjrounds = Integer.parseInt(st.nextToken());
             tpwinnings = Integer.parseInt(st.nextToken());
             tprounds = Integer.parseInt(st.nextToken());
+            ttwins = Integer.parseInt(st.nextToken());
+            ttplayed = Integer.parseInt(st.nextToken());
             simple = Integer.parseInt(st.nextToken());
-            statList.add(new StatFileLine(nick, cash, bank, bankrupts, bjwinnings, 
-                                        bjrounds, tpwinnings, tprounds, simple));
+            records.add(new PlayerRecord(nick, cash, bank, bankrupts, bjwinnings, 
+                                        bjrounds, tpwinnings, tprounds, ttwins, ttplayed, simple));
         }
         in.close();
     }
@@ -1623,14 +1336,14 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * Saves data to players.txt.
      * Saves an ArrayList of StatFileLine to the file.
      * 
-     * @param statList
+     * @param records
      * @throws IOException
      */
-    protected void savePlayerFile(ArrayList<StatFileLine> statList) throws IOException {
+    protected void savePlayerFile(ArrayList<PlayerRecord> records) throws IOException {
         PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("players.txt")));
         
-        for (StatFileLine statLine : statList) {
-            out.println(statLine);
+        for (PlayerRecord record : records) {
+            out.println(record);
         }
         out.close();
     }

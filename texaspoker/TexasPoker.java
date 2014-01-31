@@ -1,5 +1,5 @@
 /*
-    Copyright (C) 2013 Yizhe Shen <brrr@live.ca>
+    Copyright (C) 2013-2014 Yizhe Shen <brrr@live.ca>
 
     This file is part of irccasino.
 
@@ -17,8 +17,14 @@
     along with irccasino.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package irccasino;
+package irccasino.texaspoker;
 
+import irccasino.cardgame.CardDeck;
+import irccasino.cardgame.PlayerRecord;
+import irccasino.GameManager;
+import irccasino.cardgame.CardGame;
+import irccasino.cardgame.Hand;
+import irccasino.cardgame.Player;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.FileReader;
@@ -30,834 +36,16 @@ import org.pircbotx.*;
 
 public class TexasPoker extends CardGame{
     
-    private ArrayList<PokerPot> pots;
-    private PokerPot currentPot;
-    private PokerPlayer dealer, smallBlind, bigBlind, topBettor;
-    private Hand community;
-    private HouseStat house;
+    protected ArrayList<PokerPot> pots;
+    protected PokerPot currentPot;
+    protected PokerPlayer dealer, smallBlind, bigBlind, topBettor;
+    protected Hand community;
+    protected HouseStat house;
     // In-game properties
-    private int stage, currentBet, minRaise;
+    protected int stage, currentBet, minRaise;
     
-    /**
-     * A pot class to handle bets and payouts in Texas Hold'em Poker.
-     */
-    private class PokerPot {
-        private ArrayList<PokerPlayer> players;
-        private ArrayList<PokerPlayer> donors;
-        private int total;
-
-        public PokerPot(){
-            total = 0;
-            players = new ArrayList<PokerPlayer>();
-            donors = new ArrayList<PokerPlayer>();
-        }
-
-        protected int getTotal(){
-            return total;
-        }
-        protected void add(int amount){
-            total += amount;
-        }
-        protected void addPlayer(PokerPlayer p){
-            players.add(p);
-        }
-        protected void removePlayer(PokerPlayer p){
-            players.remove(p);
-        }
-        protected void addDonor(PokerPlayer p) {
-            donors.add(p);
-        }
-        protected void removeDonor(PokerPlayer p) {
-            donors.remove(p);
-        }
-        protected PokerPlayer getPlayer(int c){
-            return players.get(c);
-        }
-        protected ArrayList<PokerPlayer> getPlayers(){
-            return players;
-        }
-        protected PokerPlayer getDonor(int c) {
-            return donors.get(c);
-        }
-        protected ArrayList<PokerPlayer> getDonors() {
-            return donors;
-        }
-        protected boolean hasPlayer(PokerPlayer p){
-            return players.contains(p);
-        }
-        protected boolean hasDonor(PokerPlayer p) {
-            return donors.contains(p);
-        }
-        protected int getNumPlayers(){
-            return players.size();
-        }
-        protected int getNumDonors() {
-            return donors.size();
-        }
-    }
-    
-    /**
-     * Stores game statistics for TexasPoker. 
-     */
-    private class HouseStat extends Stats {
-        private ArrayList<PokerPlayer> donors;
-        private ArrayList<PokerPlayer> winners;
-        
-        public HouseStat() {
-            this(0);
-        }
-        
-        public HouseStat(int pot) {
-            set("biggestpot", pot);
-            donors = new ArrayList<PokerPlayer>();
-            winners = new ArrayList<PokerPlayer>();
-        }
-        
-        protected int getNumDonors() {
-            return donors.size();
-        }
-        protected void addDonor(PokerPlayer p){
-            donors.add(p);
-        }
-        protected void clearDonors(){
-            donors.clear();
-        }
-        protected int getNumWinners() {
-            return winners.size();
-        }
-        protected void addWinner(PokerPlayer p){
-            winners.add(p);
-        }
-        protected void clearWinners(){
-            winners.clear();
-        }
-        
-        protected String getDonorsString(){
-            String outStr = "";
-            for (int ctr = 0; ctr < donors.size(); ctr++){
-                outStr += donors.get(ctr).getNick() + " ";
-            }
-            return outStr.substring(0, outStr.length() - 1);
-        }
-        
-        protected String getWinnersString(){
-            String outStr = "";
-            for (int ctr = 0; ctr < winners.size(); ctr++){
-                outStr += winners.get(ctr).getNick() + " ";
-            }
-            return outStr.substring(0, outStr.length() - 1);
-        }
-        
-        protected String getToStringList(){
-            String outStr;
-            int size = donors.size();
-            if (size == 0){
-                outStr = formatBold("0") + " players";
-            } else if (size == 1){
-                outStr = formatBold("1") + " player: " + donors.get(0).getNickStr();
-            } else {
-                outStr = formatBold(size) + " players: ";
-                for (int ctr = 0; ctr < size; ctr++){
-                    if (ctr == size-1){
-                        if (winners.contains(donors.get(ctr))) {
-                            outStr += donors.get(ctr).getNickStr();
-                        } else {
-                            outStr += donors.get(ctr).getNick();
-                        }
-                    } else {
-                        if (winners.contains(donors.get(ctr))) {
-                            outStr += donors.get(ctr).getNickStr() + ", ";
-                        } else {
-                            outStr += donors.get(ctr).getNick() + ", ";
-                        }
-                    }
-                }   
-            }
-            return outStr;
-        }
-        
-        @Override
-        public String toString() {
-            return "Biggest pot: $" + formatNumber(get("biggestpot")) + " (" + getToStringList() + ").";
-        }
-    }
-    
-    /**
-     * Extends Hand with extra methods for Poker hand comparisons.
-     * @author Yizhe Shen
-     */
-    private class PokerHand extends Hand implements Comparable<PokerHand>{
-        /** Stores the calculated value of the PokerHand. */
-        private int value;
-
-        /** Names of Poker hands indexed according to value. */
-        private final String[] handNames = {"High Card","Pair","Two Pairs",
-                                        "Three of a Kind","Straight",
-                                        "Flush","Full House","Four of a Kind",
-                                        "Straight Flush","Royal Flush"};
-
-        /**
-         * Creates a new PokerHand.
-         */
-        public PokerHand(){
-            super();
-            value = -1;
-        }
-
-        /**
-         * Compares this PokerHand to another based on hand-type and cards.
-         * Comparisons require that both hands be sorted in descending order and
-         * that the cards representing the hand value be at the beginning of the
-         * hand. This means that getValue() must be called before making
-         * any comparisons. If the two PokerHands have the same value, individual
-         * cards must then me examined.
-         * 
-         * @param h the PokerHand to compare
-         * @return -1 if this hand's value is less, zero for a tie, or 1 
-         * if this hand's value is greater
-         * @throws NullPointerException if the specified PokerHand is null
-         */
-        @Override
-        public int compareTo(PokerHand h){
-            if (h == null) {
-                throw new NullPointerException();
-            }
-            int thisValue = this.getValue();
-            int otherValue = h.getValue();
-
-            // Check if hands have same value
-            if (thisValue == otherValue){
-                // Calculate comparisons for each card
-                int[] comps = new int[5];
-                for (int ctr = 0; ctr < 5; ctr++){
-                    comps[ctr] = get(ctr).getFaceValue() - h.get(ctr).getFaceValue();
-                }
-
-                switch (value) {
-                    // Straight Flush and Straight: check top card of straight
-                    case 9: case 8: case 4:
-                        return comps[0];
-                    // 4 of a Kind: compare 4 of a kind, then kicker
-                    case 7: 
-                        if (comps[0] == 0){
-                            return comps[4];
-                        }
-                        return comps[0];
-                    // Full House: check triplet, then pair
-                    case 6:	
-                        if (comps[0] == 0){
-                                return comps[3];
-                        }
-                        return comps[0];
-                    // Flush: check highest non-common card
-                    case 5: 
-                        for (int ctr = 0; ctr < 5; ctr++){
-                            if (comps[ctr] != 0){
-                                return comps[ctr];
-                            }
-                        }
-                        return 0;
-                    // Three of a Kind: check triplet, then check kickers
-                    case 3:
-                        if (comps[0] == 0){
-                            for (int ctr = 3; ctr < 5; ctr++){
-                                if (comps[ctr] != 0){
-                                    return comps[ctr];
-                                }
-                            }
-                            return 0;
-                        }
-                        return comps[0];
-                    // Two pair: check each pair, then check kicker
-                    case 2: 
-                        if (comps[0] != 0){
-                            return comps[0];
-                        } else if (comps[2] != 0){
-                            return comps[2];
-                        }
-                        return comps[4];
-                    // Pair: check pair, then check highest non-common card
-                    case 1:
-                        if (comps[0] == 0){
-                            for (int ctr = 2; ctr < 5; ctr++){
-                                if (comps[ctr] != 0){
-                                    return comps[ctr];
-                                }
-                            }
-                            return 0;
-                        }
-                        return comps[0];
-                    // High Card: check highest non-common card
-                    default:
-                        for (int ctr = 0; ctr < 5; ctr++){
-                            if (comps[ctr] != 0){
-                                return comps[ctr];
-                            }
-                        }
-                        return 0;
-                }
-            }
-            return thisValue - otherValue;
-        }
-
-        /**
-         * Returns the value of this PokerHand for determining hand-type.
-         * Calls calcValue() if it hasn't been called yet.
-         * @return the value
-         */
-        protected int getValue(){
-            if (value == -1){
-                value = calcValue();
-            }
-            return value;
-        }
-
-        /**
-         * Resets the value to the default.
-         */
-        protected void resetValue(){
-            value = -1;
-        }
-
-        /**
-         * Name of the hand.
-         * @return the name of the hand based on value.
-         */
-        protected String getName(){
-            return handNames[getValue()];
-        }
-
-        /**
-         * Returns the String representation of a PokerHand.
-         * This can be used for display purposes.
-         * 
-         * @return the top 5 cards forming the hand followed by the remaining cards. 
-         */
-        @Override
-        public String toString(){
-            String out;
-            switch (this.getValue()) {
-                // Royal/straight flush, full house, flush, straight, high card
-                case 9: case 8: case 6: case 5: case 4: case 0: 
-                    out = toString(0,5);
-                    break;
-                case 7: case 2: // 4 of a kind, 2 pairs
-                    out = toString(0,4)+"/"+toString(4,5);
-                    break;
-                case 3: // 3 of a kind
-                    out = toString(0,3)+"/"+toString(3,5);
-                    break;
-                case 1: // 1 pair
-                    out = toString(0,2)+"/"+toString(2,5);
-                    break;
-                default:
-                    out = "";
-            }
-            if (size() > 5){
-                out += "||" + toString(5, size());
-            }
-            return out;
-        }
-
-        /*
-         * A collection of static methods to check for various poker card combinations.
-         * These methods require that hands be sorted in descending order.
-         */
-
-        /**
-         * Calculates the value of a PokerHand.
-         * Poker hand-types are always searched in order of descending value. Once
-         * the PokerHand is found to have a certain hand-type, the method stops
-         * searching for hand-types of lower value.
-         * 
-         * @param h the PokerHand to be calculated
-         * @return value corresponding to hand-type.
-         */
-        protected int calcValue(){
-            // Always check the hands in order of descending value
-            if (hasStraightFlush()){	
-                if (get(0).isFace("A")){
-                    return 9; // Royal flush = 9
-                }
-                return 8;   // Straight flush = 8
-            } else if (hasFourOfAKind()){	// Four of a kind = 7
-                return 7;
-            } else if (hasFullHouse()){	// Full house = 6
-                return 6;
-            } else if (hasFlush()){	// Flush = 5
-                return 5;
-            } else if (hasStraight()){	// Straight = 4
-                return 4;
-            } else if (hasThreeOfAKind()){	// Three of a kind = 3
-                return 3;
-            } else if (hasTwoPair()){	// Two-pair = 2
-                return 2;
-            } else if (hasPair()){	// Pair = 1
-                return 1;
-            } else {	// High card = 0
-                return 0;
-            }
-        }
-
-        /**
-         * Determines if a PokerHand has a pair.
-         * @param h the PokerHand to search
-         * @return true if it contains a pair
-         */
-        protected boolean hasPair(){
-            Card a,b;
-            for (int ctr = 0; ctr < size()-1; ctr++){
-                a = get(ctr);
-                b = get(ctr+1);
-                if (a.sameFace(b)){
-                    remove(a);
-                    remove(b);
-                    add(0, a);
-                    add(1, b);
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        /**
-         * Determines if a PokerHand has two pairs.
-         * @param h the PokerHand to search
-         * @return true if it contains two pairs
-         */
-        protected boolean hasTwoPair(){
-            Card a,b;
-            for (int ctr = 0; ctr < size()-3; ctr++){
-                a = get(ctr);
-                b = get(ctr+1);
-                if (a.sameFace(b)){
-                    remove(a);
-                    remove(b);
-                    if (hasPair()){
-                        add(0, a);
-                        add(1, b);
-                        return true;
-                    } else {
-                        add(ctr, a);
-                        add(ctr+1, b);
-                        return false;
-                    }
-                }
-            }
-            return false;
-        }
-
-        /**
-         * Determines if a PokerHand has three of a kind.
-         * @param h the PokerHand to search
-         * @return true if it contains three of a kind
-         */
-        protected boolean hasThreeOfAKind(){
-            Card a,b,c;
-            for (int ctr = 0; ctr < size()-2; ctr++){
-                a = get(ctr);
-                b = get(ctr+1);
-                c = get(ctr+2);
-                if (a.sameFace(b) && b.sameFace(c)){
-                    remove(a);
-                    remove(b);
-                    remove(c);
-                    add(0, a);
-                    add(1, b);
-                    add(2, c);
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        /**
-         * Determines if a PokerHand has a straight.
-         * @param h the PokerHand to search
-         * @return true if it contains a straight
-         */
-        protected boolean hasStraight(){
-            /* Create a boolean array to determine which face cards exist in the hand.
-             * An extra index is added at the beginning for the value duality of aces.
-             */
-            boolean[] cardValues = new boolean[CardDeck.faces.length+1];
-            for (Card c : this) {
-                if (c.isFace("A")){
-                    cardValues[0] = true;
-                }
-                cardValues[c.getFaceValue()+1] = true;
-            }
-            Card c;
-            // Determine if any sequence of 5 consecutive cards exist
-            for (int ctr = cardValues.length-1; ctr >= 4; ctr--){
-                if (cardValues[ctr] && cardValues[ctr-1] && cardValues[ctr-2] && 
-                    cardValues[ctr-3] && cardValues[ctr-4]){
-                    // Move the sequence in descending order to the beginning of the hand
-                    for (int ctr2 = 0; ctr2 < 5; ctr2++){
-                        for (int ctr3 = 0; ctr3 < size(); ctr3++){
-                            c = get(ctr3);
-                            if ((ctr-ctr2 == 0 && c.getFace().equals("A")) || c.getFaceValue()+1 == ctr-ctr2){
-                                remove(c);
-                                add(ctr2, c);
-                                break;
-                            }
-                        }
-                    }
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        /**
-         * Determines if a PokerHand has a flush.
-         * @param h the PokerHand to search
-         * @return true if it contains a flush
-         */
-        protected boolean hasFlush(){
-            int[] suitCount = new int[CardDeck.suits.length];
-            for (Card c : this){
-                suitCount[c.getSuitValue()]++;
-            }
-            Card c;
-            for (int ctr = 0; ctr < suitCount.length; ctr++){
-                if (suitCount[ctr] >= 5){
-                    int count = 0;
-                    for (int ctr3 = 0; ctr3 < size(); ctr3++){
-                        c = get(ctr3);
-                        if (c.getSuitValue() == ctr){
-                            remove(c);
-                            add(count++, c);
-                        }
-                        if (count == 5) {
-                            return true;
-                        }
-                    }
-                }
-            }
-            return false;
-        }
-
-        /**
-         * Determines if a PokerHand has a full house.
-         * @param h the PokerHand to search
-         * @return true if it contains a full house
-         */
-        protected boolean hasFullHouse(){
-            Card a,b,c;
-            for (int ctr = 0; ctr < size()-2; ctr++){
-                a = get(ctr);
-                b = get(ctr+1);
-                c = get(ctr+2);
-                if (a.sameFace(b) && a.sameFace(c)){
-                    remove(a);
-                    remove(b);
-                    remove(c);
-                    if (hasPair()){
-                        add(0, a);
-                        add(1, b);
-                        add(2, c);
-                        return true;
-                    } else {
-                        add(ctr, a);
-                        add(ctr+1, b);
-                        add(ctr+2, c);
-                        return false;
-                    }
-                }
-            }
-            return false;
-        }
-
-        /**
-         * Determines if a PokerHand has four of a kind.
-         * @param h the PokerHand to search
-         * @return true if it contains four of a kind
-         */
-        protected boolean hasFourOfAKind(){
-            Card a,b,c,d;
-            for (int ctr = 0; ctr < size()-3; ctr++){
-                a = get(ctr);
-                b = get(ctr+1);
-                c = get(ctr+2);
-                d = get(ctr+3);
-                if (a.sameFace(b) && b.sameFace(c) && c.sameFace(d)){
-                    remove(a);
-                    remove(b);
-                    remove(c);
-                    remove(d);
-                    add(0, a);
-                    add(1, b);
-                    add(2, c);
-                    add(3, d);
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        /**
-         * Determines if a PokerHand has a straight flush.
-         * This method will terminate as soon a straight flush is found. The search
-         * is done in the order the suits are indexed in CardDeck.suits. This means
-         * that this method will not always reveal the highest straight flush of a 
-         * hand. However, in most Poker variants, this will suffice.
-         * 
-         * @param h the PokerHand to search
-         * @return true if it contains a straight flush
-         */
-        protected boolean hasStraightFlush(){
-            int[] suitCount = new int[CardDeck.suits.length];
-            Hand nonFlushCards = new Hand();
-            for (Card c : this) {
-                suitCount[c.getSuitValue()]++;
-            }
-            /* Reorganizes the cards to reveal the first suit that has 
-             * a straight flush. */
-            for (int ctr = 0; ctr < CardDeck.suits.length; ctr++){
-                if (suitCount[ctr] >= 5){
-                    for (int ctr2 = 0; ctr2 < size(); ctr2++){
-                        if (get(ctr2).getSuitValue() != ctr){
-                            nonFlushCards.add(get(ctr2));
-                            remove(ctr2--);
-                        }
-                    }
-                    if (hasStraight()){
-                        addAll(nonFlushCards);
-                        nonFlushCards.clear();
-                        return true;
-                    } else {
-                        addAll(nonFlushCards);
-                        nonFlushCards.clear();
-                    }
-                }
-            }
-            // Re-sorts the hand in descending order if no straight flush is found
-            Collections.sort(this);
-            Collections.reverse(this);
-            return false;
-        }
-    }
-
-    /**
-     * Extends the Player class for players playing Poker games.
-     * @author Yizhe Shen
-     */
-    private class PokerPlayer extends Player implements Comparable<PokerPlayer> {
-        /** The player's cards. */
-        private Hand hand;
-        /** The player's cards plus any community cards. */
-        private PokerHand pHand;
-
-        /**
-         * Creates a new PokerPlayer.
-         * Creates the new player with the specified parameters.
-         * 
-         * @param nick IRC user's nick.
-         * @param hostmask IRC user's hostmask.
-         */
-        public PokerPlayer(String nick, String hostmask){
-            super(nick, hostmask);
-            set("bet", 0);
-            set("change", 0);
-            set("fold", 0);
-            set("allin", 0);
-            hand = new Hand();
-            pHand = new PokerHand();
-        }
-
-        /**
-         * Returns whether the player has cards in his Hand.
-         * @return true if player has any cards
-         */
-        protected boolean hasHand(){
-            return (hand.size() > 0);
-        }
-
-        /**
-         * Returns the player's PokerHand.
-         * This includes the player's Hand and any community cards.
-         * @return the player's PokerHand
-         */
-        protected PokerHand getPokerHand(){
-            return pHand;
-        }
-
-        /**
-         * Returns the player's Hand.
-         * @return the player's Hand.
-         */
-        protected Hand getHand(){
-            return hand;
-        }
-
-        /**
-         * Clears the cards in the player's Hand and PokerHand.
-         */
-        protected void resetHand(){
-            hand.clear();
-            pHand.clear();
-            pHand.resetValue();
-        }
-
-        /**
-         * Compares this PokerPlayer to another based on their PokerHand.
-         * Returns the same value as a comparison of the players' PokerHands.
-         * @param p the PokerPlayer to compare
-         * @return the result of the comparison of the players' PokerHands
-         */
-        @Override
-        public int compareTo(PokerPlayer p){
-            return this.getPokerHand().compareTo(p.getPokerHand());
-        }
-    }
-    
-    /**
-     * Game simulator for calculating winning percentages.
-     * @author Yizhe Shen
-     */
-    private class PokerSimulator {
-        private CardDeck simDeck;
-        private ArrayList<PokerPlayer> simList;
-        private Hand simComm;
-        private int rounds;
-        
-        public PokerSimulator(ArrayList<PokerPlayer> list, Hand comm) {
-            simDeck = new CardDeck(1);
-            simList = new ArrayList<PokerPlayer>();
-            simComm = new Hand();
-            rounds = 0;
-            
-            PokerPlayer simP;
-
-            // Give simulated community cards matching the real community.
-            for (Card aCard : comm) {
-                simComm.add(simDeck.takeCard(aCard));
-            }
-            
-            // Give simulated players simulated cards matching the real hands.
-            for (PokerPlayer p : list) {
-                if (!p.has("fold")) {
-                    simP = new PokerPlayer(p.getNick(), p.getHost());
-                    for (Card aCard : p.getHand()){
-                       simP.getHand().add(simDeck.takeCard(aCard));
-                       simP.set("wins", 0);
-                       simP.set("ties", 0);
-                    }
-                    simList.add(simP);
-                    simP.getPokerHand().addAll(simP.getHand());
-                    simP.getPokerHand().addAll(simComm);
-                }
-            }
-
-            // Run simulation
-            simulate(0);
-        }
-
-        /**
-         * Simulates games by sequentially adding cards to simComm until full
-         * and determining winners and ties. Uses a recursive algorithm.
-         * The number of rounds generated will be nCr, where n is the number of
-         * cards remaining in the simDeck and r is the number of cards required
-         * to fill simComm.
-         * @param index the index in simDeck from which to start adding cards
-         *              to simComm
-         */
-        private void simulate(int index) {
-            Card c;
-            // Add another card if the simulated community isn't full
-            if (simComm.size() < 5) {
-                for (int ctr = index; ctr < simDeck.getNumberCards(); ctr++) {
-                    c = simDeck.peekCard(ctr);
-                    simComm.add(c);
-                    for (PokerPlayer p : simList) {
-                        p.getPokerHand().add(c);
-                    }
-                    simulate(ctr + 1);
-                    simComm.remove(c);
-                    for (PokerPlayer p : simList) {
-                        p.getPokerHand().remove(c);
-                    }
-                }
-            } else {
-                rounds++;
-                int winners = 1;
-                
-                // Create PokerHands
-                for (PokerPlayer p : simList) {
-                    Collections.sort(p.getPokerHand());
-                    Collections.reverse(p.getPokerHand());
-                }
-                
-                // Sort players by PokerHand
-                Collections.sort(simList);
-                Collections.reverse(simList);
-                
-                // Determine number of winners
-                for (int ctr = 1; ctr < simList.size(); ctr++){
-                    if (simList.get(0).compareTo(simList.get(ctr)) == 0){
-                        winners++;
-                    }
-                }
-                
-                // Increment win count for winners
-                if (winners == 1) {
-                    simList.get(0).increment("wins");
-                } else {
-                    for (int ctr = 0; ctr < winners; ctr++){
-                        simList.get(ctr).increment("ties");
-                    }
-                }
-                
-                // Clear PokerHands
-                for (PokerPlayer p : simList) {
-                    p.getPokerHand().resetValue();
-                }
-            }
-        }
-
-        /**
-         * Returns the win percentage for the specified player.
-         * @param p the player
-         * @return the win percentage or -1 if the player is not found
-         */
-        public int getWinPct(PokerPlayer p) {
-            for (PokerPlayer simP : simList) {
-                if (simP.equals(p)) {
-                    return (int) Math.round((double) simP.get("wins") / (double) rounds * 100);
-                }
-            }
-            return -1;
-        }
-        
-        /**
-         * Returns the tie percentage for the specified player.
-         * @param p the player
-         * @return the tie percentage or -1 if the player is not found
-         */
-        public int getTiePct(PokerPlayer p) {
-            for (PokerPlayer simP : simList) {
-                if (simP.equals(p)) {
-                    return (int) Math.round((double) simP.get("ties") / (double) rounds * 100);
-                }
-            }
-            return -1;
-        }
-        
-        /**
-         * Produces a String that contains every player's cards and their
-         * percentages for wins and splits.
-         * @return a ready-to-display String
-         */
-        @Override
-        public String toString() {
-            String out = "Showdown: ";
-            for (PokerPlayer p : simList) {
-                //out += p.getNickStr() + " (" + p.getHand() + ", " + p.get("wins") +  "/" + p.get("splits") + "/" + rounds + "), ";
-                out += p.getNick() + " (" + p.getHand() + ", " + Math.round((double) p.get("wins") / (double) rounds * 100) + "%%, " + Math.round((double) p.get("ties") / (double) rounds * 100) + "%%), ";
-            }
-            return out.substring(0, out.length() - 2);
-        }
+    public TexasPoker() {
+        super();
     }
     
     /**
@@ -992,8 +180,8 @@ public class TexasPoker extends CardGame{
             } else if (!inProgress) {
                 informPlayer(nick, getMsg("no_start"));
             } else {
-                showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentPlayer.get("bet"), 
-                        currentPlayer.get("cash")-currentPlayer.get("bet"), currentBet, getCashInPlay());
+                showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentBet-currentPlayer.get("bet"), 
+                        currentPlayer.get("bet"), currentBet, getCashInPlay(), currentPlayer.get("cash")-currentPlayer.get("bet"));
             }
         } else if (command.equals("players")) {
             if (inProgress){
@@ -1072,8 +260,8 @@ public class TexasPoker extends CardGame{
                 opCmdMap.clear();
                 aliasMap.clear();
                 msgMap.clear();
-                loadHelp(helpFile);
                 loadStrLib(strFile);
+                loadHelp(helpFile);
                 showMsg(getMsg("reload"));
             }
         } else if (command.equals("test1")){
@@ -1275,8 +463,8 @@ public class TexasPoker extends CardGame{
             dealTable();
             setBlindBets();
             currentPlayer = getPlayerAfter(bigBlind);
-            showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentPlayer.get("bet"), 
-                        currentPlayer.get("cash")-currentPlayer.get("bet"), currentBet, getCashInPlay());
+            showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentBet-currentPlayer.get("bet"), 
+                        currentPlayer.get("bet"), currentBet, getCashInPlay(), currentPlayer.get("cash")-currentPlayer.get("bet"));
             setIdleOutTask();
         }
     }
@@ -1287,7 +475,6 @@ public class TexasPoker extends CardGame{
         Player firstPlayer = currentPlayer;
         currentPlayer = getPlayerAfter(currentPlayer);
         PokerPlayer p = (PokerPlayer) currentPlayer;
-        PokerSimulator sim;
         
         /*
          * Look for a player who can bet that is not the firstPlayer or the
@@ -1322,6 +509,7 @@ public class TexasPoker extends CardGame{
                 */
                 if (getNumberCanBet() < 2 && getNumberNotFolded() > 1) {
                     ArrayList<PokerPlayer> players;
+                    PokerSimulator sim;
                     players = pots.get(0).getPlayers();
                     sim = new PokerSimulator(players, community);
                     String showdownStr = formatHeader(" Showdown: ") + " ";
@@ -1337,16 +525,20 @@ public class TexasPoker extends CardGame{
                    // Add a delay for dramatic effect
                    try { Thread.sleep(get("showdown") * 1000); } catch (InterruptedException e){}
                 }
-                // Burn a card before turn and river
-                if (stage != 1) {
-                    burnCard();
-                }
+                
+                // Burn a card before flop, turn and river
+                burnCard();
                 dealCommunity();
+                
                 /* Only show dealt community cards when there are 
-                 * more than 1 non-folded player remaining. */
-                if (getNumberNotFolded() > 1){
+                 * more than 1 non-folded player remaining. Also
+                 * show community if stage = 3 and "revealcommunity"
+                 * is set to true. */
+                if (getNumberNotFolded() > 1 || 
+                        stage == 3 && settings.get("revealcommunity") == 1){
                     showCommunityCards();
                 }
+                
                 topBettor = null;
                 /* Set the currentPlayer to be dealer to determine who bets
                  * first in the next round of betting. */
@@ -1354,24 +546,24 @@ public class TexasPoker extends CardGame{
                 continueRound();
             }
         // Continue round, if less than 2 players can bet
-        } else if (getNumberCanBet() < 2 && topBettor == null){
+        } else if (getNumberCanBet() < 2 && topBettor == null){           
             continueRound();
         // Continue to the next bettor
         } else {
-            showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentPlayer.get("bet"), 
-                        currentPlayer.get("cash")-currentPlayer.get("bet"), currentBet, getCashInPlay());
+            showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentBet-currentPlayer.get("bet"), 
+                        currentPlayer.get("bet"), currentBet, getCashInPlay(), currentPlayer.get("cash")-currentPlayer.get("bet"));
             setIdleOutTask();
         }
     }
     
     @Override
     public void endRound() {
-        roundEnded = true;
         PokerPlayer p;
+        
+        roundEnded = true;
 
         // Check if anybody left during post-start waiting period
         if (joined.size() > 1 && pots.size() > 0) {
-            String netResults = Colors.YELLOW + ",01 Change: ";
             // Give all non-folded players the community cards
             for (int ctr = 0; ctr < joined.size(); ctr++){
                 p = (PokerPlayer) joined.get(ctr);
@@ -1386,6 +578,12 @@ public class TexasPoker extends CardGame{
             // Determine the winners of each pot
             showResults();
 
+            // Show the stack changes
+            showStackChange();
+
+            // Show updated player stacks sorted in descending order
+            showStacks();
+            
             /* Clean-up tasks
              * 1. Increment the number of rounds played for player
              * 2. Remove players who have gone bankrupt and set respawn timers
@@ -1427,23 +625,21 @@ public class TexasPoker extends CardGame{
                     savePlayerData(p);
                 }
                 
-                // Add player to list of net results
-                if (p.get("change") > 0) {
-                     netResults += Colors.WHITE + ",01 " + p.getNick() + " (" + Colors.GREEN + ",01$" + formatNumber(p.get("change")) + Colors.WHITE + ",01), ";
-                } else if (p.get("change") < 0) {
-                    netResults += Colors.WHITE + ",01 " + p.getNick() + " (" + Colors.RED + ",01$" + formatNumber(p.get("change")) + Colors.WHITE + ",01), ";
-                } else {
-                    netResults += Colors.WHITE + ",01 " + p.getNick() + " (" + Colors.WHITE + ",01$" + formatNumber(p.get("change")) + Colors.WHITE + ",01), ";
-                }
+                // Reset player
                 resetPlayer(p);
             }
-            showMsg(netResults.substring(0, netResults.length()-2));
         } else {
             showMsg(getMsg("no_players"));
         }
+        
         resetGame();
-        showMsg(getMsg("end_round"), getGameNameStr(), commandChar);
+        if (startCount > 0) {
+            showMsg(getMsg("end_round_auto"), getGameNameStr(), commandChar);
+        } else {
+            showMsg(getMsg("end_round"), getGameNameStr(), commandChar);
+        }
         mergeWaitlist();
+        
         // Check if auto-starts remaining
         if (startCount > 0){
             startCount--;
@@ -1565,7 +761,7 @@ public class TexasPoker extends CardGame{
      * @param p the specified player
      * @return the next player
      */
-    private Player getPlayerAfter(Player p){
+    protected Player getPlayerAfter(Player p){
         return joined.get((joined.indexOf(p) + 1) % joined.size());
     }
     
@@ -1573,7 +769,7 @@ public class TexasPoker extends CardGame{
      * Resets the specified player.
      * @param p the player to reset
      */
-    private void resetPlayer(PokerPlayer p) {
+    protected void resetPlayer(PokerPlayer p) {
         discardPlayerHand(p);
         p.clear("fold");
         p.clear("quit");
@@ -1584,7 +780,7 @@ public class TexasPoker extends CardGame{
     /**
      * Assigns players to the dealer, small blind and big blind roles.
      */
-    private void setButton(){
+    protected void setButton(){
         if (dealer == null){
             dealer = (PokerPlayer) joined.get(0);
         } else {
@@ -1601,7 +797,7 @@ public class TexasPoker extends CardGame{
     /**
      * Sets the bets for the small and big blinds.
      */
-    private void setBlindBets(){
+    protected void setBlindBets(){
         // Set the small blind to minimum raise or the player's cash, 
         // whichever is less.
         smallBlind.set("bet", Math.min(get("minbet")/2, smallBlind.get("cash")));
@@ -1665,6 +861,8 @@ public class TexasPoker extends CardGame{
             informPlayer(nick, getMsg("ops_only"));
         } else if (!inProgress) {
             informPlayer(nick, getMsg("no_start"));
+        } else if (currentPlayer == null) {
+            informPlayer(nick, getMsg("no_force_play"));
         } else {
             return true;
         }
@@ -1673,7 +871,7 @@ public class TexasPoker extends CardGame{
     
     /* Game settings management */
     @Override
-    protected final void initialize(){
+    protected void initialize(){
         super.initialize();
         // Do not use set()
         // Ini file settings
@@ -1686,6 +884,7 @@ public class TexasPoker extends CardGame{
         settings.put("autostarts", 10);
         settings.put("startwait", 5);
         settings.put("showdown", 10);
+        settings.put("revealcommunity", 0);
         // In-game properties
         stage = 0;
         currentBet = 0;
@@ -1693,7 +892,7 @@ public class TexasPoker extends CardGame{
     }
     
     @Override
-    protected final void saveIniFile() {
+    protected void saveIniFile() {
         try {
             PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(iniFile)));
             out.println("#Settings");
@@ -1715,6 +914,8 @@ public class TexasPoker extends CardGame{
             out.println("startwait=" + get("startwait"));
             out.println("#The wait time in seconds in between reveals during a showdown");
             out.println("showdown=" + get("showdown"));
+            out.println("#Whether or not to reveal community when not required");
+            out.println("revealcommunity=" + get("revealcommunity"));
             out.close();
         } catch (IOException e) {
             manager.log("Error creating " + iniFile + "!");
@@ -1723,7 +924,7 @@ public class TexasPoker extends CardGame{
     
     /* House stats management */
     @Override
-    public final void loadGameStats() {
+    public void loadGameStats() {
         try {
             BufferedReader in = new BufferedReader(new FileReader("housestats.txt"));
             String str;
@@ -1817,7 +1018,7 @@ public class TexasPoker extends CardGame{
     /**
      * Deals cards to the community hand.
      */
-    private void dealCommunity(){
+    protected void dealCommunity(){
         if (stage == 1) {
             for (int ctr = 1; ctr <= 3; ctr++){
                 dealCard(community);
@@ -1831,7 +1032,7 @@ public class TexasPoker extends CardGame{
      * Deals two cards to the specified player.
      * @param p the player to be dealt to
      */
-    private void dealHand(PokerPlayer p) {
+    protected void dealHand(PokerPlayer p) {
         dealCard(p.getHand());
         dealCard(p.getHand());
     }
@@ -1839,7 +1040,7 @@ public class TexasPoker extends CardGame{
     /**
      * Deals hands to everybody at the table.
      */
-    private void dealTable() {
+    protected void dealTable() {
         PokerPlayer p;
         for (int ctr = 0; ctr < joined.size(); ctr++) {
             p = (PokerPlayer) joined.get(ctr);
@@ -1852,7 +1053,7 @@ public class TexasPoker extends CardGame{
      * Discards a player's hand into the discard pile.
      * @param p the player whose hand is to be discarded
      */
-    private void discardPlayerHand(PokerPlayer p) {
+    protected void discardPlayerHand(PokerPlayer p) {
         if (p.hasHand()) {
             deck.addToDiscard(p.getHand());
             p.resetHand();
@@ -1862,7 +1063,7 @@ public class TexasPoker extends CardGame{
     /**
      * Discards the community cards into the discard pile.
      */
-    private void discardCommunity(){
+    protected void discardCommunity(){
         if (community.size() > 0){
             deck.addToDiscard(community);
             community.clear();
@@ -1872,7 +1073,7 @@ public class TexasPoker extends CardGame{
     /**
      * Merges the discards and shuffles the deck.
      */
-    private void shuffleDeck() {
+    protected void shuffleDeck() {
         deck.refillDeck();
         showMsg(getMsg("tp_shuffle_deck"));
     }
@@ -1898,7 +1099,7 @@ public class TexasPoker extends CardGame{
             }
             p.set("bet", amount);
             p.set("allin", 1);
-            showMsg(getMsg("tp_allin"), p.getNickStr(), p.get("bet"), p.get("cash")-p.get("bet"));
+            showMsg(getMsg("tp_allin"), p.getNickStr(false), p.get("bet"), p.get("cash")-p.get("bet"));
             continueRound();
         // A bet that's larger than a player's stack
         } else if (amount > p.get("cash")) {
@@ -1914,10 +1115,10 @@ public class TexasPoker extends CardGame{
                 topBettor = p;
             }
             if (amount == 0 || p.get("bet") == amount){
-                showMsg(getMsg("tp_check"), p.getNickStr(), p.get("bet"), p.get("cash")-p.get("bet"));
+                showMsg(getMsg("tp_check"), p.getNickStr(false), p.get("bet"), p.get("cash")-p.get("bet"));
             } else {
                 p.set("bet", amount);
-                showMsg(getMsg("tp_call"), p.getNickStr(), p.get("bet"), p.get("cash")-p.get("bet"));
+                showMsg(getMsg("tp_call"), p.getNickStr(false), p.get("bet"), p.get("cash")-p.get("bet"));
             }
             continueRound();
         // A bet that's lower than the minimum raise
@@ -1929,9 +1130,9 @@ public class TexasPoker extends CardGame{
             p.set("bet", amount);
             topBettor = p;
             if (currentBet == 0){
-                showMsg(getMsg("tp_bet"), p.getNickStr(), p.get("bet"), p.get("cash") - p.get("bet"));
+                showMsg(getMsg("tp_bet"), p.getNickStr(false), p.get("bet"), p.get("cash") - p.get("bet"));
             } else {
-                showMsg(getMsg("tp_raise"), p.getNickStr(), p.get("bet"), p.get("cash")-p.get("bet"));
+                showMsg(getMsg("tp_raise"), p.getNickStr(false), p.get("bet"), p.get("cash")-p.get("bet"));
             }
             minRaise = amount - currentBet;
             currentBet = amount;
@@ -1952,7 +1153,7 @@ public class TexasPoker extends CardGame{
             if (topBettor == null){
                 topBettor = p;
             }
-            showMsg(getMsg("tp_check"), p.getNickStr(), p.get("bet"), p.get("cash")-p.get("bet"));
+            showMsg(getMsg("tp_check"), p.getNickStr(false), p.get("bet"), p.get("cash")-p.get("bet"));
             continueRound();
         } else {
             informPlayer(p.getNick(), getMsg("no_checking"), currentBet);
@@ -1978,14 +1179,14 @@ public class TexasPoker extends CardGame{
         if (total == p.get("cash")){
             p.set("allin", 1);
             p.set("bet", total);
-            showMsg(getMsg("tp_allin"), p.getNickStr(), p.get("bet"), p.get("cash")-p.get("bet"));
+            showMsg(getMsg("tp_allin"), p.getNickStr(false), p.get("bet"), p.get("cash")-p.get("bet"));
         // A check
         } else if (total == 0 || p.get("bet") == total){
-            showMsg(getMsg("tp_check"), p.getNickStr(), p.get("bet"), p.get("cash")-p.get("bet"));
+            showMsg(getMsg("tp_check"), p.getNickStr(false), p.get("bet"), p.get("cash")-p.get("bet"));
         // A call
         } else {
             p.set("bet", total);
-            showMsg(getMsg("tp_call"), p.getNickStr(), p.get("bet"), p.get("cash")-p.get("bet"));
+            showMsg(getMsg("tp_call"), p.getNickStr(false), p.get("bet"), p.get("cash")-p.get("bet"));
         }
         continueRound();
     }
@@ -1998,7 +1199,7 @@ public class TexasPoker extends CardGame{
         cancelIdleOutTask();
         PokerPlayer p = (PokerPlayer) currentPlayer;
         p.set("fold", 1);
-        showMsg(getMsg("tp_fold"), p.getNickStr(), p.get("cash")-p.get("bet"));
+        showMsg(getMsg("tp_fold"), p.getNickStr(false), p.get("cash")-p.get("bet"));
 
         //Remove this player from any existing pots
         if (currentPot != null && currentPot.hasPlayer(p)){
@@ -2018,7 +1219,7 @@ public class TexasPoker extends CardGame{
      * Determines the number of players who have not folded.
      * @return the number of non-folded players
      */
-    private int getNumberNotFolded(){
+    protected int getNumberNotFolded(){
         PokerPlayer p;
         int numberNotFolded = 0;
         for (int ctr = 0; ctr < joined.size(); ctr++){
@@ -2034,7 +1235,7 @@ public class TexasPoker extends CardGame{
      * Determines the number players who can still make a bet.
      * @return the number of players who can bet
      */
-    private int getNumberCanBet(){
+    protected int getNumberCanBet(){
         PokerPlayer p;
         int numberCanBet = 0;
         for (int ctr = 0; ctr < joined.size(); ctr++){
@@ -2051,7 +1252,7 @@ public class TexasPoker extends CardGame{
      * betting.
      * @return the number of bettors
      */
-    private int getNumberBettors() {
+    protected int getNumberBettors() {
         PokerPlayer p;
         int numberBettors = 0;
         for (int ctr = 0; ctr < joined.size(); ctr++){
@@ -2067,7 +1268,7 @@ public class TexasPoker extends CardGame{
      * Determines total amount committed by all players.
      * @return the total running amount 
      */
-    private int getCashInPlay() {
+    protected int getCashInPlay() {
         int total = 0;
         PokerPlayer p;
         
@@ -2089,7 +1290,7 @@ public class TexasPoker extends CardGame{
      * Adds the bets during a round of betting to the pot.
      * If no pot exists, a new one is created. Sidepots are created as necessary.
      */
-    private void addBetsToPot(){
+    protected void addBetsToPot(){
         PokerPlayer p;
         int lowBet;
         while(currentBet != 0){
@@ -2164,12 +1365,12 @@ public class TexasPoker extends CardGame{
     @Override
     public int getTotalPlayers(){
         try {
-            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
-            loadPlayerFile(statList);
+            ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
+            loadPlayerFile(records);
             int total = 0;
             
-            for (StatFileLine statLine : statList) {
-                if (statLine.has("tprounds")){
+            for (PlayerRecord record : records) {
+                if (record.has("tprounds")){
                     total++;
                 }
             }
@@ -2234,7 +1435,7 @@ public class TexasPoker extends CardGame{
         
         // Append existing pots to StringBuilder
         for (int ctr = 0; ctr < pots.size(); ctr++){
-            str = Colors.YELLOW+",01Pot #"+(ctr+1)+": "+Colors.GREEN+",01$"+formatNumber(pots.get(ctr).getTotal())+Colors.NORMAL+" ";
+            str = Colors.YELLOW+",01 Pot #"+(ctr+1)+": "+Colors.GREEN+",01$"+formatNumber(pots.get(ctr).getTotal())+" "+Colors.NORMAL+" ";
             msg.append(str);
         }
         
@@ -2245,7 +1446,7 @@ public class TexasPoker extends CardGame{
         for (int ctr = 0; ctr < joined.size(); ctr++){
             p = (PokerPlayer) joined.get(ctr);
             if (!p.has("fold")){
-                str += p.getNick();
+                str += p.getNick(false);
                 if (count != notFolded-1){
                     str += ", ";
                 }
@@ -2274,7 +1475,7 @@ public class TexasPoker extends CardGame{
         if (pots.get(0).getNumPlayers() > 1){
             for (int ctr = 0; ctr < players.size(); ctr++){
                 p = players.get(ctr);
-                showMsg(getMsg("tp_player_result"), p.getNickStr(), p.getHand(), p.getPokerHand().getName(), p.getPokerHand());
+                showMsg(getMsg("tp_player_result"), p.getNickStr(false), p.getHand(), p.getPokerHand().getName(), p.getPokerHand());
             }
         }
         // Find the winner(s) from each pot
@@ -2299,7 +1500,7 @@ public class TexasPoker extends CardGame{
                 p.add("change", currentPot.getTotal()/winners);
                 showMsg(Colors.YELLOW+",01 Pot #" + (ctr+1) + ": " + Colors.NORMAL + " " + 
                     p.getNickStr() + " wins $" + formatNumber(currentPot.getTotal()/winners) + 
-                    ". Stack: $" + formatNumber(p.get("cash"))+ " (" + getPlayerListString(currentPot.getPlayers()) + ")");
+                    ". (" + getPlayerListString(currentPot.getPlayers()) + ")");
             }
             
             // Check if it's the biggest pot
@@ -2384,7 +1585,7 @@ public class TexasPoker extends CardGame{
         
         int highIndex, rank = 0;
         try {
-            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
+            ArrayList<PlayerRecord> statList = new ArrayList<PlayerRecord>();
             loadPlayerFile(statList);
             ArrayList<String> nicks = new ArrayList<String>();
             ArrayList<Double> test = new ArrayList<Double>();
@@ -2476,54 +1677,54 @@ public class TexasPoker extends CardGame{
         
         int highIndex;
         try {
-            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
-            loadPlayerFile(statList);
+            ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
+            loadPlayerFile(records);
             ArrayList<String> nicks = new ArrayList<String>();
             ArrayList<Double> test = new ArrayList<Double>();
-            int length = Math.min(n, statList.size());
+            int length = Math.min(n, records.size());
             String title = Colors.BOLD + Colors.BLACK + ",08 Top " + length;
             String list = Colors.BLACK + ",08";
             
-            for (int ctr = 0; ctr < statList.size(); ctr++) {
-                nicks.add(statList.get(ctr).getNick());
+            for (int ctr = 0; ctr < records.size(); ctr++) {
+                nicks.add(records.get(ctr).getNick());
             }
             
             if (stat.equals("cash")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add((double) statList.get(ctr).get(stat));
+                for (int ctr = 0; ctr < records.size(); ctr++) {
+                    test.add((double) records.get(ctr).get(stat));
                 }
                 title += " Cash ";
             } else if (stat.equals("bank")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add((double) statList.get(ctr).get(stat));
+                for (int ctr = 0; ctr < records.size(); ctr++) {
+                    test.add((double) records.get(ctr).get(stat));
                 }
                 title += " Bank ";
             } else if (stat.equals("bankrupts")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add((double) statList.get(ctr).get(stat));
+                for (int ctr = 0; ctr < records.size(); ctr++) {
+                    test.add((double) records.get(ctr).get(stat));
                 }
                 title += " Bankrupts ";
             } else if (stat.equals("net") || stat.equals("netcash")) {
                 for (int ctr = 0; ctr < nicks.size(); ctr++) {
-                    test.add((double) statList.get(ctr).get("netcash"));
+                    test.add((double) records.get(ctr).get("netcash"));
                 }
                 title += " Net Cash ";
             } else if (stat.equals("winnings")){
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add((double) statList.get(ctr).get("tpwinnings"));
+                for (int ctr = 0; ctr < records.size(); ctr++) {
+                    test.add((double) records.get(ctr).get("tpwinnings"));
                 }
                 title += " Texas Hold'em Winnings ";
             } else if (stat.equals("rounds")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add((double) statList.get(ctr).get("tprounds"));
+                for (int ctr = 0; ctr < records.size(); ctr++) {
+                    test.add((double) records.get(ctr).get("tprounds"));
                 }
                 title += " Texas Hold'em Rounds ";
             } else if (stat.equals("winrate")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    if (statList.get(ctr).get("tprounds") == 0){
+                for (int ctr = 0; ctr < records.size(); ctr++) {
+                    if (records.get(ctr).get("tprounds") == 0){
                         test.add(0.);
                     } else {
-                        test.add((double) statList.get(ctr).get("tpwinnings") / (double) statList.get(ctr).get("tprounds"));
+                        test.add((double) records.get(ctr).get("tpwinnings") / (double) records.get(ctr).get("tprounds"));
                     }
                 }
                 title += " Texas Hold'em Win Rate ";
@@ -2566,19 +1767,56 @@ public class TexasPoker extends CardGame{
         }
     }
     
+    /**
+     * Displays the stack change of each player in the given list.
+     */
+    public void showStackChange() {
+        PokerPlayer p;
+        String msg = Colors.YELLOW + ",01 Change: " + Colors.NORMAL + " ";
+        
+        for (int ctr = 0; ctr < joined.size(); ctr++) {
+            p = (PokerPlayer) joined.get(ctr);
+            // Add player to list of net results
+            if (p.get("change") > 0) {
+                msg += p.getNick(false) + " (" + Colors.DARK_GREEN + Colors.BOLD + "$" + formatNumber(p.get("change")) + Colors.NORMAL + "), ";
+            } else if (p.get("change") < 0) {
+                msg += p.getNick(false) + " (" + Colors.RED + Colors.BOLD + "$" + formatNumber(p.get("change")) + Colors.NORMAL + "), ";
+            } else {
+                msg += p.getNick(false) + " (" + Colors.BOLD + "$" + formatNumber(p.get("change")) + Colors.NORMAL + "), ";
+            }
+        }
+        
+        showMsg(msg.substring(0, msg.length()-2));
+    }
+    
+    /**
+     * Displays the stack of each player in the given list in descending order.
+     */
+    public void showStacks() {
+        ArrayList<Player> list = new ArrayList<Player>(joined);
+        String msg = Colors.YELLOW + ",01 Stacks: " + Colors.NORMAL + " ";
+        Collections.sort(list, Player.getComparator("cash"));
+        
+        for (Player p : list) {
+            msg += p.getNick(false) + " (" + formatBold("$" + formatNumber(p.get("cash"))) + "), ";
+        }
+        
+        showMsg(msg.substring(0, msg.length()-2));
+    }
+    
     /* Formatted strings */
     @Override
-    public final String getGameNameStr() {
+    public String getGameNameStr() {
         return formatBold(getMsg("tp_game_name"));
     }
     
     @Override
-    public final String getGameRulesStr() {
+    public String getGameRulesStr() {
         return String.format(getMsg("tp_rules"), get("minbet")/2, get("minbet"));
     }
     
     @Override
-    public final String getGameStatsStr() {
+    public String getGameStatsStr() {
         return String.format(getMsg("tp_stats"), getTotalPlayers(), getGameNameStr(), house);
     }
 }

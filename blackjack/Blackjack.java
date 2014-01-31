@@ -1,5 +1,5 @@
 /*
-    Copyright (C) 2013 Yizhe Shen <brrr@live.ca>
+    Copyright (C) 2013-2014 Yizhe Shen <brrr@live.ca>
 
     This file is part of irccasino.
 
@@ -17,7 +17,7 @@
     along with irccasino.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package irccasino;
+package irccasino.blackjack;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -27,6 +27,13 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.*;
 import org.pircbotx.*;
+import irccasino.*;
+import irccasino.cardgame.Card;
+import irccasino.cardgame.CardDeck;
+import irccasino.cardgame.CardGame;
+import irccasino.cardgame.Hand;
+import irccasino.cardgame.Player;
+import irccasino.cardgame.PlayerRecord;
 
 /**
  * Class for IRC Blackjack.
@@ -40,348 +47,11 @@ public class Blackjack extends CardGame {
     private HouseStat house;
     // In-game properties
     private boolean betting, insuranceBets;
-    
-    /**
-     * Idle shuffle task for shuffling the shoe when nobody is playing.
-     */
-    private class IdleShuffleTask extends TimerTask {
-        private Blackjack game;
-        public IdleShuffleTask(Blackjack g) {
-            game = g;
-        }
 
-        @Override
-        public void run() {
-            game.shuffleShoe();
-        }
+    public Blackjack() {
+        super();
     }
     
-    /**
-     * Stores house statistics for individual shoe sizes.
-     */
-    private class HouseStat extends Stats {
-        public HouseStat() {
-            this(0, 0, 0);
-        }
-
-        public HouseStat(int a, int b, int c) {
-            set("decks", a);
-            set("rounds", b);
-            set("cash", c);
-        }
-        
-        protected String toFileString() {
-            return get("decks") + " " + get("rounds") + " " + get("cash");
-        }
-        
-        @Override
-        public String toString() {
-            return formatNumber(get("rounds")) + " round(s) have been played using " 
-                + formatNumber(get("decks")) + " deck shoes. The house has won $"
-                + formatNumber(get("cash")) + " during those round(s).";
-        }
-    }
-
-    /**
-     * Extends Hand with extra blackjack-related methods.
-     * @author Yizhe Shen
-     */
-    private class BlackjackHand extends Hand implements Comparable<BlackjackHand>{
-        /** Stores the bet on the BlackjackHand. */
-        private int bet;
-
-        /**
-         * Creates a Blackjack hand with no initial bet.
-         * Initializes the bet to 0.
-         */
-        public BlackjackHand(){
-            super();
-            bet = 0;
-        }
-
-        /* Blackjack specific methods */
-        /**
-         * Sets the bet on this Hand to the specified amount.
-         * @param amount the amount to set
-         */
-        protected void setBet(int amount){
-            bet = amount;
-        }
-
-        /**
-         * Adds the specified amount to the existing bet.
-         * @param amount the amount to add
-         */
-        protected void addBet(int amount){
-            bet += amount;
-        }
-
-        /**
-         * Returns the bet on this Hand.
-         * @return the bet on this Hand.
-         */
-        protected int getBet(){
-            return bet;
-        }
-
-        /**
-         * Clears the bet on this Hand.
-         */
-        protected void clearBet(){
-            bet = 0;
-        }
-
-        /**
-         * Returns whether or not this Hand has been hit.
-         * @return true if only contains 2 cards
-         */
-        protected boolean hasHit(){
-            return size() != 2;
-        }
-
-        /**
-         * Determines if a hand is blackjack.
-         * If the sum is 21 and there are only 2 cards then it is blackjack.
-         * 
-         * @return true if the hand is blackjack
-         */
-        protected boolean isBlackjack() {
-            return calcSum() == 21 && size() == 2;
-        }
-
-        /**
-         * Determines if a hand is bust.
-         * If the sum is greater than 21 then it is bust.
-         * 
-         * @return true if the hand is bust
-         */
-        protected boolean isBust() {
-            return calcSum() > 21;
-        }
-
-        /**
-         * Determines if a BlackjackHand is a pair.
-         * Useful when determining if splitting is possible. Pairs are determined
-         * by their blackjack values.
-         * 
-         * @return true if the hand is a pair
-         */
-        protected boolean isPair() {
-            return size() == 2 && get(0).getBlackjackValue() == get(1).getBlackjackValue();
-        }
-
-        /**
-         * Determines if a hand is a soft 17.
-         * Used for determining if the dealer needs to hit if the game has been set
-         * for the dealer to hit on soft 17.
-         * 
-         * @return true if the hand is a soft 17
-         */
-        protected boolean isSoft17(){
-            if (calcSum() == 17){
-                //Recalculate with aces valued at 1 and check if the sum is lower than 17
-                int sum = 0;
-                for (Card c : this) {
-                    if (c.isFace("A")){
-                        sum += 1;
-                    } else {
-                        sum += c.getBlackjackValue();
-                    }
-                }
-                return sum < 17;
-            }
-            return false;
-        }
-
-        /**
-         * Calculates the highest non-busting sum of a BlackjackHand.
-         * The highest non-busting sum is returned whenever possible.
-         * 
-         * @return the sum of the BlackjackHand.
-         */
-        protected int calcSum() {
-            int sum = 0, numAces = 0;
-            // Add up all the cards and keep track of the number of aces
-            for (Card c : this) {
-                if (c.isFace("A")) {
-                    numAces++;
-                }
-                sum += c.getBlackjackValue();
-            }
-            // Use the lower of each ace while the sum is greater than 21
-            for (int ctr = 0; ctr < numAces; ctr++){
-                if (sum > 21){
-                    sum -= 10;
-                } else { 
-                    break;
-                }
-            }
-            return sum;
-        }
-
-        /**
-         * Compares this BlackjackHand to another based on sum.
-         * A blackjack is greater than all BlackjackHands except for another
-         * blackjack. This method is usually only called when comparing a player's
-         * hand to the dealer's.
-         * 
-         * @param h the BlackjackHand to compare
-         * @return -1 if this hand's sum is less or bust, zero for a push, or 1 
-         * if this hand's sum is greater
-         * @throws NullPointerException if the specified BlackjackHand is null
-         */
-        @Override
-        public int compareTo(BlackjackHand h) {
-            if (h == null) {
-                throw new NullPointerException();
-            }
-            int sum = calcSum(), hsum = h.calcSum();
-            boolean BJ = isBlackjack();
-            boolean hBJ = h.isBlackjack();
-            if (sum > 21) {
-                return -1;
-            } else if (sum == 21) {
-                /* Different cases at 21 */
-                if (BJ && !hBJ) {
-                    return 2;
-                } else if (BJ && hBJ) {
-                    return 0;
-                } else if (!BJ && hBJ) {
-                    return -1;
-                } else {
-                    if (hsum == 21) {
-                        return 0;
-                    } else {
-                        return 1;
-                    }
-                }
-            } else {
-                /* Any case other than 21 */
-                if (hsum > 21 || hsum < sum) {
-                    return 1;
-                } else if (hsum == sum) {
-                    return 0;
-                } else {
-                    return -1;
-                }
-            }
-        }
-    }
-    
-    /**
-     * Extends the Player class for players playing Blackjack.
-     * @author Yizhe Shen
-     */
-    private class BlackjackPlayer extends Player{
-        /** ArrayList containing the player's BlackjackHands. */
-        private ArrayList<BlackjackHand> hands;
-
-        /**
-         * Creates a new BlackjackPlayer.
-         * Creates the new player with the specified parameters.
-         * 
-         * @param nick IRC user's nick.
-         * @param hostmask IRC user's host.
-         */
-        public BlackjackPlayer(String nick, String host){
-            super(nick, host);
-            hands = new ArrayList<BlackjackHand>();
-            set("initialbet", 0);
-            set("insurebet", 0);
-            set("surrender", 0);
-            set("currentindex", 0);
-        }
-
-        /* Blackjack-specific card/hand manipulation methods */
-        /**
-         * Adds a new hand to the ArrayList of BlackjackHands.
-         */
-        protected void addHand(){
-            hands.add(new BlackjackHand());
-        }
-
-        /**
-         * Gets the BlackjackHand at the specified index.
-         * @param num the specified index
-         * @return the BlackjackHand at the index
-         */
-        protected BlackjackHand getHand(int num){
-            return hands.get(num);
-        }
-
-        /**
-         * Gets the player's current BlackjackHand.
-         * @return the BlackjackHand at the current index
-         */
-        protected BlackjackHand getHand(){
-            return hands.get(get("currentindex"));
-        }
-
-        /**
-         * Increments the current index in order to get the next hand.
-         * @return the BlackjackHand at the incremented index
-         */
-        protected BlackjackHand getNextHand(){
-            increment("currentindex");
-            return getHand(get("currentindex"));
-        }
-
-        /**
-         * Returns the number BlackjackHands the player has.
-         * @return the number of BlackjackHands
-         */
-        protected int getNumberHands(){
-            return hands.size();
-        }
-
-        /**
-         * Whether or not the player has any BlackjackHands.
-         * @return true if the player has any BlackjackHands
-         */
-        protected boolean hasHands(){
-            return hands.size() > 0;
-        }
-
-        /**
-         * Clears all of the player's hands.
-         */
-        protected void resetHands(){
-            hands.clear();
-        }
-
-        /**
-         * Whether or not the player has surrendered.
-         * @return true if the player has surrendered.
-         */
-        protected boolean hasSurrendered(){
-            return get("surrender") == 1;
-        }
-
-        /* Methods related to splitting hands */
-        /**
-         * Whether or not the player has split his initial hand.
-         * @return true if hands contains more than one BlackjackHand
-         */
-        protected boolean hasSplit(){
-            return hands.size() > 1;
-        }
-
-        /**
-         * Splits a BlackjackHand into two BlackjackHands.
-         * Creates a new BlackjackHand and gives it the second card of the original.
-         * The card is then removed from the original BlackjackHand. The new
-         * BlackjackHand is added to the end of the ArrayList of BlackjackHands.
-         */
-        protected void splitHand(){
-            BlackjackHand tHand = new BlackjackHand();
-            BlackjackHand cHand = getHand();
-            tHand.add(cHand.get(1));
-            cHand.remove(1);
-
-            hands.add(get("currentindex") + 1, tHand);
-        }
-    }
-
     /**
      * The default constructor for Blackjack, subclass of CardGame.
      * This constructor loads the default INI file.
@@ -654,8 +324,8 @@ public class Blackjack extends CardGame {
                 opCmdMap.clear();
                 aliasMap.clear();
                 msgMap.clear();
-                loadHelp(helpFile);
                 loadStrLib(strFile);
+                loadHelp(helpFile);
                 showMsg(getMsg("reload"));
             }
         } else if (command.equals("test1")){
@@ -918,6 +588,7 @@ public class Blackjack extends CardGame {
                 // If in the betting or post-start wait phase
                 if (betting || currentPlayer == null){
                     if (p == currentPlayer){
+                        cancelIdleOutTask();
                         currentPlayer = getNextPlayer();
                         removeJoined(p);
                         if (currentPlayer == null) {
@@ -1276,6 +947,8 @@ public class Blackjack extends CardGame {
             informPlayer(nick, getMsg("ops_only"));
         } else if (!inProgress) {
             informPlayer(nick, getMsg("no_start"));
+        } else if (currentPlayer == null) {
+            informPlayer(nick, getMsg("no_force_play"));
         } else if (betting) {
             informPlayer(nick, getMsg("no_cards"));
         } else {
@@ -1296,6 +969,8 @@ public class Blackjack extends CardGame {
             informPlayer(nick, getMsg("ops_only"));
         } else if (!inProgress) {
             informPlayer(nick, getMsg("no_start"));
+        } else if (currentPlayer == null) {
+            informPlayer(nick, getMsg("no_force_play"));
         } else if (!betting) {
             informPlayer(nick, getMsg("no_betting"));
         } else {
@@ -1412,7 +1087,7 @@ public class Blackjack extends CardGame {
             p.add("cash", -1 * amount);
             p.add("bjwinnings", -1 * amount);
             house.add("cash", amount);
-            showMsg(getMsg("bj_bet"), p.getNickStr(), p.get("initialbet"), p.get("cash"));
+            showMsg(getMsg("bj_bet"), p.getNickStr(false), p.get("initialbet"), p.get("cash"));
             currentPlayer = getNextPlayer();
             if (currentPlayer == null) {
                 betting = false;
@@ -1471,7 +1146,7 @@ public class Blackjack extends CardGame {
             p.add("bjwinnings", -1 * h.getBet());
             house.add("cash", h.getBet());
             h.addBet(h.getBet());
-            showMsg(getMsg("bj_dd"), p.getNickStr(), h.getBet(), p.get("cash"));
+            showMsg(getMsg("bj_dd"), p.getNickStr(false), h.getBet(), p.get("cash"));
             dealCard(h);
             showHitResult(p,h);
             continueRound();
@@ -1497,7 +1172,7 @@ public class Blackjack extends CardGame {
             p.add("bjwinnings", calcHalf(p.get("initialbet")));
             house.add("cash", -1 * calcHalf(p.get("initialbet")));
             p.set("surrender", 1);
-            showMsg(getMsg("bj_surr"), p.getNickStr(), p.get("cash"));
+            showMsg(getMsg("bj_surr"), p.getNickStr(false), p.get("cash"));
             continueRound();
         }
     }
@@ -1531,7 +1206,7 @@ public class Blackjack extends CardGame {
             p.add("cash", -1 * amount);
             p.add("bjwinnings", -1 * amount);
             house.add("cash", amount);
-            showMsg(getMsg("bj_insure"), p.getNickStr(), p.get("insurebet"), p.get("cash"));
+            showMsg(getMsg("bj_insure"), p.getNickStr(false), p.get("insurebet"), p.get("cash"));
         }
         setIdleOutTask();
     }
@@ -1746,12 +1421,12 @@ public class Blackjack extends CardGame {
     @Override
     public int getTotalPlayers(){
         try {
-            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
-            loadPlayerFile(statList);
-            int total = 0, numLines = statList.size();
+            ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
+            loadPlayerFile(records);
+            int total = 0, numLines = records.size();
             
-            for (int ctr = 0; ctr < numLines; ctr++){
-                if (statList.get(ctr).has("bjrounds")){
+            for (PlayerRecord record : records){
+                if (record.has("bjrounds")){
                     total++;
                 }
             }
@@ -1862,7 +1537,7 @@ public class Blackjack extends CardGame {
      */
     private void showSplitHands(BlackjackPlayer p) {
         BlackjackHand h;
-        showMsg(getMsg("bj_split"), p.getNickStr(), p.getNickStr());
+        showMsg(getMsg("bj_split"), p.getNickStr(false), p.getNickStr(false));
         for (int ctr = 0; ctr < p.getNumberHands(); ctr++) {
             h = p.getHand(ctr);
             showPlayerHandWithBet(p, h, ctr + 1);
@@ -2074,53 +1749,54 @@ public class Blackjack extends CardGame {
         
         int highIndex, rank = 0;
         try {
-            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
-            loadPlayerFile(statList);
+            ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
+            loadPlayerFile(records);
+            PlayerRecord aRecord;
             ArrayList<String> nicks = new ArrayList<String>();
             ArrayList<Double> test = new ArrayList<Double>();
-            int length = statList.size();
+            int length = records.size();
             String line = Colors.BLACK + ",08";
             
-            for (int ctr = 0; ctr < statList.size(); ctr++) {
-                nicks.add(statList.get(ctr).getNick());
+            for (int ctr = 0; ctr < records.size(); ctr++) {
+                nicks.add(records.get(ctr).getNick());
             }
             
             if (stat.equals("cash")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add((double) statList.get(ctr).get(stat));
+                for (int ctr = 0; ctr < records.size(); ctr++) {
+                    test.add((double) records.get(ctr).get(stat));
                 }
                 line += "Cash: ";
             } else if (stat.equals("bank")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add((double) statList.get(ctr).get(stat));
+                for (int ctr = 0; ctr < records.size(); ctr++) {
+                    test.add((double) records.get(ctr).get(stat));
                 }
                 line += "Bank: ";
             } else if (stat.equals("bankrupts")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add((double) statList.get(ctr).get(stat));
+                for (int ctr = 0; ctr < records.size(); ctr++) {
+                    test.add((double) records.get(ctr).get(stat));
                 }
                 line += "Bankrupts: ";
             } else if (stat.equals("net") || stat.equals("netcash")) {
                 for (int ctr = 0; ctr < nicks.size(); ctr++) {
-                    test.add((double) statList.get(ctr).get("netcash"));
+                    test.add((double) records.get(ctr).get("netcash"));
                 }
                 line += "Net Cash: ";
             } else if (stat.equals("winnings")){
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add((double) statList.get(ctr).get("bjwinnings"));
+                for (int ctr = 0; ctr < records.size(); ctr++) {
+                    test.add((double) records.get(ctr).get("bjwinnings"));
                 }
                 line += "Blackjack Winnings: ";
             } else if (stat.equals("rounds")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    test.add((double) statList.get(ctr).get("bjrounds"));
+                for (int ctr = 0; ctr < records.size(); ctr++) {
+                    test.add((double) records.get(ctr).get("bjrounds"));
                 }
                 line += "Blackjack Rounds: ";
             } else if (stat.equals("winrate")) {
-                for (int ctr = 0; ctr < statList.size(); ctr++) {
-                    if (statList.get(ctr).get("bjrounds") == 0){
+                for (int ctr = 0; ctr < records.size(); ctr++) {
+                    if (records.get(ctr).get("bjrounds") == 0){
                         test.add(0.);
                     } else {
-                        test.add((double) statList.get(ctr).get("bjwinnings") / (double) statList.get(ctr).get("bjrounds"));
+                        test.add((double) records.get(ctr).get("bjwinnings") / (double) records.get(ctr).get("bjrounds"));
                     }
                 }
                 line += "Blackjack Win Rate: ";
@@ -2166,7 +1842,7 @@ public class Blackjack extends CardGame {
         
         int highIndex;
         try {
-            ArrayList<StatFileLine> statList = new ArrayList<StatFileLine>();
+            ArrayList<PlayerRecord> statList = new ArrayList<PlayerRecord>();
             loadPlayerFile(statList);
             ArrayList<String> nicks = new ArrayList<String>();
             ArrayList<Double> test = new ArrayList<Double>();

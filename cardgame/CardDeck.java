@@ -17,7 +17,7 @@
     along with irccasino.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package irccasino;
+package irccasino.cardgame;
 
 import java.util.ArrayList;
 import java.util.Random;

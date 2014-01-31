@@ -17,6 +17,7 @@ wait_round_end=A round is in progress! Wait for the round to end.
 round_started=A round is in progress!
 no_start=No round in progress!
 no_betting=No betting in progress!
+no_force_play=It is not currently anybody's turn!
 wrong_turn=It's not your turn!
 no_cards=No cards have been dealt yet!
 ops_only=This command may only be used by channel Ops.
@@ -62,6 +63,7 @@ game_start=%s has started.
 game_end=%s has ended.
 game_name=Currently running: %s.
 end_round=u0002----------u0002 End of %s round. Type %cgo for a new round. u0002----------u0002
+end_round_auto=u0002----------u0002 End of %s round. u0002----------u0002
 deposit=%s has made a deposit of $%,d. Cash: $%,d. Bank: $%,d.
 withdraw=%s has made a withdrawal of $%,d. Cash: $%,d. Bank: $%,d.
 num_cards=%,d cards left in the deck.
@@ -109,10 +111,10 @@ bj_game_name=Blackjack
 # With parameters #
 ###################
 insure_bet_too_high=Maximum insurance bet is $%,d. Try again.
-bj_bet=%s bets $%,d. Stack: $%,d
-bj_dd=%s has doubled down! The bet is now $%,d. Stack: $%,d
-bj_surr=%s has surrendered! Half the bet is returned. Stack: $%,d
-bj_insure=%s has made an insurance bet of $%,d. Stack: $%,d
+bj_bet=%s bets u0002$%,du0002. Stack: u0002$%,du0002
+bj_dd=%s has doubled down! The bet is now u0002$%,du0002. Stack: u0002$%,du0002
+bj_surr=%s has surrendered! Half the bet is returned. u0002Stack: $%,du0002
+bj_insure=%s has made an insurance bet of u0002$%,du0002. Stack: u0002$%,du0002
 bj_num_cards=%,d cards left in the dealer's shoe.
 bj_count=Cards/Hi-Lo/Red7/Zen: %,d/%,d/%.1f/%,d
 bj_red7=Red7 count: %.1f
@@ -163,14 +165,44 @@ tp_shuffle_deck=The deck has been shuffled.
 tp_bet_too_low=Bet too low. Current bet is $%,d.
 raise_too_low=Minimum raise is $%,d. Try again.
 no_checking=Current bet is $%,d. You must call or raise.
-tp_turn=%s's turn. Committed: u0002$%,du0002. Stack: $%,d. Current bet: u0002$%,du0002. In-play: u0002$%,du0002
-tp_bet=%s bets $%,d. Stack: $%,d
-tp_raise=%s has raised to $%,d. Stack: $%,d
-tp_allin=%s has gone all in! Committed: $%,d. Stack: $%,d
-tp_call=%s has called. Committed: $%,d. Stack: $%,d
-tp_check=%s has checked. Committed: $%,d. Stack: $%,d
-tp_fold=%s has folded. Stack: $%,d
+tp_turn=%s's turn. u0002$%,du0002 to call | u0002$%,du0002 --> u0002$%,du0002 | In-play: u0002$%,du0002 | Stack: u0002$%,du0002
+tp_bet=%s bets u0002$%,du0002. Stack: u0002$%,du0002
+tp_raise=%s has raised to u0002$%,du0002. Stack: u0002$%,du0002
+tp_allin=%s has gone all in! Committed: u0002$%,du0002. Stack: u0002$%,du0002
+tp_call=%s has called. Committed: u0002$%,du0002. Stack: u0002$%,du0002
+tp_check=%s has checked. Committed: u0002$%,du0002. Stack: u0002$%,du0002
+tp_fold=%s has folded. Stack: u0002$%,du0002
 tp_player_result=%s (%s): %s, %s
 tp_hand=Your hand is %s.
 tp_stats=%,d players have played %s. %s
 tp_rules=This is no limit Texas Hold'em Poker. Blind bets are set at $%,d/$%,d or your stack, whichever is lower.
+############################
+### TexasTourney strings ###
+############################
+#################
+# No parameters #
+#################
+tt_game_name=No Limit Texas Hold'em Tournament
+tt_started=A tournament is already in progress.
+tt_started_unable_join=Unable to join a tournament that is already in progress. Please wait for it to finish.
+tt_no_winner=Everybody has left the tournament. Nobody wins.
+tt_wait_for_end=Unable to use this command while a tournament is in progress. Please wait for it to finish.
+tt_no_start=No tournament in progress!
+tt_new_tourney=Starting a new No Limit Texas Hold'em Tournament!
+tt_nick_change=You have changed nicks while joined and will be removed from this tournament.
+###################
+# With parameters #
+###################
+tt_rules=This is no limit Texas Hold'em Poker. Blind bets are set at $%,d/$%,d or your stack, whichever is lower.
+tt_winner=%s has won the tournament! Tournament Wins: u0002%,du0002
+tt_player_all_stats=%s | Tournament Wins: %,d | Tournaments Played: %,d
+tt_player_played=%s has played in %,d tournaments.
+tt_player_wins=%s has won %,d tournaments.
+tt_double_blinds=u0002%,du0002 rounds completed. Doubling blinds to u0002$%,du0002/u0002$%,du0002.
+tt_double_blinds_single_out=%s is bankrupt! Doubling blinds to u0002$%,du0002/u0002$%,du0002.
+tt_double_blinds_multi_out=%s are bankrupt! Doubling blinds to u0002$%,du0002/u0002$%,du0002.
+tt_stats=%,d players have played %s. %s
+tt_start_round=u0002----------u0002 Starting round u0002%,du0002 in %d seconds... u0002----------u0002
+tt_end_round=u0002----------u0002 End of round u0002%,du0002. u0002----------u0002
+tt_out_of_tourney=Out: %s
+tt_unjoin=%s is out of the tournament!
