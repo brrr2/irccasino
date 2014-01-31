@@ -32,6 +32,7 @@ class HouseStat extends Stats {
     }
 
     public HouseStat(int a, int b, int c) {
+        super();
         set("decks", a);
         set("rounds", b);
         set("cash", c);

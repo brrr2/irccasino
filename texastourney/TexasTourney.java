@@ -29,7 +29,9 @@ import irccasino.texaspoker.PokerPot;
 import irccasino.texaspoker.PokerPlayer;
 import irccasino.texaspoker.PokerSimulator;
 import irccasino.texaspoker.TexasPoker;
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -45,6 +47,7 @@ public class TexasTourney extends TexasPoker {
     ArrayList<Player> newOutList;
     int tourneyRounds, numOuts;
     boolean newPlayerOut;
+    TourneyStat tourneyStats;
     
     public TexasTourney() {
         super();
@@ -94,6 +97,8 @@ public class TexasTourney extends TexasPoker {
         strFile = "strlib.txt";
         loadStrLib(strFile);
         loadHelp(helpFile);
+        tourneyStats = new TourneyStat();
+        loadGameStats();
         initialize();
         loadIni();
         deck = new CardDeck();
@@ -690,6 +695,7 @@ public class TexasTourney extends TexasPoker {
         smallBlind = null;
         bigBlind = null;
         topBettor = null;
+        tourneyStats = null;
         devoiceAll();
         showMsg(getMsg("game_end"), getGameNameStr());
         joined.clear();
@@ -752,6 +758,18 @@ public class TexasTourney extends TexasPoker {
             // Display tournament results
             showTourneyResults();
             
+            tourneyStats.increment("numtourneys");
+            if (tourneyStats.getBiggestTourney() < joined.size() + blacklist.size()) {
+                tourneyStats.setWinner(new PokerPlayer(joined.get(0).getNick(), ""));
+                tourneyStats.getPlayers().clear();
+                for (Player pp : joined) {
+                    tourneyStats.addPlayer(new PokerPlayer(pp.getNick(), ""));
+                }
+                for (Player pp : blacklist) {
+                    tourneyStats.addPlayer(new PokerPlayer(pp.getNick(), ""));
+                }
+            }
+            saveGameStats();
             resetTourney();
         // Automatically start a new round if more than 1 player left
         } else {
@@ -1064,12 +1082,86 @@ public class TexasTourney extends TexasPoker {
     /* House stats management */
     @Override
     public void loadGameStats() {
-        throw new UnsupportedOperationException("Not supported");
+        try {
+            BufferedReader in = new BufferedReader(new FileReader("housestats.txt"));
+            String str;
+            StringTokenizer st;
+            while (in.ready()) {
+                str = in.readLine();
+                if (str.startsWith("#texastourney")) {
+                    while (in.ready()) {
+                        str = in.readLine();
+                        if (str.startsWith("#")) {
+                            break;
+                        }
+                        st = new StringTokenizer(str);
+                        tourneyStats.set("numtourneys", Integer.parseInt(st.nextToken()));
+                        tourneyStats.setWinner(new PokerPlayer(st.nextToken(), ""));
+                        while (st.hasMoreTokens()) {
+                            tourneyStats.addPlayer(new PokerPlayer(st.nextToken(), ""));
+                        }
+                    }
+                    break;
+                }
+            }
+            in.close();
+        } catch (IOException e) {
+            manager.log("housestats.txt not found! Creating new housestats.txt...");
+            try {
+                PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("housestats.txt")));
+                out.close();
+            } catch (IOException f) {
+                manager.log("Error creating housestats.txt!");
+            }
+        }
     }
     
     @Override
     public void saveGameStats() {
-        throw new UnsupportedOperationException("Not supported");
+        boolean found = false;
+        int index = 0;
+        ArrayList<String> lines = new ArrayList<String>();
+        try {
+            BufferedReader in = new BufferedReader(new FileReader("housestats.txt"));
+            String str;
+            while (in.ready()) {
+                //Add all lines until we find texaspoker lines
+                str = in.readLine();
+                lines.add(str);
+                if (str.startsWith("#texastourney")) {
+                    found = true;
+                    /* Store the index where texastourney stats go so they can be 
+                     * overwritten. */
+                    index = lines.size();
+                    //Skip existing texastourney lines but add all the rest
+                    while (in.ready()) {
+                        str = in.readLine();
+                        if (str.startsWith("#")) {
+                            lines.add(str);
+                            break;
+                        }
+                    }
+                }
+            }
+            in.close();
+        } catch (IOException e) {
+            /* housestats.txt is not found */
+            manager.log("Error reading housestats.txt!");
+        }
+        if (!found) {
+            lines.add("#texastourney");
+            index = lines.size();
+        }
+        lines.add(index, tourneyStats.get("numtourneys") + " " + tourneyStats.getWinner().getNick() + " " + tourneyStats.getPlayersString());
+        try {
+            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("housestats.txt")));
+            for (int ctr = 0; ctr < lines.size(); ctr++) {
+                out.println(lines.get(ctr));
+            }
+            out.close();
+        } catch (IOException e) {
+            manager.log("Error writing to housestats.txt!");
+        }
     }
     
     @Override
@@ -1315,6 +1407,6 @@ public class TexasTourney extends TexasPoker {
     
     @Override
     public String getGameStatsStr() {
-        return String.format(getMsg("tt_stats"), getTotalPlayers(), getGameNameStr());
+        return String.format(getMsg("tt_stats"), getTotalPlayers(), getGameNameStr(), tourneyStats);
     }
 }

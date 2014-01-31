@@ -36,6 +36,7 @@ class HouseStat extends Stats {
     }
 
     public HouseStat(int pot) {
+        super();
         set("biggestpot", pot);
         donors = new ArrayList<PokerPlayer>();
         winners = new ArrayList<PokerPlayer>();
@@ -88,15 +89,15 @@ class HouseStat extends Stats {
             for (int ctr = 0; ctr < size; ctr++){
                 if (ctr == size-1){
                     if (winners.contains(donors.get(ctr))) {
-                        outStr += donors.get(ctr).getNickStr();
+                        outStr += donors.get(ctr).getNickStr(false);
                     } else {
-                        outStr += donors.get(ctr).getNick();
+                        outStr += donors.get(ctr).getNick(false);
                     }
                 } else {
                     if (winners.contains(donors.get(ctr))) {
-                        outStr += donors.get(ctr).getNickStr() + ", ";
+                        outStr += donors.get(ctr).getNickStr(false) + ", ";
                     } else {
-                        outStr += donors.get(ctr).getNick() + ", ";
+                        outStr += donors.get(ctr).getNick(false) + ", ";
                     }
                 }
             }   
