@@ -642,7 +642,7 @@ public class TexasTourney extends TexasPoker {
 
             // Determine the winners of each pot
             showResults();
-
+            
             // Show player stack changes
             showStackChange();
             
@@ -673,7 +673,7 @@ public class TexasTourney extends TexasPoker {
                 }
                 
                 resetPlayer(p);
-            } 
+            }
         }
         resetGame();
         tourneyRounds++;        
@@ -1360,12 +1360,11 @@ public class TexasTourney extends TexasPoker {
                 list += " #" + (ctr+1) + ": " + Colors.WHITE + ",04 " + formatNoPing(aRecord.getNick()) + " " + formatNoDecimal(aRecord.get(statName)) + " " + Colors.BLACK + ",08";
 
                 // Output and reset after 10 players
-                if (ctr % 10 == 9){
+                if (ctr % 10 == 9 || ctr == length - 1){
                     showMsg(list);
                     list = Colors.BLACK + ",08";
                 }
             }
-            showMsg(list);
         } catch (IOException e) {
             manager.log("Error reading players.txt!");
         }
@@ -1379,7 +1378,7 @@ public class TexasTourney extends TexasPoker {
         
         // Add players still in the tournament
         for (Player p : list) {
-            if (p.get("cash") == 0) {
+            if (p.get("cash") == 0 || p.has("quit")) {
                 msg += p.getNick(false) + " (" + Colors.RED + formatBold("OUT") + Colors.NORMAL + "), ";
             } else {
                 msg += p.getNick(false) + " (" + formatBold("$" + formatNumber(p.get("cash"))) + "), ";
@@ -1402,7 +1401,10 @@ public class TexasTourney extends TexasPoker {
     
     @Override
     public String getGameRulesStr() {
-        return String.format(getMsg("tt_rules"), get("minbet")/2, get("minbet"));
+        if (has("doubleonbankrupt")) {
+            return String.format(getMsg("tt_rules_dob"), get("cash"), get("minbet")/2, get("minbet"), get("doubleblinds"), get("minplayers"));
+        }
+        return String.format(getMsg("tt_rules"), get("cash"), get("minbet")/2, get("minbet"), get("doubleblinds"), get("minplayers"));
     }
     
     @Override

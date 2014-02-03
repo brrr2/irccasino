@@ -193,7 +193,8 @@ tt_nick_change=You have changed nicks while joined and will be removed from this
 ###################
 # With parameters #
 ###################
-tt_rules=This is no limit Texas Hold'em Poker. Blind bets are set at $%,d/$%,d or your stack, whichever is lower.
+tt_rules=This is no limit Texas Hold'em Poker tournament. All players are given $%,d at the start of the tournament. Blind bets begin at $%,d/$%,d and are doubled every %,d rounds. Minimum %,d players to start a tournament.
+tt_rules_dob=This is a tournament version of no limit Texas Hold'em Poker. All players are given $%,d at the start of the tournament. Blind bets begin at $%,d/$%,d and are doubled every %,d rounds and when players go bankrupt. Minimum %,d players to start a tournament.
 tt_winner=%s has won the tournament! Tournament Wins: u0002%,du0002
 tt_player_all_stats=%s | Tournament Wins: %,d | Tournaments Played: %,d
 tt_player_played=%s has played in %,d tournaments.
