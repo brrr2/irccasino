@@ -212,14 +212,14 @@ public class CasinoBot extends PircBotX implements GameManager {
     @Override
     public void shutdown(boolean noReconnect) {
         try {
-            outputThread.interrupt();
-            inputThread.interrupt();
+            if (outputThread != null) outputThread.interrupt();
+            if (inputThread != null) inputThread.interrupt();
         } catch (Exception e) {
             logException(e);
         }
         
         //Close the socket from here and let the threads die
-        if (!socket.isClosed())
+        if (socket != null && !socket.isClosed())
             try {
                 socket.shutdownInput();
                 socket.close();
@@ -409,8 +409,8 @@ public class CasinoBot extends PircBotX implements GameManager {
                 bot.logException(e);
                 
                 // Wait for IRC threads to die
-                bot.inputThread.join();
-                bot.outputThread.join();
+                if (bot.inputThread != null) bot.inputThread.join();
+                if (bot.outputThread != null) bot.outputThread.join();
                 
                 // Set delay up to 300 seconds or 5 minutes
                 int delay = Math.min(attempt * timeInt, timeInt * 30);

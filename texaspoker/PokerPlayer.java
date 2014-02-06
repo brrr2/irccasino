@@ -37,10 +37,10 @@ public class PokerPlayer extends Player implements Comparable<PokerPlayer> {
      * Creates the new player with the specified parameters.
      * 
      * @param nick IRC user's nick.
-     * @param hostmask IRC user's hostmask.
+     * @param host IRC user's host.
      */
-    public PokerPlayer(String nick, String hostmask){
-        super(nick, hostmask);
+    public PokerPlayer(String nick, String host){
+        super(nick, host);
         set("bet", 0);
         set("change", 0);
         set("fold", 0);

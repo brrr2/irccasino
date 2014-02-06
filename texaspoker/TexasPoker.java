@@ -199,15 +199,14 @@ public class TexasPoker extends CardGame{
         } else if (command.equals("fstop")){
             // Use only as last resort. Data will be lost.
             if (isForceStopAllowed(user,nick)){
-                PokerPlayer p;
+                cancelStartRoundTask();
                 cancelIdleOutTask();
                 for (int ctr = 0; ctr < joined.size(); ctr++) {
-                    p = (PokerPlayer) joined.get(ctr);
-                    resetPlayer(p);
+                    resetPlayer((PokerPlayer) joined.get(ctr));
                 }
                 resetGame();
+                startCount = 0;
                 showMsg(getMsg("end_round"), getGameNameStr(), commandChar);
-                inProgress = false;
             }
         } else if (command.equals("fb") || command.equals("fbet")){
             if (isForcePlayAllowed(user, nick)){
