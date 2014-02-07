@@ -253,15 +253,15 @@ public class Blackjack extends CardGame {
         } else if (command.equals("fstop")){
             // Use only as last resort. Data will be lost.
             if (isForceStopAllowed(user,nick)){
-                BlackjackPlayer p;
+                cancelStartRoundTask();
                 cancelIdleOutTask();
                 for (int ctr = 0; ctr < joined.size(); ctr++) {
-                    p = (BlackjackPlayer) joined.get(ctr);
-                    resetPlayer(p);
+                    resetPlayer((BlackjackPlayer) joined.get(ctr));
                 }
                 resetGame();
+                startCount = 0;
                 showMsg(getMsg("end_round"), getGameNameStr(), commandChar);
-                inProgress = false;
+                setIdleShuffleTask();
             }
         } else if (command.equals("fb") || command.equals("fbet")){
             if (isForceBetAllowed(user, nick)){

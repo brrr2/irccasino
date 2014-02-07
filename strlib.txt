@@ -186,14 +186,19 @@ tt_game_name=No Limit Texas Hold'em Tournament
 tt_started=A tournament is already in progress.
 tt_started_unable_join=Unable to join a tournament that is already in progress. Please wait for it to finish.
 tt_no_winner=Everybody has left the tournament. Nobody wins.
+tt_no_winner_cancel=Tournament is canceled. Nobody wins.
 tt_wait_for_end=Unable to use this command while a tournament is in progress. Please wait for it to finish.
 tt_no_start=No tournament in progress!
 tt_new_tourney=Starting a new No Limit Texas Hold'em Tournament!
 tt_nick_change=You have changed nicks while joined and will be removed from this tournament.
+tt_no_cancel=You are out of the tournament and cannot request the tournament to be canceled.
+tt_already_cancel=You have already requested that the tournament be canceled.
+tt_cancel_tourney=Canceling the tournament...
 ###################
 # With parameters #
 ###################
-tt_rules=This is no limit Texas Hold'em Poker. Blind bets are set at $%,d/$%,d or your stack, whichever is lower.
+tt_rules=This is no limit Texas Hold'em Poker tournament. All players are given $%,d at the start of the tournament. Blind bets begin at $%,d/$%,d and are doubled every %,d rounds. Minimum %,d players to start a tournament.
+tt_rules_dob=This is a tournament version of no limit Texas Hold'em Poker. All players are given $%,d at the start of the tournament. Blind bets begin at $%,d/$%,d and are doubled every %,d rounds and when players go bankrupt. Minimum %,d players to start a tournament.
 tt_winner=%s has won the tournament! Tournament Wins: u0002%,du0002
 tt_player_all_stats=%s | Tournament Wins: %,d | Tournaments Played: %,d
 tt_player_played=%s has played in %,d tournaments.
@@ -206,3 +211,4 @@ tt_start_round=u0002----------u0002 Starting round u0002%,du0002 in %d seconds..
 tt_end_round=u0002----------u0002 End of round u0002%,du0002. u0002----------u0002
 tt_out_of_tourney=Out: %s
 tt_unjoin=%s is out of the tournament!
+tt_cancel=%s has requested that the tournament be canceled.

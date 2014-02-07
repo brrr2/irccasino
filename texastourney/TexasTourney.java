@@ -132,6 +132,18 @@ public class TexasTourney extends TexasPoker {
                 showStartRound();
                 setStartRoundTask();
             }
+        } else if (command.equals("stop") || command.equals("cancel")) {
+            if (!inProgress) {
+                informPlayer(nick, getMsg("tt_no_start"));
+            } else if (!isJoined(nick)) {
+                if (isBlacklisted(nick)) {
+                    informPlayer(nick, getMsg("tt_no_cancel"));
+                } else {
+                    informPlayer(nick, getMsg("no_join"));
+                }
+            } else {
+                requestCancel(nick);
+            }
         } else if (command.equals("cash")) {
             if (!inProgress) {
                 informPlayer(nick, getMsg("tt_no_start"));
@@ -347,18 +359,14 @@ public class TexasTourney extends TexasPoker {
                 setStartRoundTask();
             }
         } else if (command.equals("fstop")){
-            // Use only as last resort. Data will be lost.
+            // Equivalent to canceling the tournament
             if (isForceStopAllowed(user,nick)){
-                PokerPlayer p;
+                cancelStartRoundTask();
                 cancelIdleOutTask();
-                for (int ctr = 0; ctr < joined.size(); ctr++) {
-                    p = (PokerPlayer) joined.get(ctr);
-                    resetPlayer(p);
-                }
                 resetGame();
+                showMsg(getMsg("tt_end_round"), ++tourneyRounds);
+                showMsg(getMsg("tt_no_winner_cancel"));
                 resetTourney();
-                showMsg(getMsg("end_round"), getGameNameStr(), commandChar);
-                inProgress = false;
             }
         } else if (command.equals("fb") || command.equals("fbet")){
             if (isForcePlayAllowed(user, nick)){
@@ -468,7 +476,7 @@ public class TexasTourney extends TexasPoker {
     /* Game management methods */
     @Override
     public void addPlayer(String nick, String host) {
-        addPlayer(new PokerPlayer(nick, host));
+        addPlayer(new TourneyPokerPlayer(nick, host));
     }
     
     @Override
@@ -555,7 +563,7 @@ public class TexasTourney extends TexasPoker {
          * end of a round of betting and we should deal community cards. */
         if (currentPlayer == topBettor || currentPlayer == firstPlayer) {
             // Reset minimum raise (override)
-            minRaise = (int) (get("minbet")*(Math.pow(2, tourneyRounds/get("doubleblinds"))));
+            minRaise = (int) (get("minbet")*(Math.pow(2, tourneyRounds/get("doubleblinds") + numOuts)));
             
             // Add bets from this round of betting to the pot
             addBetsToPot();
@@ -642,7 +650,7 @@ public class TexasTourney extends TexasPoker {
 
             // Determine the winners of each pot
             showResults();
-
+            
             // Show player stack changes
             showStackChange();
             
@@ -673,11 +681,10 @@ public class TexasTourney extends TexasPoker {
                 }
                 
                 resetPlayer(p);
-            } 
+            }
         }
         resetGame();
-        tourneyRounds++;        
-        showMsg(getMsg("tt_end_round"), tourneyRounds);
+        showMsg(getMsg("tt_end_round"), ++tourneyRounds);
         checkTourneyStatus();
     }
     
@@ -902,6 +909,33 @@ public class TexasTourney extends TexasPoker {
         // Set the current bet to the bigger of the two blinds.
         currentBet = Math.max(smallBlind.get("bet"), bigBlind.get("bet"));
         minRaise = newBlind;
+    }
+    
+    protected void requestCancel(String nick) {
+        TourneyPokerPlayer p = (TourneyPokerPlayer) findJoined(nick);
+        if (p.has("cancel")) {
+            informPlayer(nick, getMsg("tt_already_cancel"));
+        } else {
+            showMsg(getMsg("tt_cancel"), p.getNickStr(false));
+            p.set("cancel", 1);
+            
+            // Check if all players have made a request
+            for (int ctr = 0; ctr < joined.size(); ctr++) {
+                p = (TourneyPokerPlayer) joined.get(ctr);
+                if (!p.has("cancel")) {
+                    return;
+                }
+            }
+            
+            // If we get down here, then cancel the tournament
+            cancelStartRoundTask();
+            cancelIdleOutTask();
+            showMsg(getMsg("tt_cancel_tourney"));
+            resetGame();
+            showMsg(getMsg("tt_end_round"), ++tourneyRounds);
+            showMsg(getMsg("tt_no_winner_cancel"));
+            resetTourney();
+        }
     }
     
     /* Game command logic checking methods */
@@ -1360,12 +1394,11 @@ public class TexasTourney extends TexasPoker {
                 list += " #" + (ctr+1) + ": " + Colors.WHITE + ",04 " + formatNoPing(aRecord.getNick()) + " " + formatNoDecimal(aRecord.get(statName)) + " " + Colors.BLACK + ",08";
 
                 // Output and reset after 10 players
-                if (ctr % 10 == 9){
+                if (ctr % 10 == 9 || ctr == length - 1){
                     showMsg(list);
                     list = Colors.BLACK + ",08";
                 }
             }
-            showMsg(list);
         } catch (IOException e) {
             manager.log("Error reading players.txt!");
         }
@@ -1379,7 +1412,7 @@ public class TexasTourney extends TexasPoker {
         
         // Add players still in the tournament
         for (Player p : list) {
-            if (p.get("cash") == 0) {
+            if (p.get("cash") == 0 || p.has("quit")) {
                 msg += p.getNick(false) + " (" + Colors.RED + formatBold("OUT") + Colors.NORMAL + "), ";
             } else {
                 msg += p.getNick(false) + " (" + formatBold("$" + formatNumber(p.get("cash"))) + "), ";
@@ -1402,7 +1435,10 @@ public class TexasTourney extends TexasPoker {
     
     @Override
     public String getGameRulesStr() {
-        return String.format(getMsg("tt_rules"), get("minbet")/2, get("minbet"));
+        if (has("doubleonbankrupt")) {
+            return String.format(getMsg("tt_rules_dob"), get("cash"), get("minbet")/2, get("minbet"), get("doubleblinds"), get("minplayers"));
+        }
+        return String.format(getMsg("tt_rules"), get("cash"), get("minbet")/2, get("minbet"), get("doubleblinds"), get("minplayers"));
     }
     
     @Override
