@@ -6,6 +6,7 @@ irccasino is a Java package that implements casino games for IRC using the [Pirc
 ### Games ###
 * Blackjack
 * No Limit Texas Hold'em Poker
+* No Limit Texas Hold'em Tournament
 
 ### Requirements ###
 1. [Java][2] 6 or higher
@@ -31,10 +32,17 @@ Standalone Setup
 ### Run standalone bot ###
 1. Run the project.
 2. Give the bot Op status in the channels that will run the games.
-3. While as channel Op in those channels, type the command ".texaspoker" or ".blackjack" to start that game in the channel.
+3. While as channel Op in those channels, type the command ".texaspoker", ".texastourney" or ".blackjack" to start that game in the channel.
+
+Contributors
+============
+[brrr2][6] (Main Author)  
+[Yky][7]
 
 [1]: http://code.google.com/p/pircbotx/ "PircBotX"
 [2]: http://www.oracle.com/technetwork/java/javase/downloads/index.html "Java SE"
 [3]: http://repo1.maven.org/maven2/org/pircbotx/pircbotx/1.9/pircbotx-1.9.jar "pircbotx-1.9"
 [4]: https://github.com/brrr2/irccasino/wiki "Wiki"
-[5]: https://webchat.freenode.net "Freenode"
+[5]: https://webchat.freenode.net/?channels=##casino,##holdem "Freenode"
+[6]: https://github.com/brrr2 "brrr2"
+[7]: https://github.com/Yky "Yky"
