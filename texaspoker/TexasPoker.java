@@ -1098,7 +1098,6 @@ public class TexasPoker extends CardGame{
             }
             p.set("bet", amount);
             p.set("allin", 1);
-            showMsg(getMsg("tp_allin"), p.getNickStr(false), p.get("bet"), p.get("cash")-p.get("bet"));
             continueRound();
         // A bet that's larger than a player's stack
         } else if (amount > p.get("cash")) {
@@ -1113,12 +1112,7 @@ public class TexasPoker extends CardGame{
             if (topBettor == null){
                 topBettor = p;
             }
-            if (amount == 0 || p.get("bet") == amount){
-                showMsg(getMsg("tp_check"), p.getNickStr(false), p.get("bet"), p.get("cash")-p.get("bet"));
-            } else {
-                p.set("bet", amount);
-                showMsg(getMsg("tp_call"), p.getNickStr(false), p.get("bet"), p.get("cash")-p.get("bet"));
-            }
+            p.set("bet", amount);
             continueRound();
         // A bet that's lower than the minimum raise
         } else if (amount - currentBet < minRaise){
@@ -1128,11 +1122,6 @@ public class TexasPoker extends CardGame{
         } else {
             p.set("bet", amount);
             topBettor = p;
-            if (currentBet == 0){
-                showMsg(getMsg("tp_bet"), p.getNickStr(false), p.get("bet"), p.get("cash") - p.get("bet"));
-            } else {
-                showMsg(getMsg("tp_raise"), p.getNickStr(false), p.get("bet"), p.get("cash")-p.get("bet"));
-            }
             minRaise = amount - currentBet;
             currentBet = amount;
             continueRound();
@@ -1152,7 +1141,6 @@ public class TexasPoker extends CardGame{
             if (topBettor == null){
                 topBettor = p;
             }
-            showMsg(getMsg("tp_check"), p.getNickStr(false), p.get("bet"), p.get("cash")-p.get("bet"));
             continueRound();
         } else {
             informPlayer(p.getNick(), getMsg("no_checking"), currentBet);
@@ -1178,14 +1166,9 @@ public class TexasPoker extends CardGame{
         if (total == p.get("cash")){
             p.set("allin", 1);
             p.set("bet", total);
-            showMsg(getMsg("tp_allin"), p.getNickStr(false), p.get("bet"), p.get("cash")-p.get("bet"));
-        // A check
-        } else if (total == 0 || p.get("bet") == total){
-            showMsg(getMsg("tp_check"), p.getNickStr(false), p.get("bet"), p.get("cash")-p.get("bet"));
-        // A call
+        // A call or check
         } else {
             p.set("bet", total);
-            showMsg(getMsg("tp_call"), p.getNickStr(false), p.get("bet"), p.get("cash")-p.get("bet"));
         }
         continueRound();
     }
