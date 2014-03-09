@@ -175,6 +175,7 @@ tp_fold=%s has folded. Stack: u0002$%,du0002
 tp_player_result=%s (%s): %s, %s
 tp_hand=Your hand is %s.
 tp_stats=%,d players have played %s. %s
+tp_button_info=(D)ealer: %s. (S)mall blind: %s bets $%d. (B)ig blind: %s bets $%d.
 tp_rules=This is no limit Texas Hold'em Poker. Blind bets are set at $%,d/$%,d or your stack, whichever is lower.
 ############################
 ### TexasTourney strings ###
