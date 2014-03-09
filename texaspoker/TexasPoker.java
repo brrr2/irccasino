@@ -458,9 +458,10 @@ public class TexasPoker extends CardGame{
             endRound();
         } else {
             setButton();
-            showTablePlayers();
-            dealTable();
             setBlindBets();
+            showTablePlayers();
+            showButtonInfo();
+            dealTable();
             currentPlayer = getPlayerAfter(bigBlind);
             showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentBet-currentPlayer.get("bet"), 
                         currentPlayer.get("bet"), currentBet, getCashInPlay(), currentPlayer.get("cash")-currentPlayer.get("bet"));
@@ -576,9 +577,6 @@ public class TexasPoker extends CardGame{
 
             // Determine the winners of each pot
             showResults();
-
-            // Show the stack changes
-            showStackChange();
 
             // Show updated player stacks sorted in descending order
             showStacks();
@@ -1406,6 +1404,13 @@ public class TexasPoker extends CardGame{
     }
     
     /**
+     * Displays info on the dealer and blinds.
+     */
+    public void showButtonInfo() {
+        showMsg(getMsg("tp_button_info"), dealer.getNickStr(false), smallBlind.getNickStr(false), minRaise/2, bigBlind.getNickStr(false), minRaise);
+    }
+    
+    /**
      * Displays the community cards along with existing pots.
      */
     public void showCommunityCards(){
@@ -1750,28 +1755,6 @@ public class TexasPoker extends CardGame{
     }
     
     /**
-     * Displays the stack change of each player in the given list.
-     */
-    public void showStackChange() {
-        PokerPlayer p;
-        String msg = Colors.YELLOW + ",01 Change: " + Colors.NORMAL + " ";
-        
-        for (int ctr = 0; ctr < joined.size(); ctr++) {
-            p = (PokerPlayer) joined.get(ctr);
-            // Add player to list of net results
-            if (p.get("change") > 0) {
-                msg += p.getNick(false) + " (" + Colors.DARK_GREEN + Colors.BOLD + "$" + formatNumber(p.get("change")) + Colors.NORMAL + "), ";
-            } else if (p.get("change") < 0) {
-                msg += p.getNick(false) + " (" + Colors.RED + Colors.BOLD + "$" + formatNumber(p.get("change")) + Colors.NORMAL + "), ";
-            } else {
-                msg += p.getNick(false) + " (" + Colors.BOLD + "$" + formatNumber(p.get("change")) + Colors.NORMAL + "), ";
-            }
-        }
-        
-        showMsg(msg.substring(0, msg.length()-2));
-    }
-    
-    /**
      * Displays the stack of each player in the given list in descending order.
      */
     public void showStacks() {
@@ -1780,7 +1763,16 @@ public class TexasPoker extends CardGame{
         Collections.sort(list, Player.getComparator("cash"));
         
         for (Player p : list) {
-            msg += p.getNick(false) + " (" + formatBold("$" + formatNumber(p.get("cash"))) + "), ";
+            msg += p.getNick(false) + " (" + formatBold("$" + formatNumber(p.get("cash")));
+            // Add player stack change
+            if (p.get("change") > 0) {
+                msg += "[" + Colors.DARK_GREEN + Colors.BOLD + "$" + formatNumber(p.get("change")) + Colors.NORMAL + "]";
+            } else if (p.get("change") < 0) {
+                msg += "[" + Colors.RED + Colors.BOLD + "$" + formatNumber(p.get("change")) + Colors.NORMAL + "]";
+            } else {
+                msg += "[" + Colors.BOLD + "$" + formatNumber(p.get("change")) + Colors.NORMAL + "]";
+            }
+            msg += "), ";
         }
         
         showMsg(msg.substring(0, msg.length()-2));

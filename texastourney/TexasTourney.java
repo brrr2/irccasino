@@ -531,9 +531,10 @@ public class TexasTourney extends TexasPoker {
             endRound();
         } else {
             setButton();
-            showTablePlayers();
-            dealTable();
             setBlindBets();
+            showTablePlayers();
+            showButtonInfo();
+            dealTable();
             currentPlayer = getPlayerAfter(bigBlind);
             showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentBet-currentPlayer.get("bet"), 
                         currentPlayer.get("bet"), currentBet, getCashInPlay(), currentPlayer.get("cash")-currentPlayer.get("bet"));
@@ -650,9 +651,6 @@ public class TexasTourney extends TexasPoker {
 
             // Determine the winners of each pot
             showResults();
-            
-            // Show player stack changes
-            showStackChange();
             
             // Show updated player stacks sorted in descending order
             showStacks();
@@ -1415,7 +1413,16 @@ public class TexasTourney extends TexasPoker {
             if (p.get("cash") == 0 || p.has("quit")) {
                 msg += p.getNick(false) + " (" + Colors.RED + formatBold("OUT") + Colors.NORMAL + "), ";
             } else {
-                msg += p.getNick(false) + " (" + formatBold("$" + formatNumber(p.get("cash"))) + "), ";
+                msg += p.getNick(false) + " (" + formatBold("$" + formatNumber(p.get("cash")));
+                // Add player stack change
+                if (p.get("change") > 0) {
+                    msg += "[" + Colors.DARK_GREEN + Colors.BOLD + "$" + formatNumber(p.get("change")) + Colors.NORMAL + "]";
+                } else if (p.get("change") < 0) {
+                    msg += "[" + Colors.RED + Colors.BOLD + "$" + formatNumber(p.get("change")) + Colors.NORMAL + "]";
+                } else {
+                    msg += "[" + Colors.BOLD + "$" + formatNumber(p.get("change")) + Colors.NORMAL + "]";
+                }
+                msg += "), ";
             }
         }
         
