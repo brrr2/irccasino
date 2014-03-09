@@ -121,18 +121,18 @@ public class TexasTourney extends TexasPoker {
         String host = user.getHostmask();
         
         /* Parsing commands from the channel */
-        if (command.equals("join") || command.equals("j")){
+        if (command.equalsIgnoreCase("join") || command.equalsIgnoreCase("j")){
             join(nick, host);
-        } else if (command.equals("leave") || command.equals("quit") || command.equals("l") || command.equals("q")){
+        } else if (command.equalsIgnoreCase("leave") || command.equalsIgnoreCase("quit") || command.equalsIgnoreCase("l") || command.equalsIgnoreCase("q")){
             leave(nick);
-        } else if (command.equals("start") || command.equals("go")) {
+        } else if (command.equalsIgnoreCase("start") || command.equalsIgnoreCase("go")) {
             if (isStartAllowed(nick)){
                 inProgress = true;
                 showMsg(formatHeader(" " + getMsg("tt_new_tourney") + " "));
                 showStartRound();
                 setStartRoundTask();
             }
-        } else if (command.equals("stop") || command.equals("cancel")) {
+        } else if (command.equalsIgnoreCase("stop") || command.equalsIgnoreCase("cancel")) {
             if (!inProgress) {
                 informPlayer(nick, getMsg("tt_no_start"));
             } else if (!isJoined(nick)) {
@@ -144,7 +144,7 @@ public class TexasTourney extends TexasPoker {
             } else {
                 requestCancel(nick);
             }
-        } else if (command.equals("cash")) {
+        } else if (command.equalsIgnoreCase("cash")) {
             if (!inProgress) {
                 informPlayer(nick, getMsg("tt_no_start"));
             } else {
@@ -154,25 +154,25 @@ public class TexasTourney extends TexasPoker {
                     showPlayerCash(nick);
                 }
             }
-        } else if (command.equals("tourneys")) {
+        } else if (command.equalsIgnoreCase("tourneys")) {
             if (params.length > 0){
                 showPlayerTourneysPlayed(params[0]);
             } else {
                 showPlayerTourneysPlayed(nick);
             }
-        } else if (command.equals("wins")) {
+        } else if (command.equalsIgnoreCase("wins")) {
             if (params.length > 0){
                 showPlayerTourneyWins(params[0]);
             } else {
                 showPlayerTourneyWins(nick);
             }
-        } else if (command.equals("player") || command.equals("p")){
+        } else if (command.equalsIgnoreCase("player") || command.equalsIgnoreCase("p")){
             if (params.length > 0){
                 showPlayerAllStats(params[0]);
             } else {
                 showPlayerAllStats(nick);
             }
-        } else if (command.equals("bet") || command.equals("b")) {
+        } else if (command.equalsIgnoreCase("bet") || command.equalsIgnoreCase("b")) {
             if (isPlayerTurn(nick)){
                 if (params.length > 0){
                     try {
@@ -184,19 +184,19 @@ public class TexasTourney extends TexasPoker {
                     informPlayer(nick, getMsg("no_parameter"));
                 }
             }
-        } else if (command.equals("c") || command.equals("ca") || command.equals("call")) {
+        } else if (command.equalsIgnoreCase("c") || command.equalsIgnoreCase("ca") || command.equalsIgnoreCase("call")) {
             if (isPlayerTurn(nick)){
                 call();
             }
-        } else if (command.equals("x") || command.equals("ch") || command.equals("check")) {
+        } else if (command.equalsIgnoreCase("x") || command.equalsIgnoreCase("ch") || command.equalsIgnoreCase("check")) {
             if (isPlayerTurn(nick)){
                 check();
             }
-        } else if (command.equals("fold") || command.equals("f")) {
+        } else if (command.equalsIgnoreCase("fold") || command.equalsIgnoreCase("f")) {
             if (isPlayerTurn(nick)){
                 fold();
             }
-        } else if (command.equals("raise") || command.equals("r")) {
+        } else if (command.equalsIgnoreCase("raise") || command.equalsIgnoreCase("r")) {
             if (isPlayerTurn(nick)){
                 if (params.length > 0){
                     try {
@@ -208,11 +208,11 @@ public class TexasTourney extends TexasPoker {
                     informPlayer(nick, getMsg("no_parameter"));
                 }
             }
-        } else if (command.equals("allin") || command.equals("a")){
+        } else if (command.equalsIgnoreCase("allin") || command.equalsIgnoreCase("a")){
             if (isPlayerTurn(nick)){
                 bet(currentPlayer.get("cash"));
             }
-        } else if (command.equals("community") || command.equals("comm")){
+        } else if (command.equalsIgnoreCase("community") || command.equalsIgnoreCase("comm")){
             if (!isJoined(nick)) {
                 informPlayer(nick, getMsg("no_join"));
             } else if (!inProgress) {
@@ -222,7 +222,7 @@ public class TexasTourney extends TexasPoker {
             } else {
                 showCommunityCards();
             }
-        } else if (command.equals("hand")) {
+        } else if (command.equalsIgnoreCase("hand")) {
             if (!isJoined(nick)) {
                 informPlayer(nick, getMsg("no_join"));
             } else if (!inProgress) {
@@ -231,7 +231,7 @@ public class TexasTourney extends TexasPoker {
                 PokerPlayer p = (PokerPlayer) findJoined(nick);
                 informPlayer(p.getNick(), getMsg("tp_hand"), p.getHand());
             }
-        } else if (command.equals("turn")) {
+        } else if (command.equalsIgnoreCase("turn")) {
             if (!isJoined(nick)) {
                 informPlayer(nick, getMsg("no_join"));
             } else if (!inProgress) {
@@ -240,19 +240,19 @@ public class TexasTourney extends TexasPoker {
                 showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentBet-currentPlayer.get("bet"), 
                         currentPlayer.get("bet"), currentBet, getCashInPlay(), currentPlayer.get("cash")-currentPlayer.get("bet"));
             }
-        } else if (command.equals("players")) {
+        } else if (command.equalsIgnoreCase("players")) {
             if (inProgress){
                 showTablePlayers();
             } else {
                 showMsg(getMsg("players"), getPlayerListString(joined));
             }
-        } else if (command.equals("blacklist")) {
+        } else if (command.equalsIgnoreCase("blacklist")) {
             if (!inProgress) {
                 showMsg(getMsg("tt_no_start"));
             } else {
                 showMsg(getMsg("tt_out_of_tourney"), getPlayerListString(blacklist));
             }
-        } else if (command.equals("rank")) {
+        } else if (command.equalsIgnoreCase("rank")) {
             if (inProgress) {
                 informPlayer(nick, getMsg("wait_round_end"));
             } else {
@@ -272,7 +272,7 @@ public class TexasTourney extends TexasPoker {
                     showPlayerRank(nick, "wins");
                 }
             }
-        } else if (command.equals("top")) {
+        } else if (command.equalsIgnoreCase("top")) {
             if (inProgress) {
                 informPlayer(nick, getMsg("wait_round_end"));
             } else {
@@ -292,37 +292,37 @@ public class TexasTourney extends TexasPoker {
                     showTopPlayers("wins", 5);
                 }
             }
-        } else if (command.equals("simple")) {
+        } else if (command.equalsIgnoreCase("simple")) {
             if (!isJoined(nick)) {
                 informPlayer(nick, getMsg("no_join"));
             } else {
                 togglePlayerSimple(nick);
             }
-        } else if (command.equals("stats")){
+        } else if (command.equalsIgnoreCase("stats")){
             if (inProgress) {
                 informPlayer(nick, getMsg("wait_round_end"));
             } else {
                 showMsg(getGameStatsStr());
             }
-        } else if (command.equals("grules")) {
+        } else if (command.equalsIgnoreCase("grules")) {
             informPlayer(nick, getGameRulesStr());
-        } else if (command.equals("ghelp")) {
+        } else if (command.equalsIgnoreCase("ghelp")) {
             if (params.length == 0){
                 informPlayer(nick, getMsg("game_help"), commandChar, commandChar, commandChar);
             } else {
                 informPlayer(nick, getCommandHelp(params[0].toLowerCase()));
             }
-        } else if (command.equals("gcommands")) {
+        } else if (command.equalsIgnoreCase("gcommands")) {
             informPlayer(nick, getGameNameStr() + " commands:");
             informPlayer(nick, getCommandsStr());
             if (channel.isOp(user)) {
                 informPlayer(nick, getGameNameStr() + " Op commands:");
                 informPlayer(nick, getOpCommandsStr());
             }
-        } else if (command.equals("game")) {
+        } else if (command.equalsIgnoreCase("game")) {
             showMsg(getMsg("game_name"), getGameNameStr());
         /* Op commands */
-        } else if (command.equals("fj") || command.equals("fjoin")){
+        } else if (command.equalsIgnoreCase("fj") || command.equalsIgnoreCase("fjoin")){
             if (!channel.isOp(user)) {
                 informPlayer(nick, getMsg("ops_only"));
             } else {
@@ -341,7 +341,7 @@ public class TexasTourney extends TexasPoker {
                     informPlayer(nick, getMsg("no_parameter"));
                 }
             }
-        } else if (command.equals("fl") || command.equals("fq") || command.equals("fquit") || command.equals("fleave")){
+        } else if (command.equalsIgnoreCase("fl") || command.equalsIgnoreCase("fq") || command.equalsIgnoreCase("fquit") || command.equalsIgnoreCase("fleave")){
             if (!channel.isOp(user)) {
                 informPlayer(nick, getMsg("ops_only"));
             } else {
@@ -351,14 +351,14 @@ public class TexasTourney extends TexasPoker {
                     informPlayer(nick, getMsg("no_parameter"));
                 }
             }
-        } else if (command.equals("fstart") || command.equals("fgo")){
+        } else if (command.equalsIgnoreCase("fstart") || command.equalsIgnoreCase("fgo")){
             if (isForceStartAllowed(user,nick)){
                 inProgress = true;
                 showMsg(formatHeader(getMsg("tt_new_tourney")));
                 showStartRound();
                 setStartRoundTask();
             }
-        } else if (command.equals("fstop")){
+        } else if (command.equalsIgnoreCase("fstop")){
             // Equivalent to canceling the tournament
             if (isForceStopAllowed(user,nick)){
                 cancelStartRoundTask();
@@ -368,7 +368,7 @@ public class TexasTourney extends TexasPoker {
                 showMsg(getMsg("tt_no_winner_cancel"));
                 resetTourney();
             }
-        } else if (command.equals("fb") || command.equals("fbet")){
+        } else if (command.equalsIgnoreCase("fb") || command.equalsIgnoreCase("fbet")){
             if (isForcePlayAllowed(user, nick)){
                 if (params.length > 0){
                     try {
@@ -380,11 +380,11 @@ public class TexasTourney extends TexasPoker {
                     informPlayer(nick, getMsg("no_parameter"));
                 }
             }
-        } else if (command.equals("fa") || command.equals("fallin")){
+        } else if (command.equalsIgnoreCase("fa") || command.equalsIgnoreCase("fallin")){
             if (isForcePlayAllowed(user, nick)){
                 bet(currentPlayer.get("cash"));
             }
-        } else if (command.equals("fr") || command.equals("fraise")){
+        } else if (command.equalsIgnoreCase("fr") || command.equalsIgnoreCase("fraise")){
             if (isForcePlayAllowed(user, nick)){
                 if (params.length > 0){
                     try {
@@ -396,23 +396,23 @@ public class TexasTourney extends TexasPoker {
                     informPlayer(nick, getMsg("no_parameter"));
                 }
             }
-        } else if (command.equals("fc") || command.equals("fca") || command.equals("fcall")){
+        } else if (command.equalsIgnoreCase("fc") || command.equalsIgnoreCase("fca") || command.equalsIgnoreCase("fcall")){
             if (isForcePlayAllowed(user, nick)){
                 call();
             }
-        } else if (command.equals("fx") || command.equals("fch") || command.equals("fcheck")){
+        } else if (command.equalsIgnoreCase("fx") || command.equalsIgnoreCase("fch") || command.equalsIgnoreCase("fcheck")){
             if (isForcePlayAllowed(user, nick)){
                 check();
             }
-        } else if (command.equals("ff") || command.equals("ffold")){
+        } else if (command.equalsIgnoreCase("ff") || command.equalsIgnoreCase("ffold")){
             if (isForcePlayAllowed(user, nick)){
                 fold();
             }
-        } else if (command.equals("shuffle")){
+        } else if (command.equalsIgnoreCase("shuffle")){
             if (isOpCommandAllowed(user, nick)){
                 shuffleDeck();
             }
-        } else if (command.equals("reload")) {
+        } else if (command.equalsIgnoreCase("reload")) {
             if (isOpCommandAllowed(user, nick)){
                 loadIni();
                 cmdMap.clear();
@@ -423,12 +423,12 @@ public class TexasTourney extends TexasPoker {
                 loadHelp(helpFile);
                 showMsg(getMsg("reload"));
             }
-        } else if (command.equals("settings")) {
+        } else if (command.equalsIgnoreCase("settings")) {
             if (isOpCommandAllowed(user, nick)) {
                 informPlayer(nick, getGameNameStr() + " settings:");
                 informPlayer(nick, getSettingsStr());
             }
-        } else if (command.equals("set")){
+        } else if (command.equalsIgnoreCase("set")){
             if (isOpCommandAllowed(user, nick)){
                 if (params.length > 1){
                     try {
@@ -442,7 +442,7 @@ public class TexasTourney extends TexasPoker {
                     informPlayer(nick, getMsg("no_parameter"));
                 }
             }
-        } else if (command.equals("get")) {
+        } else if (command.equalsIgnoreCase("get")) {
             if (isOpCommandAllowed(user, nick)){
                 if (params.length > 0){
                     try {

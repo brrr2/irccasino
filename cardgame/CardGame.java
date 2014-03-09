@@ -113,7 +113,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         if (msg.length() > 1 && msg.charAt(0) == commandChar && 
                 msg.charAt(1) != ' ' && event.getChannel().equals(channel)){
             StringTokenizer st = new StringTokenizer(msg.substring(1));
-            String command = st.nextToken().toLowerCase();
+            String command = st.nextToken();
             String[] params = new String[st.countTokens()];
             for (int ctr = 0; ctr < params.length; ctr++){
                 params[ctr] = st.nextToken();
@@ -177,11 +177,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         
         /* Common commands for all games that can be called at anytime or have 
          * the same permissions. */
-        if (command.equals("join") || command.equals("j")){
+        if (command.equalsIgnoreCase("join") || command.equalsIgnoreCase("j")){
             join(nick, host);
-        } else if (command.equals("leave") || command.equals("quit") || command.equals("l") || command.equals("q")){
+        } else if (command.equalsIgnoreCase("leave") || command.equalsIgnoreCase("quit") || command.equalsIgnoreCase("l") || command.equalsIgnoreCase("q")){
             leave(nick);
-        } else if (command.equals("stop")) {
+        } else if (command.equalsIgnoreCase("stop")) {
             if (!isJoined(nick)) {
                 informPlayer(nick, getMsg("no_join"));
             } else if (!inProgress) {
@@ -189,55 +189,55 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             } else {
                 cancelAutoStarts(nick);
             }
-        } else if (command.equals("cash")) {
+        } else if (command.equalsIgnoreCase("cash")) {
             if (params.length > 0){
                 showPlayerCash(params[0]);
             } else {
                 showPlayerCash(nick);
             }
-        } else if (command.equals("netcash") || command.equals("net")) {
+        } else if (command.equalsIgnoreCase("netcash") || command.equalsIgnoreCase("net")) {
             if (params.length > 0){
                 showPlayerNetCash(params[0]);
             } else {
                 showPlayerNetCash(nick);
             }
-        } else if (command.equals("bank")) {
+        } else if (command.equalsIgnoreCase("bank")) {
             if (params.length > 0){
                 showPlayerBank(params[0]);
             } else {
                 showPlayerBank(nick);
             }
-        } else if (command.equals("bankrupts")) {
+        } else if (command.equalsIgnoreCase("bankrupts")) {
             if (params.length > 0){
                 showPlayerBankrupts(params[0]);
             } else {
                 showPlayerBankrupts(nick);
             }
-        } else if (command.equals("winnings")) {
+        } else if (command.equalsIgnoreCase("winnings")) {
             if (params.length > 0){
                 showPlayerWinnings(params[0]);
             } else {
                 showPlayerWinnings(nick);
             }
-        } else if (command.equals("winrate")) {
+        } else if (command.equalsIgnoreCase("winrate")) {
             if (params.length > 0){
                 showPlayerWinRate(params[0]);
             } else {
                 showPlayerWinRate(nick);
             }
-        } else if (command.equals("rounds")) {
+        } else if (command.equalsIgnoreCase("rounds")) {
             if (params.length > 0){
                 showPlayerRounds(params[0]);
             } else {
                 showPlayerRounds(nick);
             }
-        } else if (command.equals("player") || command.equals("p")){
+        } else if (command.equalsIgnoreCase("player") || command.equalsIgnoreCase("p")){
             if (params.length > 0){
                 showPlayerAllStats(params[0]);
             } else {
                 showPlayerAllStats(nick);
             }
-        } else if (command.equals("deposit") || command.equals("withdraw")) {
+        } else if (command.equalsIgnoreCase("deposit") || command.equalsIgnoreCase("withdraw")) {
             if (!isJoined(nick)) {
                 informPlayer(nick, getMsg("no_join"));
             } else if (inProgress) {
@@ -245,7 +245,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             } else {
                 if (params.length > 0){
                     try {
-                        if (command.equals("deposit")) {
+                        if (command.equalsIgnoreCase("deposit")) {
                             transfer(nick, Integer.parseInt(params[0]));
                         } else {
                             transfer(nick, -Integer.parseInt(params[0]));
@@ -257,11 +257,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     informPlayer(nick, getMsg("no_parameter"));
                 }
             }
-        } else if (command.equals("waitlist")) {
+        } else if (command.equalsIgnoreCase("waitlist")) {
             showMsg(getMsg("waitlist"), getPlayerListString(waitlist));
-        } else if (command.equals("blacklist")) {
+        } else if (command.equalsIgnoreCase("blacklist")) {
             showMsg(getMsg("blacklist"), getPlayerListString(blacklist));
-        } else if (command.equals("rank")) {
+        } else if (command.equalsIgnoreCase("rank")) {
             if (inProgress) {
                 informPlayer(nick, getMsg("wait_round_end"));
             } else {
@@ -281,7 +281,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     showPlayerRank(nick, "cash");
                 }
             }
-        } else if (command.equals("top")) {
+        } else if (command.equalsIgnoreCase("top")) {
             if (inProgress) {
                 informPlayer(nick, getMsg("wait_round_end"));
             } else {
@@ -301,37 +301,37 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     showTopPlayers("cash", 5);
                 }
             }
-        } else if (command.equals("simple")) {
+        } else if (command.equalsIgnoreCase("simple")) {
             if (!isJoined(nick)) {
                 informPlayer(nick, getMsg("no_join"));
             } else {
                 togglePlayerSimple(nick);
             }
-        } else if (command.equals("stats")){
+        } else if (command.equalsIgnoreCase("stats")){
             if (inProgress) {
                 informPlayer(nick, getMsg("wait_round_end"));
             } else {
                 showMsg(getGameStatsStr());
             }
-        } else if (command.equals("grules")) {
+        } else if (command.equalsIgnoreCase("grules")) {
             informPlayer(nick, getGameRulesStr());
-        } else if (command.equals("ghelp")) {
+        } else if (command.equalsIgnoreCase("ghelp")) {
             if (params.length == 0){
                 informPlayer(nick, getMsg("game_help"), commandChar, commandChar, commandChar);
             } else {
                 informPlayer(nick, getCommandHelp(params[0].toLowerCase()));
             }
-        } else if (command.equals("gcommands")) {
+        } else if (command.equalsIgnoreCase("gcommands")) {
             informPlayer(nick, getGameNameStr() + " commands:");
             informPlayer(nick, getCommandsStr());
             if (channel.isOp(user)) {
                 informPlayer(nick, getGameNameStr() + " Op commands:");
                 informPlayer(nick, getOpCommandsStr());
             }
-        } else if (command.equals("game")) {
+        } else if (command.equalsIgnoreCase("game")) {
             showMsg(getMsg("game_name"), getGameNameStr());
         // Op Commands
-        } else if (command.equals("fj") || command.equals("fjoin")){
+        } else if (command.equalsIgnoreCase("fj") || command.equalsIgnoreCase("fjoin")){
             if (!channel.isOp(user)) {
                 informPlayer(nick, getMsg("ops_only"));
             } else {
@@ -350,7 +350,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     informPlayer(nick, getMsg("no_parameter"));
                 }
             }
-        } else if (command.equals("fl") || command.equals("fq") || command.equals("fquit") || command.equals("fleave")){
+        } else if (command.equalsIgnoreCase("fl") || command.equalsIgnoreCase("fq") || command.equalsIgnoreCase("fquit") || command.equalsIgnoreCase("fleave")){
             if (!channel.isOp(user)) {
                 informPlayer(nick, getMsg("ops_only"));
             } else {
@@ -360,7 +360,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     informPlayer(nick, getMsg("no_parameter"));
                 }
             }
-        } else if (command.equals("fdeposit") || command.equals("fwithdraw")) {
+        } else if (command.equalsIgnoreCase("fdeposit") || command.equalsIgnoreCase("fwithdraw")) {
             if (!channel.isOp(user)) {
                 informPlayer(nick, getMsg("ops_only"));
             } else {
@@ -371,7 +371,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                         informPlayer(nick, getMsg("wait_round_end"));
                     } else {
                         try {
-                            if (command.equals("fdeposit")) {
+                            if (command.equalsIgnoreCase("fdeposit")) {
                                 transfer(params[0], Integer.parseInt(params[1]));
                             } else {
                                 transfer(params[0], -Integer.parseInt(params[1]));
@@ -384,14 +384,14 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     informPlayer(nick, getMsg("no_parameter"));
                 }
             }
-        } else if (command.equals("cards") || command.equals("discards")) {
+        } else if (command.equalsIgnoreCase("cards") || command.equalsIgnoreCase("discards")) {
             if (isOpCommandAllowed(user, nick)){
                 if (params.length > 0){
                     try {
                         int num = Integer.parseInt(params[0]);
-                        if (command.equals("cards") && deck.getNumberCards() > 0) {
+                        if (command.equalsIgnoreCase("cards") && deck.getNumberCards() > 0) {
                             infoDeckCards(nick, 'c', num);
-                        } else if (command.equals("discards") && deck.getNumberDiscards() > 0) {
+                        } else if (command.equalsIgnoreCase("discards") && deck.getNumberDiscards() > 0) {
                             infoDeckCards(nick, 'd', num);
                         } else {
                             informPlayer(nick, "Empty!");
@@ -403,12 +403,12 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     informPlayer(nick, getMsg("no_parameter"));
                 }
             }
-        } else if (command.equals("settings")) {
+        } else if (command.equalsIgnoreCase("settings")) {
             if (isOpCommandAllowed(user, nick)) {
                 informPlayer(nick, getGameNameStr() + " settings:");
                 informPlayer(nick, getSettingsStr());
             }
-        } else if (command.equals("set")){
+        } else if (command.equalsIgnoreCase("set")){
             if (isOpCommandAllowed(user, nick)){
                 if (params.length > 1){
                     try {
@@ -422,7 +422,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     informPlayer(nick, getMsg("no_parameter"));
                 }
             }
-        } else if (command.equals("get")) {
+        } else if (command.equalsIgnoreCase("get")) {
             if (isOpCommandAllowed(user, nick)){
                 if (params.length > 0){
                     try {

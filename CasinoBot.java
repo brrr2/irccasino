@@ -82,7 +82,7 @@ public class CasinoBot extends PircBotX implements GameManager {
             if (msg.length() > 1 && msg.charAt(0) == commandChar && msg.charAt(1) != ' ') {
                 msg = msg.substring(1);
                 StringTokenizer st = new StringTokenizer(msg);
-                String command = st.nextToken().toLowerCase();
+                String command = st.nextToken();
                 String[] params = new String[st.countTokens()];
                 for (int ctr = 0; ctr < params.length; ctr++){
                     params[ctr] = st.nextToken();
@@ -101,7 +101,7 @@ public class CasinoBot extends PircBotX implements GameManager {
          */
         public void processCommand(CasinoBot bot, Channel channel, User user, String command, String[] params){
             if (channel.isOp(user)){
-                if (command.equals("games")) {
+                if (command.equalsIgnoreCase("games")) {
                     String str = "Games: ";
                     if (bot.gameList.isEmpty()) {
                         str += "No games";
@@ -112,7 +112,7 @@ public class CasinoBot extends PircBotX implements GameManager {
                         str = str.substring(0, str.length() - 2);
                     }
                     bot.sendMessage(channel, str);
-                } else if (command.equals("blackjack") || command.equals("bj")) {
+                } else if (command.equalsIgnoreCase("blackjack") || command.equalsIgnoreCase("bj")) {
                     if (!bot.hasGame(channel)) {
                         if (params.length > 0) {
                             bot.startGame(new Blackjack(bot, commandChar, channel, params[0]));
@@ -120,7 +120,7 @@ public class CasinoBot extends PircBotX implements GameManager {
                             bot.startGame(new Blackjack(bot, commandChar, channel));
                         }
                     }
-                } else if (command.equals("texaspoker") || command.equals("tp")) {
+                } else if (command.equalsIgnoreCase("texaspoker") || command.equalsIgnoreCase("tp")) {
                     if (!bot.hasGame(channel)) {
                         if (params.length > 0) {
                             bot.startGame(new TexasPoker(bot, commandChar, channel, params[0]));
@@ -128,7 +128,7 @@ public class CasinoBot extends PircBotX implements GameManager {
                             bot.startGame(new TexasPoker(bot, commandChar, channel));
                         }
                     }
-                } else if (command.equals("texastourney") || command.equals("tt")) {
+                } else if (command.equalsIgnoreCase("texastourney") || command.equalsIgnoreCase("tt")) {
                     if (!bot.hasGame(channel)) {
                         if (params.length > 0) {
                             bot.startGame(new TexasTourney(bot, commandChar, channel, params[0]));
@@ -136,7 +136,7 @@ public class CasinoBot extends PircBotX implements GameManager {
                             bot.startGame(new TexasTourney(bot, commandChar, channel));
                         }
                     }
-                } else if (command.equals("endgame")) {
+                } else if (command.equalsIgnoreCase("endgame")) {
                     CardGame game = bot.getGame(channel);
                     if (game != null) {
                         if (game.isInProgress()){
@@ -145,13 +145,13 @@ public class CasinoBot extends PircBotX implements GameManager {
                             bot.endGame(game);
                         }
                     }
-                } else if (command.equals("shutdown") || command.equals("botquit")) {
+                } else if (command.equalsIgnoreCase("shutdown") || command.equalsIgnoreCase("botquit")) {
                     if (!bot.checkGamesInProgress()){
                         bot.endAllGames();
                         bot.setAutoReconnect(false);
                         bot.quitServer("Bye.");
                     }
-                } else if (command.equals("reconnect") || command.equals("reboot")) {
+                } else if (command.equalsIgnoreCase("reconnect") || command.equalsIgnoreCase("reboot")) {
                     if (!bot.checkGamesInProgress()){
                         bot.quitServer("Reconnecting...");
                     }
