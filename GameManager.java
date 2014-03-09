@@ -19,6 +19,7 @@
 package irccasino;
 
 import irccasino.cardgame.CardGame;
+import java.util.List;
 import java.util.Set;
 import org.pircbotx.Channel;
 import org.pircbotx.User;
@@ -35,7 +36,13 @@ public interface GameManager {
      * @return true if the channel has a game already running
      */
     public boolean hasGame(Channel channel);
-        
+    
+    /**
+     * Checks if the bot is running any games.
+     * @return true if at least one game is running
+     */
+    public boolean hasGames();
+    
     /**
      * Returns the CardGame that's running in the specified channel.
      * @param channel the channel to check
@@ -52,6 +59,12 @@ public interface GameManager {
     public CardGame getGame(String nick);
     
     /**
+     * Returns the list of games running.
+     * @return 
+     */
+    public List<CardGame> getGames();
+    
+    /**
      * Checks if a player is bankrupt.
      * @param nick the player's nick
      * @return true if the player is bankrupt
@@ -62,7 +75,7 @@ public interface GameManager {
      * Checks if any games have rounds in progress.
      * @return true if any game has a round in progress
      */
-    public boolean checkGamesInProgress();
+    public boolean gamesInProgress();
     
     /**
      * Starts a new game.
@@ -83,7 +96,7 @@ public interface GameManager {
     
     /**
      * Sends a message to a channel. Automatically implemented by any PircBotX
-     * which implements this interface.
+     * 1.9 which implements this interface.
      * @param channel the Channel to send message
      * @param msg the message
      */
@@ -91,7 +104,7 @@ public interface GameManager {
         
     /**
      * Sends a message to a target. Automatically implemented by any PircBotX
-     * which implements this interface.
+     * 1.9 which implements this interface.
      * @param target the target as a String
      * @param msg the message
      */
@@ -99,7 +112,7 @@ public interface GameManager {
     
     /**
      * Sends a notice to a target. Automatically implemented by any PircBotX
-     * which implements this interface.
+     * 1.9 which implements this interface.
      * @param target the target as a String
      * @param msg the message
      */
@@ -107,7 +120,7 @@ public interface GameManager {
     
     /**
      * Voices a user in a channel. Automatically implemented by any PircBotX
-     * which implements this interface.
+     * 1.9 which implements this interface.
      * @param channel
      * @param user 
      */
@@ -115,14 +128,14 @@ public interface GameManager {
     
     /**
      * Devoices a user in a channel. Automatically implemented by any PircBotX
-     * which implements this interface.
+     * 1.9 which implements this interface.
      * @param channel the Channel containing the user
      * @param user the User to deVoice
      */
     public void deVoice(Channel channel, User user);
     
     /**
-     * Makes a log entry. Automatically implemented by any PircBotX which 
+     * Makes a log entry. Automatically implemented by any PircBotX 1.9 which 
      * implements this interface.
      * @param line 
      */
@@ -130,7 +143,7 @@ public interface GameManager {
     
     /**
      * Retrieves the Users in a Channel as a Set. Automatically implemented by
-     * any PircBotX which implements this interface.
+     * any PircBotX 1.9 which implements this interface.
      * @param channel
      * @return a Set of Users
      */
@@ -138,7 +151,7 @@ public interface GameManager {
     
     /**
      * Sends a raw line to the IRC server. Automatically implemented by any
-     * PircBotX which implements this interface.
+     * PircBotX 1.9 which implements this interface.
      * @param line 
      */
     public void sendRawLine(String line);
