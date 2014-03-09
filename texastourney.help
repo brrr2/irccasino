@@ -39,4 +39,4 @@ ffold||ff|Op command that forces the current player to fold, if possible.
 reload|||Op command that reloads the texaspoker.help, texaspoker.ini and strlib.txt files, if a round is not in progress.
 get|setting||Op command that gets the value for the specified setting, if a round is not in progress. Setting name is as specified in the texaspoker.ini file.
 set|setting,value||Op command that sets the specified value for the specified setting, if a round is not in progress. Setting names are as specified in the texaspoker.ini file.
-settings|settings||Op command that lists the settings available for Texas Hold'em.
+settings|||Op command that lists the settings available for Texas Hold'em.
