@@ -293,11 +293,7 @@ public class TexasTourney extends TexasPoker {
                 }
             }
         } else if (command.equalsIgnoreCase("simple")) {
-            if (!isJoined(nick)) {
-                informPlayer(nick, getMsg("no_join"));
-            } else {
-                togglePlayerSimple(nick);
-            }
+            simple(nick, params);
         } else if (command.equalsIgnoreCase("stats")){
             if (inProgress) {
                 informPlayer(nick, getMsg("wait_round_end"));

@@ -101,6 +101,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         checkPlayerFile();
     }
     
+    ////////////////////
+    //// IRC events ////
+    ////////////////////
     /**
      * Occurs when a message is sent to the game channel.
      * @param event message event
@@ -163,7 +166,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         processNickChange(event.getUser(), event.getOldNick(), event.getNewNick());
     }
     
-    /* Methods that process IRC events */
+    /////////////////////////////////////////
+    //// Methods that process IRC events ////
+    /////////////////////////////////////////
     /**
      * Processes commands in the channel where the game is running.
      * 
@@ -182,154 +187,47 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         } else if (command.equalsIgnoreCase("leave") || command.equalsIgnoreCase("quit") || command.equalsIgnoreCase("l") || command.equalsIgnoreCase("q")){
             leave(nick);
         } else if (command.equalsIgnoreCase("stop")) {
-            if (!isJoined(nick)) {
-                informPlayer(nick, getMsg("no_join"));
-            } else if (!inProgress) {
-                informPlayer(nick, getMsg("no_start"));
-            } else {
-                cancelAutoStarts(nick);
-            }
-        } else if (command.equalsIgnoreCase("cash")) {
-            if (params.length > 0){
-                showPlayerCash(params[0]);
-            } else {
-                showPlayerCash(nick);
-            }
+            stop(nick);
+        } else if (command.equalsIgnoreCase("cash") || command.equalsIgnoreCase("stack")) {
+            cash(nick, params);
         } else if (command.equalsIgnoreCase("netcash") || command.equalsIgnoreCase("net")) {
-            if (params.length > 0){
-                showPlayerNetCash(params[0]);
-            } else {
-                showPlayerNetCash(nick);
-            }
+            netcash(nick, params);
         } else if (command.equalsIgnoreCase("bank")) {
-            if (params.length > 0){
-                showPlayerBank(params[0]);
-            } else {
-                showPlayerBank(nick);
-            }
+            bank(nick, params);
         } else if (command.equalsIgnoreCase("bankrupts")) {
-            if (params.length > 0){
-                showPlayerBankrupts(params[0]);
-            } else {
-                showPlayerBankrupts(nick);
-            }
+            bankrupts(nick, params);
         } else if (command.equalsIgnoreCase("winnings")) {
-            if (params.length > 0){
-                showPlayerWinnings(params[0]);
-            } else {
-                showPlayerWinnings(nick);
-            }
+            winnings(nick, params);
         } else if (command.equalsIgnoreCase("winrate")) {
-            if (params.length > 0){
-                showPlayerWinRate(params[0]);
-            } else {
-                showPlayerWinRate(nick);
-            }
+            winrate(nick, params);
         } else if (command.equalsIgnoreCase("rounds")) {
-            if (params.length > 0){
-                showPlayerRounds(params[0]);
-            } else {
-                showPlayerRounds(nick);
-            }
+            rounds(nick, params);
         } else if (command.equalsIgnoreCase("player") || command.equalsIgnoreCase("p")){
-            if (params.length > 0){
-                showPlayerAllStats(params[0]);
-            } else {
-                showPlayerAllStats(nick);
-            }
-        } else if (command.equalsIgnoreCase("deposit") || command.equalsIgnoreCase("withdraw")) {
-            if (!isJoined(nick)) {
-                informPlayer(nick, getMsg("no_join"));
-            } else if (inProgress) {
-                informPlayer(nick, getMsg("wait_round_end"));
-            } else {
-                if (params.length > 0){
-                    try {
-                        if (command.equalsIgnoreCase("deposit")) {
-                            transfer(nick, Integer.parseInt(params[0]));
-                        } else {
-                            transfer(nick, -Integer.parseInt(params[0]));
-                        }
-                    } catch (NumberFormatException e) {
-                        informPlayer(nick, getMsg("bad_parameter"));
-                    }
-                } else {
-                    informPlayer(nick, getMsg("no_parameter"));
-                }
-            }
+            player(nick, params);
+        } else if (command.equalsIgnoreCase("deposit")) {
+            deposit(nick, params);
+        } else if (command.equalsIgnoreCase("withdraw")) {
+            withdraw(nick, params);
         } else if (command.equalsIgnoreCase("waitlist")) {
-            showMsg(getMsg("waitlist"), getPlayerListString(waitlist));
+            waitlist(nick, params);
         } else if (command.equalsIgnoreCase("blacklist")) {
-            showMsg(getMsg("blacklist"), getPlayerListString(blacklist));
+            blacklist(nick, params);
         } else if (command.equalsIgnoreCase("rank")) {
-            if (inProgress) {
-                informPlayer(nick, getMsg("wait_round_end"));
-            } else {
-                if (params.length > 1){
-                    try {
-                        showPlayerRank(params[1].toLowerCase(), params[0].toLowerCase());
-                    } catch (IllegalArgumentException e) {
-                        informPlayer(nick, getMsg("bad_parameter"));
-                    }
-                } else if (params.length == 1){
-                    try {
-                        showPlayerRank(nick, params[0].toLowerCase());
-                    } catch (IllegalArgumentException e) {
-                        informPlayer(nick, getMsg("bad_parameter"));
-                    }
-                } else {
-                    showPlayerRank(nick, "cash");
-                }
-            }
+            rank(nick, params);
         } else if (command.equalsIgnoreCase("top")) {
-            if (inProgress) {
-                informPlayer(nick, getMsg("wait_round_end"));
-            } else {
-                if (params.length > 1){
-                    try {
-                        showTopPlayers(params[1].toLowerCase(), Integer.parseInt(params[0]));
-                    } catch (IllegalArgumentException e) {
-                        informPlayer(nick, getMsg("bad_parameter"));
-                    }
-                } else if (params.length == 1){
-                    try {
-                        showTopPlayers("cash", Integer.parseInt(params[0]));
-                    } catch (IllegalArgumentException e) {
-                        informPlayer(nick, getMsg("bad_parameter"));
-                    }
-                } else {
-                    showTopPlayers("cash", 5);
-                }
-            }
+            top(nick, params);
         } else if (command.equalsIgnoreCase("simple")) {
-            if (!isJoined(nick)) {
-                informPlayer(nick, getMsg("no_join"));
-            } else {
-                togglePlayerSimple(nick);
-            }
+            simple(nick, params);
         } else if (command.equalsIgnoreCase("stats")){
-            if (inProgress) {
-                informPlayer(nick, getMsg("wait_round_end"));
-            } else {
-                showMsg(getGameStatsStr());
-            }
-        } else if (command.equalsIgnoreCase("grules")) {
-            informPlayer(nick, getGameRulesStr());
-        } else if (command.equalsIgnoreCase("ghelp")) {
-            if (params.length == 0){
-                informPlayer(nick, getMsg("game_help"), commandChar, commandChar, commandChar);
-            } else {
-                informPlayer(nick, getCommandHelp(params[0].toLowerCase()));
-            }
-        } else if (command.equalsIgnoreCase("gcommands")) {
-            informPlayer(nick, getGameNameStr() + " commands:");
-            informPlayer(nick, getCommandsStr());
-            if (channel.isOp(user)) {
-                informPlayer(nick, getGameNameStr() + " Op commands:");
-                informPlayer(nick, getOpCommandsStr());
-            }
+            stats(nick, params);
+        } else if (command.equalsIgnoreCase("grules") || command.equalsIgnoreCase("gamerules")) {
+            grules(nick, params);
+        } else if (command.equalsIgnoreCase("ghelp") || command.equalsIgnoreCase("gamehelp")) {
+            ghelp(nick, params);
+        } else if (command.equalsIgnoreCase("gcommands") || command.equalsIgnoreCase("gamecommands")) {
+            gcommands(user, nick, params);
         } else if (command.equalsIgnoreCase("game")) {
-            showMsg(getMsg("game_name"), getGameNameStr());
+            game(nick, params);
         // Op Commands
         } else if (command.equalsIgnoreCase("fj") || command.equalsIgnoreCase("fjoin")){
             if (!channel.isOp(user)) {
@@ -482,10 +380,356 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         }
     }
     
-    /* 
-     * Accessor methods 
-     * Returns or sets object properties.
+    /////////////////////////
+    //// Command methods ////
+    /////////////////////////
+    /**
+     * Attempts to add a player to the game.
+     * @param nick the player's nick
+     * @param host the player's host
      */
+    protected void join(String nick, String host) {
+        CardGame game = manager.getGame(nick);
+        if (joined.size() == get("maxplayers")){
+            informPlayer(nick, getMsg("max_players"));
+        } else if (isJoined(nick)) {
+            informPlayer(nick, getMsg("is_joined"));
+        } else if (isBlacklisted(nick) || manager.isBlacklisted(nick)) {
+            informPlayer(nick, getMsg("on_blacklist"));
+        } else if (game != null) {
+            informPlayer(nick, getMsg("is_joined_other"), game.getGameNameStr(), game.getChannel().getName());
+        } else if (inProgress) {
+            if (isWaitlisted(nick)) {
+                informPlayer(nick, getMsg("on_waitlist"));
+            } else {
+                addWaitlistPlayer(nick, host);
+            }
+        } else {
+            addPlayer(nick, host);
+        }
+    }
+    
+    /**
+     * Processes a player's departure from the game.
+     * @param nick the player's nick
+     */
+    abstract protected void leave(String nick);
+    
+    /**
+     * Cancels any remaining auto-starts.
+     * @param nick 
+     */
+    protected void stop(String nick) {
+        if (!isJoined(nick)) {
+            informPlayer(nick, getMsg("no_join"));
+        } else if (!inProgress) {
+            informPlayer(nick, getMsg("no_start"));
+        } else if (startCount == 0) {
+            informPlayer(nick, getMsg("stop_no_autostarts"));
+        } else {
+            startCount = 0;
+            showMsg(getMsg("stop"));
+        }
+    }
+    
+    /**
+     * Displays a player's stack.
+     * @param nick 
+     * @param params 
+     */
+    protected void cash(String nick, String[] params) {
+        if (params.length > 0){
+            showPlayerCash(params[0]);
+        } else {
+            showPlayerCash(nick);
+        }
+    }
+    
+    /**
+     * Displays a player's net cash.
+     * @param nick
+     * @param params 
+     */
+    protected void netcash(String nick, String[] params) {
+        if (params.length > 0){
+            showPlayerNetCash(params[0]);
+        } else {
+            showPlayerNetCash(nick);
+        }
+    }
+    
+    /**
+     * Displays a player's bank amount.
+     * @param nick
+     * @param params 
+     */
+    protected void bank(String nick, String[] params) {
+        if (params.length > 0){
+            showPlayerBank(params[0]);
+        } else {
+            showPlayerBank(nick);
+        }
+    }
+    
+    /**
+     * Displays a player's number of bankruptcies.
+     * @param nick
+     * @param params 
+     */
+    protected void bankrupts(String nick, String[] params) {
+        if (params.length > 0){
+            showPlayerBankrupts(params[0]);
+        } else {
+            showPlayerBankrupts(nick);
+        }
+    }
+    
+    /**
+     * Displays a player's winnings in the current game.
+     * @param nick
+     * @param params 
+     */
+    protected void winnings(String nick, String[] params) {
+        if (params.length > 0){
+            showPlayerWinnings(params[0]);
+        } else {
+            showPlayerWinnings(nick);
+        }
+    }
+    
+    /**
+     * Displays a player's win rate in the current game.
+     * @param nick
+     * @param params 
+     */
+    protected void winrate(String nick, String[] params) {
+        if (params.length > 0){
+            showPlayerWinRate(params[0]);
+        } else {
+            showPlayerWinRate(nick);
+        }
+    }
+    
+    /**
+     * Displays a player's number of rounds played in the current game.
+     * @param nick
+     * @param params 
+     */
+    protected void rounds(String nick, String[] params) {
+        if (params.length > 0){
+            showPlayerRounds(params[0]);
+        } else {
+            showPlayerRounds(nick);
+        }
+    }
+    
+    /**
+     * Displays a player's full stats for the current game.
+     * @param nick
+     * @param params 
+     */
+    protected void player(String nick, String[] params) {
+        if (params.length > 0){
+            showPlayerAllStats(params[0]);
+        } else {
+            showPlayerAllStats(nick);
+        }
+    }
+    
+    /**
+     * Deposits the specified amount to the player's bank.
+     * @param nick
+     * @param params 
+     */
+    protected void deposit(String nick, String[] params) {
+        if (!isJoined(nick)) {
+            informPlayer(nick, getMsg("no_join"));
+        } else if (inProgress) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else if (params.length < 1){
+            informPlayer(nick, getMsg("no_parameter"));
+        } else {
+            try {
+                transfer(nick, Integer.parseInt(params[0]));
+            } catch (NumberFormatException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }
+        }
+    }
+    
+    /**
+     * Withdraws the specified amount from the player's bank.
+     * @param nick
+     * @param params 
+     */
+    protected void withdraw(String nick, String[] params) {
+        if (!isJoined(nick)) {
+            informPlayer(nick, getMsg("no_join"));
+        } else if (inProgress) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else if (params.length < 1){
+            informPlayer(nick, getMsg("no_parameter"));
+        } else {
+            try {
+                transfer(nick, -Integer.parseInt(params[0]));
+            } catch (NumberFormatException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }
+        }
+    }
+    
+    /**
+     * Displays the players on the waiting list for the current game.
+     * @param nick
+     * @param params 
+     */
+    protected void waitlist(String nick, String[] params) {
+        showMsg(getMsg("waitlist"), getPlayerListString(waitlist));
+    }
+    
+    /**
+     * Displays the bankrupt players for the current game.
+     * @param nick
+     * @param params 
+     */
+    protected void blacklist(String nick, String[] params) {
+        showMsg(getMsg("blacklist"), getPlayerListString(blacklist));
+    }
+    
+    /**
+     * Displays a player's rank in a stat.
+     * @param nick
+     * @param params 
+     */
+    protected void rank(String nick, String[] params) {
+        if (inProgress) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else if (params.length > 1){
+            try {
+                showPlayerRank(params[1].toLowerCase(), params[0].toLowerCase());
+            } catch (IllegalArgumentException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }
+        } else if (params.length == 1){
+            try {
+                showPlayerRank(nick, params[0].toLowerCase());
+            } catch (IllegalArgumentException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }
+        } else {
+            showPlayerRank(nick, "cash");
+        }
+    }
+    
+    /**
+     * Displays the top players in a stat.
+     * @param nick
+     * @param params 
+     */
+    protected void top(String nick, String[] params) {
+        if (inProgress) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else if (params.length > 1){
+            try {
+                showTopPlayers(params[1].toLowerCase(), Integer.parseInt(params[0]));
+            } catch (IllegalArgumentException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }
+        } else if (params.length == 1){
+            try {
+                showTopPlayers("cash", Integer.parseInt(params[0]));
+            } catch (IllegalArgumentException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }
+        } else {
+            showTopPlayers("cash", 5);
+        }
+    }
+    
+    /**
+     * Toggles a player's "simple" status.
+     * Players with "simple" set to true will have game information sent via
+     * /notice. Players with "simple" set to false will have game information 
+     * sent via /msg.
+     * @param nick
+     * @param params 
+     */
+    protected void simple(String nick, String[] params) {
+        if (!isJoined(nick)) {
+            informPlayer(nick, getMsg("no_join"));
+        } else {
+            Player p = findJoined(nick);
+            p.set("simple", (p.get("simple") + 1) % 2);
+            if (p.isSimple()){
+                manager.sendNotice(nick, "Game info will now be noticed to you.");
+            } else {
+                manager.sendMessage(nick, "Game info will now be messaged to you.");
+            }
+        }
+    }
+    
+    /**
+     * Displays the stats for the current game.
+     * @param nick
+     * @param params 
+     */
+    protected void stats(String nick, String[] params) {
+        if (inProgress) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else {
+            showMsg(getGameStatsStr());
+        }
+    }
+    
+    /**
+     * Displays the rules for the current game.
+     * @param nick
+     * @param params 
+     */
+    protected void grules(String nick, String[] params) {
+        informPlayer(nick, getGameRulesStr());
+    }
+    
+    /**
+     * Displays a help message.
+     * @param nick
+     * @param params 
+     */
+    protected void ghelp(String nick, String[] params) {
+        if (params.length == 0){
+            informPlayer(nick, getMsg("game_help"), commandChar, commandChar, commandChar);
+        } else {
+            informPlayer(nick, getCommandHelp(params[0].toLowerCase()));
+        }
+    }
+    
+    /**
+     * Displays the commands available for this game.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void gcommands(User user, String nick, String[] params) {
+        informPlayer(nick, getGameNameStr() + " commands:");
+        informPlayer(nick, getCommandsStr());
+        if (channel.isOp(user)) {
+            informPlayer(nick, getGameNameStr() + " Op commands:");
+            informPlayer(nick, getOpCommandsStr());
+        }
+    }
+    
+    /**
+     * Displays the name of the current game.
+     * @param nick
+     * @param params 
+     */
+    protected void game(String nick, String[] params) {
+        showMsg(getMsg("game_name"), getGameNameStr());
+    }
+    
+    //////////////////////////
+    //// Accessor methods ////
+    //////////////////////////
     /**
      * Returns the game channel.
      * @return the game channel
@@ -530,12 +774,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * Resets the game, usually at the end of a round.
      */
     abstract protected void resetGame();
-    
-    /**
-     * Processes a player's departure from the game.
-     * @param nick the player's nick
-     */
-    abstract protected void leave(String nick);
     
     /**
      * Saves the INI file associated with the game instance.
@@ -701,32 +939,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     
     /**
-     * Attempts to add a player to the game.
-     * @param nick the player's nick
-     * @param host the player's host
-     */
-    protected void join(String nick, String host) {
-        CardGame game = manager.getGame(nick);
-        if (joined.size() == get("maxplayers")){
-            informPlayer(nick, getMsg("max_players"));
-        } else if (isJoined(nick)) {
-            informPlayer(nick, getMsg("is_joined"));
-        } else if (isBlacklisted(nick) || manager.isBlacklisted(nick)) {
-            informPlayer(nick, getMsg("on_blacklist"));
-        } else if (game != null) {
-            informPlayer(nick, getMsg("is_joined_other"), game.getGameNameStr(), game.getChannel().getName());
-        } else if (inProgress) {
-            if (isWaitlisted(nick)) {
-                informPlayer(nick, getMsg("on_waitlist"));
-            } else {
-                addWaitlistPlayer(nick, host);
-            }
-        } else {
-            addPlayer(nick, host);
-        }
-    }
-    
-    /**
      * Attempts to force add a player to the game.
      * @param OpNick the channel Op
      * @param nick the player to be force joined
@@ -769,15 +981,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             addPlayer(p);
         }
         waitlist.clear();
-    }
-    
-    protected void cancelAutoStarts(String nick){
-        if (startCount != 0) {
-            startCount = 0;
-            showMsg(getMsg("stop"));
-        } else {
-            informPlayer(nick, getMsg("stop_no_autostarts"));
-        }
     }
     
     /**
@@ -1056,24 +1259,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             return joined.get(index + 1);
         } else {
             return null;
-        }
-    }
-    
-    /**
-     * Toggles a player's "simple" status.
-     * Players with "simple" set to true will have game information sent via
-     * notice. Players with "simple" set to false will have game information sent
-     * via message.
-     * 
-     * @param nick the player's nick
-     */
-    protected void togglePlayerSimple(String nick){
-        Player p = findJoined(nick);
-        p.set("simple", (p.get("simple") + 1) % 2);
-        if (p.isSimple()){
-            manager.sendNotice(nick, "Game info will now be noticed to you.");
-        } else {
-            manager.sendMessage(nick, "Game info will now be messaged to you.");
         }
     }
     
