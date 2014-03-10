@@ -640,14 +640,12 @@ public class TexasPoker extends CardGame{
         // Check if auto-starts remaining
         if (startCount > 0){
             startCount--;
-            if (!inProgress){
-                if (joined.size() > 1) {
-                    inProgress = true;
-                    showStartRound();
-                    setStartRoundTask();
-                } else {
-                    startCount = 0;
-                }
+            if (joined.size() > 1) {
+                inProgress = true;
+                showStartRound();
+                setStartRoundTask();
+            } else {
+                startCount = 0;
             }
         }
     }
@@ -814,6 +812,8 @@ public class TexasPoker extends CardGame{
             informPlayer(nick, getMsg("round_started"));
         } else if (joined.size() < 2) {
             showMsg(getMsg("no_players"));
+        } else if (startCount > 0) {
+            informPlayer(nick, getMsg("no_manual_start"));
         } else {
             return true;
         }
@@ -1179,7 +1179,6 @@ public class TexasPoker extends CardGame{
         cancelIdleOutTask();
         PokerPlayer p = (PokerPlayer) currentPlayer;
         p.set("fold", 1);
-        showMsg(getMsg("tp_fold"), p.getNickStr(false), p.get("cash")-p.get("bet"));
 
         //Remove this player from any existing pots
         if (currentPot != null && currentPot.hasPlayer(p)){

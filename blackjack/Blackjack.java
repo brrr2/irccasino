@@ -745,15 +745,13 @@ public class Blackjack extends CardGame {
         // Check if any auto-starts remaining
         if (startCount > 0){
             startCount--;
-            if (!inProgress) {
-                if (joined.size() > 0) {
-                    inProgress = true;
-                    showStartRound();
-                    setStartRoundTask();
-                } else {
-                    startCount = 0;
-                    setIdleShuffleTask();
-                }
+            if (joined.size() > 0) {
+                inProgress = true;
+                showStartRound();
+                setStartRoundTask();
+            } else {
+                startCount = 0;
+                setIdleShuffleTask();
             }
         } else if (deck.getNumberDiscards() > 0) {
             setIdleShuffleTask();
@@ -838,6 +836,8 @@ public class Blackjack extends CardGame {
             informPlayer(nick, getMsg("round_started"));
         } else if (joined.size() < 1) {
             showMsg(getMsg("no_players"));
+        } else if (startCount > 0) {
+            informPlayer(nick, getMsg("no_manual_start"));
         } else {
             return true;
         }
