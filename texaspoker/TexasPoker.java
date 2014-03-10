@@ -720,7 +720,6 @@ public class TexasPoker extends CardGame{
                     informPlayer(p.getNick(), getMsg("remove_end_round"));
                     if (!p.has("fold")){
                         p.set("fold", 1);
-                        showMsg(getMsg("tp_fold"), p.getNickStr(), p.get("cash")-p.get("bet"));
                         // Remove this player from any existing pots
                         if (currentPot != null && currentPot.hasPlayer(p)){
                             currentPot.removePlayer(p);
