@@ -54,7 +54,7 @@ public class TexasTourney extends TexasPoker {
     }
     
     /**
-     * The default constructor for TexasPoker, subclass of CardGame.
+     * The default constructor for TexasTourney, subclass of TexasPoker.
      * This constructor loads the default INI file.
      * 
      * @param parent The bot that uses an instance of this class
@@ -114,7 +114,9 @@ public class TexasTourney extends TexasPoker {
         showMsg(getMsg("game_start"), getGameNameStr());
     }
     
-    /* Command management method */
+    /////////////////////////////////////////
+    //// Methods that process IRC events ////
+    /////////////////////////////////////////
     @Override
     public void processCommand(User user, String command, String[] params){
         String nick = user.getNick();
@@ -452,6 +454,79 @@ public class TexasTourney extends TexasPoker {
         }
     }
 
+    /////////////////////////
+    //// Command methods ////
+    /////////////////////////
+    @Override
+    public void join(String nick, String host) {
+        CardGame game = manager.getGame(nick);
+        if (joined.size() == get("maxplayers")){
+            informPlayer(nick, getMsg("max_players"));
+        } else if (isJoined(nick)) {
+            informPlayer(nick, getMsg("is_joined"));
+        } else if (isBlacklisted(nick) || manager.isBlacklisted(nick)) {
+            informPlayer(nick, getMsg("on_blacklist"));
+        } else if (game != null) {
+            informPlayer(nick, getMsg("is_joined_other"), game.getGameNameStr(), game.getChannel().getName());
+        } else if (inProgress) {
+            informPlayer(nick, getMsg("tt_started_unable_join"));
+        } else {
+            addPlayer(nick, host);
+        }
+    }
+    
+    @Override
+    public void leave(String nick) {
+        // Check if the nick is even joined
+        if (isJoined(nick)){
+            PokerPlayer p = (PokerPlayer) findJoined(nick);
+            // Check if a tournament is in progress
+            if (inProgress) {
+                // If still in the post-start-round waiting phase, then 
+                // currentPlayer has not been set yet.
+                if (currentPlayer == null){
+                    removeJoined(p);
+                    blacklist.add(0, p);
+                // Check if it is already in the endRound stage
+                } else if (roundEnded){
+                    p.set("quit", 1);
+                    informPlayer(p.getNick(), getMsg("remove_end_round"));
+                // Force the player to fold if it is his turn
+                } else if (p == currentPlayer){
+                    p.set("quit", 1);
+                    informPlayer(p.getNick(), getMsg("remove_end_round"));
+                    fold();
+                } else {
+                    p.set("quit", 1);
+                    informPlayer(p.getNick(), getMsg("remove_end_round"));
+                    if (!p.has("fold")){
+                        p.set("fold", 1);
+                        // Remove this player from any existing pots
+                        if (currentPot != null && currentPot.hasPlayer(p)){
+                            currentPot.removePlayer(p);
+                        }
+                        for (int ctr = 0; ctr < pots.size(); ctr++){
+                            PokerPot cPot = pots.get(ctr);
+                            if (cPot.hasPlayer(p)){
+                                cPot.removePlayer(p);
+                            }
+                        }
+                        // If there is only one player who hasn't folded,
+                        // force call on that remaining player (whose turn it must be)
+                        if (getNumberNotFolded() == 1){
+                            call();
+                        }
+                    }
+                }
+            // Just remove the player from the joined list if no round in progress
+            } else {
+                removeJoined(p);
+            }
+        } else {
+            informPlayer(nick, getMsg("no_join"));
+        }
+    }
+    
     /* Game management methods */
     @Override
     public void addPlayer(String nick, String host) {
@@ -782,24 +857,6 @@ public class TexasTourney extends TexasPoker {
     }
     
     @Override
-    public void join(String nick, String host) {
-        CardGame game = manager.getGame(nick);
-        if (joined.size() == get("maxplayers")){
-            informPlayer(nick, getMsg("max_players"));
-        } else if (isJoined(nick)) {
-            informPlayer(nick, getMsg("is_joined"));
-        } else if (isBlacklisted(nick) || manager.isBlacklisted(nick)) {
-            informPlayer(nick, getMsg("on_blacklist"));
-        } else if (game != null) {
-            informPlayer(nick, getMsg("is_joined_other"), game.getGameNameStr(), game.getChannel().getName());
-        } else if (inProgress) {
-            informPlayer(nick, getMsg("tt_started_unable_join"));
-        } else {
-            addPlayer(nick, host);
-        }
-    }
-    
-    @Override
     public void fjoin(User user, String nick, String[] params) {
         if (!channel.isOp(user)) {
             informPlayer(nick, getMsg("ops_only"));
@@ -829,58 +886,6 @@ public class TexasTourney extends TexasPoker {
                 }
             }
             informPlayer(nick, getMsg("nick_not_found"), fNick);
-        }
-    }
-    
-    @Override
-    public void leave(String nick) {
-        // Check if the nick is even joined
-        if (isJoined(nick)){
-            PokerPlayer p = (PokerPlayer) findJoined(nick);
-            // Check if a tournament is in progress
-            if (inProgress) {
-                // If still in the post-start-round waiting phase, then 
-                // currentPlayer has not been set yet.
-                if (currentPlayer == null){
-                    removeJoined(p);
-                    blacklist.add(0, p);
-                // Check if it is already in the endRound stage
-                } else if (roundEnded){
-                    p.set("quit", 1);
-                    informPlayer(p.getNick(), getMsg("remove_end_round"));
-                // Force the player to fold if it is his turn
-                } else if (p == currentPlayer){
-                    p.set("quit", 1);
-                    informPlayer(p.getNick(), getMsg("remove_end_round"));
-                    fold();
-                } else {
-                    p.set("quit", 1);
-                    informPlayer(p.getNick(), getMsg("remove_end_round"));
-                    if (!p.has("fold")){
-                        p.set("fold", 1);
-                        // Remove this player from any existing pots
-                        if (currentPot != null && currentPot.hasPlayer(p)){
-                            currentPot.removePlayer(p);
-                        }
-                        for (int ctr = 0; ctr < pots.size(); ctr++){
-                            PokerPot cPot = pots.get(ctr);
-                            if (cPot.hasPlayer(p)){
-                                cPot.removePlayer(p);
-                            }
-                        }
-                        // If there is only one player who hasn't folded,
-                        // force call on that remaining player (whose turn it must be)
-                        if (getNumberNotFolded() == 1){
-                            call();
-                        }
-                    }
-                }
-            // Just remove the player from the joined list if no round in progress
-            } else {
-                removeJoined(p);
-            }
-        } else {
-            informPlayer(nick, getMsg("no_join"));
         }
     }
     

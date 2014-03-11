@@ -92,6 +92,9 @@ public class TexasPoker extends CardGame{
         showMsg(getMsg("game_start"), getGameNameStr());
     }
     
+    /////////////////////////////////////////
+    //// Methods that process IRC events ////
+    /////////////////////////////////////////
     /* Command management method */
     @Override
     public void processCommand(User user, String command, String[] params){
@@ -103,341 +106,665 @@ public class TexasPoker extends CardGame{
         
         /* Parsing commands from the channel */
         if (command.equalsIgnoreCase("start") || command.equalsIgnoreCase("go")) {
-            if (isStartAllowed(nick)){
-                if (params.length > 0){
-                    try {
-                        startCount = Math.min(get("autostarts") - 1, Integer.parseInt(params[0]) - 1);
-                    } catch (NumberFormatException e) {
-                        // Do nothing and proceed
-                    }
-                }
-                inProgress = true;
-                showStartRound();
-                setStartRoundTask();
-            }
+            start(nick, params);
         } else if (command.equalsIgnoreCase("bet") || command.equalsIgnoreCase("b")) {
-            if (isPlayerTurn(nick)){
-                if (params.length > 0){
-                    try {
-                        bet(Integer.parseInt(params[0]));
-                    } catch (NumberFormatException e) {
-                        informPlayer(nick, getMsg("bad_parameter"));
-                    }
-                } else {
-                    informPlayer(nick, getMsg("no_parameter"));
-                }
-            }
+            bet(nick, params);
         } else if (command.equalsIgnoreCase("c") || command.equalsIgnoreCase("ca") || command.equalsIgnoreCase("call")) {
-            if (isPlayerTurn(nick)){
-                call();
-            }
+            call(nick, params);
         } else if (command.equalsIgnoreCase("x") || command.equalsIgnoreCase("ch") || command.equalsIgnoreCase("check")) {
-            if (isPlayerTurn(nick)){
-                check();
-            }
+            check(nick, params);
         } else if (command.equalsIgnoreCase("fold") || command.equalsIgnoreCase("f")) {
-            if (isPlayerTurn(nick)){
-                fold();
-            }
+            fold(nick, params);
         } else if (command.equalsIgnoreCase("raise") || command.equalsIgnoreCase("r")) {
-            if (isPlayerTurn(nick)){
-                if (params.length > 0){
-                    try {
-                        bet(Integer.parseInt(params[0]) + currentBet);
-                    } catch (NumberFormatException e) {
-                        informPlayer(nick, getMsg("bad_parameter"));
-                    }
-                } else {
-                    informPlayer(nick, getMsg("no_parameter"));
-                }
-            }
+            raise(nick, params);
         } else if (command.equalsIgnoreCase("allin") || command.equalsIgnoreCase("a")){
-            if (isPlayerTurn(nick)){
-                bet(currentPlayer.get("cash"));
-            }
+            allin(nick, params);
         } else if (command.equalsIgnoreCase("community") || command.equalsIgnoreCase("comm")){
-            if (!isJoined(nick)) {
-                informPlayer(nick, getMsg("no_join"));
-            } else if (!inProgress) {
-                informPlayer(nick, getMsg("no_start"));
-            } else if (stage == 0){
-                informPlayer(nick, getMsg("no_community"));
-            } else {
-                showCommunityCards();
-            }
+            community(nick, params);
         } else if (command.equalsIgnoreCase("hand")) {
-            if (!isJoined(nick)) {
-                informPlayer(nick, getMsg("no_join"));
-            } else if (!inProgress) {
-                informPlayer(nick, getMsg("no_start"));
-            } else {
-                PokerPlayer p = (PokerPlayer) findJoined(nick);
-                informPlayer(p.getNick(), getMsg("tp_hand"), p.getHand());
-            }
+            hand(nick, params);
         } else if (command.equalsIgnoreCase("turn")) {
-            if (!isJoined(nick)) {
-                informPlayer(nick, getMsg("no_join"));
-            } else if (!inProgress) {
-                informPlayer(nick, getMsg("no_start"));
-            } else {
-                showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentBet-currentPlayer.get("bet"), 
-                        currentPlayer.get("bet"), currentBet, getCashInPlay(), currentPlayer.get("cash")-currentPlayer.get("bet"));
-            }
+            turn(nick, params);
         } else if (command.equalsIgnoreCase("players")) {
-            if (inProgress){
-                showTablePlayers();
-            } else {
-                showMsg(getMsg("players"), getPlayerListString(joined));
-            }
+            players(nick, params);
         /* Op commands */
         } else if (command.equalsIgnoreCase("fstart") || command.equalsIgnoreCase("fgo")){
-            if (isForceStartAllowed(user,nick)){
-                inProgress = true;
-                showStartRound();
-                setStartRoundTask();
-            }
+            fstart(user, nick, params);
         } else if (command.equalsIgnoreCase("fstop")){
-            // Use only as last resort. Data will be lost.
-            if (isForceStopAllowed(user,nick)){
-                cancelStartRoundTask();
-                cancelIdleOutTask();
-                for (int ctr = 0; ctr < joined.size(); ctr++) {
-                    resetPlayer((PokerPlayer) joined.get(ctr));
-                }
-                resetGame();
-                startCount = 0;
-                showMsg(getMsg("end_round"), getGameNameStr(), commandChar);
-            }
+            fstop(user, nick, params);
         } else if (command.equalsIgnoreCase("fb") || command.equalsIgnoreCase("fbet")){
-            if (isForcePlayAllowed(user, nick)){
-                if (params.length > 0){
-                    try {
-                        bet(Integer.parseInt(params[0]));
-                    } catch (NumberFormatException e) {
-                        informPlayer(nick, getMsg("bad_parameter"));
-                    }
-                } else {
-                    informPlayer(nick, getMsg("no_parameter"));
-                }
-            }
+            fbet(user, nick, params);
         } else if (command.equalsIgnoreCase("fa") || command.equalsIgnoreCase("fallin")){
-            if (isForcePlayAllowed(user, nick)){
-                bet(currentPlayer.get("cash"));
-            }
+            fallin(user, nick, params);
         } else if (command.equalsIgnoreCase("fr") || command.equalsIgnoreCase("fraise")){
-            if (isForcePlayAllowed(user, nick)){
-                if (params.length > 0){
-                    try {
-                        bet(Integer.parseInt(params[0]) + currentBet);
-                    } catch (NumberFormatException e) {
-                        informPlayer(nick, getMsg("bad_parameter"));
-                    }
-                } else {
-                    informPlayer(nick, getMsg("no_parameter"));
-                }
-            }
+            fraise(user, nick, params);
         } else if (command.equalsIgnoreCase("fc") || command.equalsIgnoreCase("fca") || command.equalsIgnoreCase("fcall")){
-            if (isForcePlayAllowed(user, nick)){
-                call();
-            }
+            fcall(user, nick, params);
         } else if (command.equalsIgnoreCase("fx") || command.equalsIgnoreCase("fch") || command.equalsIgnoreCase("fcheck")){
-            if (isForcePlayAllowed(user, nick)){
-                check();
-            }
+            fcheck(user, nick, params);
         } else if (command.equalsIgnoreCase("ff") || command.equalsIgnoreCase("ffold")){
-            if (isForcePlayAllowed(user, nick)){
-                fold();
-            }
+            ffold(user, nick, params);
         } else if (command.equalsIgnoreCase("shuffle")){
-            if (isOpCommandAllowed(user, nick)){
-                shuffleDeck();
-            }
+            shuffle(user, nick, params);
         } else if (command.equalsIgnoreCase("reload")) {
-            if (isOpCommandAllowed(user, nick)){
-                loadIni();
-                cmdMap.clear();
-                opCmdMap.clear();
-                aliasMap.clear();
-                msgMap.clear();
-                loadStrLib(strFile);
-                loadHelp(helpFile);
-                showMsg(getMsg("reload"));
-            }
-        } else if (command.equalsIgnoreCase("test1")){
-            // 1. Test if game will properly determine winner of 2-5 players
-            if (isOpCommandAllowed(user, nick)){
-                if (params.length > 0){
-                    try {
-                        ArrayList<PokerPlayer> peeps = new ArrayList<PokerPlayer>();
-                        PokerPlayer p;
-                        PokerHand ph;
-                        int winners = 1;
-                        int number = Integer.parseInt(params[0]);
-                        if (number > 5 || number < 2){
-                            throw new NumberFormatException();
-                        }
-                        // Generate new players
-                        for (int ctr=0; ctr < number; ctr++){
-                            p = new PokerPlayer(ctr+1+"", "");
-                            peeps.add(p);
-                            dealHand(p);                            
-                            showMsg("Player "+p.getNickStr()+": "+p.getHand().toString());
-                        }
-                        // Generate community cards
-                        Hand comm = new Hand();
-                        for (int ctr=0; ctr<5; ctr++){
-                            dealCard(comm);
-                        }
-                        showMsg(formatHeader(" Community: ") + " " + comm.toString());
-                        // Propagate poker hands
-                        for (int ctr=0; ctr < number; ctr++){
-                            p = peeps.get(ctr);
-                            ph = p.getPokerHand();
-                            ph.addAll(p.getHand());
-                            ph.addAll(comm);
-                            Collections.sort(ph);
-                            Collections.reverse(ph);
-                            ph.getValue();
-                        }
-                        // Sort hands in descending order
-                        Collections.sort(peeps);
-                        Collections.reverse(peeps);
-                        // Determine number of winners
-                        for (int ctr=1; ctr < peeps.size(); ctr++){
-                            if (peeps.get(0).compareTo(peeps.get(ctr)) == 0){
-                                winners++;
-                            } else {
-                                break;
-                            }
-                        }
-                        // Output poker hands with winners listed
-                        for (int ctr=0; ctr < winners; ctr++){
-                            p = peeps.get(ctr);
-                            ph = p.getPokerHand();
-                            showMsg("Player "+p.getNickStr()+
-                                    " ("+p.getHand()+"), "+ph.getName()+": " + ph+" (WINNER)");
-                        }
-                        for (int ctr=winners; ctr < peeps.size(); ctr++){
-                            p = peeps.get(ctr);
-                            ph = p.getPokerHand();
-                            showMsg("Player "+p.getNickStr()+
-                                    " ("+p.getHand()+"), "+ph.getName()+": " + ph);
-                        }
-                        // Discard and shuffle
-                        for (int ctr=0; ctr < number; ctr++){
-                            resetPlayer(peeps.get(ctr));
-                        }
-                        deck.addToDiscard(comm);
-                        comm.clear();
-                        deck.refillDeck();
-                        showMsg(getMsg("separator"));
-                    } catch (NumberFormatException e) {
-                        informPlayer(nick, getMsg("bad_parameter"));
-                    }
-                } else {
-                    informPlayer(nick, getMsg("no_parameter"));
-                }                
-            }
-        } else if (command.equalsIgnoreCase("test2")){	
-            // 2. Test if arbitrary hands will be scored properly
-            if (isOpCommandAllowed(user, nick)){
-                if (params.length > 0){
-                    try {
-                        int number = Integer.parseInt(params[0]);
-                        if (number > 52 || number < 5){
-                            throw new NumberFormatException();
-                        }
-                        PokerHand h = new PokerHand();
-                        for (int ctr = 0; ctr < number; ctr++){
-                            dealCard(h);
-                        }
-                        showMsg(h.toString(0, h.size()));
-                        Collections.sort(h);
-                        Collections.reverse(h);
-                        h.getValue();
-                        showMsg(h.getName()+": " + h);
-                        deck.addToDiscard(h);
-                        h.clear();
-                        deck.refillDeck();
-                        showMsg(getMsg("separator"));
-                    } catch (NumberFormatException e) {
-                        informPlayer(nick, getMsg("bad_parameter"));
-                    }
-                } else {
-                    informPlayer(nick, getMsg("no_parameter"));
-                }
-                
-            }
+            reload(user, nick, params);
+        } else if (command.equalsIgnoreCase("test1")) {
+            test1(user, nick, params);
+        } else if (command.equalsIgnoreCase("test2")) {
+            test2(user, nick, params);
         } else if (command.equalsIgnoreCase("test3")){
-            // 3. Tests the percentage calculator for 2-5 players
-            if (isOpCommandAllowed(user, nick)){
-                if (params.length > 0){
-                    try {
-                        int number = Integer.parseInt(params[0]);
-                        if (number > 5 || number < 2){
-                            throw new NumberFormatException();
-                        }
-                        ArrayList<PokerPlayer> peeps = new ArrayList<PokerPlayer>();
-                        PokerPlayer p;
-                        Hand comm = new Hand();
-                        PokerSimulator sim;
-
-                        // Generate players and deal cards
-                        for (int ctr = 0; ctr < number; ctr++) {
-                            p = new PokerPlayer(ctr + "", ctr + "");
-                            peeps.add(p);
-                            dealHand(p);
-                            showMsg("Player "+p.getNickStr()+": "+p.getHand().toString());
-                        }
-
-                        // Calculate percentages
-                        sim = new PokerSimulator(peeps, comm);
-                        showMsg(sim.toString());
-
-                        // Deal flop
-                        for (int ctr = 0; ctr < 3; ctr++){
-                            dealCard(comm);
-                        }
-                        showMsg(formatHeader(" Community: ") + " " + comm.toString());
-
-                        // Recalculate percentages
-                        sim = new PokerSimulator(peeps, comm);
-                        showMsg(sim.toString());
-
-                        // Deal turn
-                        dealCard(comm);
-                        showMsg(formatHeader(" Community: ") + " " + comm.toString());
-
-                        // Recalculate percentages
-                        sim = new PokerSimulator(peeps, comm);
-                        showMsg(sim.toString());
-
-                        // Deal river
-                        dealCard(comm);
-                        showMsg(formatHeader(" Community: ") + " " + comm.toString());
-                        
-                        // Recalculate percentages
-                        sim = new PokerSimulator(peeps, comm);
-                        showMsg(sim.toString());
-
-                        // Discard and shuffle
-                        for (int ctr=0; ctr < number; ctr++){
-                            resetPlayer(peeps.get(ctr));
-                        }
-                        deck.addToDiscard(comm);
-                        comm.clear();
-                        deck.refillDeck();
-                        showMsg(getMsg("separator"));
-                    } catch (NumberFormatException e) {
-                        informPlayer(nick, getMsg("bad_parameter"));
-                    }
-                } else {
-                    informPlayer(nick, getMsg("no_parameter"));
-                }
-            }
+            test3(user, nick, params);
         }
     }
 
+    /////////////////////////
+    //// Command methods ////
+    /////////////////////////
+    /**
+     * Starts a new round.
+     * @param nick
+     * @param params 
+     */
+    protected void start(String nick, String[] params) {
+        if (!isJoined(nick)) {
+            informPlayer(nick, getMsg("no_join"));
+        } else if (inProgress) {
+            informPlayer(nick, getMsg("round_started"));
+        } else if (joined.size() < 2) {
+            showMsg(getMsg("no_players"));
+        } else if (startCount > 0) {
+            informPlayer(nick, getMsg("no_manual_start"));
+        } else {
+            if (params.length > 0){
+                try {
+                    startCount = Math.min(get("autostarts") - 1, Integer.parseInt(params[0]) - 1);
+                } catch (NumberFormatException e) {
+                    // Do nothing and proceed
+                }
+            }
+            inProgress = true;
+            showStartRound();
+            setStartRoundTask();
+        }
+    }
+    
+    /**
+     * Sets a bet for the current player.
+     * @param nick
+     * @param params 
+     */
+    protected void bet(String nick, String[] params) {
+        if (!isJoined(nick)){
+            informPlayer(nick, getMsg("no_join"));
+        } else if (!inProgress) {
+            informPlayer(nick, getMsg("no_start"));
+        } else if (findJoined(nick) != currentPlayer){
+            informPlayer(nick, getMsg("wrong_turn"));
+        } else if (params.length < 1){
+            informPlayer(nick, getMsg("no_parameter"));  
+        } else {
+            try {
+                bet(Integer.parseInt(params[0]));
+            } catch (NumberFormatException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }
+        }
+    }
+    
+    /**
+     * Makes the current player call.
+     * @param nick
+     * @param params 
+     */
+    protected void call(String nick, String[] params) {
+        if (!isJoined(nick)){
+            informPlayer(nick, getMsg("no_join"));
+        } else if (!inProgress) {
+            informPlayer(nick, getMsg("no_start"));
+        } else if (findJoined(nick) != currentPlayer){
+            informPlayer(nick, getMsg("wrong_turn"));
+        } else {
+            call();
+        }
+    }
+    
+    /**
+     * Makes the current player check.
+     * @param nick
+     * @param params 
+     */
+    protected void check(String nick, String[] params) {
+        if (!isJoined(nick)){
+            informPlayer(nick, getMsg("no_join"));
+        } else if (!inProgress) {
+            informPlayer(nick, getMsg("no_start"));
+        } else if (findJoined(nick) != currentPlayer){
+            informPlayer(nick, getMsg("wrong_turn"));
+        } else {
+            check();
+        }
+    }
+    
+    /**
+     * Makes the current player fold.
+     * @param nick
+     * @param params 
+     */
+    protected void fold(String nick, String[] params) {
+        if (!isJoined(nick)){
+            informPlayer(nick, getMsg("no_join"));
+        } else if (!inProgress) {
+            informPlayer(nick, getMsg("no_start"));
+        } else if (findJoined(nick) != currentPlayer){
+            informPlayer(nick, getMsg("wrong_turn"));
+        } else {
+            fold();
+        }
+    }
+    
+    /**
+     * Makes the current player raise.
+     * @param nick
+     * @param params 
+     */
+    protected void raise(String nick, String[] params) {
+        if (!isJoined(nick)){
+            informPlayer(nick, getMsg("no_join"));
+        } else if (!inProgress) {
+            informPlayer(nick, getMsg("no_start"));
+        } else if (findJoined(nick) != currentPlayer){
+            informPlayer(nick, getMsg("wrong_turn"));
+        } else if (params.length < 1){
+            informPlayer(nick, getMsg("no_parameter"));
+        } else {
+            try {
+                bet(Integer.parseInt(params[0]) + currentBet);
+            } catch (NumberFormatException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }
+        }
+    }
+    
+    /**
+     * Makes the current player go all in.
+     * @param nick
+     * @param params 
+     */
+    protected void allin(String nick, String[] params) {
+        if (!isJoined(nick)){
+            informPlayer(nick, getMsg("no_join"));
+        } else if (!inProgress) {
+            informPlayer(nick, getMsg("no_start"));
+        } else if (findJoined(nick) != currentPlayer){
+            informPlayer(nick, getMsg("wrong_turn"));
+        } else {
+            bet(currentPlayer.get("cash"));
+        }
+    }
+    
+    /**
+     * Outputs the current community cards.
+     * @param nick
+     * @param params 
+     */
+    protected void community(String nick, String[] params) {
+        if (!isJoined(nick)) {
+            informPlayer(nick, getMsg("no_join"));
+        } else if (!inProgress) {
+            informPlayer(nick, getMsg("no_start"));
+        } else if (stage == 0){
+            informPlayer(nick, getMsg("no_community"));
+        } else {
+            showCommunityCards();
+        }
+    }
+    
+    /**
+     * Informs a player of his hand.
+     * @param nick
+     * @param params 
+     */
+    protected void hand(String nick, String[] params) {
+        if (!isJoined(nick)) {
+            informPlayer(nick, getMsg("no_join"));
+        } else if (!inProgress) {
+            informPlayer(nick, getMsg("no_start"));
+        } else {
+            PokerPlayer p = (PokerPlayer) findJoined(nick);
+            informPlayer(p.getNick(), getMsg("tp_hand"), p.getHand());
+        }
+    }
+    
+    /**
+     * Displays whose turn it is.
+     * @param nick
+     * @param params 
+     */
+    protected void turn(String nick, String[] params) {
+        if (!isJoined(nick)) {
+            informPlayer(nick, getMsg("no_join"));
+        } else if (!inProgress) {
+            informPlayer(nick, getMsg("no_start"));
+        } else {
+            showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentBet-currentPlayer.get("bet"), 
+                    currentPlayer.get("bet"), currentBet, getCashInPlay(), currentPlayer.get("cash")-currentPlayer.get("bet"));
+        }
+    }
+    
+    /**
+     * Displays the current players in the game.
+     * @param nick
+     * @param params 
+     */
+    protected void players(String nick, String[] params) {
+        if (inProgress){
+            showTablePlayers();
+        } else {
+            showMsg(getMsg("players"), getPlayerListString(joined));
+        }
+    }
+    
+    /**
+     * Attempts to force the game to start.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void fstart(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (inProgress) {
+            informPlayer(nick, getMsg("round_started"));
+        } else if (joined.size() < 2) {
+            showMsg(getMsg("no_players"));
+        } else {
+            inProgress = true;
+            showStartRound();
+            setStartRoundTask();
+        }
+    }
+    
+    /**
+     * Forces a round to end. Use only as last resort. Data will be lost.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void fstop(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (!inProgress) {
+            informPlayer(nick, getMsg("no_start"));
+        } else {
+            cancelStartRoundTask();
+            cancelIdleOutTask();
+            for (int ctr = 0; ctr < joined.size(); ctr++) {
+                resetPlayer((PokerPlayer) joined.get(ctr));
+            }
+            resetGame();
+            startCount = 0;
+            showMsg(getMsg("end_round"), getGameNameStr(), commandChar);
+        }
+    }
+    
+    /**
+     * Forces the current player to bet.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void fbet(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (!inProgress) {
+            informPlayer(nick, getMsg("no_start"));
+        } else if (currentPlayer == null) {
+            informPlayer(nick, getMsg("no_force_play"));
+        } else if (params.length < 1){
+            informPlayer(nick, getMsg("no_parameter"));       
+        } else {
+            try {
+                bet(Integer.parseInt(params[0]));
+            } catch (NumberFormatException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }
+        }
+    }
+    
+    /**
+     * Forces the current player to go all in.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void fallin(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (!inProgress) {
+            informPlayer(nick, getMsg("no_start"));
+        } else if (currentPlayer == null) {
+            informPlayer(nick, getMsg("no_force_play"));
+        } else {
+            bet(currentPlayer.get("cash"));
+        }
+    }
+    
+    /**
+     * Forces the current player to raise.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void fraise(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (!inProgress) {
+            informPlayer(nick, getMsg("no_start"));
+        } else if (currentPlayer == null) {
+            informPlayer(nick, getMsg("no_force_play"));
+        } else if (params.length < 1){
+            informPlayer(nick, getMsg("no_parameter"));        
+        } else {
+            try {
+                bet(Integer.parseInt(params[0]) + currentBet);
+            } catch (NumberFormatException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }    
+        }
+    }
+    
+    /**
+     * Forces the current player to call.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void fcall(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (!inProgress) {
+            informPlayer(nick, getMsg("no_start"));
+        } else if (currentPlayer == null) {
+            informPlayer(nick, getMsg("no_force_play"));
+        } else {
+            call();
+        }
+    }
+    
+    /**
+     * Forces the current player to check.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void fcheck(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (!inProgress) {
+            informPlayer(nick, getMsg("no_start"));
+        } else if (currentPlayer == null) {
+            informPlayer(nick, getMsg("no_force_play"));
+        } else {
+            check();
+        }
+    }
+    
+    /**
+     * Forces the current player to fold.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void ffold(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (!inProgress) {
+            informPlayer(nick, getMsg("no_start"));
+        } else if (currentPlayer == null) {
+            informPlayer(nick, getMsg("no_force_play"));
+        } else {
+            fold();
+        }
+    }
+    
+    /**
+     * Shuffles the deck.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void shuffle(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (inProgress) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else {
+            shuffleDeck();
+        }
+    }
+    
+    /**
+     * Reloads library files and settings.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void reload(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (inProgress) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else {
+            loadIni();
+            cmdMap.clear();
+            opCmdMap.clear();
+            aliasMap.clear();
+            msgMap.clear();
+            loadStrLib(strFile);
+            loadHelp(helpFile);
+            showMsg(getMsg("reload"));
+        }
+    }
+    
+    /**
+     * Performs test 1. Tests if the game will properly determine the winner 
+     * with 2-5 players.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void test1(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (inProgress) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else if (params.length < 1) {
+            informPlayer(nick, getMsg("no_parameter"));  
+        } else {
+            try {
+                ArrayList<PokerPlayer> peeps = new ArrayList<PokerPlayer>();
+                PokerPlayer p;
+                PokerHand ph;
+                int winners = 1;
+                int number = Integer.parseInt(params[0]);
+                if (number > 5 || number < 2){
+                    throw new NumberFormatException();
+                }
+                // Generate new players
+                for (int ctr=0; ctr < number; ctr++){
+                    p = new PokerPlayer(ctr+1+"", "");
+                    peeps.add(p);
+                    dealHand(p);                            
+                    showMsg("Player "+p.getNickStr()+": "+p.getHand().toString());
+                }
+                // Generate community cards
+                Hand comm = new Hand();
+                for (int ctr=0; ctr<5; ctr++){
+                    dealCard(comm);
+                }
+                showMsg(formatHeader(" Community: ") + " " + comm.toString());
+                // Propagate poker hands
+                for (int ctr=0; ctr < number; ctr++){
+                    p = peeps.get(ctr);
+                    ph = p.getPokerHand();
+                    ph.addAll(p.getHand());
+                    ph.addAll(comm);
+                    Collections.sort(ph);
+                    Collections.reverse(ph);
+                    ph.getValue();
+                }
+                // Sort hands in descending order
+                Collections.sort(peeps);
+                Collections.reverse(peeps);
+                // Determine number of winners
+                for (int ctr=1; ctr < peeps.size(); ctr++){
+                    if (peeps.get(0).compareTo(peeps.get(ctr)) == 0){
+                        winners++;
+                    } else {
+                        break;
+                    }
+                }
+                // Output poker hands with winners listed
+                for (int ctr=0; ctr < winners; ctr++){
+                    p = peeps.get(ctr);
+                    ph = p.getPokerHand();
+                    showMsg("Player "+p.getNickStr()+
+                            " ("+p.getHand()+"), "+ph.getName()+": " + ph+" (WINNER)");
+                }
+                for (int ctr=winners; ctr < peeps.size(); ctr++){
+                    p = peeps.get(ctr);
+                    ph = p.getPokerHand();
+                    showMsg("Player "+p.getNickStr()+
+                            " ("+p.getHand()+"), "+ph.getName()+": " + ph);
+                }
+                // Discard and shuffle
+                for (int ctr=0; ctr < number; ctr++){
+                    resetPlayer(peeps.get(ctr));
+                }
+                deck.addToDiscard(comm);
+                comm.clear();
+                deck.refillDeck();
+                showMsg(getMsg("separator"));
+            } catch (NumberFormatException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }
+        }
+    }
+    
+    /**
+     * Performs test 2. Tests if arbitrary hands will be scored properly.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void test2(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (inProgress) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else if (params.length < 1){
+            informPlayer(nick, getMsg("no_parameter"));
+        } else {
+            try {
+                int number = Integer.parseInt(params[0]);
+                if (number > 52 || number < 5){
+                    throw new NumberFormatException();
+                }
+                PokerHand h = new PokerHand();
+                for (int ctr = 0; ctr < number; ctr++){
+                    dealCard(h);
+                }
+                showMsg(h.toString(0, h.size()));
+                Collections.sort(h);
+                Collections.reverse(h);
+                h.getValue();
+                showMsg(h.getName()+": " + h);
+                deck.addToDiscard(h);
+                h.clear();
+                deck.refillDeck();
+                showMsg(getMsg("separator"));
+            } catch (NumberFormatException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }
+        }
+    }
+    
+    /**
+     * Performs test 3. Tests the percentage calculator for 2-5 players.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void test3(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (inProgress) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else if (params.length < 1){
+            informPlayer(nick, getMsg("no_parameter"));
+        } else {
+            try {
+                int number = Integer.parseInt(params[0]);
+                if (number > 5 || number < 2){
+                    throw new NumberFormatException();
+                }
+                ArrayList<PokerPlayer> peeps = new ArrayList<PokerPlayer>();
+                PokerPlayer p;
+                Hand comm = new Hand();
+                PokerSimulator sim;
+
+                // Generate players and deal cards
+                for (int ctr = 0; ctr < number; ctr++) {
+                    p = new PokerPlayer(ctr + "", ctr + "");
+                    peeps.add(p);
+                    dealHand(p);
+                    showMsg("Player "+p.getNickStr()+": "+p.getHand().toString());
+                }
+
+                // Calculate percentages
+                sim = new PokerSimulator(peeps, comm);
+                showMsg(sim.toString());
+
+                // Deal flop
+                for (int ctr = 0; ctr < 3; ctr++){
+                    dealCard(comm);
+                }
+                showMsg(formatHeader(" Community: ") + " " + comm.toString());
+
+                // Recalculate percentages
+                sim = new PokerSimulator(peeps, comm);
+                showMsg(sim.toString());
+
+                // Deal turn
+                dealCard(comm);
+                showMsg(formatHeader(" Community: ") + " " + comm.toString());
+
+                // Recalculate percentages
+                sim = new PokerSimulator(peeps, comm);
+                showMsg(sim.toString());
+
+                // Deal river
+                dealCard(comm);
+                showMsg(formatHeader(" Community: ") + " " + comm.toString());
+
+                // Recalculate percentages
+                sim = new PokerSimulator(peeps, comm);
+                showMsg(sim.toString());
+
+                // Discard and shuffle
+                for (int ctr=0; ctr < number; ctr++){
+                    resetPlayer(peeps.get(ctr));
+                }
+                deck.addToDiscard(comm);
+                comm.clear();
+                deck.refillDeck();
+                showMsg(getMsg("separator"));
+            } catch (NumberFormatException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }
+        }
+    }
+    
     /* Game management methods */
     @Override
     public void addPlayer(String nick, String host) {
