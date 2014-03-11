@@ -319,24 +319,7 @@ public class TexasTourney extends TexasPoker {
             showMsg(getMsg("game_name"), getGameNameStr());
         /* Op commands */
         } else if (command.equalsIgnoreCase("fj") || command.equalsIgnoreCase("fjoin")){
-            if (!channel.isOp(user)) {
-                informPlayer(nick, getMsg("ops_only"));
-            } else {
-                if (params.length > 0){
-                    String fNick = params[0];
-                    Iterator<User> it = channel.getUsers().iterator();
-                    while(it.hasNext()){
-                        User u = it.next();
-                        if (u.getNick().equalsIgnoreCase(fNick)){
-                            fjoin(nick, u.getNick(), u.getHostmask());
-                            return;
-                        }
-                    }
-                    informPlayer(nick, getMsg("nick_not_found"), fNick);
-                } else {
-                    informPlayer(nick, getMsg("no_parameter"));
-                }
-            }
+            fjoin(user, nick, params);
         } else if (command.equalsIgnoreCase("fl") || command.equalsIgnoreCase("fq") || command.equalsIgnoreCase("fquit") || command.equalsIgnoreCase("fleave")){
             if (!channel.isOp(user)) {
                 informPlayer(nick, getMsg("ops_only"));
@@ -817,20 +800,35 @@ public class TexasTourney extends TexasPoker {
     }
     
     @Override
-    public void fjoin(String OpNick, String nick, String host) {
-        CardGame game = manager.getGame(nick);
-        if (joined.size() == get("maxplayers")){
-            informPlayer(OpNick, getMsg("max_players"));
-        } else if (isJoined(nick)) {
-            informPlayer(OpNick, getMsg("is_joined_nick"), nick);
-        } else if (isBlacklisted(nick) || manager.isBlacklisted(nick)) {
-            informPlayer(OpNick, getMsg("on_blacklist_nick"), nick);
-        } else if (game != null) {
-            informPlayer(OpNick, getMsg("is_joined_other_nick"), nick, game.getGameNameStr(), game.getChannel().getName());
-        } else if (inProgress) {
-            informPlayer(OpNick, getMsg("tt_started_unable_join"));
+    public void fjoin(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (params.length < 1){
+            informPlayer(nick, getMsg("no_parameter"));
         } else {
-            addPlayer(nick, host);
+            String fNick = params[0];
+            Iterator<User> it = channel.getUsers().iterator();
+            while(it.hasNext()){
+                User u = it.next();
+                if (u.getNick().equalsIgnoreCase(fNick)){
+                    CardGame game = manager.getGame(fNick);
+                    if (joined.size() == get("maxplayers")){
+                        informPlayer(nick, getMsg("max_players"));
+                    } else if (isJoined(fNick)) {
+                        informPlayer(nick, getMsg("is_joined_nick"), fNick);
+                    } else if (isBlacklisted(fNick) || manager.isBlacklisted(fNick)) {
+                        informPlayer(nick, getMsg("on_blacklist_nick"), fNick);
+                    } else if (game != null) {
+                        informPlayer(nick, getMsg("is_joined_other_nick"), fNick, game.getGameNameStr(), game.getChannel().getName());
+                    } else if (inProgress) {
+                        informPlayer(nick, getMsg("tt_started_unable_join"));
+                    } else {
+                        addPlayer(u.getNick(), u.getHostmask());
+                    }
+                    return;
+                }
+            }
+            informPlayer(nick, getMsg("nick_not_found"), fNick);
         }
     }
     

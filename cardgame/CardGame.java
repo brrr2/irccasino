@@ -230,108 +230,23 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             game(nick, params);
         // Op Commands
         } else if (command.equalsIgnoreCase("fj") || command.equalsIgnoreCase("fjoin")){
-            if (!channel.isOp(user)) {
-                informPlayer(nick, getMsg("ops_only"));
-            } else {
-                if (params.length > 0){
-                    String fNick = params[0];
-                    Iterator<User> it = channel.getUsers().iterator();
-                    while(it.hasNext()){
-                        User u = it.next();
-                        if (u.getNick().equalsIgnoreCase(fNick)){
-                            fjoin(nick, u.getNick(), u.getHostmask());
-                            return;
-                        }
-                    }
-                    informPlayer(nick, getMsg("nick_not_found"), fNick);
-                } else {
-                    informPlayer(nick, getMsg("no_parameter"));
-                }
-            }
+            fjoin(user, nick, params);
         } else if (command.equalsIgnoreCase("fl") || command.equalsIgnoreCase("fq") || command.equalsIgnoreCase("fquit") || command.equalsIgnoreCase("fleave")){
-            if (!channel.isOp(user)) {
-                informPlayer(nick, getMsg("ops_only"));
-            } else {
-                if (params.length > 0){
-                    leave(params[0]);
-                } else {
-                    informPlayer(nick, getMsg("no_parameter"));
-                }
-            }
-        } else if (command.equalsIgnoreCase("fdeposit") || command.equalsIgnoreCase("fwithdraw")) {
-            if (!channel.isOp(user)) {
-                informPlayer(nick, getMsg("ops_only"));
-            } else {
-                if (params.length > 1) {
-                    if (!isJoined(params[0])) {
-                        informPlayer(nick, params[0] + " is not currently joined!");
-                    } else if (inProgress) {
-                        informPlayer(nick, getMsg("wait_round_end"));
-                    } else {
-                        try {
-                            if (command.equalsIgnoreCase("fdeposit")) {
-                                transfer(params[0], Integer.parseInt(params[1]));
-                            } else {
-                                transfer(params[0], -Integer.parseInt(params[1]));
-                            }
-                        } catch (NumberFormatException e) {
-                            informPlayer(nick, getMsg("bad_parameter"));
-                        }
-                    }
-                } else {
-                    informPlayer(nick, getMsg("no_parameter"));
-                }
-            }
-        } else if (command.equalsIgnoreCase("cards") || command.equalsIgnoreCase("discards")) {
-            if (isOpCommandAllowed(user, nick)){
-                if (params.length > 0){
-                    try {
-                        int num = Integer.parseInt(params[0]);
-                        if (command.equalsIgnoreCase("cards") && deck.getNumberCards() > 0) {
-                            infoDeckCards(nick, 'c', num);
-                        } else if (command.equalsIgnoreCase("discards") && deck.getNumberDiscards() > 0) {
-                            infoDeckCards(nick, 'd', num);
-                        } else {
-                            informPlayer(nick, "Empty!");
-                        }
-                    } catch (IllegalArgumentException e) {
-                        informPlayer(nick, getMsg("bad_parameter"));
-                    }
-                } else {
-                    informPlayer(nick, getMsg("no_parameter"));
-                }
-            }
+            fleave(user, nick, params);
+        } else if (command.equalsIgnoreCase("fdeposit")) {
+            fdeposit(user, nick, params);
+        } else if (command.equalsIgnoreCase("fwithdraw")) {
+            fwithdraw(user, nick, params);
+        } else if (command.equalsIgnoreCase("cards")) {
+            cards(user, nick, params);
+        } else if (command.equalsIgnoreCase("discards")) {
+            discards(user, nick, params);
         } else if (command.equalsIgnoreCase("settings")) {
-            if (isOpCommandAllowed(user, nick)) {
-                informPlayer(nick, getGameNameStr() + " settings:");
-                informPlayer(nick, getSettingsStr());
-            }
+            settings(user, nick, params);
         } else if (command.equalsIgnoreCase("set")){
-            if (isOpCommandAllowed(user, nick)){
-                if (params.length > 1){
-                    try {
-                        set(params[0].toLowerCase(), Integer.parseInt(params[1]));
-                        saveIniFile();
-                        showMsg(getMsg("setting_updated"), params[0].toLowerCase());
-                    } catch (IllegalArgumentException e) {
-                        informPlayer(nick, getMsg("bad_parameter"));
-                    }
-                } else {
-                    informPlayer(nick, getMsg("no_parameter"));
-                }
-            }
+            set(user, nick, params);
         } else if (command.equalsIgnoreCase("get")) {
-            if (isOpCommandAllowed(user, nick)){
-                if (params.length > 0){
-                    try {
-                        showMsg(getMsg("setting"), params[0].toLowerCase(), get(params[0].toLowerCase()));
-                    } catch (IllegalArgumentException e) {
-                        informPlayer(nick, getMsg("bad_parameter"));
-                    }
-                } else {
-                    informPlayer(nick, getMsg("no_parameter"));
-                }
-            }
+            get(user, nick, params);
         }
     }
     
@@ -727,6 +642,227 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         showMsg(getMsg("game_name"), getGameNameStr());
     }
     
+    /**
+     * Attempts to force add a player to the game.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void fjoin(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (params.length < 1){
+            informPlayer(nick, getMsg("no_parameter"));
+        } else {
+            String fNick = params[0];
+            Iterator<User> it = channel.getUsers().iterator();
+            while(it.hasNext()){
+                User u = it.next();
+                if (u.getNick().equalsIgnoreCase(fNick)){
+                    CardGame game = manager.getGame(fNick);
+                    if (joined.size() == get("maxplayers")){
+                        informPlayer(nick, getMsg("max_players"));
+                    } else if (isJoined(fNick)) {
+                        informPlayer(nick, getMsg("is_joined_nick"), fNick);
+                    } else if (isBlacklisted(fNick) || manager.isBlacklisted(fNick)) {
+                        informPlayer(nick, getMsg("on_blacklist_nick"), fNick);
+                    } else if (game != null) {
+                        informPlayer(nick, getMsg("is_joined_other_nick"), fNick, game.getGameNameStr(), game.getChannel().getName());
+                    } else if (inProgress) {
+                        if (isWaitlisted(fNick)) {
+                            informPlayer(nick, getMsg("on_waitlist_nick"), fNick);
+                        } else {
+                            addWaitlistPlayer(u.getNick(), u.getHostmask());
+                        }
+                    } else {
+                        addPlayer(u.getNick(), u.getHostmask());
+                    }
+                    return;
+                }
+            }
+            informPlayer(nick, getMsg("nick_not_found"), fNick);
+        }
+    }
+    
+    /**
+     * Attempts to force a player to leave the game.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void fleave(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (params.length < 1){
+            informPlayer(nick, getMsg("no_parameter"));
+        } else {
+            leave(params[0]);
+        }
+    }
+    
+    /**
+     * Attempts to force a player to make a deposit.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void fdeposit(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (params.length < 2) {
+            informPlayer(nick, getMsg("no_parameter"));
+        } else if (!isJoined(params[0])) {
+            informPlayer(nick, params[0] + " is not currently joined!");
+        } else if (inProgress) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else {
+            try {
+                transfer(params[0], Integer.parseInt(params[1]));
+            } catch (NumberFormatException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }
+        }
+    }
+    
+    /**
+     * Attempts to force a player to make a withdrawal.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void fwithdraw(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (params.length < 2) {
+            informPlayer(nick, getMsg("no_parameter"));
+        } else if (!isJoined(params[0])) {
+            informPlayer(nick, params[0] + " is not currently joined!");
+        } else if (inProgress) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else {
+            try {
+                transfer(params[0], -Integer.parseInt(params[1]));
+            } catch (NumberFormatException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }
+        }
+    }
+    
+    /**
+     * Attempts to reveal the specified top number of cards in the card deck.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void cards(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (inProgress) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else if (params.length < 1){
+            informPlayer(nick, getMsg("no_parameter"));    
+        } else if (deck.getNumberCards() == 0) {
+            informPlayer(nick, "Empty!");
+        } else {
+            try {
+                infoDeckCards(nick, 'c', Integer.parseInt(params[0]));
+            } catch (IllegalArgumentException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }
+        }
+    }
+    
+    /**
+     * Attempts to reveal the specified top number of cards in the discards.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void discards(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (inProgress) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else if (params.length < 1){
+            informPlayer(nick, getMsg("no_parameter"));
+        } else if (deck.getNumberDiscards() == 0) {
+            informPlayer(nick, "Empty!");
+        } else {
+            try {
+                infoDeckCards(nick, 'd', Integer.parseInt(params[0]));
+            } catch (IllegalArgumentException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }
+        }
+    }
+    
+    /**
+     * Reveals the settings available for the current game.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void settings(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (inProgress) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else {
+            informPlayer(nick, getGameNameStr() + " settings:");
+            informPlayer(nick, getSettingsStr());
+        }
+    }
+    
+    /**
+     * Attempts to update the specified setting with the specified value.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void set(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (inProgress) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else if (params.length < 2){
+            informPlayer(nick, getMsg("no_parameter"));
+        } else {
+            try {
+                String setting = params[0].toLowerCase();
+                int value = Integer.parseInt(params[1]);
+                set(setting, value);
+                saveIniFile();
+                showMsg(getMsg("setting_updated"), setting);
+            } catch (IllegalArgumentException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }
+        }
+    }
+    
+    /**
+     * Attempts to get the value of the specified setting.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void get(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (inProgress) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else if (params.length < 1){
+            informPlayer(nick, getMsg("no_parameter"));
+        } else {
+            try {
+                String setting = params[0].toLowerCase();
+                int value = get(params[0].toLowerCase());
+                showMsg(getMsg("setting"), setting, value);
+            } catch (IllegalArgumentException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }
+        }
+    }
+    
     //////////////////////////
     //// Accessor methods ////
     //////////////////////////
@@ -935,33 +1071,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             in.close();
         } catch (IOException e) {
             manager.log("Error reading from " + file + "!");
-        }
-    }
-    
-    /**
-     * Attempts to force add a player to the game.
-     * @param OpNick the channel Op
-     * @param nick the player to be force joined
-     * @param host the player's host
-     */
-    protected void fjoin(String OpNick, String nick, String host) {
-        CardGame game = manager.getGame(nick);
-        if (joined.size() == get("maxplayers")){
-            informPlayer(OpNick, getMsg("max_players"));
-        } else if (isJoined(nick)) {
-            informPlayer(OpNick, getMsg("is_joined_nick"), nick);
-        } else if (isBlacklisted(nick) || manager.isBlacklisted(nick)) {
-            informPlayer(OpNick, getMsg("on_blacklist_nick"), nick);
-        } else if (game != null) {
-            informPlayer(OpNick, getMsg("is_joined_other_nick"), nick, game.getGameNameStr(), game.getChannel().getName());
-        } else if (inProgress) {
-            if (isWaitlisted(nick)) {
-                informPlayer(OpNick, getMsg("on_waitlist_nick"), nick);
-            } else {
-                addWaitlistPlayer(nick, host);
-            }
-        } else {
-            addPlayer(nick, host);
         }
     }
     
