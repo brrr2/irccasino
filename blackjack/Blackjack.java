@@ -1087,7 +1087,7 @@ public class Blackjack extends CardGame {
             p.add("cash", -1 * amount);
             p.add("bjwinnings", -1 * amount);
             house.add("cash", amount);
-            showMsg(getMsg("bj_bet"), p.getNickStr(false), p.get("initialbet"), p.get("cash"));
+//            showMsg(getMsg("bj_bet"), p.getNickStr(false), p.get("initialbet"), p.get("cash"));
             currentPlayer = getNextPlayer();
             if (currentPlayer == null) {
                 betting = false;
