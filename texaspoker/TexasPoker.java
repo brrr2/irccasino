@@ -95,18 +95,20 @@ public class TexasPoker extends CardGame{
     /////////////////////////////////////////
     //// Methods that process IRC events ////
     /////////////////////////////////////////
-    /* Command management method */
     @Override
     public void processCommand(User user, String command, String[] params){
         String nick = user.getNick();
         String host = user.getHostmask();
         
-        /* Check if it's a common command */
-        super.processCommand(user, command, params);
-        
-        /* Parsing commands from the channel */
-        if (command.equalsIgnoreCase("start") || command.equalsIgnoreCase("go")) {
+        // Commands available in TexasPoker.
+        if (command.equalsIgnoreCase("join") || command.equalsIgnoreCase("j")){
+            join(nick, host);
+        } else if (command.equalsIgnoreCase("leave") || command.equalsIgnoreCase("quit") || command.equalsIgnoreCase("l") || command.equalsIgnoreCase("q")){
+            leave(nick);
+        } else if (command.equalsIgnoreCase("start") || command.equalsIgnoreCase("go")) {
             start(nick, params);
+        } else if (command.equalsIgnoreCase("stop")) {
+            stop(nick);
         } else if (command.equalsIgnoreCase("bet") || command.equalsIgnoreCase("b")) {
             bet(nick, params);
         } else if (command.equalsIgnoreCase("c") || command.equalsIgnoreCase("ca") || command.equalsIgnoreCase("call")) {
@@ -125,9 +127,53 @@ public class TexasPoker extends CardGame{
             hand(nick, params);
         } else if (command.equalsIgnoreCase("turn")) {
             turn(nick, params);
+        } else if (command.equalsIgnoreCase("cash") || command.equalsIgnoreCase("stack")) {
+            cash(nick, params);
+        } else if (command.equalsIgnoreCase("netcash") || command.equalsIgnoreCase("net")) {
+            netcash(nick, params);
+        } else if (command.equalsIgnoreCase("bank")) {
+            bank(nick, params);
+        } else if (command.equalsIgnoreCase("bankrupts")) {
+            bankrupts(nick, params);
+        } else if (command.equalsIgnoreCase("winnings")) {
+            winnings(nick, params);
+        } else if (command.equalsIgnoreCase("winrate")) {
+            winrate(nick, params);
+        } else if (command.equalsIgnoreCase("rounds")) {
+            rounds(nick, params);
+        } else if (command.equalsIgnoreCase("player") || command.equalsIgnoreCase("p")){
+            player(nick, params);
+        } else if (command.equalsIgnoreCase("deposit")) {
+            deposit(nick, params);
+        } else if (command.equalsIgnoreCase("withdraw")) {
+            withdraw(nick, params);
         } else if (command.equalsIgnoreCase("players")) {
             players(nick, params);
+        } else if (command.equalsIgnoreCase("waitlist")) {
+            waitlist(nick, params);
+        } else if (command.equalsIgnoreCase("blacklist")) {
+            blacklist(nick, params);
+        } else if (command.equalsIgnoreCase("rank")) {
+            rank(nick, params);
+        } else if (command.equalsIgnoreCase("top")) {
+            top(nick, params);
+        } else if (command.equalsIgnoreCase("simple")) {
+            simple(nick, params);
+        } else if (command.equalsIgnoreCase("stats")){
+            stats(nick, params);
+        } else if (command.equalsIgnoreCase("grules") || command.equalsIgnoreCase("gamerules")) {
+            grules(nick, params);
+        } else if (command.equalsIgnoreCase("ghelp") || command.equalsIgnoreCase("gamehelp")) {
+            ghelp(nick, params);
+        } else if (command.equalsIgnoreCase("gcommands") || command.equalsIgnoreCase("gamecommands")) {
+            gcommands(user, nick, params);
+        } else if (command.equalsIgnoreCase("game")) {
+            game(nick, params);
         /* Op commands */
+        } else if (command.equalsIgnoreCase("fj") || command.equalsIgnoreCase("fjoin")){
+            fjoin(user, nick, params);
+        } else if (command.equalsIgnoreCase("fl") || command.equalsIgnoreCase("fq") || command.equalsIgnoreCase("fquit") || command.equalsIgnoreCase("fleave")){
+            fleave(user, nick, params);
         } else if (command.equalsIgnoreCase("fstart") || command.equalsIgnoreCase("fgo")){
             fstart(user, nick, params);
         } else if (command.equalsIgnoreCase("fstop")){
@@ -144,8 +190,22 @@ public class TexasPoker extends CardGame{
             fcheck(user, nick, params);
         } else if (command.equalsIgnoreCase("ff") || command.equalsIgnoreCase("ffold")){
             ffold(user, nick, params);
+        } else if (command.equalsIgnoreCase("fdeposit")) {
+            fdeposit(user, nick, params);
+        } else if (command.equalsIgnoreCase("fwithdraw")) {
+            fwithdraw(user, nick, params);
         } else if (command.equalsIgnoreCase("shuffle")){
             shuffle(user, nick, params);
+        } else if (command.equalsIgnoreCase("cards")) {
+            cards(user, nick, params);
+        } else if (command.equalsIgnoreCase("discards")) {
+            discards(user, nick, params);
+        } else if (command.equalsIgnoreCase("settings")) {
+            settings(user, nick, params);
+        } else if (command.equalsIgnoreCase("set")){
+            set(user, nick, params);
+        } else if (command.equalsIgnoreCase("get")) {
+            get(user, nick, params);
         } else if (command.equalsIgnoreCase("reload")) {
             reload(user, nick, params);
         } else if (command.equalsIgnoreCase("test1")) {

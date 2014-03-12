@@ -122,7 +122,7 @@ public class TexasTourney extends TexasPoker {
         String nick = user.getNick();
         String host = user.getHostmask();
         
-        /* Parsing commands from the channel */
+        // Commands available in TexasTourney.
         if (command.equalsIgnoreCase("join") || command.equalsIgnoreCase("j")){
             join(nick, host);
         } else if (command.equalsIgnoreCase("leave") || command.equalsIgnoreCase("quit") || command.equalsIgnoreCase("l") || command.equalsIgnoreCase("q")){
