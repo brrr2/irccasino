@@ -93,13 +93,16 @@ public class Blackjack extends CardGame {
     public void processCommand(User user, String command, String[] params){
         String nick = user.getNick();
         String host = user.getHostmask();
-
-        /* Check if it's a common command */
-        super.processCommand(user, command, params);
         
-        /* Parsing commands from the channel */
-        if (command.equalsIgnoreCase("start") || command.equalsIgnoreCase("go")){
+        // Commands available in Blackjack.
+        if (command.equalsIgnoreCase("join") || command.equalsIgnoreCase("j")){
+            join(nick, host);
+        } else if (command.equalsIgnoreCase("leave") || command.equalsIgnoreCase("quit") || command.equalsIgnoreCase("l") || command.equalsIgnoreCase("q")){
+            leave(nick);
+        } else if (command.equalsIgnoreCase("start") || command.equalsIgnoreCase("go")){
             start(nick, params);
+        } else if (command.equalsIgnoreCase("stop")) {
+            stop(nick);
         } else if (command.equalsIgnoreCase("bet") || command.equalsIgnoreCase("b")) {
             bet(nick, params);
         } else if (command.equalsIgnoreCase("allin") || command.equalsIgnoreCase("a")){
@@ -144,117 +147,91 @@ public class Blackjack extends CardGame {
             players(nick, params);
         } else if (command.equalsIgnoreCase("house")) {
             house(nick, params);
+        } else if (command.equalsIgnoreCase("cash") || command.equalsIgnoreCase("stack")) {
+            cash(nick, params);
+        } else if (command.equalsIgnoreCase("netcash") || command.equalsIgnoreCase("net")) {
+            netcash(nick, params);
+        } else if (command.equalsIgnoreCase("bank")) {
+            bank(nick, params);
+        } else if (command.equalsIgnoreCase("bankrupts")) {
+            bankrupts(nick, params);
+        } else if (command.equalsIgnoreCase("winnings")) {
+            winnings(nick, params);
+        } else if (command.equalsIgnoreCase("winrate")) {
+            winrate(nick, params);
+        } else if (command.equalsIgnoreCase("rounds")) {
+            rounds(nick, params);
+        } else if (command.equalsIgnoreCase("player") || command.equalsIgnoreCase("p")){
+            player(nick, params);
+        } else if (command.equalsIgnoreCase("deposit")) {
+            deposit(nick, params);
+        } else if (command.equalsIgnoreCase("withdraw")) {
+            withdraw(nick, params);
+        } else if (command.equalsIgnoreCase("waitlist")) {
+            waitlist(nick, params);
+        } else if (command.equalsIgnoreCase("blacklist")) {
+            blacklist(nick, params);
+        } else if (command.equalsIgnoreCase("rank")) {
+            rank(nick, params);
+        } else if (command.equalsIgnoreCase("top")) {
+            top(nick, params);
+        } else if (command.equalsIgnoreCase("simple")) {
+            simple(nick, params);
+        } else if (command.equalsIgnoreCase("stats")){
+            stats(nick, params);
+        } else if (command.equalsIgnoreCase("grules") || command.equalsIgnoreCase("gamerules")) {
+            grules(nick, params);
+        } else if (command.equalsIgnoreCase("ghelp") || command.equalsIgnoreCase("gamehelp")) {
+            ghelp(nick, params);
+        } else if (command.equalsIgnoreCase("gcommands") || command.equalsIgnoreCase("gamecommands")) {
+            gcommands(user, nick, params);
+        } else if (command.equalsIgnoreCase("game")) {
+            game(nick, params);
         /* Op commands */
+            } else if (command.equalsIgnoreCase("fj") || command.equalsIgnoreCase("fjoin")){
+            fjoin(user, nick, params);
+        } else if (command.equalsIgnoreCase("fl") || command.equalsIgnoreCase("fq") || command.equalsIgnoreCase("fquit") || command.equalsIgnoreCase("fleave")){
+            fleave(user, nick, params);
         } else if (command.equalsIgnoreCase("fstart") || command.equalsIgnoreCase("fgo")){
-            if (isForceStartAllowed(user,nick)){
-                cancelIdleShuffleTask();
-                inProgress = true;
-                showStartRound();
-                setStartRoundTask();
-            }
+            fstart(user, nick, params);
         } else if (command.equalsIgnoreCase("fstop")){
-            // Use only as last resort. Data will be lost.
-            if (isForceStopAllowed(user,nick)){
-                cancelStartRoundTask();
-                cancelIdleOutTask();
-                for (int ctr = 0; ctr < joined.size(); ctr++) {
-                    resetPlayer((BlackjackPlayer) joined.get(ctr));
-                }
-                resetGame();
-                startCount = 0;
-                showMsg(getMsg("end_round"), getGameNameStr(), commandChar);
-                setIdleShuffleTask();
-            }
+            fstop(user, nick, params);
         } else if (command.equalsIgnoreCase("fb") || command.equalsIgnoreCase("fbet")){
-            if (isForceBetAllowed(user, nick)){
-                if (params.length > 0){
-                    try {
-                        bet(Integer.parseInt(params[0]));
-                    } catch (NumberFormatException e) {
-                        informPlayer(nick, getMsg("bad_parameter"));
-                    }
-                } else {
-                    informPlayer(nick, getMsg("no_parameter"));
-                }
-            }
+            fbet(user, nick, params);
         } else if (command.equalsIgnoreCase("fallin") || command.equalsIgnoreCase("fa")){
-            if (isForceBetAllowed(user, nick)){
-                bet(currentPlayer.get("cash"));
-            }
+            fallin(user, nick, params);
         } else if (command.equalsIgnoreCase("fhit") || command.equalsIgnoreCase("fh")) {
-            if (isForcePlayAllowed(user, nick)){
-                hit();
-            }
+            fhit(user, nick, params);
         } else if (command.equalsIgnoreCase("fstay") || command.equalsIgnoreCase("fstand") || command.equalsIgnoreCase("fsit")) {
-            if (isForcePlayAllowed(user, nick)){
-                stay();
-            }
+            fstand(user, nick, params);
         } else if (command.equalsIgnoreCase("fdoubledown") || command.equalsIgnoreCase("fdd")) {
-            if (isForcePlayAllowed(user, nick)){
-                doubleDown();
-            }
+            fdoubledown(user, nick, params);
         } else if (command.equalsIgnoreCase("fsurrender") || command.equalsIgnoreCase("fsurr")) {
-            if (isForcePlayAllowed(user, nick)){
-                surrender();
-            }
+            fsurrender(user, nick, params);
         } else if (command.equalsIgnoreCase("fsplit")) {
-            if (isForcePlayAllowed(user, nick)){
-                split();
-            }
+            fsplit(user, nick, params);
         } else if (command.equalsIgnoreCase("finsure")) {
-            if (isForcePlayAllowed(user, nick)){
-                if (params.length > 0){
-                    try {
-                        insure(Integer.parseInt(params[0]));
-                    } catch (NumberFormatException e) {
-                        informPlayer(nick, getMsg("bad_parameter"));
-                    }
-                } else {
-                    informPlayer(nick, getMsg("no_parameter"));
-                }
-            }
+            finsure(user, nick, params);
+        } else if (command.equalsIgnoreCase("fdeposit")) {
+            fdeposit(user, nick, params);
+        } else if (command.equalsIgnoreCase("fwithdraw")) {
+            fwithdraw(user, nick, params);
         } else if (command.equalsIgnoreCase("shuffle")){
-            if (isOpCommandAllowed(user, nick)){
-                cancelIdleShuffleTask();
-                shuffleShoe();
-            }
+            shuffle(user, nick, params);
         } else if (command.equalsIgnoreCase("reload")){
-            if (isOpCommandAllowed(user, nick)){
-                cancelIdleShuffleTask();
-                loadIni();
-                cmdMap.clear();
-                opCmdMap.clear();
-                aliasMap.clear();
-                msgMap.clear();
-                loadStrLib(strFile);
-                loadHelp(helpFile);
-                showMsg(getMsg("reload"));
-            }
+            reload(user, nick, params);
+        } else if (command.equalsIgnoreCase("cards")) {
+            cards(user, nick, params);
+        } else if (command.equalsIgnoreCase("discards")) {
+            discards(user, nick, params);
+        } else if (command.equalsIgnoreCase("settings")) {
+            settings(user, nick, params);
+        } else if (command.equalsIgnoreCase("set")){
+            set(user, nick, params);
+        } else if (command.equalsIgnoreCase("get")) {
+            get(user, nick, params);
         } else if (command.equalsIgnoreCase("test1")){
-            // 1. Tests the dealer playing algorithm and underlying calculations.
-            if (isOpCommandAllowed(user, nick)){
-                String outStr; 
-                BlackjackHand h;
-                showMsg("Dealing cards to Dealer...");
-                // Deal cards to the dealer
-                dealHand(dealer);
-                h = dealer.getHand();
-                showPlayerHand(dealer, h, 0, true);
-                // Deal more cards if necessary
-                while (h.calcSum() < 17 || (h.isSoft17() && has("soft17hit"))) {
-                    dealCard(h);
-                    showPlayerHand(dealer, h, 0, true);
-                }
-                // Output result
-                if (h.isBlackjack()) {
-                    outStr = dealer.getNickStr() + " has blackjack (" + h.toString() + ").";
-                } else {
-                    outStr = dealer.getNickStr() + " has " + h.calcSum() + " (" + h.toString() + ").";
-                }
-                showMsg(outStr);
-                resetPlayer(dealer);
-                showMsg(getMsg("separator"));
-            }
+            test1(user, nick, params);
         }
     }
 
@@ -668,6 +645,301 @@ public class Blackjack extends CardGame {
             } catch (NumberFormatException e) {
                 informPlayer(nick, getMsg("bad_parameter"));
             }
+        }
+    }
+    
+    /**
+     * Attempts to force start a round.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void fstart(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (inProgress) {
+            informPlayer(nick, getMsg("round_started"));
+        } else if (joined.size() < 1) {
+            showMsg(getMsg("no_players"));
+        } else {
+            cancelIdleShuffleTask();
+            inProgress = true;
+            showStartRound();
+            setStartRoundTask();
+        }
+    }
+    
+    /**
+     * Forces a round to end. Use only as last resort. Data will be lost.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void fstop(User user, String nick, String[] params) {
+        if (!channel.isOp(user)){
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (!inProgress){
+            informPlayer(nick, getMsg("no_start"));
+        } else {
+            cancelStartRoundTask();
+            cancelIdleOutTask();
+            for (int ctr = 0; ctr < joined.size(); ctr++) {
+                resetPlayer((BlackjackPlayer) joined.get(ctr));
+            }
+            resetGame();
+            startCount = 0;
+            showMsg(getMsg("end_round"), getGameNameStr(), commandChar);
+            setIdleShuffleTask();
+        }
+    }
+    
+    /**
+     * Forces the current player to bet the specified amount.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void fbet(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (!inProgress) {
+            informPlayer(nick, getMsg("no_start"));
+        } else if (currentPlayer == null) {
+            informPlayer(nick, getMsg("no_force_play"));
+        } else if (!betting) {
+            informPlayer(nick, getMsg("no_betting"));
+        } else if (params.length < 1){
+            informPlayer(nick, getMsg("no_parameter"));
+        } else {
+            try {
+                bet(Integer.parseInt(params[0]));
+            } catch (NumberFormatException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }
+        }
+    }
+    
+    /**
+     * Forces the current player to go all in.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void fallin(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (!inProgress) {
+            informPlayer(nick, getMsg("no_start"));
+        } else if (currentPlayer == null) {
+            informPlayer(nick, getMsg("no_force_play"));
+        } else if (!betting) {
+            informPlayer(nick, getMsg("no_betting"));
+        } else {
+            bet(currentPlayer.get("cash"));
+        }
+    }
+    
+    /**
+     * Forces the current player to hit.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void fhit(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (!inProgress) {
+            informPlayer(nick, getMsg("no_start"));
+        } else if (currentPlayer == null) {
+            informPlayer(nick, getMsg("no_force_play"));
+        } else if (betting) {
+            informPlayer(nick, getMsg("no_cards"));
+        } else {
+            hit();
+        }
+    }
+    
+    /**
+     * Forces the current player to stand.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void fstand(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (!inProgress) {
+            informPlayer(nick, getMsg("no_start"));
+        } else if (currentPlayer == null) {
+            informPlayer(nick, getMsg("no_force_play"));
+        } else if (betting) {
+            informPlayer(nick, getMsg("no_cards"));
+        } else {
+            stay();
+        }
+    }
+    
+    /**
+     * Forces the current player to double down.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void fdoubledown(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (!inProgress) {
+            informPlayer(nick, getMsg("no_start"));
+        } else if (currentPlayer == null) {
+            informPlayer(nick, getMsg("no_force_play"));
+        } else if (betting) {
+            informPlayer(nick, getMsg("no_cards"));
+        } else {
+            doubleDown();
+        }
+    }
+    
+    /**
+     * Forces the current player to surrender.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void fsurrender(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (!inProgress) {
+            informPlayer(nick, getMsg("no_start"));
+        } else if (currentPlayer == null) {
+            informPlayer(nick, getMsg("no_force_play"));
+        } else if (betting) {
+            informPlayer(nick, getMsg("no_cards"));
+        } else {
+            surrender();
+        }
+    }
+    
+    /**
+     * Forces the current player to split his hand.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void fsplit(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (!inProgress) {
+            informPlayer(nick, getMsg("no_start"));
+        } else if (currentPlayer == null) {
+            informPlayer(nick, getMsg("no_force_play"));
+        } else if (betting) {
+            informPlayer(nick, getMsg("no_cards"));
+        } else {
+            split();
+        }
+    }
+    
+    /**
+     * Forces the current player to insure his hand.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void finsure(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (!inProgress) {
+            informPlayer(nick, getMsg("no_start"));
+        } else if (currentPlayer == null) {
+            informPlayer(nick, getMsg("no_force_play"));
+        } else if (betting) {
+            informPlayer(nick, getMsg("no_cards"));
+        } else if (params.length < 1){
+            informPlayer(nick, getMsg("no_parameter"));
+        } else {
+            try {
+                insure(Integer.parseInt(params[0]));
+            } catch (NumberFormatException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }
+        }
+    }
+    
+    /**
+     * Merges discards and shuffles the dealer's shoe.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void shuffle(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (inProgress) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else {
+            cancelIdleShuffleTask();
+            shuffleShoe();
+        }
+    }
+    
+    /**
+     * Reloads game settings and library files.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void reload(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (inProgress) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else {
+            cancelIdleShuffleTask();
+            loadIni();
+            cmdMap.clear();
+            opCmdMap.clear();
+            aliasMap.clear();
+            msgMap.clear();
+            loadStrLib(strFile);
+            loadHelp(helpFile);
+            showMsg(getMsg("reload"));
+        }
+    }
+    
+    /**
+     * Performs test 1. Tests the dealer playing algorithm and underlying 
+     * calculations.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void test1(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (inProgress) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else {
+            String outStr; 
+            BlackjackHand h;
+            showMsg("Dealing cards to Dealer...");
+            // Deal cards to the dealer
+            dealHand(dealer);
+            h = dealer.getHand();
+            showPlayerHand(dealer, h, 0, true);
+            // Deal more cards if necessary
+            while (h.calcSum() < 17 || (h.isSoft17() && has("soft17hit"))) {
+                dealCard(h);
+                showPlayerHand(dealer, h, 0, true);
+            }
+            // Output result
+            if (h.isBlackjack()) {
+                outStr = dealer.getNickStr() + " has blackjack (" + h.toString() + ").";
+            } else {
+                outStr = dealer.getNickStr() + " has " + h.calcSum() + " (" + h.toString() + ").";
+            }
+            showMsg(outStr);
+            resetPlayer(dealer);
+            showMsg(getMsg("separator"));
         }
     }
     
