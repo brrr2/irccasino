@@ -1178,53 +1178,6 @@ public class TexasTourney extends TexasPoker {
         }
     }
     
-    /* Game command logic checking methods */
-    @Override
-    public boolean isStartAllowed(String nick){
-        if (!isJoined(nick)) {
-            informPlayer(nick, getMsg("no_join"));
-        } else if (inProgress) {
-            informPlayer(nick, getMsg("round_started"));
-        } else if (joined.size() < get("minplayers")) {
-            showMsg(getMsg("no_players"));
-        } else {
-            return true;
-        }
-        return false;
-    }
-
-    @Override
-    public boolean isForceStartAllowed(User user, String nick){
-        if (!channel.isOp(user)) {
-            informPlayer(nick, getMsg("ops_only"));
-        } else if (inProgress) {
-            informPlayer(nick, getMsg("round_started"));
-        } else if (joined.size() < get("minplayers")) {
-            showMsg(getMsg("no_players"));
-        } else {
-            return true;
-        }
-        return false;
-    }
-    
-    /**
-     * Checks if an Op command is allowed.
-     * @param user command issuer
-     * @param nick the user's nick
-     * @return true if the User is allowed use Op commands
-     */
-    @Override
-    protected boolean isOpCommandAllowed(User user, String nick){
-        if (!channel.isOp(user)) {
-            informPlayer(nick, getMsg("ops_only"));
-        } else if (inProgress) {
-            informPlayer(nick, getMsg("tt_wait_for_end"));
-        } else {
-            return true;
-        }
-        return false;
-    }
-    
     /* Game settings management */
     @Override
     protected void initialize(){

@@ -127,17 +127,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     
     /**
-     * Occurs when a user joins the game channel.
-     * @param event join event
-     */
-    @Override
-    public void onJoin(JoinEvent<PircBotX> event){
-        if (event.getChannel().equals(channel)){
-            processJoin(event.getUser());
-        }
-    }
-
-    /**
      * Occurs when a user parts the game channel.
      * @param event part event
      */
@@ -177,18 +166,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param params A list of parameters that were passed along.
      */
     abstract protected void processCommand(User user, String command, String[] params);
-    
-    /**
-     * Processes a user join event in the game channel.
-     * 
-     * @param user The IRC user who has joined.
-     */
-    protected void processJoin(User user){
-        String nick = user.getNick();
-        if (loadPlayerStat(nick, "exists") != 1){
-            // informPlayer(nick, getMsg("new_nick"), getGameNameStr(), commandChar);
-        }
-    }
     
     /**
      * Processes a user quit or part event in the game channel.
@@ -1097,23 +1074,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             idleOutTask.cancel();
             gameTimer.purge();
         }
-    }
-    
-    /**
-     * Checks if an Op command is allowed.
-     * @param user command issuer
-     * @param nick the user's nick
-     * @return true if the User is allowed use Op commands
-     */
-    protected boolean isOpCommandAllowed(User user, String nick){
-        if (!channel.isOp(user)) {
-            informPlayer(nick, getMsg("ops_only"));
-        } else if (inProgress) {
-            informPlayer(nick, getMsg("wait_round_end"));
-        } else {
-            return true;
-        }
-        return false;
     }
     
     /* 
