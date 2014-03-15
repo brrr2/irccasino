@@ -518,6 +518,8 @@ public class Blackjack extends CardGame {
             informPlayer(nick, getMsg("no_join"));
         } else if (!inProgress) {
             informPlayer(nick, getMsg("no_start"));
+        } else if (currentPlayer == null) {
+            informPlayer(nick, getMsg("nobody_turn"));
         } else {
             BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
             if (p.hasSplit()){
@@ -720,7 +722,7 @@ public class Blackjack extends CardGame {
         } else if (!inProgress) {
             informPlayer(nick, getMsg("no_start"));
         } else if (currentPlayer == null) {
-            informPlayer(nick, getMsg("no_force_play"));
+            informPlayer(nick, getMsg("nobody_turn"));
         } else if (!betting) {
             informPlayer(nick, getMsg("no_betting"));
         } else if (params.length < 1){
@@ -746,7 +748,7 @@ public class Blackjack extends CardGame {
         } else if (!inProgress) {
             informPlayer(nick, getMsg("no_start"));
         } else if (currentPlayer == null) {
-            informPlayer(nick, getMsg("no_force_play"));
+            informPlayer(nick, getMsg("nobody_turn"));
         } else if (!betting) {
             informPlayer(nick, getMsg("no_betting"));
         } else {
@@ -766,7 +768,7 @@ public class Blackjack extends CardGame {
         } else if (!inProgress) {
             informPlayer(nick, getMsg("no_start"));
         } else if (currentPlayer == null) {
-            informPlayer(nick, getMsg("no_force_play"));
+            informPlayer(nick, getMsg("nobody_turn"));
         } else if (betting) {
             informPlayer(nick, getMsg("no_cards"));
         } else {
@@ -786,7 +788,7 @@ public class Blackjack extends CardGame {
         } else if (!inProgress) {
             informPlayer(nick, getMsg("no_start"));
         } else if (currentPlayer == null) {
-            informPlayer(nick, getMsg("no_force_play"));
+            informPlayer(nick, getMsg("nobody_turn"));
         } else if (betting) {
             informPlayer(nick, getMsg("no_cards"));
         } else {
@@ -806,7 +808,7 @@ public class Blackjack extends CardGame {
         } else if (!inProgress) {
             informPlayer(nick, getMsg("no_start"));
         } else if (currentPlayer == null) {
-            informPlayer(nick, getMsg("no_force_play"));
+            informPlayer(nick, getMsg("nobody_turn"));
         } else if (betting) {
             informPlayer(nick, getMsg("no_cards"));
         } else {
@@ -826,7 +828,7 @@ public class Blackjack extends CardGame {
         } else if (!inProgress) {
             informPlayer(nick, getMsg("no_start"));
         } else if (currentPlayer == null) {
-            informPlayer(nick, getMsg("no_force_play"));
+            informPlayer(nick, getMsg("nobody_turn"));
         } else if (betting) {
             informPlayer(nick, getMsg("no_cards"));
         } else {
@@ -846,7 +848,7 @@ public class Blackjack extends CardGame {
         } else if (!inProgress) {
             informPlayer(nick, getMsg("no_start"));
         } else if (currentPlayer == null) {
-            informPlayer(nick, getMsg("no_force_play"));
+            informPlayer(nick, getMsg("nobody_turn"));
         } else if (betting) {
             informPlayer(nick, getMsg("no_cards"));
         } else {
@@ -866,7 +868,7 @@ public class Blackjack extends CardGame {
         } else if (!inProgress) {
             informPlayer(nick, getMsg("no_start"));
         } else if (currentPlayer == null) {
-            informPlayer(nick, getMsg("no_force_play"));
+            informPlayer(nick, getMsg("nobody_turn"));
         } else if (betting) {
             informPlayer(nick, getMsg("no_cards"));
         } else if (params.length < 1){

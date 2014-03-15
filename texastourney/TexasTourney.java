@@ -456,7 +456,7 @@ public class TexasTourney extends TexasPoker {
             informPlayer(nick, getMsg("no_join"));
         } else if (!inProgress) {
             informPlayer(nick, getMsg("tt_no_start"));
-        } else if (stage == 0){
+        } else if (community.isEmpty()){
             informPlayer(nick, getMsg("no_community"));
         } else {
             showCommunityCards();
@@ -471,7 +471,7 @@ public class TexasTourney extends TexasPoker {
             informPlayer(nick, getMsg("tt_no_start"));
         } else {
             PokerPlayer p = (PokerPlayer) findJoined(nick);
-            informPlayer(p.getNick(), getMsg("tp_hand"), p.getHand());
+            informPlayer(nick, getMsg("tp_hand"), p.getHand());
         }
     }
     
@@ -481,6 +481,8 @@ public class TexasTourney extends TexasPoker {
             informPlayer(nick, getMsg("no_join"));
         } else if (!inProgress) {
             informPlayer(nick, getMsg("tt_no_start"));
+        } else if (currentPlayer == null) {
+            informPlayer(nick, getMsg("nobody_turn"));
         } else {
             showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentBet-currentPlayer.get("bet"), 
                     currentPlayer.get("bet"), currentBet, getCashInPlay(), currentPlayer.get("cash")-currentPlayer.get("bet"));
@@ -625,7 +627,7 @@ public class TexasTourney extends TexasPoker {
         } else if (!inProgress) {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (currentPlayer == null) {
-            informPlayer(nick, getMsg("no_force_play"));
+            informPlayer(nick, getMsg("nobody_turn"));
         } else if (continuingRound) {
             informPlayer(nick, getMsg("game_lagging"));
         } else if (params.length < 1){
@@ -646,7 +648,7 @@ public class TexasTourney extends TexasPoker {
         } else if (!inProgress) {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (currentPlayer == null) {
-            informPlayer(nick, getMsg("no_force_play"));
+            informPlayer(nick, getMsg("nobody_turn"));
         } else if (continuingRound) {
             informPlayer(nick, getMsg("game_lagging"));
         } else {
@@ -661,7 +663,7 @@ public class TexasTourney extends TexasPoker {
         } else if (!inProgress) {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (currentPlayer == null) {
-            informPlayer(nick, getMsg("no_force_play"));
+            informPlayer(nick, getMsg("nobody_turn"));
         } else if (continuingRound) {
             informPlayer(nick, getMsg("game_lagging"));
         } else if (params.length < 1){
@@ -682,7 +684,7 @@ public class TexasTourney extends TexasPoker {
         } else if (!inProgress) {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (currentPlayer == null) {
-            informPlayer(nick, getMsg("no_force_play"));
+            informPlayer(nick, getMsg("nobody_turn"));
         } else if (continuingRound) {
             informPlayer(nick, getMsg("game_lagging"));
         } else {
@@ -697,7 +699,7 @@ public class TexasTourney extends TexasPoker {
         } else if (!inProgress) {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (currentPlayer == null) {
-            informPlayer(nick, getMsg("no_force_play"));
+            informPlayer(nick, getMsg("nobody_turn"));
         } else if (continuingRound) {
             informPlayer(nick, getMsg("game_lagging"));
         } else {
@@ -712,7 +714,7 @@ public class TexasTourney extends TexasPoker {
         } else if (!inProgress) {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (currentPlayer == null) {
-            informPlayer(nick, getMsg("no_force_play"));
+            informPlayer(nick, getMsg("nobody_turn"));
         } else if (continuingRound) {
             informPlayer(nick, getMsg("game_lagging"));
         } else {
