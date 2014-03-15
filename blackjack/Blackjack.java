@@ -280,6 +280,8 @@ public class Blackjack extends CardGame {
             informPlayer(nick, getMsg("no_betting"));
         } else if (currentPlayer != findJoined(nick)) {
             informPlayer(nick, getMsg("wrong_turn"));
+        } else if (continuingRound) {
+            informPlayer(nick, getMsg("game_lagging"));
         } else if (params.length < 1){
             informPlayer(nick, getMsg("no_parameter"));
         } else {
@@ -305,6 +307,8 @@ public class Blackjack extends CardGame {
             informPlayer(nick, getMsg("no_betting"));
         } else if (currentPlayer != findJoined(nick)) {
             informPlayer(nick, getMsg("wrong_turn"));
+        } else if (continuingRound) {
+            informPlayer(nick, getMsg("game_lagging"));
         } else {
             bet(currentPlayer.get("cash"));
         }
@@ -324,6 +328,8 @@ public class Blackjack extends CardGame {
             informPlayer(nick, getMsg("no_cards"));
         } else if (!(currentPlayer == findJoined(nick))) {
             informPlayer(nick, getMsg("wrong_turn"));
+        } else if (continuingRound) {
+            informPlayer(nick, getMsg("game_lagging"));
         } else {
             hit();
         }
@@ -343,6 +349,8 @@ public class Blackjack extends CardGame {
             informPlayer(nick, getMsg("no_cards"));
         } else if (!(currentPlayer == findJoined(nick))) {
             informPlayer(nick, getMsg("wrong_turn"));
+        } else if (continuingRound) {
+            informPlayer(nick, getMsg("game_lagging"));
         } else {
             stay();
         }
@@ -362,6 +370,8 @@ public class Blackjack extends CardGame {
             informPlayer(nick, getMsg("no_cards"));
         } else if (!(currentPlayer == findJoined(nick))) {
             informPlayer(nick, getMsg("wrong_turn"));
+        } else if (continuingRound) {
+            informPlayer(nick, getMsg("game_lagging"));
         } else {
             doubleDown();
         }
@@ -381,6 +391,8 @@ public class Blackjack extends CardGame {
             informPlayer(nick, getMsg("no_cards"));
         } else if (!(currentPlayer == findJoined(nick))) {
             informPlayer(nick, getMsg("wrong_turn"));
+        } else if (continuingRound) {
+            informPlayer(nick, getMsg("game_lagging"));
         } else {
             surrender();
         }
@@ -400,6 +412,8 @@ public class Blackjack extends CardGame {
             informPlayer(nick, getMsg("no_cards"));
         } else if (!(currentPlayer == findJoined(nick))) {
             informPlayer(nick, getMsg("wrong_turn"));
+        } else if (continuingRound) {
+            informPlayer(nick, getMsg("game_lagging"));
         } else if (params.length < 1){
             informPlayer(nick, getMsg("no_parameter"));
         } else {
@@ -425,6 +439,8 @@ public class Blackjack extends CardGame {
             informPlayer(nick, getMsg("no_cards"));
         } else if (!(currentPlayer == findJoined(nick))) {
             informPlayer(nick, getMsg("wrong_turn"));
+        } else if (continuingRound) {
+            informPlayer(nick, getMsg("game_lagging"));
         } else {
             split();
         }
@@ -1389,6 +1405,7 @@ public class Blackjack extends CardGame {
     public void resetGame() {
         inProgress = false;
         roundEnded = false;
+        continuingRound = false;
         insuranceBets = false;
         betting = true;
         discardPlayerHand(dealer);
@@ -1675,6 +1692,7 @@ public class Blackjack extends CardGame {
      * Determines what to do when the action falls to a new player/hand
      */
     private void quickEval() {
+        continuingRound = true;
         BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
         if (p.hasSplit()) {
             showTurn(p, p.get("currentindex") + 1);
@@ -1682,9 +1700,11 @@ public class Blackjack extends CardGame {
             showTurn(p, 0);
         }
         if (p.has("quit")){
+            continuingRound = false;
             stay();
         } else {
             setIdleOutTask();
+            continuingRound = false;
         }
     }
     

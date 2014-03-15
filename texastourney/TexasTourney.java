@@ -356,6 +356,8 @@ public class TexasTourney extends TexasPoker {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (findJoined(nick) != currentPlayer){
             informPlayer(nick, getMsg("wrong_turn"));
+        } else if (continuingRound) {
+            informPlayer(nick, getMsg("game_lagging"));
         } else if (params.length < 1){
             informPlayer(nick, getMsg("no_parameter"));  
         } else {
@@ -375,6 +377,8 @@ public class TexasTourney extends TexasPoker {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (findJoined(nick) != currentPlayer){
             informPlayer(nick, getMsg("wrong_turn"));
+        } else if (continuingRound) {
+            informPlayer(nick, getMsg("game_lagging"));
         } else {
             call();
         }
@@ -388,6 +392,8 @@ public class TexasTourney extends TexasPoker {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (findJoined(nick) != currentPlayer){
             informPlayer(nick, getMsg("wrong_turn"));
+        } else if (continuingRound) {
+            informPlayer(nick, getMsg("game_lagging"));
         } else {
             check();
         }
@@ -401,6 +407,8 @@ public class TexasTourney extends TexasPoker {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (findJoined(nick) != currentPlayer){
             informPlayer(nick, getMsg("wrong_turn"));
+        } else if (continuingRound) {
+            informPlayer(nick, getMsg("game_lagging"));
         } else {
             fold();
         }
@@ -414,6 +422,8 @@ public class TexasTourney extends TexasPoker {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (findJoined(nick) != currentPlayer){
             informPlayer(nick, getMsg("wrong_turn"));
+        } else if (continuingRound) {
+            informPlayer(nick, getMsg("game_lagging"));
         } else if (params.length < 1){
             informPlayer(nick, getMsg("no_parameter"));
         } else {
@@ -433,6 +443,8 @@ public class TexasTourney extends TexasPoker {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (findJoined(nick) != currentPlayer){
             informPlayer(nick, getMsg("wrong_turn"));
+        } else if (continuingRound) {
+            informPlayer(nick, getMsg("game_lagging"));
         } else {
             bet(currentPlayer.get("cash"));
         }
@@ -614,6 +626,8 @@ public class TexasTourney extends TexasPoker {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (currentPlayer == null) {
             informPlayer(nick, getMsg("no_force_play"));
+        } else if (continuingRound) {
+            informPlayer(nick, getMsg("game_lagging"));
         } else if (params.length < 1){
             informPlayer(nick, getMsg("no_parameter"));       
         } else {
@@ -633,6 +647,8 @@ public class TexasTourney extends TexasPoker {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (currentPlayer == null) {
             informPlayer(nick, getMsg("no_force_play"));
+        } else if (continuingRound) {
+            informPlayer(nick, getMsg("game_lagging"));
         } else {
             bet(currentPlayer.get("cash"));
         }
@@ -646,6 +662,8 @@ public class TexasTourney extends TexasPoker {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (currentPlayer == null) {
             informPlayer(nick, getMsg("no_force_play"));
+        } else if (continuingRound) {
+            informPlayer(nick, getMsg("game_lagging"));
         } else if (params.length < 1){
             informPlayer(nick, getMsg("no_parameter"));
         } else {
@@ -665,6 +683,8 @@ public class TexasTourney extends TexasPoker {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (currentPlayer == null) {
             informPlayer(nick, getMsg("no_force_play"));
+        } else if (continuingRound) {
+            informPlayer(nick, getMsg("game_lagging"));
         } else {
             call();
         }
@@ -678,6 +698,8 @@ public class TexasTourney extends TexasPoker {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (currentPlayer == null) {
             informPlayer(nick, getMsg("no_force_play"));
+        } else if (continuingRound) {
+            informPlayer(nick, getMsg("game_lagging"));
         } else {
             check();
         }
@@ -691,6 +713,8 @@ public class TexasTourney extends TexasPoker {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (currentPlayer == null) {
             informPlayer(nick, getMsg("no_force_play"));
+        } else if (continuingRound) {
+            informPlayer(nick, getMsg("game_lagging"));
         } else {
             fold();
         }
@@ -852,6 +876,8 @@ public class TexasTourney extends TexasPoker {
     
     @Override
     public void continueRound() {
+        continuingRound = true;
+        
         // Store currentPlayer as firstPlayer and find the next player
         Player firstPlayer = currentPlayer;
         currentPlayer = getPlayerAfter(currentPlayer);
@@ -880,6 +906,8 @@ public class TexasTourney extends TexasPoker {
             
             // If all community cards have been dealt, move to end of round
             if (stage == 4){
+                continuingRound = false;
+                currentPlayer = null;
                 endRound();
             // Otherwise, deal community cards
             } else {
@@ -935,6 +963,7 @@ public class TexasTourney extends TexasPoker {
             showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentBet-currentPlayer.get("bet"), 
                         currentPlayer.get("bet"), currentBet, getCashInPlay(), currentPlayer.get("cash")-currentPlayer.get("bet"));
             setIdleOutTask();
+            continuingRound = false;
         }
     }
     
@@ -1029,6 +1058,7 @@ public class TexasTourney extends TexasPoker {
         currentBet = 0;
         minRaise = 0;
         roundEnded = false;
+        continuingRound = false;
         discardCommunity();
         currentPot = null;
         pots.clear();

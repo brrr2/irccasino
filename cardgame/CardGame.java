@@ -62,6 +62,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     // Game properties
     protected boolean inProgress;
     protected boolean roundEnded;
+    protected boolean continuingRound;
     protected int startCount;
     protected long lastPing;
     protected String name;

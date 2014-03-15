@@ -255,6 +255,8 @@ public class TexasPoker extends CardGame{
             informPlayer(nick, getMsg("no_start"));
         } else if (findJoined(nick) != currentPlayer){
             informPlayer(nick, getMsg("wrong_turn"));
+        } else if (continuingRound) {
+            informPlayer(nick, getMsg("game_lagging"));
         } else if (params.length < 1){
             informPlayer(nick, getMsg("no_parameter"));  
         } else {
@@ -278,6 +280,8 @@ public class TexasPoker extends CardGame{
             informPlayer(nick, getMsg("no_start"));
         } else if (findJoined(nick) != currentPlayer){
             informPlayer(nick, getMsg("wrong_turn"));
+        } else if (continuingRound) {
+            informPlayer(nick, getMsg("game_lagging"));
         } else {
             call();
         }
@@ -295,6 +299,8 @@ public class TexasPoker extends CardGame{
             informPlayer(nick, getMsg("no_start"));
         } else if (findJoined(nick) != currentPlayer){
             informPlayer(nick, getMsg("wrong_turn"));
+        } else if (continuingRound) {
+            informPlayer(nick, getMsg("game_lagging"));
         } else {
             check();
         }
@@ -312,6 +318,8 @@ public class TexasPoker extends CardGame{
             informPlayer(nick, getMsg("no_start"));
         } else if (findJoined(nick) != currentPlayer){
             informPlayer(nick, getMsg("wrong_turn"));
+        } else if (continuingRound) {
+            informPlayer(nick, getMsg("game_lagging"));
         } else {
             fold();
         }
@@ -329,6 +337,8 @@ public class TexasPoker extends CardGame{
             informPlayer(nick, getMsg("no_start"));
         } else if (findJoined(nick) != currentPlayer){
             informPlayer(nick, getMsg("wrong_turn"));
+        } else if (continuingRound) {
+            informPlayer(nick, getMsg("game_lagging"));
         } else if (params.length < 1){
             informPlayer(nick, getMsg("no_parameter"));
         } else {
@@ -352,6 +362,8 @@ public class TexasPoker extends CardGame{
             informPlayer(nick, getMsg("no_start"));
         } else if (findJoined(nick) != currentPlayer){
             informPlayer(nick, getMsg("wrong_turn"));
+        } else if (continuingRound) {
+            informPlayer(nick, getMsg("game_lagging"));
         } else {
             bet(currentPlayer.get("cash"));
         }
@@ -475,6 +487,8 @@ public class TexasPoker extends CardGame{
             informPlayer(nick, getMsg("no_start"));
         } else if (currentPlayer == null) {
             informPlayer(nick, getMsg("no_force_play"));
+        } else if (continuingRound) {
+            informPlayer(nick, getMsg("game_lagging"));
         } else if (params.length < 1){
             informPlayer(nick, getMsg("no_parameter"));       
         } else {
@@ -499,6 +513,8 @@ public class TexasPoker extends CardGame{
             informPlayer(nick, getMsg("no_start"));
         } else if (currentPlayer == null) {
             informPlayer(nick, getMsg("no_force_play"));
+        } else if (continuingRound) {
+            informPlayer(nick, getMsg("game_lagging"));
         } else {
             bet(currentPlayer.get("cash"));
         }
@@ -517,6 +533,8 @@ public class TexasPoker extends CardGame{
             informPlayer(nick, getMsg("no_start"));
         } else if (currentPlayer == null) {
             informPlayer(nick, getMsg("no_force_play"));
+        } else if (continuingRound) {
+            informPlayer(nick, getMsg("game_lagging"));
         } else if (params.length < 1){
             informPlayer(nick, getMsg("no_parameter"));        
         } else {
@@ -541,6 +559,8 @@ public class TexasPoker extends CardGame{
             informPlayer(nick, getMsg("no_start"));
         } else if (currentPlayer == null) {
             informPlayer(nick, getMsg("no_force_play"));
+        } else if (continuingRound) {
+            informPlayer(nick, getMsg("game_lagging"));
         } else {
             call();
         }
@@ -559,6 +579,8 @@ public class TexasPoker extends CardGame{
             informPlayer(nick, getMsg("no_start"));
         } else if (currentPlayer == null) {
             informPlayer(nick, getMsg("no_force_play"));
+        } else if (continuingRound) {
+            informPlayer(nick, getMsg("game_lagging"));
         } else {
             check();
         }
@@ -577,6 +599,8 @@ public class TexasPoker extends CardGame{
             informPlayer(nick, getMsg("no_start"));
         } else if (currentPlayer == null) {
             informPlayer(nick, getMsg("no_force_play"));
+        } else if (continuingRound) {
+            informPlayer(nick, getMsg("game_lagging"));
         } else {
             fold();
         }
@@ -857,6 +881,8 @@ public class TexasPoker extends CardGame{
     
     @Override
     public void continueRound() {
+        continuingRound = true;
+        
         // Store currentPlayer as firstPlayer and find the next player
         Player firstPlayer = currentPlayer;
         currentPlayer = getPlayerAfter(currentPlayer);
@@ -884,6 +910,8 @@ public class TexasPoker extends CardGame{
             
             // If all community cards have been dealt, move to end of round
             if (stage == 4){
+                currentPlayer = null;
+                continuingRound = false;
                 endRound();
             // Otherwise, deal community cards
             } else {
@@ -938,6 +966,7 @@ public class TexasPoker extends CardGame{
             showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentBet-currentPlayer.get("bet"), 
                         currentPlayer.get("bet"), currentBet, getCashInPlay(), currentPlayer.get("cash")-currentPlayer.get("bet"));
             setIdleOutTask();
+            continuingRound = false;
         }
     }
     
@@ -1072,6 +1101,7 @@ public class TexasPoker extends CardGame{
         minRaise = 0;
         inProgress = false;
         roundEnded = false;
+        continuingRound = false;
         discardCommunity();
         currentPot = null;
         pots.clear();
