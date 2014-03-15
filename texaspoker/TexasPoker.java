@@ -38,11 +38,16 @@ public class TexasPoker extends CardGame{
     
     protected ArrayList<PokerPot> pots;
     protected PokerPot currentPot;
-    protected PokerPlayer dealer, smallBlind, bigBlind, topBettor;
+    protected PokerPlayer dealer;
+    protected PokerPlayer smallBlind;
+    protected PokerPlayer bigBlind;
+    protected PokerPlayer topBettor;
     protected Hand community;
     protected HouseStat house;
     // In-game properties
-    protected int stage, currentBet, minRaise;
+    protected int stage;
+    protected int currentBet;
+    protected int minRaise;
     
     public TexasPoker() {
         super();
@@ -69,27 +74,7 @@ public class TexasPoker extends CardGame{
      * @param customINI the file path to a custom INI file
      */
     public TexasPoker(GameManager parent, char commChar, Channel gameChannel, String customINI) {
-        super(parent, commChar, gameChannel);
-        name = "texaspoker";
-        iniFile = customINI;
-        helpFile = "texaspoker.help";
-        strFile = "strlib.txt";
-        loadStrLib(strFile);
-        loadHelp(helpFile);
-        house = new HouseStat();
-        loadGameStats();
-        initialize();
-        loadIni();
-        deck = new CardDeck();
-        deck.shuffleCards();
-        pots = new ArrayList<PokerPot>();
-        community = new Hand();
-        currentPot = null;
-        dealer = null;
-        smallBlind = null;
-        bigBlind = null;
-        topBettor = null;
-        showMsg(getMsg("game_start"), getGameNameStr());
+        super(parent, commChar, gameChannel, customINI);
     }
     
     /////////////////////////////////////////
@@ -157,6 +142,12 @@ public class TexasPoker extends CardGame{
             rank(nick, params);
         } else if (command.equalsIgnoreCase("top")) {
             top(nick, params);
+        } else if (command.equalsIgnoreCase("away")){
+            away(nick, params);
+        } else if (command.equalsIgnoreCase("back")){
+            back(nick, params);
+        } else if (command.equalsIgnoreCase("ping")) {
+            ping(nick, params);
         } else if (command.equalsIgnoreCase("simple")) {
             simple(nick, params);
         } else if (command.equalsIgnoreCase("stats")){
@@ -206,6 +197,10 @@ public class TexasPoker extends CardGame{
             set(user, nick, params);
         } else if (command.equalsIgnoreCase("get")) {
             get(user, nick, params);
+        } else if (command.equalsIgnoreCase("resetaway")){
+            resetaway(user, nick, params);
+        } else if (command.equalsIgnoreCase("resetsimple")) {
+            resetsimple(user, nick, params);
         } else if (command.equalsIgnoreCase("reload")) {
             reload(user, nick, params);
         } else if (command.equalsIgnoreCase("test1")) {
@@ -615,11 +610,15 @@ public class TexasPoker extends CardGame{
         } else if (inProgress) {
             informPlayer(nick, getMsg("wait_round_end"));
         } else {
-            loadIni();
+            awayList.clear();
+            notSimpleList.clear();
             cmdMap.clear();
             opCmdMap.clear();
             aliasMap.clear();
             msgMap.clear();
+            loadIni();
+            loadHostList("away.txt", awayList);
+            loadHostList("simple.txt", notSimpleList);
             loadStrLib(strFile);
             loadHelp(helpFile);
             showMsg(getMsg("reload"));
@@ -1057,6 +1056,8 @@ public class TexasPoker extends CardGame{
         joined.clear();
         waitlist.clear();
         blacklist.clear();
+        awayList.clear();
+        notSimpleList.clear();
         cmdMap.clear();
         opCmdMap.clear();
         aliasMap.clear();
@@ -1191,8 +1192,7 @@ public class TexasPoker extends CardGame{
     
     /* Game settings management */
     @Override
-    protected void initialize(){
-        super.initialize();
+    protected void initSettings() {
         // Do not use set()
         // Ini file settings
         settings.put("cash", 1000);
@@ -1205,10 +1205,24 @@ public class TexasPoker extends CardGame{
         settings.put("startwait", 5);
         settings.put("showdown", 10);
         settings.put("revealcommunity", 0);
-        // In-game properties
-        stage = 0;
-        currentBet = 0;
-        minRaise = 0;
+        settings.put("ping", 600);
+    }
+    
+    @Override
+    protected void initCustom(){
+        name = "texaspoker";
+        helpFile = "texaspoker.help";
+        deck = new CardDeck();
+        deck.shuffleCards();
+        pots = new ArrayList<PokerPot>();
+        community = new Hand();
+        house = new HouseStat();
+        
+        initSettings();
+        loadHelp(helpFile);
+        loadGameStats();
+        loadIni();
+        showMsg(getMsg("game_start"), getGameNameStr());
     }
     
     @Override
@@ -1236,6 +1250,8 @@ public class TexasPoker extends CardGame{
             out.println("showdown=" + get("showdown"));
             out.println("#Whether or not to reveal community when not required");
             out.println("revealcommunity=" + get("revealcommunity"));
+            out.println("#The rate-limit of the ping command");
+            out.println("ping=" + get("ping"));
             out.close();
         } catch (IOException e) {
             manager.log("Error creating " + iniFile + "!");

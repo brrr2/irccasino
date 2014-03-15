@@ -41,12 +41,13 @@ import irccasino.cardgame.PlayerRecord;
  */
 public class Blackjack extends CardGame {
     
-    private BlackjackPlayer dealer;
-    private ArrayList<HouseStat> houseStatsList;
-    private IdleShuffleTask idleShuffleTask;
-    private HouseStat house;
+    protected BlackjackPlayer dealer;
+    protected ArrayList<HouseStat> houseStatsList;
+    protected IdleShuffleTask idleShuffleTask;
+    protected HouseStat house;
     // In-game properties
-    private boolean betting, insuranceBets;
+    protected boolean betting;
+    protected boolean insuranceBets;
 
     public Blackjack() {
         super();
@@ -73,20 +74,7 @@ public class Blackjack extends CardGame {
      * @param customINI the file path to a custom INI file
      */
     public Blackjack(GameManager parent, char commChar, Channel gameChannel, String customINI) {
-        super(parent, commChar, gameChannel);
-        name = "blackjack";
-        iniFile = customINI;
-        helpFile = "blackjack.help";
-        strFile = "strlib.txt";
-        loadStrLib(strFile);
-        loadHelp(helpFile);
-        dealer = new BlackjackPlayer("Dealer", "");
-        houseStatsList = new ArrayList<HouseStat>();
-        loadGameStats();
-        initialize();
-        loadIni();
-        idleShuffleTask = null;
-        showMsg(getMsg("game_start"), getGameNameStr());
+        super(parent, commChar, gameChannel, customINI);
     }
 
     @Override
@@ -175,6 +163,12 @@ public class Blackjack extends CardGame {
             rank(nick, params);
         } else if (command.equalsIgnoreCase("top")) {
             top(nick, params);
+        } else if (command.equalsIgnoreCase("away")){
+            away(nick, params);
+        } else if (command.equalsIgnoreCase("back")){
+            back(nick, params);
+        } else if (command.equalsIgnoreCase("ping")) {
+            ping(nick, params);
         } else if (command.equalsIgnoreCase("simple")) {
             simple(nick, params);
         } else if (command.equalsIgnoreCase("stats")){
@@ -230,6 +224,10 @@ public class Blackjack extends CardGame {
             set(user, nick, params);
         } else if (command.equalsIgnoreCase("get")) {
             get(user, nick, params);
+        } else if (command.equalsIgnoreCase("resetaway")){
+            resetaway(user, nick, params);
+        } else if (command.equalsIgnoreCase("resetsimple")) {
+            resetsimple(user, nick, params);
         } else if (command.equalsIgnoreCase("test1")){
             test1(user, nick, params);
         }
@@ -262,6 +260,7 @@ public class Blackjack extends CardGame {
             }
             cancelIdleShuffleTask();
             inProgress = true;
+            betting = true;
             showStartRound();
             setStartRoundTask();
         }
@@ -895,11 +894,13 @@ public class Blackjack extends CardGame {
             informPlayer(nick, getMsg("wait_round_end"));
         } else {
             cancelIdleShuffleTask();
-            loadIni();
+            awayList.clear();
+            notSimpleList.clear();
             cmdMap.clear();
             opCmdMap.clear();
             aliasMap.clear();
             msgMap.clear();
+            loadIni();
             loadStrLib(strFile);
             loadHelp(helpFile);
             showMsg(getMsg("reload"));
@@ -958,9 +959,9 @@ public class Blackjack extends CardGame {
             }
         }
     }
+    
     @Override
-    protected final void initialize() {
-        super.initialize();
+    protected void initSettings() {
         // Do not use set()
         // Ini file settings
         settings.put("decks", 8);
@@ -977,10 +978,22 @@ public class Blackjack extends CardGame {
         settings.put("soft17hit", 0);
         settings.put("autostarts", 10);
         settings.put("startwait", 5);
-        // In-game properties
-        betting = true;
-        insuranceBets = false;
+        settings.put("ping", 600);
     }
+    
+    @Override
+    protected void initCustom() {
+        name = "blackjack";
+        helpFile = "blackjack.help";
+        dealer = new BlackjackPlayer("Dealer", "");
+        houseStatsList = new ArrayList<HouseStat>();
+        initSettings();
+        loadHelp(helpFile);
+        loadGameStats();
+        loadIni();
+        showMsg(getMsg("game_start"), getGameNameStr());
+    }
+    
     @Override
     protected final void loadIni() {
         super.loadIni();
@@ -1026,6 +1039,8 @@ public class Blackjack extends CardGame {
             out.println("autostarts=" + get("autostarts"));
             out.println("#The wait time in seconds after the start command is given");
             out.println("startwait=" + get("startwait"));
+            out.println("#The rate-limit of the ping command");
+            out.println("ping=" + get("ping"));
             out.close();
         } catch (IOException e) {
             manager.log("Error creating " + iniFile + "!");
@@ -1033,6 +1048,7 @@ public class Blackjack extends CardGame {
     }
 
     /* Game stats management */
+    @Override
     public final void loadGameStats() {
         try {
             BufferedReader in = new BufferedReader(new FileReader("housestats.txt"));
@@ -1358,6 +1374,8 @@ public class Blackjack extends CardGame {
         house = null;
         devoiceAll();
         showMsg(getMsg("game_end"), getGameNameStr());
+        awayList.clear();
+        notSimpleList.clear();
         joined.clear();
         waitlist.clear();
         blacklist.clear();

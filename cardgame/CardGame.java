@@ -36,7 +36,6 @@ import org.pircbotx.Colors;
 import org.pircbotx.PircBotX;
 import org.pircbotx.User;
 import org.pircbotx.hooks.ListenerAdapter;
-import org.pircbotx.hooks.events.JoinEvent;
 import org.pircbotx.hooks.events.MessageEvent;
 import org.pircbotx.hooks.events.NickChangeEvent;
 import org.pircbotx.hooks.events.PartEvent;
@@ -51,17 +50,30 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected GameManager manager;
     protected Channel channel;
     protected char commandChar;
-    protected ArrayList<Player> joined, blacklist, waitlist; //Player lists
+    // Player lists
+    protected ArrayList<Player> joined;
+    protected ArrayList<Player> blacklist;
+    protected ArrayList<Player> waitlist;
     protected CardDeck deck; //the deck of cards
     protected Player currentPlayer; //stores the player whose turn it is
-    protected Timer gameTimer; //All TimerTasks are scheduled on this Timer
+    protected Timer gameTimer;
     /** INI file settings **/
     protected HashMap<String,Integer> settings;
-    // In-game properties
-    protected boolean inProgress, roundEnded;
+    // Game properties
+    protected boolean inProgress;
+    protected boolean roundEnded;
     protected int startCount;
-    protected HashMap<String,String> cmdMap, opCmdMap, aliasMap, msgMap;
-    protected String name, iniFile, helpFile, strFile;
+    protected long lastPing;
+    protected String name;
+    protected String iniFile;
+    protected String helpFile;
+    protected String strFile;
+    protected HashMap<String,String> cmdMap;
+    protected HashMap<String,String> opCmdMap;
+    protected HashMap<String,String> aliasMap;
+    protected HashMap<String,String> msgMap;
+    protected ArrayList<String> awayList;
+    protected ArrayList<String> notSimpleList;
     // TimerTasks
     protected IdleOutTask idleOutTask;
     protected IdleWarningTask idleWarningTask;
@@ -73,32 +85,21 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     
     /**
-     * Creates a generic CardGame.
+     * Creates a generic CardGame with a custom INI file.
      * Not to be directly instantiated.
      * 
      * @param parent The bot that uses an instance of this class
      * @param commChar The command char
      * @param gameChannel The IRC channel in which the game is to be run.
+     * @param customINI INI file for the game
      */
-    public CardGame(GameManager parent, char commChar, Channel gameChannel){
+    public CardGame(GameManager parent, char commChar, Channel gameChannel, String customINI) {
         manager = parent;
         commandChar = commChar;
         channel = gameChannel;
-        joined = new ArrayList<Player>();
-        blacklist = new ArrayList<Player>();
-        waitlist = new ArrayList<Player>();
-        respawnTasks = new ArrayList<RespawnTask>();
-        settings = new HashMap<String,Integer>();
-        cmdMap = new HashMap<String,String>();
-        opCmdMap = new HashMap<String,String>();
-        aliasMap = new HashMap<String,String>();
-        msgMap = new HashMap<String,String>();
-        gameTimer = new Timer("Game Timer");
-        startRoundTask = null;
-        idleOutTask = null;
-        idleWarningTask = null;
-        currentPlayer = null;
-        checkPlayerFile();
+        iniFile = customINI;
+        
+        initGame();
     }
     
     ////////////////////
@@ -467,6 +468,46 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     
     /**
+     * Adds the user to the away list. 
+     * @param nick
+     * @param params
+     */
+    public void away(String nick, String[] params) {
+        if (!isJoined(nick)) {
+            informPlayer(nick, getMsg("no_join"));
+        } else {
+            Player p = findJoined(nick);
+            if (awayList.contains(p.getHost())) {
+                informPlayer(nick, "You are already marked as away!");
+            } else {
+                awayList.add(p.getHost());
+                saveHostList("away.txt", awayList);
+                informPlayer(nick, "You are now marked as away.");
+            }
+        }
+    }
+    
+    /**
+     * Removes the user from the away list. 
+     * @param nick
+     * @param params
+     */
+    public void back(String nick, String[] params) {
+        if (!isJoined(nick)) {
+            informPlayer(nick, getMsg("no_join"));
+        } else {
+            Player p = findJoined(nick);
+            if (awayList.contains(p.getHost())){
+                awayList.remove(p.getHost());
+                saveHostList("away.txt", awayList);
+                informPlayer(nick, "You are no longer marked as away.");
+            } else {
+                informPlayer(nick, "You are not marked as away!");
+            }
+        }
+    }
+    
+    /**
      * Toggles a player's "simple" status.
      * Players with "simple" set to true will have game information sent via
      * /notice. Players with "simple" set to false will have game information 
@@ -479,12 +520,14 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             informPlayer(nick, getMsg("no_join"));
         } else {
             Player p = findJoined(nick);
-            p.set("simple", (p.get("simple") + 1) % 2);
-            if (p.isSimple()){
-                manager.sendNotice(nick, "Game info will now be noticed to you.");
+            if (notSimpleList.contains(p.getHost())) {
+                notSimpleList.remove(p.getHost());
+                informPlayer(nick, "Game info will now be noticed to you.");
             } else {
-                manager.sendMessage(nick, "Game info will now be messaged to you.");
+                notSimpleList.add(p.getHost());
+                informPlayer(nick, "Game info will now be messaged to you.");
             }
+            saveHostList("simple.txt", notSimpleList);
         }
     }
     
@@ -545,6 +588,35 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     protected void game(String nick, String[] params) {
         showMsg(getMsg("game_name"), getGameNameStr());
+    }
+    
+    /**
+     * Displays a list of users in the game channel, excluding users who are 
+     * in the awayList.
+     * @param nick
+     * @param params 
+     */
+    protected void ping(String nick, String[] params) {
+        // Check for rate-limit
+        if (lastPing != 0 && System.currentTimeMillis() - lastPing < get("ping") * 1000) {
+            informPlayer(nick, "This command is rate-limited. Please wait to use it again.");
+        } else if (inProgress) {
+            informPlayer(nick, "This command cannot be used at this time.");
+        } else {
+            // Grab the users in the channel
+            User tUser;
+            String outStr = "Ping: ";
+            Iterator<User> it = channel.getUsers().iterator();
+            while(it.hasNext()){
+                tUser = it.next();
+                if (!awayList.contains(tUser.getHostmask())){
+                    outStr += tUser.getNick()+", ";
+                }
+            }
+            showMsg(outStr.substring(0, outStr.length()-2));
+
+            lastPing = System.currentTimeMillis();
+        }
     }
     
     /**
@@ -768,6 +840,26 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         }
     }
     
+    /**
+     * Erases all hosts from away.txt.
+     * @param user 
+     */
+    public void resetaway(User user, String nick, String[] params) {
+        awayList.clear();
+        saveHostList("away.txt", awayList);
+        informPlayer(nick, "The away list has been reset.");
+    }
+    
+    /**
+     * Erases all hosts from simple.txt.
+     * @param user 
+     */
+    public void resetsimple(User user, String nick, String[] params) {
+        notSimpleList.clear();
+        saveHostList("simple.txt", notSimpleList);
+        informPlayer(nick, "The simple list has been reset.");
+    }
+    
     //////////////////////////
     //// Accessor methods ////
     //////////////////////////
@@ -822,13 +914,35 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     abstract protected void saveIniFile();
     
     /**
-     * Initializes game settings and properties.
+     * Initializes game settings.
      */
-    protected void initialize() {
-        // In-game properties
-        inProgress = false;
-        roundEnded = false;
-        startCount = 0;
+    abstract protected void initSettings();
+    
+    /**
+     * Custom initializations for individual games.
+     */
+    abstract protected void initCustom();
+    
+    protected final void initGame() {
+        joined = new ArrayList<Player>();
+        blacklist = new ArrayList<Player>();
+        waitlist = new ArrayList<Player>();
+        gameTimer = new Timer("Game Timer");
+        settings = new HashMap<String,Integer>();
+        cmdMap = new HashMap<String,String>();
+        opCmdMap = new HashMap<String,String>();
+        aliasMap = new HashMap<String,String>();
+        msgMap = new HashMap<String,String>();
+        awayList = new ArrayList<String>();
+        notSimpleList = new ArrayList<String>();
+        respawnTasks = new ArrayList<RespawnTask>();
+        strFile = "strlib.txt";
+        
+        loadStrLib(strFile);
+        loadHostList("away.txt", awayList);
+        loadHostList("simple.txt", notSimpleList);
+        checkPlayerFile();
+        initCustom();
     }
     
     /**
@@ -889,7 +1003,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         } catch (IOException e) {
             /* load defaults if INI file is not found */
             manager.log(iniFile + " not found! Creating new " + iniFile + "...");
-            initialize();
             saveIniFile();
         }
     }
@@ -898,7 +1011,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * Loads data from strlib file.
      * @param file file path
      */
-    protected void loadStrLib(String file) {
+    protected final void loadStrLib(String file) {
         try {
             BufferedReader in = new BufferedReader(new FileReader(file));
             StringTokenizer st;
@@ -922,7 +1035,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * Loads data from help file.
      * @param file file path
      */
-    protected void loadHelp(String file) {
+    protected final void loadHelp(String file) {
         try {
             BufferedReader in = new BufferedReader(new FileReader(file));
             String[] st, st2;
@@ -1402,7 +1515,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     p.set("tprounds", record.get("tprounds"));
                     p.set("ttwins", record.get("ttwins"));
                     p.set("ttplayed", record.get("ttplayed"));
-                    p.set("simple", record.get("simple"));
                     found = true;
                     break;
                 }
@@ -1440,7 +1552,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     record.set("tprounds", p.get("tprounds"));
                     record.set("ttwins", p.get("ttwins"));
                     record.set("ttplayed", p.get("ttplayed"));
-                    record.set("simple", p.get("simple"));
                     found = true;
                     break;
                 }
@@ -1450,8 +1561,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                                         p.get("bank"), p.get("bankrupts"),
                                         p.get("bjwinnings"), p.get("bjrounds"),
                                         p.get("tpwinnings"), p.get("tprounds"),
-                                        p.get("ttwins"), p.get("ttplayed"),
-                                        p.get("simple")));
+                                        p.get("ttwins"), p.get("ttplayed")));
             }
         } catch (IOException e) {
             manager.log("Error reading players.txt!");
@@ -1491,7 +1601,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     protected void loadPlayerFile(ArrayList<PlayerRecord> records) throws IOException {
         String nick;
-        int cash, bank, bankrupts, bjwinnings, bjrounds, tpwinnings, tprounds, ttwins, ttplayed, simple;
+        int cash, bank, bankrupts, bjwinnings, bjrounds, tpwinnings, tprounds, ttwins, ttplayed;
         
         BufferedReader in = new BufferedReader(new FileReader("players.txt"));
         StringTokenizer st;
@@ -1507,9 +1617,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             tprounds = Integer.parseInt(st.nextToken());
             ttwins = Integer.parseInt(st.nextToken());
             ttplayed = Integer.parseInt(st.nextToken());
-            simple = Integer.parseInt(st.nextToken());
             records.add(new PlayerRecord(nick, cash, bank, bankrupts, bjwinnings, 
-                                        bjrounds, tpwinnings, tprounds, ttwins, ttplayed, simple));
+                                        bjrounds, tpwinnings, tprounds, ttwins, ttplayed));
         }
         in.close();
     }
@@ -1540,6 +1649,41 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * Saves the stats for the game to a file.
      */
     abstract protected void saveGameStats();
+    
+    /**
+     * Saves a list of hosts to the specified file.
+     * @param file the file path
+     * @param hostList ArrayList of hosts
+     */
+    protected final void saveHostList(String file, ArrayList<String> hostList){
+        try {
+            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(file)));
+            for (String host : hostList){
+                out.println(host);
+            }
+            out.close();
+        } catch (IOException e){
+            manager.log("Error writing to " + file + "!");
+        }      
+    }
+    
+    /**
+     * Loads a list of hosts from the specified file.
+     * @param file the file path
+     * @param hostList
+     */
+    protected final void loadHostList(String file, ArrayList<String> hostList){
+        try {
+            BufferedReader in = new BufferedReader(new FileReader(file));
+            while (in.ready()) {
+                hostList.add(in.readLine());
+            }
+            in.close();
+        } catch (IOException e){
+            manager.log("Creating " + file + "...");
+            saveHostList(file, hostList);
+        }      
+    }
     
     /* Generic card management methods */
     
@@ -1614,7 +1758,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param msg the message to send
      * @param args the parameters for the message
      */
-    protected void showMsg(String msg, Object... args){
+    protected final void showMsg(String msg, Object... args){
         manager.sendMessage(channel, String.format(msg, args));
     }
     
@@ -1694,10 +1838,21 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param args parameters to be included in the message
      */
     protected void informPlayer(String nick, String message, Object... args){
-        if (getPlayerStat(nick, "simple") > 0) {
-            manager.sendNotice(nick, String.format(message, args));
-        } else {
+        Iterator it = channel.getUsers().iterator();
+        User u;
+        String host = "";
+        while(it.hasNext()) {
+            u = (User) it.next();
+            if (u.getNick().equalsIgnoreCase(nick)) {
+                host = u.getHostmask();
+                break;
+            }
+        }
+        
+        if (notSimpleList.contains(host)) {
             manager.sendMessage(nick, String.format(message, args));
+        } else {
+            manager.sendNotice(nick, String.format(message, args));
         }
     }
     

@@ -45,9 +45,10 @@ import org.pircbotx.*;
 public class TexasTourney extends TexasPoker {
     
     ArrayList<Player> newOutList;
-    int tourneyRounds, numOuts;
-    boolean newPlayerOut;
     TourneyStat tourneyStats;
+    int tourneyRounds;
+    int numOuts;
+    boolean newPlayerOut;
     
     public TexasTourney() {
         super();
@@ -74,44 +75,7 @@ public class TexasTourney extends TexasPoker {
      * @param customINI the file path to a custom INI file
      */
     public TexasTourney(GameManager parent, char commChar, Channel gameChannel, String customINI) {
-        manager = parent;
-        commandChar = commChar;
-        channel = gameChannel;
-        joined = new ArrayList<Player>();
-        blacklist = new ArrayList<Player>();
-        waitlist = new ArrayList<Player>();
-        settings = new HashMap<String,Integer>();
-        cmdMap = new HashMap<String,String>();
-        opCmdMap = new HashMap<String,String>();
-        aliasMap = new HashMap<String,String>();
-        msgMap = new HashMap<String,String>();
-        gameTimer = new Timer("Game Timer");
-        startRoundTask = null;
-        idleOutTask = null;
-        idleWarningTask = null;
-        currentPlayer = null;
-        checkPlayerFile();
-        name = "texastourney";
-        iniFile = customINI;
-        helpFile = "texastourney.help";
-        strFile = "strlib.txt";
-        loadStrLib(strFile);
-        loadHelp(helpFile);
-        tourneyStats = new TourneyStat();
-        loadGameStats();
-        initialize();
-        loadIni();
-        deck = new CardDeck();
-        deck.shuffleCards();
-        pots = new ArrayList<PokerPot>();
-        newOutList = new ArrayList<Player>();
-        community = new Hand();
-        currentPot = null;
-        dealer = null;
-        smallBlind = null;
-        bigBlind = null;
-        topBettor = null;
-        showMsg(getMsg("game_start"), getGameNameStr());
+        super(parent, commChar, gameChannel, customINI);
     }
     
     /////////////////////////////////////////
@@ -165,6 +129,12 @@ public class TexasTourney extends TexasPoker {
             rank(nick, params);
         } else if (command.equalsIgnoreCase("top")) {
             top(nick, params);
+        } else if (command.equalsIgnoreCase("away")){
+            away(nick, params);
+        } else if (command.equalsIgnoreCase("back")){
+            back(nick, params);
+        } else if (command.equalsIgnoreCase("ping")) {
+            ping(nick, params);
         } else if (command.equalsIgnoreCase("simple")) {
             simple(nick, params);
         } else if (command.equalsIgnoreCase("stats")){
@@ -208,7 +178,11 @@ public class TexasTourney extends TexasPoker {
             set(user, nick, params);
         } else if (command.equalsIgnoreCase("get")) {
             get(user, nick, params);
-        }
+        } else if (command.equalsIgnoreCase("resetaway")){
+            resetaway(user, nick, params);
+        } else if (command.equalsIgnoreCase("resetsimple")) {
+            resetsimple(user, nick, params);
+        } 
     }
     
     /**
@@ -274,7 +248,6 @@ public class TexasTourney extends TexasPoker {
                     informPlayer(p.getNick(), getMsg("remove_end_round"));
                     if (!p.has("fold")){
                         p.set("fold", 1);
-//                        showMsg(getMsg("tp_fold"), p.getNickStr(), p.get("cash")-p.get("bet"));
                         // Remove this player from any existing pots
                         if (currentPot != null && currentPot.hasPlayer(p)){
                             currentPot.removePlayer(p);
@@ -741,11 +714,15 @@ public class TexasTourney extends TexasPoker {
         } else if (inProgress) {
             informPlayer(nick, getMsg("tt_wait_for_end"));
         } else {
-            loadIni();
+            awayList.clear();
+            notSimpleList.clear();
             cmdMap.clear();
             opCmdMap.clear();
             aliasMap.clear();
             msgMap.clear();
+            loadIni();
+            loadHostList("away.txt", awayList);
+            loadHostList("simple.txt", notSimpleList);
             loadStrLib(strFile);
             loadHelp(helpFile);
             showMsg(getMsg("reload"));
@@ -1037,6 +1014,8 @@ public class TexasTourney extends TexasPoker {
         joined.clear();
         blacklist.clear();
         newOutList.clear();
+        awayList.clear();
+        notSimpleList.clear();
         cmdMap.clear();
         opCmdMap.clear();
         aliasMap.clear();
@@ -1071,6 +1050,9 @@ public class TexasTourney extends TexasPoker {
         blacklist.clear();
     }
     
+    /**
+     * Checks to see if a tournament can continue.
+     */
     public void checkTourneyStatus() {
         PokerPlayer p;
         
@@ -1151,6 +1133,11 @@ public class TexasTourney extends TexasPoker {
         minRaise = newBlind;
     }
     
+    /**
+     * Requests a cancel for the specified player. Cancels the tournament if
+     * all players request cancellation.
+     * @param nick 
+     */
     protected void requestCancel(String nick) {
         TourneyPokerPlayer p = (TourneyPokerPlayer) findJoined(nick);
         if (p.has("cancel")) {
@@ -1180,7 +1167,7 @@ public class TexasTourney extends TexasPoker {
     
     /* Game settings management */
     @Override
-    protected void initialize(){
+    protected void initSettings() {
         // Do not use set()
         // Ini file settings
         settings.put("cash", 1000);
@@ -1194,13 +1181,26 @@ public class TexasTourney extends TexasPoker {
         settings.put("revealcommunity", 0);
         settings.put("doubleblinds", 10);
         settings.put("doubleonbankrupt", 0);
-        // In-game properties
-        stage = 0;
-        currentBet = 0;
-        minRaise = 0;
-        tourneyRounds = 0;
-        newPlayerOut = false;
-        numOuts = 0;
+        settings.put("ping", 600);
+    }
+    
+    
+    @Override
+    protected void initCustom(){
+        name = "texastourney";
+        helpFile = "texastourney.help";
+        newOutList = new ArrayList<Player>();
+        tourneyStats = new TourneyStat();
+        deck = new CardDeck();
+        deck.shuffleCards();
+        pots = new ArrayList<PokerPot>();
+        community = new Hand();
+        
+        initSettings();
+        loadHelp(helpFile);
+        loadGameStats();
+        loadIni();
+        showMsg(getMsg("game_start"), getGameNameStr());
     }
     
     @Override
@@ -1230,6 +1230,8 @@ public class TexasTourney extends TexasPoker {
             out.println("doubleblinds=" + get("doubleblinds"));
             out.println("#Whether or not to double blinds when a player goes out");
             out.println("doubleonbankrupt=" + get("doubleonbankrupt"));
+            out.println("#The rate-limit of the ping command");
+            out.println("ping=" + get("ping"));
             out.close();
         } catch (IOException e) {
             manager.log("Error creating " + iniFile + "!");
@@ -1253,7 +1255,6 @@ public class TexasTourney extends TexasPoker {
                     p.set("cash", get("cash"));
                     p.set("ttwins", statLine.get("ttwins"));
                     p.set("ttplayed", statLine.get("ttplayed"));
-                    p.set("simple", statLine.get("simple"));
                     found = true;
                     break;
                 }
@@ -1282,7 +1283,6 @@ public class TexasTourney extends TexasPoker {
                 if (p.getNick().equalsIgnoreCase(record.getNick())) {
                     record.set("ttwins", p.get("ttwins"));
                     record.set("ttplayed", p.get("ttplayed"));
-                    record.set("simple", p.get("simple"));
                     found = true;
                     break;
                 }
@@ -1292,8 +1292,7 @@ public class TexasTourney extends TexasPoker {
                                         p.get("bank"), p.get("bankrupts"),
                                         p.get("bjwinnings"), p.get("bjrounds"),
                                         p.get("tpwinnings"), p.get("tprounds"),
-                                        p.get("ttwins"), p.get("ttplayed"),
-                                        p.get("simple")));
+                                        p.get("ttwins"), p.get("ttplayed")));
             }
         } catch (IOException e) {
             manager.log("Error reading players.txt!");

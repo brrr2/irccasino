@@ -32,7 +32,7 @@ public class PlayerRecord extends Stats{
      * Initializes an empty PlayerRecord.
      */
     public PlayerRecord(){
-        this("",0,0,0,0,0,0,0,0,0,0);
+        this("",0,0,0,0,0,0,0,0,0);
     }
     
     /**
@@ -47,11 +47,10 @@ public class PlayerRecord extends Stats{
      * @param tprounds
      * @param ttwins
      * @param ttplayed
-     * @param simple 
      */
     public PlayerRecord(String nick, int cash, int bank, int bankrupts, 
             int bjwinnings, int bjrounds, int tpwinnings, int tprounds,
-            int ttwins, int ttplayed, int simple){
+            int ttwins, int ttplayed){
         super();
         this.nick = nick;
         set("cash", cash);
@@ -63,7 +62,6 @@ public class PlayerRecord extends Stats{
         set("tprounds", tprounds);
         set("ttwins", ttwins);
         set("ttplayed", ttplayed);
-        set("simple", simple);
     }
     
     /**
@@ -107,7 +105,6 @@ public class PlayerRecord extends Stats{
         set("tprounds", a.get("tprounds"));
         set("ttwins", a.get("ttwins"));
         set("ttplayed", a.get("ttplayed"));
-        set("simple", a.get("simple"));
     }
     
     @Override
@@ -116,7 +113,7 @@ public class PlayerRecord extends Stats{
                 " " + get("bankrupts") + " " + get("bjwinnings") + 
                 " " + get("bjrounds") + " " + get("tpwinnings") + 
                 " " + get("tprounds") + " " + get("ttwins") +
-                " " + get("ttplayed") + " " + get("simple");
+                " " + get("ttplayed");
     }
     
     /**
