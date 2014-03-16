@@ -33,6 +33,9 @@ zen||zc|Shows the current Zen count.
 red7||rc|Shows the current Red7 count.
 count|||Shows all of the current counts and the number of cards remaining in the shoe.
 simple|||Toggles whether player receives hand information via message or notice.
+away|||Removes yourself from the PING list.
+back|||Adds yourself back to the PING list.
+ping|||Highlights the users on the PING list in the game channel.
 players|||Shows the current players who have joined the game.
 waitlist|||Shows the current players on the waiting list.
 blacklist|||Shows the players who are currently bankrupt.
@@ -66,4 +69,7 @@ discards|number||Op command that shows the specified number of discards in the o
 get|setting||Op command that gets the value for the specified setting, if a round is not in progress. Setting name is as specified in the blackjack.ini file.
 set|setting,value||Op command that sets the specified value for the specified setting, if a round is not in progress. Setting names are as specified in the blackjack.ini file.
 settings|||Op command that lists the settings available for Blackjack.
+resetsimple|||Op command that clears the simple list.
+resetaway|||Op command that clears the away list.
+trim|||Op command that removes players who have not played any rounds of any game from players.txt.
 test1|||Op command that provides a simple test to test the dealer's AI and card calculations.
