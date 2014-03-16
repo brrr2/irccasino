@@ -1151,7 +1151,7 @@ public class TexasPoker extends CardGame{
                         }
                         // If there is only one player who hasn't folded,
                         // force call on that remaining player (whose turn it must be)
-                        if (getNumberNotFolded() == 1){
+                        if (getNumberNotFolded() == 1 && !continuingRound){
                             call();
                         }
                     }
@@ -1381,8 +1381,9 @@ public class TexasPoker extends CardGame{
         }
     }
     
-    /* Card management methods for Texas Hold'em Poker */
-    
+    /////////////////////////////////////////////////////////
+    //// Card management methods for Texas Hold'em Poker ////
+    /////////////////////////////////////////////////////////
     /**
      * Deals cards to the community hand.
      */
@@ -1432,7 +1433,7 @@ public class TexasPoker extends CardGame{
      * Discards the community cards into the discard pile.
      */
     protected void discardCommunity(){
-        if (community.size() > 0){
+        if (!community.isEmpty()){
             deck.addToDiscard(community);
             community.clear();
         }
@@ -1446,8 +1447,9 @@ public class TexasPoker extends CardGame{
         showMsg(getMsg("tp_shuffle_deck"));
     }
     
-    /* Texas Hold'em Poker gameplay methods */
-    
+    //////////////////////////////////////////////
+    //// Texas Hold'em Poker gameplay methods ////
+    //////////////////////////////////////////////
     /**
      * Processes a bet command.
      * @param amount the amount to bet
@@ -1723,8 +1725,9 @@ public class TexasPoker extends CardGame{
         }
     }    
     
-    /* Channel message output methods for Texas Hold'em Poker*/
-    
+    ////////////////////////////////////////////////////////////////
+    //// Channel message output methods for Texas Hold'em Poker ////
+    ////////////////////////////////////////////////////////////////
     /**
      * Displays the players who are involved in a round. Players who have not
      * folded are displayed in bold. Designations for small blind, big blind,
@@ -1735,10 +1738,9 @@ public class TexasPoker extends CardGame{
         String nickColor;
         for (Player p : joined) {
             // Give bold to remaining non-folded players
+            nickColor = "";
             if (!p.has("fold")){
                 nickColor = Colors.BOLD;
-            } else {
-                nickColor = "";
             }
             msg += nickColor + p.getNick();
 
@@ -1861,10 +1863,10 @@ public class TexasPoker extends CardGame{
     @Override
     public void showPlayerWinnings(String nick){
         int winnings = getPlayerStat(nick, "tpwinnings");
-        if (winnings != Integer.MIN_VALUE) {
-            showMsg(getMsg("player_winnings"), formatNoPing(nick), winnings, getGameNameStr());
-        } else {
+        if (winnings == Integer.MIN_VALUE) {
             showMsg(getMsg("no_data"), formatNoPing(nick));
+        } else {
+            showMsg(getMsg("player_winnings"), formatNoPing(nick), winnings, getGameNameStr());
         }
     }
     
@@ -1872,7 +1874,6 @@ public class TexasPoker extends CardGame{
     public void showPlayerWinRate(String nick){
         double winnings = (double) getPlayerStat(nick, "tpwinnings");
         double rounds = (double) getPlayerStat(nick, "tprounds");
-        
         if (rounds == Integer.MIN_VALUE) {
             showMsg(getMsg("no_data"), formatNoPing(nick));
         } else if (rounds == 0){
@@ -1902,10 +1903,10 @@ public class TexasPoker extends CardGame{
         int bankrupts = getPlayerStat(nick, "bankrupts");
         int winnings = getPlayerStat(nick, "tpwinnings");
         int rounds = getPlayerStat(nick, "tprounds");
-        if (cash != Integer.MIN_VALUE) {
-            showMsg(getMsg("player_all_stats"), formatNoPing(nick), cash, bank, net, bankrupts, winnings, rounds);
-        } else {
+        if (cash == Integer.MIN_VALUE) {
             showMsg(getMsg("no_data"), formatNoPing(nick));
+        } else {
+            showMsg(getMsg("player_all_stats"), formatNoPing(nick), cash, bank, net, bankrupts, winnings, rounds);
         }
     }
 

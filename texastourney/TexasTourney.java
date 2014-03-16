@@ -279,6 +279,7 @@ public class TexasTourney extends TexasPoker {
      * @param nick
      * @param params 
      */
+    @Override
     protected void start(String nick, String[] params) {
         if (!isJoined(nick)) {
             informPlayer(nick, getMsg("no_join"));
@@ -1513,19 +1514,19 @@ public class TexasTourney extends TexasPoker {
     
     public void showPlayerTourneysPlayed(String nick){
         int ttplayed = getPlayerStat(nick, "ttplayed");
-        if (ttplayed != Integer.MIN_VALUE){
-            showMsg(getMsg("tt_player_played"), formatNoPing(nick), ttplayed);
-        } else {
+        if (ttplayed == Integer.MIN_VALUE){
             showMsg(getMsg("no_data"), formatNoPing(nick));
+        } else {
+            showMsg(getMsg("tt_player_played"), formatNoPing(nick), ttplayed);
         }
     }
     
     public void showPlayerTourneyWins(String nick){
         int ttwins = getPlayerStat(nick, "ttwins");
-        if (ttwins != Integer.MIN_VALUE){
-            showMsg(getMsg("tt_player_wins"), formatNoPing(nick), ttwins);
-        } else {
+        if (ttwins == Integer.MIN_VALUE){
             showMsg(getMsg("no_data"), formatNoPing(nick));
+        } else {
+            showMsg(getMsg("tt_player_wins"), formatNoPing(nick), ttwins);
         }
     }
     
@@ -1533,10 +1534,10 @@ public class TexasTourney extends TexasPoker {
     public void showPlayerAllStats(String nick){
         int ttwins = getPlayerStat(nick, "ttwins");
         int ttplayed = getPlayerStat(nick, "ttplayed");
-        if (ttwins != Integer.MIN_VALUE) {
-            showMsg(getMsg("tt_player_all_stats"), formatNoPing(nick), ttwins, ttplayed);
-        } else {
+        if (ttwins == Integer.MIN_VALUE) {
             showMsg(getMsg("no_data"), formatNoPing(nick));
+        } else {
+            showMsg(getMsg("tt_player_all_stats"), formatNoPing(nick), ttwins, ttplayed);
         }
     }
 

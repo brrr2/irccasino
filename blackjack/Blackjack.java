@@ -233,9 +233,9 @@ public class Blackjack extends CardGame {
         }
     }
 
-    /////////////////////////
-    //// Command methods ////
-    /////////////////////////
+    ///////////////////////////////////////
+    //// Command methods for Blackjack ////
+    ///////////////////////////////////////
     /**
      * Starts a new round.
      * @param nick
@@ -962,7 +962,9 @@ public class Blackjack extends CardGame {
         }
     }
     
-    /* Game settings management */
+    //////////////////////////////////
+    //// Game settings management ////
+    //////////////////////////////////
     @Override
     protected void set(String setting, int value) {
         super.set(setting, value);
@@ -1065,7 +1067,9 @@ public class Blackjack extends CardGame {
         }
     }
 
-    /* Game stats management */
+    /////////////////////////////////////////////
+    //// Game stats management for Blackjack ////
+    /////////////////////////////////////////////
     @Override
     public final void loadGameStats() {
         try {
@@ -1101,6 +1105,8 @@ public class Blackjack extends CardGame {
             }
         }
     }
+    
+    @Override
     public void saveGameStats() {
         boolean found = false;
         int index = 0;
@@ -1188,7 +1194,9 @@ public class Blackjack extends CardGame {
         return total;
     }
     
-    /* Game management methods */
+    //////////////////////////////////////////////
+    //// Game management methods for Blackjack////
+    //////////////////////////////////////////////
     @Override
     public void addPlayer(String nick, String host) {
         addPlayer(new BlackjackPlayer(nick, host));
@@ -1447,7 +1455,9 @@ public class Blackjack extends CardGame {
         }
     }
 
-    /* Card management methods for Blackjack */
+    ///////////////////////////////////////////////
+    //// Card management methods for Blackjack ////
+    ///////////////////////////////////////////////
     /**
      * Deals a card from the shoe to the specified hand.
      * @param h the hand
@@ -1812,9 +1822,8 @@ public class Blackjack extends CardGame {
     private int getZen() {
         int zenCount = 0;
         String face;
-        ArrayList<Card> discards = deck.getDiscards();
-        for (int i = 0; i < deck.getNumberDiscards(); i++) {
-            face = discards.get(i).getFace();
+        for (Card discard : deck.getDiscards()) {
+            face = discard.getFace();
             if (new StringTokenizer(face, "23").countTokens() == 0) {
                 zenCount++;
             } else if (new StringTokenizer(face, "456").countTokens() == 0) {
@@ -1837,9 +1846,8 @@ public class Blackjack extends CardGame {
     private int getHiLo() {
         int hiLo = 0;
         String face;
-        ArrayList<Card> discards = deck.getDiscards();
-        for (int i = 0; i < deck.getNumberDiscards(); i++) {
-            face = discards.get(i).getFace();
+        for (Card discard : deck.getDiscards()) {
+            face = discard.getFace();
             if (new StringTokenizer(face, "23456").countTokens() == 0) {
                 hiLo++;
             } else if (new StringTokenizer(face, "TJQKA").countTokens() == 0) {
@@ -1856,9 +1864,8 @@ public class Blackjack extends CardGame {
     private double getRed7() {
         double red7 = -2 * get("decks");
         String face;
-        ArrayList<Card> discards = deck.getDiscards();
-        for (int i = 0; i < deck.getNumberDiscards(); i++) {
-            face = discards.get(i).getFace();
+        for (Card discard : deck.getDiscards()) {
+            face = discard.getFace();
             if (new StringTokenizer(face, "23456").countTokens() == 0) {
                 red7++;
             } else if (new StringTokenizer(face, "TJQKA").countTokens() == 0) {
@@ -1889,7 +1896,9 @@ public class Blackjack extends CardGame {
         }
     }
     
-    /* Channel message output methods for Blackjack */
+    //////////////////////////////////////////////////////
+    //// Channel message output methods for Blackjack ////
+    //////////////////////////////////////////////////////
     /**
      * Shows house stats for a given shoe size.
      * @param n the number of decks in the shoe
@@ -2139,10 +2148,10 @@ public class Blackjack extends CardGame {
     @Override
     public void showPlayerWinnings(String nick){
         int winnings = getPlayerStat(nick, "bjwinnings");
-        if (winnings != Integer.MIN_VALUE) {
-            showMsg(getMsg("player_winnings"), formatNoPing(nick), winnings, getGameNameStr());
-        } else {
+        if (winnings == Integer.MIN_VALUE) {
             showMsg(getMsg("no_data"), formatNoPing(nick));
+        } else {
+            showMsg(getMsg("player_winnings"), formatNoPing(nick), winnings, getGameNameStr());
         }
     }
     
@@ -2150,31 +2159,25 @@ public class Blackjack extends CardGame {
     public void showPlayerWinRate(String nick){
         double winnings = (double) getPlayerStat(nick, "bjwinnings");
         double rounds = (double) getPlayerStat(nick, "bjrounds");
-        
-        if (rounds != Integer.MIN_VALUE) {
-            if (rounds == 0){
-                showMsg(getMsg("player_no_rounds"), formatNoPing(nick), getGameNameStr());
-            } else {
-                showMsg(getMsg("player_winrate"), formatNoPing(nick), winnings/rounds, getGameNameStr());
-            }    
-        } else {
+        if (rounds == Integer.MIN_VALUE) {
             showMsg(getMsg("no_data"), formatNoPing(nick));
+        } else if (rounds == 0){
+            showMsg(getMsg("player_no_rounds"), formatNoPing(nick), getGameNameStr());
+        } else {
+            showMsg(getMsg("player_winrate"), formatNoPing(nick), winnings/rounds, getGameNameStr());
         }
     }
     
     @Override
     public void showPlayerRounds(String nick){
         int rounds = getPlayerStat(nick, "bjrounds");
-        
-        if (rounds != Integer.MIN_VALUE) {
-            if (rounds == 0){
-                showMsg(getMsg("player_no_rounds"), formatNoPing(nick), getGameNameStr());
-            } else {
-                showMsg(getMsg("player_rounds"), formatNoPing(nick), rounds, getGameNameStr());
-            }  
-        } else {
+        if (rounds == Integer.MIN_VALUE) {
             showMsg(getMsg("no_data"), formatNoPing(nick));
-        }
+        } else if (rounds == 0){
+            showMsg(getMsg("player_no_rounds"), formatNoPing(nick), getGameNameStr());
+        } else {
+            showMsg(getMsg("player_rounds"), formatNoPing(nick), rounds, getGameNameStr());
+        }  
     } 
     
     @Override

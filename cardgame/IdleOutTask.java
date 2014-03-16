@@ -25,7 +25,7 @@ import java.util.TimerTask;
  * Idle task for removing idle players.
  * @author Yizhe Shen
  */
-class IdleOutTask extends TimerTask {
+public class IdleOutTask extends TimerTask {
     private final Player player;
     private final CardGame game;
     

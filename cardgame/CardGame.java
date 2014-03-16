@@ -920,10 +920,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     abstract protected void initSettings();
     
     /**
-     * Custom initializations for individual games.
+     * Additional custom initializations for individual games.
      */
     abstract protected void initCustom();
     
+    /**
+     * Initializes the game.
+     */
     protected final void initGame() {
         joined = new ArrayList<Player>();
         blacklist = new ArrayList<Player>();
