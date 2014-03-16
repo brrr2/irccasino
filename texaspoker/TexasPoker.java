@@ -1570,10 +1570,8 @@ public class TexasPoker extends CardGame{
      * @return the number of non-folded players
      */
     protected int getNumberNotFolded(){
-        PokerPlayer p;
         int numberNotFolded = 0;
-        for (int ctr = 0; ctr < joined.size(); ctr++){
-            p = (PokerPlayer) joined.get(ctr);
+        for (Player p : joined) {
             if (!p.has("fold")){
                 numberNotFolded++;
             }
@@ -1586,10 +1584,8 @@ public class TexasPoker extends CardGame{
      * @return the number of players who can bet
      */
     protected int getNumberCanBet(){
-        PokerPlayer p;
         int numberCanBet = 0;
-        for (int ctr = 0; ctr < joined.size(); ctr++){
-            p = (PokerPlayer) joined.get(ctr);
+        for (Player p : joined) {
             if (!p.has("fold") && !p.has("allin")){
                 numberCanBet++;
             }
@@ -1603,10 +1599,8 @@ public class TexasPoker extends CardGame{
      * @return the number of bettors
      */
     protected int getNumberBettors() {
-        PokerPlayer p;
         int numberBettors = 0;
-        for (int ctr = 0; ctr < joined.size(); ctr++){
-            p = (PokerPlayer) joined.get(ctr);
+        for (Player p : joined) {
             if (p.has("bet")){
                 numberBettors++;
             }
@@ -1620,7 +1614,6 @@ public class TexasPoker extends CardGame{
      */
     protected int getCashInPlay() {
         int total = 0;
-        PokerPlayer p;
         
         // Add in the processed pots
         for (PokerPot pp : pots) {
@@ -1628,8 +1621,7 @@ public class TexasPoker extends CardGame{
         }
         
         // Add in the amounts currently being betted
-        for (int ctr = 0; ctr < joined.size(); ctr++) {
-            p = (PokerPlayer) joined.get(ctr);
+        for (Player p : joined) {
             total += p.get("bet");
         }
         
@@ -1739,18 +1731,16 @@ public class TexasPoker extends CardGame{
      * and dealer are also shown.
      */
     public void showTablePlayers(){
-        PokerPlayer p;
         String msg = formatBold(joined.size()) + " players: ";
         String nickColor;
-        for (int ctr = 0; ctr < joined.size(); ctr++){
-            p = (PokerPlayer) joined.get(ctr);
+        for (Player p : joined) {
             // Give bold to remaining non-folded players
             if (!p.has("fold")){
                 nickColor = Colors.BOLD;
             } else {
                 nickColor = "";
             }
-            msg += nickColor+p.getNick();
+            msg += nickColor + p.getNick();
 
             // Give special players a label
             if (p == dealer || p == smallBlind || p == bigBlind){
@@ -1765,12 +1755,9 @@ public class TexasPoker extends CardGame{
                 }
                 msg += ")";
             }
-            msg += nickColor;
-            if (ctr != joined.size() - 1){
-                msg += ", ";
-            }
+            msg += nickColor + ", ";
         }
-        showMsg(msg);
+        showMsg(msg.substring(0, msg.length() - 2));
     }
     
     /**
@@ -1784,7 +1771,6 @@ public class TexasPoker extends CardGame{
      * Displays the community cards along with existing pots.
      */
     public void showCommunityCards(){
-        PokerPlayer p;
         StringBuilder msg = new StringBuilder();
         // Append community cards to StringBuilder
         String str = formatHeader(" Community: ") + " " + community.toString() + " ";
@@ -1798,19 +1784,13 @@ public class TexasPoker extends CardGame{
         
         // Append remaining non-folded players
         int notFolded = getNumberNotFolded();
-        int count = 0;
         str = "(" + formatBold(notFolded) + " players: ";
-        for (int ctr = 0; ctr < joined.size(); ctr++){
-            p = (PokerPlayer) joined.get(ctr);
+        for (Player p : joined) {
             if (!p.has("fold")){
-                str += p.getNick(false);
-                if (count != notFolded-1){
-                    str += ", ";
-                }
-                count++;
+                str += p.getNick(false) + ", ";
             }
         }
-        str += ")";
+        str = str.substring(0, str.length() - 2) + ")";
         msg.append(str);
         
         showMsg(msg.toString());
@@ -1893,29 +1873,25 @@ public class TexasPoker extends CardGame{
         double winnings = (double) getPlayerStat(nick, "tpwinnings");
         double rounds = (double) getPlayerStat(nick, "tprounds");
         
-        if (rounds != Integer.MIN_VALUE) {
-            if (rounds == 0){
-                showMsg(getMsg("player_no_rounds"), formatNoPing(nick), getGameNameStr());
-            } else {
-                showMsg(getMsg("player_winrate"), formatNoPing(nick), winnings/rounds, getGameNameStr());
-            }    
-        } else {
+        if (rounds == Integer.MIN_VALUE) {
             showMsg(getMsg("no_data"), formatNoPing(nick));
-        }
+        } else if (rounds == 0){
+            showMsg(getMsg("player_no_rounds"), formatNoPing(nick), getGameNameStr());
+        } else {
+            showMsg(getMsg("player_winrate"), formatNoPing(nick), winnings/rounds, getGameNameStr());
+        }    
     }
     
     @Override
     public void showPlayerRounds(String nick){
         int rounds = getPlayerStat(nick, "tprounds");
-        if (rounds != Integer.MIN_VALUE) {
-            if (rounds == 0){
-                showMsg(getMsg("player_no_rounds"), formatNoPing(nick), getGameNameStr());
-            } else {
-                showMsg(getMsg("player_rounds"), formatNoPing(nick), rounds, getGameNameStr());
-            }  
-        } else {
+        if (rounds == Integer.MIN_VALUE) {
             showMsg(getMsg("no_data"), formatNoPing(nick));
-        }
+        } else if (rounds == 0){
+            showMsg(getMsg("player_no_rounds"), formatNoPing(nick), getGameNameStr());
+        } else {
+            showMsg(getMsg("player_rounds"), formatNoPing(nick), rounds, getGameNameStr());
+        }  
     }
     
     @Override
