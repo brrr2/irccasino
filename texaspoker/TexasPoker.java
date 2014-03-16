@@ -203,6 +203,8 @@ public class TexasPoker extends CardGame{
             resetsimple(user, nick, params);
         } else if (command.equalsIgnoreCase("reload")) {
             reload(user, nick, params);
+        } else if (command.equalsIgnoreCase("trim")) {
+            trim(user, nick, params);
         } else if (command.equalsIgnoreCase("test1")) {
             test1(user, nick, params);
         } else if (command.equalsIgnoreCase("test2")) {

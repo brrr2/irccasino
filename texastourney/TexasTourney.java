@@ -182,6 +182,8 @@ public class TexasTourney extends TexasPoker {
             resetaway(user, nick, params);
         } else if (command.equalsIgnoreCase("resetsimple")) {
             resetsimple(user, nick, params);
+        } else if (command.equalsIgnoreCase("trim")) {
+            trim(user, nick, params);
         } 
     }
     

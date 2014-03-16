@@ -39,6 +39,7 @@ stop=All remaining auto-starts have been canceled.
 stop_no_autostarts=No auto-starts are scheduled after this round.
 no_manual_start=The next round will automatically begin.
 game_lagging=The game is lagging. Please wait patiently.
+no_trim=players.txt may not be trimmed while any game is in progress.
 ###################
 # With parameters #
 ###################

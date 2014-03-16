@@ -474,17 +474,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param params
      */
     public void away(String nick, String[] params) {
-        if (!isJoined(nick)) {
-            informPlayer(nick, getMsg("no_join"));
+        User user = findUser(nick);
+        if (awayList.contains(user.getHostmask())) {
+            informPlayer(nick, "You are already marked as away!");
         } else {
-            Player p = findJoined(nick);
-            if (awayList.contains(p.getHost())) {
-                informPlayer(nick, "You are already marked as away!");
-            } else {
-                awayList.add(p.getHost());
-                saveHostList("away.txt", awayList);
-                informPlayer(nick, "You are now marked as away.");
-            }
+            awayList.add(user.getHostmask());
+            saveHostList("away.txt", awayList);
+            informPlayer(nick, "You are now marked as away.");
         }
     }
     
@@ -494,17 +490,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param params
      */
     public void back(String nick, String[] params) {
-        if (!isJoined(nick)) {
-            informPlayer(nick, getMsg("no_join"));
+        User user = findUser(nick);
+        if (awayList.contains(user.getHostmask())){
+            awayList.remove(user.getHostmask());
+            saveHostList("away.txt", awayList);
+            informPlayer(nick, "You are no longer marked as away.");
         } else {
-            Player p = findJoined(nick);
-            if (awayList.contains(p.getHost())){
-                awayList.remove(p.getHost());
-                saveHostList("away.txt", awayList);
-                informPlayer(nick, "You are no longer marked as away.");
-            } else {
-                informPlayer(nick, "You are not marked as away!");
-            }
+            informPlayer(nick, "You are not marked as away!");
         }
     }
     
@@ -517,19 +509,15 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param params 
      */
     protected void simple(String nick, String[] params) {
-        if (!isJoined(nick)) {
-            informPlayer(nick, getMsg("no_join"));
+        User user = findUser(nick);
+        if (notSimpleList.contains(user.getHostmask())) {
+            notSimpleList.remove(user.getHostmask());
+            informPlayer(nick, "Game info will now be noticed to you.");
         } else {
-            Player p = findJoined(nick);
-            if (notSimpleList.contains(p.getHost())) {
-                notSimpleList.remove(p.getHost());
-                informPlayer(nick, "Game info will now be noticed to you.");
-            } else {
-                notSimpleList.add(p.getHost());
-                informPlayer(nick, "Game info will now be messaged to you.");
-            }
-            saveHostList("simple.txt", notSimpleList);
+            notSimpleList.add(user.getHostmask());
+            informPlayer(nick, "Game info will now be messaged to you.");
         }
+        saveHostList("simple.txt", notSimpleList);
     }
     
     /**
@@ -610,11 +598,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             Iterator<User> it = channel.getUsers().iterator();
             while(it.hasNext()){
                 tUser = it.next();
-                if (!awayList.contains(tUser.getHostmask())){
+                if (!awayList.contains(tUser.getHostmask()) && !isJoined(tUser.getNick())){
                     outStr += tUser.getNick()+", ";
                 }
             }
-            showMsg(outStr.substring(0, outStr.length()-2));
+            showMsg(outStr.substring(0, outStr.length() - 2));
 
             lastPing = System.currentTimeMillis();
         }
@@ -844,21 +832,62 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     /**
      * Erases all hosts from away.txt.
      * @param user 
+     * @param nick 
+     * @param params 
      */
     public void resetaway(User user, String nick, String[] params) {
-        awayList.clear();
-        saveHostList("away.txt", awayList);
-        informPlayer(nick, "The away list has been reset.");
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else {
+            awayList.clear();
+            saveHostList("away.txt", awayList);
+            informPlayer(nick, "The away list has been reset.");
+        }
     }
     
     /**
      * Erases all hosts from simple.txt.
      * @param user 
+     * @param nick 
+     * @param params 
      */
     public void resetsimple(User user, String nick, String[] params) {
-        notSimpleList.clear();
-        saveHostList("simple.txt", notSimpleList);
-        informPlayer(nick, "The simple list has been reset.");
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else {
+            notSimpleList.clear();
+            saveHostList("simple.txt", notSimpleList);
+            informPlayer(nick, "The simple list has been reset.");
+        }
+    }
+    
+    /**
+     * Removes players who haven't played a round of any game from players.txt.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    public void trim(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (manager.gamesInProgress()) {
+            informPlayer(nick, getMsg("no_trim"));
+        } else {
+            try {
+                ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
+                ArrayList<PlayerRecord> newRecords = new ArrayList<PlayerRecord>();
+                loadPlayerFile(records);
+                for (PlayerRecord record : records) {
+                    if (record.has("bjrounds") || record.has("tprounds") || record.has("ttplayed")) {
+                        newRecords.add(record);
+                    }
+                }
+                savePlayerFile(newRecords);
+            } catch (IOException e) {
+                manager.log("Error reading players.txt!");
+                informPlayer(nick, "Error reading players.txt!");
+            }
+        }
     }
     
     //////////////////////////
@@ -1842,17 +1871,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param args parameters to be included in the message
      */
     protected void informPlayer(String nick, String message, Object... args){
-        Iterator it = channel.getUsers().iterator();
-        User u;
-        String host = "";
-        while(it.hasNext()) {
-            u = (User) it.next();
-            if (u.getNick().equalsIgnoreCase(nick)) {
-                host = u.getHostmask();
-                break;
-            }
-        }
-        
+        String host = findUser(nick).getHostmask();
         if (notSimpleList.contains(host)) {
             manager.sendMessage(nick, String.format(message, args));
         } else {

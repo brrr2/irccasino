@@ -228,6 +228,8 @@ public class Blackjack extends CardGame {
             resetaway(user, nick, params);
         } else if (command.equalsIgnoreCase("resetsimple")) {
             resetsimple(user, nick, params);
+        } else if (command.equalsIgnoreCase("trim")) {
+            trim(user, nick, params);
         } else if (command.equalsIgnoreCase("test1")){
             test1(user, nick, params);
         }
@@ -919,6 +921,8 @@ public class Blackjack extends CardGame {
             aliasMap.clear();
             msgMap.clear();
             loadIni();
+            loadHostList("away.txt", awayList);
+            loadHostList("simple.txt", notSimpleList);
             loadStrLib(strFile);
             loadHelp(helpFile);
             showMsg(getMsg("reload"));
