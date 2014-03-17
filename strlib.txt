@@ -216,3 +216,5 @@ tt_end_round=u0002----------u0002 End of round u0002%,du0002. u0002----------u00
 tt_out_of_tourney=Out: %s
 tt_unjoin=%s is out of the tournament!
 tt_cancel=%s has requested that the tournament be canceled.
+tt_player_no_tourneys=%s has not played in any tournaments.
+tt_player_winrate=%s has won %d%% of tournaments entered.

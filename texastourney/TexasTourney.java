@@ -97,10 +97,12 @@ public class TexasTourney extends TexasPoker {
             stop(nick, params);
         } else if (command.equalsIgnoreCase("cash")) {
             cash(nick, params);
-        } else if (command.equalsIgnoreCase("tourneys")) {
-            tourneys(nick, params);
+        } else if (command.equalsIgnoreCase("tourneys") || command.equalsIgnoreCase("rounds")) {
+            rounds(nick, params);
         } else if (command.equalsIgnoreCase("wins")) {
             wins(nick, params);
+        } else if (command.equalsIgnoreCase("winrate")) {
+            winrate(nick, params);
         } else if (command.equalsIgnoreCase("player") || command.equalsIgnoreCase("p")){
             player(nick, params);
         } else if (command.equalsIgnoreCase("bet") || command.equalsIgnoreCase("b")) {
@@ -330,7 +332,8 @@ public class TexasTourney extends TexasPoker {
      * @param nick
      * @param params 
      */
-    protected void tourneys(String nick, String[] params) {
+    @Override
+    protected void rounds(String nick, String[] params) {
         if (params.length > 0){
             showPlayerTourneysPlayed(params[0]);
         } else {
@@ -1529,6 +1532,19 @@ public class TexasTourney extends TexasPoker {
             showMsg(getMsg("no_data"), formatNoPing(nick));
         } else {
             showMsg(getMsg("tt_player_wins"), formatNoPing(nick), ttwins);
+        }
+    }
+    
+    @Override
+    public void showPlayerWinRate(String nick) {
+        int ttwins = getPlayerStat(nick, "ttwins");
+        int ttplayed = getPlayerStat(nick, "ttplayed");
+        if (ttplayed == Integer.MIN_VALUE) {
+            showMsg(getMsg("no_data"), formatNoPing(nick));
+        } else if (ttplayed == 0) {
+            showMsg(getMsg("tt_player_no_tourneys"), formatNoPing(nick));
+        } else {
+            showMsg(getMsg("tt_player_winrate"), formatNoPing(nick), Math.round((double) ttwins/ (double) ttplayed * 100));
         }
     }
     
