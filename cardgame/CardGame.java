@@ -36,6 +36,7 @@ import org.pircbotx.Colors;
 import org.pircbotx.PircBotX;
 import org.pircbotx.User;
 import org.pircbotx.hooks.ListenerAdapter;
+import org.pircbotx.hooks.events.KickEvent;
 import org.pircbotx.hooks.events.MessageEvent;
 import org.pircbotx.hooks.events.NickChangeEvent;
 import org.pircbotx.hooks.events.PartEvent;
@@ -157,6 +158,15 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         processNickChange(event.getUser(), event.getOldNick(), event.getNewNick());
     }
     
+    /**
+     * Occurs when a user is kicked from the game channel.
+     * @param event 
+     */
+    @Override
+    public void onKick(KickEvent<PircBotX> event) {
+        processKick(event.getRecipient());
+    }
+    
     /////////////////////////////////////////
     //// Methods that process IRC events ////
     /////////////////////////////////////////
@@ -199,6 +209,17 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 removeWaitlisted(oldNick);
             }
             join(newNick, hostmask);
+        }
+    }
+    
+    /**
+     * Processes a kick event in the game channel.
+     * @param recip 
+     */
+    protected void processKick(User recip) {
+        String nick = recip.getNick();
+        if (isJoined(nick) || isWaitlisted(nick)) {
+            leave(nick);
         }
     }
     
