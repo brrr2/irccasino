@@ -13,10 +13,14 @@ community||comm|Shows the current community cards that have been dealt.
 hand|||Tells you your current hand.
 turn|||Shows whose turn it is at present.
 cash|nick||Shows the current cash amount for the specified player. Shows your own cash amount if no nick is provided.
-tourneys|nick||Shows the number of tournaments the specified player has played. Shows your own number if no nick is specified.
+tourneys|nick|rounds|Shows the number of tournaments the specified player has played. Shows your own number if no nick is specified.
 wins|nick||Shows the number of tournament wins for the specified player. Shows your own number if no nick is specified.
+winrate|nick||Shows the winning percentage for the specified player. Shows your own percentage if no nick is specified.
 player|nick|p|Shows all the statistics for the specified player. Shows your own statistics if no nick is specified.
 simple|||Toggles whether player receives hand information via message or notice.
+away|||Removes yourself from the PING list.
+back|||Adds yourself back to the PING list.
+ping|||Highlights the users on the PING list in the game channel.
 players|||Shows the current players who have joined the game.
 blacklist|||Shows the players who are no longer in the current tournament.
 stats|||Shows the current overall statistics for the game.
@@ -40,3 +44,6 @@ reload|||Op command that reloads the texaspoker.help, texaspoker.ini and strlib.
 get|setting||Op command that gets the value for the specified setting, if a round is not in progress. Setting name is as specified in the texaspoker.ini file.
 set|setting,value||Op command that sets the specified value for the specified setting, if a round is not in progress. Setting names are as specified in the texaspoker.ini file.
 settings|||Op command that lists the settings available for Texas Hold'em.
+resetsimple|||Op command that clears the simple list.
+resetaway|||Op command that clears the away list.
+trim|||Op command that removes players who have not played any rounds of any game from players.txt.

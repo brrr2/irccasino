@@ -23,6 +23,9 @@ player|nick|p|Shows all the statistics for the specified player. Shows your own 
 deposit|amount||Deposit cash to your bankroll. A positive amount corresponds to a deposit. A negative amount corresponds to a withdrawal.
 withdraw|amount||Withdraw cash from your bankroll. A positive amount corresponds to a withdrawal. A negative amount corresponds to a deposit.
 simple|||Toggles whether player receives hand information via message or notice.
+away|||Removes yourself from the PING list.
+back|||Adds yourself back to the PING list.
+ping|||Highlights the users on the PING list in the game channel.
 players|||Shows the current players who have joined the game.
 waitlist|||Shows the current players on the waiting list.
 blacklist|||Shows the players who are currently bankrupt.
@@ -51,6 +54,9 @@ discards|number||Op command that shows the specified number of discards in the o
 get|setting||Op command that gets the value for the specified setting, if a round is not in progress. Setting name is as specified in the texaspoker.ini file.
 set|setting,value||Op command that sets the specified value for the specified setting, if a round is not in progress. Setting names are as specified in the texaspoker.ini file.
 settings|||Op command that lists the settings available for Texas Hold'em.
+resetsimple|||Op command that clears the simple list.
+resetaway|||Op command that clears the away list.
+trim|||Op command that removes players who have not played any rounds of any game from players.txt.
 test1|numPlayers||Op command that provides a simple test to determine the winner of a simulated game with 2-5 players.
 test2|handSize||Op command that provides a simple test to determine the type and value of a hand based on the specified number of cards dealt.
 test3|numPlayers||Op command that provides a test of the algorithm for calculating the winning percentages of a simulated game with 2-5 players.

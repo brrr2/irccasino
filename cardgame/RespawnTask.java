@@ -19,14 +19,13 @@
 
 package irccasino.cardgame;
 
-import java.util.ArrayList;
 import java.util.TimerTask;
 
 /**
  * Respawn task for giving loans after bankruptcies.
  * @author Yizhe Shen
  */
-class RespawnTask extends TimerTask {
+public class RespawnTask extends TimerTask {
     private final Player player;
     private final CardGame game;
     
@@ -37,12 +36,11 @@ class RespawnTask extends TimerTask {
     
     @Override
     public void run() {
-        ArrayList<RespawnTask> tasks = game.getRespawnTasks();
         player.set("cash", game.get("cash"));
         player.add("bank", -game.get("cash"));
-        game.showMsg(game.getMsg("respawn"), player.getNickStr(), game.get("cash"));
         game.savePlayerData(player);
         game.removeBlacklisted(player);
-        tasks.remove(this);
+        game.getRespawnTasks().remove(this);
+        game.showMsg(game.getMsg("respawn"), player.getNickStr(), game.get("cash"));
     }
 }

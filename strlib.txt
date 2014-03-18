@@ -17,7 +17,7 @@ wait_round_end=A round is in progress! Wait for the round to end.
 round_started=A round is in progress!
 no_start=No round in progress!
 no_betting=No betting in progress!
-no_force_play=It is not currently anybody's turn!
+nobody_turn=It is not currently anybody's turn!
 wrong_turn=It's not your turn!
 no_cards=No cards have been dealt yet!
 ops_only=This command may only be used by channel Ops.
@@ -37,6 +37,9 @@ reload=Configuration and library files have been reloaded.
 remove_end_round=You will be removed at the end of the round.
 stop=All remaining auto-starts have been canceled.
 stop_no_autostarts=No auto-starts are scheduled after this round.
+no_manual_start=The next round will automatically begin.
+game_lagging=The game is lagging. Please wait patiently.
+no_trim=players.txt may not be trimmed while any game is in progress.
 ###################
 # With parameters #
 ###################
@@ -213,3 +216,5 @@ tt_end_round=u0002----------u0002 End of round u0002%,du0002. u0002----------u00
 tt_out_of_tourney=Out: %s
 tt_unjoin=%s is out of the tournament!
 tt_cancel=%s has requested that the tournament be canceled.
+tt_player_no_tourneys=%s has not played in any tournaments.
+tt_player_winrate=%s has won %d%% of tournaments entered.

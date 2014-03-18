@@ -36,7 +36,7 @@ import org.pircbotx.Colors;
 import org.pircbotx.PircBotX;
 import org.pircbotx.User;
 import org.pircbotx.hooks.ListenerAdapter;
-import org.pircbotx.hooks.events.JoinEvent;
+import org.pircbotx.hooks.events.KickEvent;
 import org.pircbotx.hooks.events.MessageEvent;
 import org.pircbotx.hooks.events.NickChangeEvent;
 import org.pircbotx.hooks.events.PartEvent;
@@ -51,17 +51,31 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected GameManager manager;
     protected Channel channel;
     protected char commandChar;
-    protected ArrayList<Player> joined, blacklist, waitlist; //Player lists
+    // Player lists
+    protected ArrayList<Player> joined;
+    protected ArrayList<Player> blacklist;
+    protected ArrayList<Player> waitlist;
     protected CardDeck deck; //the deck of cards
     protected Player currentPlayer; //stores the player whose turn it is
-    protected Timer gameTimer; //All TimerTasks are scheduled on this Timer
+    protected Timer gameTimer;
     /** INI file settings **/
     protected HashMap<String,Integer> settings;
-    // In-game properties
-    protected boolean inProgress, roundEnded;
+    // Game properties
+    protected boolean inProgress;
+    protected boolean roundEnded;
+    protected boolean continuingRound;
     protected int startCount;
-    protected HashMap<String,String> cmdMap, opCmdMap, aliasMap, msgMap;
-    protected String name, iniFile, helpFile, strFile;
+    protected long lastPing;
+    protected String name;
+    protected String iniFile;
+    protected String helpFile;
+    protected String strFile;
+    protected HashMap<String,String> cmdMap;
+    protected HashMap<String,String> opCmdMap;
+    protected HashMap<String,String> aliasMap;
+    protected HashMap<String,String> msgMap;
+    protected ArrayList<String> awayList;
+    protected ArrayList<String> notSimpleList;
     // TimerTasks
     protected IdleOutTask idleOutTask;
     protected IdleWarningTask idleWarningTask;
@@ -73,34 +87,26 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     
     /**
-     * Creates a generic CardGame.
+     * Creates a generic CardGame with a custom INI file.
      * Not to be directly instantiated.
      * 
      * @param parent The bot that uses an instance of this class
      * @param commChar The command char
      * @param gameChannel The IRC channel in which the game is to be run.
+     * @param customINI INI file for the game
      */
-    public CardGame(GameManager parent, char commChar, Channel gameChannel){
+    public CardGame(GameManager parent, char commChar, Channel gameChannel, String customINI) {
         manager = parent;
         commandChar = commChar;
         channel = gameChannel;
-        joined = new ArrayList<Player>();
-        blacklist = new ArrayList<Player>();
-        waitlist = new ArrayList<Player>();
-        respawnTasks = new ArrayList<RespawnTask>();
-        settings = new HashMap<String,Integer>();
-        cmdMap = new HashMap<String,String>();
-        opCmdMap = new HashMap<String,String>();
-        aliasMap = new HashMap<String,String>();
-        msgMap = new HashMap<String,String>();
-        gameTimer = new Timer("Game Timer");
-        startRoundTask = null;
-        idleOutTask = null;
-        idleWarningTask = null;
-        currentPlayer = null;
-        checkPlayerFile();
+        iniFile = customINI;
+        
+        initGame();
     }
     
+    ////////////////////
+    //// IRC events ////
+    ////////////////////
     /**
      * Occurs when a message is sent to the game channel.
      * @param event message event
@@ -113,7 +119,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         if (msg.length() > 1 && msg.charAt(0) == commandChar && 
                 msg.charAt(1) != ' ' && event.getChannel().equals(channel)){
             StringTokenizer st = new StringTokenizer(msg.substring(1));
-            String command = st.nextToken().toLowerCase();
+            String command = st.nextToken();
             String[] params = new String[st.countTokens()];
             for (int ctr = 0; ctr < params.length; ctr++){
                 params[ctr] = st.nextToken();
@@ -123,17 +129,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         }
     }
     
-    /**
-     * Occurs when a user joins the game channel.
-     * @param event join event
-     */
-    @Override
-    public void onJoin(JoinEvent<PircBotX> event){
-        if (event.getChannel().equals(channel)){
-            processJoin(event.getUser());
-        }
-    }
-
     /**
      * Occurs when a user parts the game channel.
      * @param event part event
@@ -163,7 +158,18 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         processNickChange(event.getUser(), event.getOldNick(), event.getNewNick());
     }
     
-    /* Methods that process IRC events */
+    /**
+     * Occurs when a user is kicked from the game channel.
+     * @param event 
+     */
+    @Override
+    public void onKick(KickEvent<PircBotX> event) {
+        processKick(event.getRecipient());
+    }
+    
+    /////////////////////////////////////////
+    //// Methods that process IRC events ////
+    /////////////////////////////////////////
     /**
      * Processes commands in the channel where the game is running.
      * 
@@ -171,283 +177,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param command The command that was issued.
      * @param params A list of parameters that were passed along.
      */
-    protected void processCommand(User user, String command, String[] params){
-        String nick = user.getNick();
-        String host = user.getHostmask();
-        
-        /* Common commands for all games that can be called at anytime or have 
-         * the same permissions. */
-        if (command.equals("join") || command.equals("j")){
-            join(nick, host);
-        } else if (command.equals("leave") || command.equals("quit") || command.equals("l") || command.equals("q")){
-            leave(nick);
-        } else if (command.equals("stop")) {
-            if (!isJoined(nick)) {
-                informPlayer(nick, getMsg("no_join"));
-            } else if (!inProgress) {
-                informPlayer(nick, getMsg("no_start"));
-            } else {
-                cancelAutoStarts(nick);
-            }
-        } else if (command.equals("cash")) {
-            if (params.length > 0){
-                showPlayerCash(params[0]);
-            } else {
-                showPlayerCash(nick);
-            }
-        } else if (command.equals("netcash") || command.equals("net")) {
-            if (params.length > 0){
-                showPlayerNetCash(params[0]);
-            } else {
-                showPlayerNetCash(nick);
-            }
-        } else if (command.equals("bank")) {
-            if (params.length > 0){
-                showPlayerBank(params[0]);
-            } else {
-                showPlayerBank(nick);
-            }
-        } else if (command.equals("bankrupts")) {
-            if (params.length > 0){
-                showPlayerBankrupts(params[0]);
-            } else {
-                showPlayerBankrupts(nick);
-            }
-        } else if (command.equals("winnings")) {
-            if (params.length > 0){
-                showPlayerWinnings(params[0]);
-            } else {
-                showPlayerWinnings(nick);
-            }
-        } else if (command.equals("winrate")) {
-            if (params.length > 0){
-                showPlayerWinRate(params[0]);
-            } else {
-                showPlayerWinRate(nick);
-            }
-        } else if (command.equals("rounds")) {
-            if (params.length > 0){
-                showPlayerRounds(params[0]);
-            } else {
-                showPlayerRounds(nick);
-            }
-        } else if (command.equals("player") || command.equals("p")){
-            if (params.length > 0){
-                showPlayerAllStats(params[0]);
-            } else {
-                showPlayerAllStats(nick);
-            }
-        } else if (command.equals("deposit") || command.equals("withdraw")) {
-            if (!isJoined(nick)) {
-                informPlayer(nick, getMsg("no_join"));
-            } else if (inProgress) {
-                informPlayer(nick, getMsg("wait_round_end"));
-            } else {
-                if (params.length > 0){
-                    try {
-                        if (command.equals("deposit")) {
-                            transfer(nick, Integer.parseInt(params[0]));
-                        } else {
-                            transfer(nick, -Integer.parseInt(params[0]));
-                        }
-                    } catch (NumberFormatException e) {
-                        informPlayer(nick, getMsg("bad_parameter"));
-                    }
-                } else {
-                    informPlayer(nick, getMsg("no_parameter"));
-                }
-            }
-        } else if (command.equals("waitlist")) {
-            showMsg(getMsg("waitlist"), getPlayerListString(waitlist));
-        } else if (command.equals("blacklist")) {
-            showMsg(getMsg("blacklist"), getPlayerListString(blacklist));
-        } else if (command.equals("rank")) {
-            if (inProgress) {
-                informPlayer(nick, getMsg("wait_round_end"));
-            } else {
-                if (params.length > 1){
-                    try {
-                        showPlayerRank(params[1].toLowerCase(), params[0].toLowerCase());
-                    } catch (IllegalArgumentException e) {
-                        informPlayer(nick, getMsg("bad_parameter"));
-                    }
-                } else if (params.length == 1){
-                    try {
-                        showPlayerRank(nick, params[0].toLowerCase());
-                    } catch (IllegalArgumentException e) {
-                        informPlayer(nick, getMsg("bad_parameter"));
-                    }
-                } else {
-                    showPlayerRank(nick, "cash");
-                }
-            }
-        } else if (command.equals("top")) {
-            if (inProgress) {
-                informPlayer(nick, getMsg("wait_round_end"));
-            } else {
-                if (params.length > 1){
-                    try {
-                        showTopPlayers(params[1].toLowerCase(), Integer.parseInt(params[0]));
-                    } catch (IllegalArgumentException e) {
-                        informPlayer(nick, getMsg("bad_parameter"));
-                    }
-                } else if (params.length == 1){
-                    try {
-                        showTopPlayers("cash", Integer.parseInt(params[0]));
-                    } catch (IllegalArgumentException e) {
-                        informPlayer(nick, getMsg("bad_parameter"));
-                    }
-                } else {
-                    showTopPlayers("cash", 5);
-                }
-            }
-        } else if (command.equals("simple")) {
-            if (!isJoined(nick)) {
-                informPlayer(nick, getMsg("no_join"));
-            } else {
-                togglePlayerSimple(nick);
-            }
-        } else if (command.equals("stats")){
-            if (inProgress) {
-                informPlayer(nick, getMsg("wait_round_end"));
-            } else {
-                showMsg(getGameStatsStr());
-            }
-        } else if (command.equals("grules")) {
-            informPlayer(nick, getGameRulesStr());
-        } else if (command.equals("ghelp")) {
-            if (params.length == 0){
-                informPlayer(nick, getMsg("game_help"), commandChar, commandChar, commandChar);
-            } else {
-                informPlayer(nick, getCommandHelp(params[0].toLowerCase()));
-            }
-        } else if (command.equals("gcommands")) {
-            informPlayer(nick, getGameNameStr() + " commands:");
-            informPlayer(nick, getCommandsStr());
-            if (channel.isOp(user)) {
-                informPlayer(nick, getGameNameStr() + " Op commands:");
-                informPlayer(nick, getOpCommandsStr());
-            }
-        } else if (command.equals("game")) {
-            showMsg(getMsg("game_name"), getGameNameStr());
-        // Op Commands
-        } else if (command.equals("fj") || command.equals("fjoin")){
-            if (!channel.isOp(user)) {
-                informPlayer(nick, getMsg("ops_only"));
-            } else {
-                if (params.length > 0){
-                    String fNick = params[0];
-                    Iterator<User> it = channel.getUsers().iterator();
-                    while(it.hasNext()){
-                        User u = it.next();
-                        if (u.getNick().equalsIgnoreCase(fNick)){
-                            fjoin(nick, u.getNick(), u.getHostmask());
-                            return;
-                        }
-                    }
-                    informPlayer(nick, getMsg("nick_not_found"), fNick);
-                } else {
-                    informPlayer(nick, getMsg("no_parameter"));
-                }
-            }
-        } else if (command.equals("fl") || command.equals("fq") || command.equals("fquit") || command.equals("fleave")){
-            if (!channel.isOp(user)) {
-                informPlayer(nick, getMsg("ops_only"));
-            } else {
-                if (params.length > 0){
-                    leave(params[0]);
-                } else {
-                    informPlayer(nick, getMsg("no_parameter"));
-                }
-            }
-        } else if (command.equals("fdeposit") || command.equals("fwithdraw")) {
-            if (!channel.isOp(user)) {
-                informPlayer(nick, getMsg("ops_only"));
-            } else {
-                if (params.length > 1) {
-                    if (!isJoined(params[0])) {
-                        informPlayer(nick, params[0] + " is not currently joined!");
-                    } else if (inProgress) {
-                        informPlayer(nick, getMsg("wait_round_end"));
-                    } else {
-                        try {
-                            if (command.equals("fdeposit")) {
-                                transfer(params[0], Integer.parseInt(params[1]));
-                            } else {
-                                transfer(params[0], -Integer.parseInt(params[1]));
-                            }
-                        } catch (NumberFormatException e) {
-                            informPlayer(nick, getMsg("bad_parameter"));
-                        }
-                    }
-                } else {
-                    informPlayer(nick, getMsg("no_parameter"));
-                }
-            }
-        } else if (command.equals("cards") || command.equals("discards")) {
-            if (isOpCommandAllowed(user, nick)){
-                if (params.length > 0){
-                    try {
-                        int num = Integer.parseInt(params[0]);
-                        if (command.equals("cards") && deck.getNumberCards() > 0) {
-                            infoDeckCards(nick, 'c', num);
-                        } else if (command.equals("discards") && deck.getNumberDiscards() > 0) {
-                            infoDeckCards(nick, 'd', num);
-                        } else {
-                            informPlayer(nick, "Empty!");
-                        }
-                    } catch (IllegalArgumentException e) {
-                        informPlayer(nick, getMsg("bad_parameter"));
-                    }
-                } else {
-                    informPlayer(nick, getMsg("no_parameter"));
-                }
-            }
-        } else if (command.equals("settings")) {
-            if (isOpCommandAllowed(user, nick)) {
-                informPlayer(nick, getGameNameStr() + " settings:");
-                informPlayer(nick, getSettingsStr());
-            }
-        } else if (command.equals("set")){
-            if (isOpCommandAllowed(user, nick)){
-                if (params.length > 1){
-                    try {
-                        set(params[0].toLowerCase(), Integer.parseInt(params[1]));
-                        saveIniFile();
-                        showMsg(getMsg("setting_updated"), params[0].toLowerCase());
-                    } catch (IllegalArgumentException e) {
-                        informPlayer(nick, getMsg("bad_parameter"));
-                    }
-                } else {
-                    informPlayer(nick, getMsg("no_parameter"));
-                }
-            }
-        } else if (command.equals("get")) {
-            if (isOpCommandAllowed(user, nick)){
-                if (params.length > 0){
-                    try {
-                        showMsg(getMsg("setting"), params[0].toLowerCase(), get(params[0].toLowerCase()));
-                    } catch (IllegalArgumentException e) {
-                        informPlayer(nick, getMsg("bad_parameter"));
-                    }
-                } else {
-                    informPlayer(nick, getMsg("no_parameter"));
-                }
-            }
-        }
-    }
-    
-    /**
-     * Processes a user join event in the game channel.
-     * 
-     * @param user The IRC user who has joined.
-     */
-    protected void processJoin(User user){
-        String nick = user.getNick();
-        if (loadPlayerStat(nick, "exists") != 1){
-            // informPlayer(nick, getMsg("new_nick"), getGameNameStr(), commandChar);
-        }
-    }
+    abstract protected void processCommand(User user, String command, String[] params);
     
     /**
      * Processes a user quit or part event in the game channel.
@@ -482,10 +212,708 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         }
     }
     
-    /* 
-     * Accessor methods 
-     * Returns or sets object properties.
+    /**
+     * Processes a kick event in the game channel.
+     * @param recip 
      */
+    protected void processKick(User recip) {
+        String nick = recip.getNick();
+        if (isJoined(nick) || isWaitlisted(nick)) {
+            leave(nick);
+        }
+    }
+    
+    /////////////////////////
+    //// Command methods ////
+    /////////////////////////
+    /**
+     * Attempts to add a player to the game.
+     * @param nick the player's nick
+     * @param host the player's host
+     */
+    protected void join(String nick, String host) {
+        CardGame game = manager.getGame(nick);
+        if (joined.size() == get("maxplayers")){
+            informPlayer(nick, getMsg("max_players"));
+        } else if (isJoined(nick)) {
+            informPlayer(nick, getMsg("is_joined"));
+        } else if (isBlacklisted(nick) || manager.isBlacklisted(nick)) {
+            informPlayer(nick, getMsg("on_blacklist"));
+        } else if (game != null) {
+            informPlayer(nick, getMsg("is_joined_other"), game.getGameNameStr(), game.getChannel().getName());
+        } else if (inProgress) {
+            if (isWaitlisted(nick)) {
+                informPlayer(nick, getMsg("on_waitlist"));
+            } else {
+                addWaitlistPlayer(nick, host);
+            }
+        } else {
+            addPlayer(nick, host);
+        }
+    }
+    
+    /**
+     * Processes a player's departure from the game.
+     * @param nick the player's nick
+     */
+    abstract protected void leave(String nick);
+    
+    /**
+     * Cancels any remaining auto-starts.
+     * @param nick 
+     */
+    protected void stop(String nick) {
+        if (!isJoined(nick)) {
+            informPlayer(nick, getMsg("no_join"));
+        } else if (!inProgress) {
+            informPlayer(nick, getMsg("no_start"));
+        } else if (startCount == 0) {
+            informPlayer(nick, getMsg("stop_no_autostarts"));
+        } else {
+            startCount = 0;
+            showMsg(getMsg("stop"));
+        }
+    }
+    
+    /**
+     * Displays a player's stack.
+     * @param nick 
+     * @param params 
+     */
+    protected void cash(String nick, String[] params) {
+        if (params.length > 0){
+            showPlayerCash(params[0]);
+        } else {
+            showPlayerCash(nick);
+        }
+    }
+    
+    /**
+     * Displays a player's net cash.
+     * @param nick
+     * @param params 
+     */
+    protected void netcash(String nick, String[] params) {
+        if (params.length > 0){
+            showPlayerNetCash(params[0]);
+        } else {
+            showPlayerNetCash(nick);
+        }
+    }
+    
+    /**
+     * Displays a player's bank amount.
+     * @param nick
+     * @param params 
+     */
+    protected void bank(String nick, String[] params) {
+        if (params.length > 0){
+            showPlayerBank(params[0]);
+        } else {
+            showPlayerBank(nick);
+        }
+    }
+    
+    /**
+     * Displays a player's number of bankruptcies.
+     * @param nick
+     * @param params 
+     */
+    protected void bankrupts(String nick, String[] params) {
+        if (params.length > 0){
+            showPlayerBankrupts(params[0]);
+        } else {
+            showPlayerBankrupts(nick);
+        }
+    }
+    
+    /**
+     * Displays a player's winnings in the current game.
+     * @param nick
+     * @param params 
+     */
+    protected void winnings(String nick, String[] params) {
+        if (params.length > 0){
+            showPlayerWinnings(params[0]);
+        } else {
+            showPlayerWinnings(nick);
+        }
+    }
+    
+    /**
+     * Displays a player's win rate in the current game.
+     * @param nick
+     * @param params 
+     */
+    protected void winrate(String nick, String[] params) {
+        if (params.length > 0){
+            showPlayerWinRate(params[0]);
+        } else {
+            showPlayerWinRate(nick);
+        }
+    }
+    
+    /**
+     * Displays a player's number of rounds played in the current game.
+     * @param nick
+     * @param params 
+     */
+    protected void rounds(String nick, String[] params) {
+        if (params.length > 0){
+            showPlayerRounds(params[0]);
+        } else {
+            showPlayerRounds(nick);
+        }
+    }
+    
+    /**
+     * Displays a player's full stats for the current game.
+     * @param nick
+     * @param params 
+     */
+    protected void player(String nick, String[] params) {
+        if (params.length > 0){
+            showPlayerAllStats(params[0]);
+        } else {
+            showPlayerAllStats(nick);
+        }
+    }
+    
+    /**
+     * Deposits the specified amount to the player's bank.
+     * @param nick
+     * @param params 
+     */
+    protected void deposit(String nick, String[] params) {
+        if (!isJoined(nick)) {
+            informPlayer(nick, getMsg("no_join"));
+        } else if (inProgress) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else if (params.length < 1){
+            informPlayer(nick, getMsg("no_parameter"));
+        } else {
+            try {
+                transfer(nick, Integer.parseInt(params[0]));
+            } catch (NumberFormatException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }
+        }
+    }
+    
+    /**
+     * Withdraws the specified amount from the player's bank.
+     * @param nick
+     * @param params 
+     */
+    protected void withdraw(String nick, String[] params) {
+        if (!isJoined(nick)) {
+            informPlayer(nick, getMsg("no_join"));
+        } else if (inProgress) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else if (params.length < 1){
+            informPlayer(nick, getMsg("no_parameter"));
+        } else {
+            try {
+                transfer(nick, -Integer.parseInt(params[0]));
+            } catch (NumberFormatException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }
+        }
+    }
+    
+    /**
+     * Displays the players on the waiting list for the current game.
+     * @param nick
+     * @param params 
+     */
+    protected void waitlist(String nick, String[] params) {
+        showMsg(getMsg("waitlist"), getPlayerListString(waitlist));
+    }
+    
+    /**
+     * Displays the bankrupt players for the current game.
+     * @param nick
+     * @param params 
+     */
+    protected void blacklist(String nick, String[] params) {
+        showMsg(getMsg("blacklist"), getPlayerListString(blacklist));
+    }
+    
+    /**
+     * Displays a player's rank in a stat.
+     * @param nick
+     * @param params 
+     */
+    protected void rank(String nick, String[] params) {
+        if (inProgress) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else if (params.length > 1){
+            try {
+                showPlayerRank(params[1].toLowerCase(), params[0].toLowerCase());
+            } catch (IllegalArgumentException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }
+        } else if (params.length == 1){
+            try {
+                showPlayerRank(nick, params[0].toLowerCase());
+            } catch (IllegalArgumentException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }
+        } else {
+            showPlayerRank(nick, "cash");
+        }
+    }
+    
+    /**
+     * Displays the top players in a stat.
+     * @param nick
+     * @param params 
+     */
+    protected void top(String nick, String[] params) {
+        if (inProgress) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else if (params.length > 1){
+            try {
+                showTopPlayers(params[1].toLowerCase(), Integer.parseInt(params[0]));
+            } catch (IllegalArgumentException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }
+        } else if (params.length == 1){
+            try {
+                showTopPlayers("cash", Integer.parseInt(params[0]));
+            } catch (IllegalArgumentException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }
+        } else {
+            showTopPlayers("cash", 5);
+        }
+    }
+    
+    /**
+     * Adds the user to the away list. 
+     * @param nick
+     * @param params
+     */
+    public void away(String nick, String[] params) {
+        User user = findUser(nick);
+        if (awayList.contains(user.getHostmask())) {
+            informPlayer(nick, "You are already marked as away!");
+        } else {
+            awayList.add(user.getHostmask());
+            saveHostList("away.txt", awayList);
+            informPlayer(nick, "You are now marked as away.");
+        }
+    }
+    
+    /**
+     * Removes the user from the away list. 
+     * @param nick
+     * @param params
+     */
+    public void back(String nick, String[] params) {
+        User user = findUser(nick);
+        if (awayList.contains(user.getHostmask())){
+            awayList.remove(user.getHostmask());
+            saveHostList("away.txt", awayList);
+            informPlayer(nick, "You are no longer marked as away.");
+        } else {
+            informPlayer(nick, "You are not marked as away!");
+        }
+    }
+    
+    /**
+     * Toggles a player's "simple" status.
+     * Players with "simple" set to true will have game information sent via
+     * /notice. Players with "simple" set to false will have game information 
+     * sent via /msg.
+     * @param nick
+     * @param params 
+     */
+    protected void simple(String nick, String[] params) {
+        User user = findUser(nick);
+        if (notSimpleList.contains(user.getHostmask())) {
+            notSimpleList.remove(user.getHostmask());
+            informPlayer(nick, "Game info will now be noticed to you.");
+        } else {
+            notSimpleList.add(user.getHostmask());
+            informPlayer(nick, "Game info will now be messaged to you.");
+        }
+        saveHostList("simple.txt", notSimpleList);
+    }
+    
+    /**
+     * Displays the stats for the current game.
+     * @param nick
+     * @param params 
+     */
+    protected void stats(String nick, String[] params) {
+        if (inProgress) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else {
+            showMsg(getGameStatsStr());
+        }
+    }
+    
+    /**
+     * Displays the rules for the current game.
+     * @param nick
+     * @param params 
+     */
+    protected void grules(String nick, String[] params) {
+        informPlayer(nick, getGameRulesStr());
+    }
+    
+    /**
+     * Displays a help message.
+     * @param nick
+     * @param params 
+     */
+    protected void ghelp(String nick, String[] params) {
+        if (params.length == 0){
+            informPlayer(nick, getMsg("game_help"), commandChar, commandChar, commandChar);
+        } else {
+            informPlayer(nick, getCommandHelp(params[0].toLowerCase()));
+        }
+    }
+    
+    /**
+     * Displays the commands available for this game.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void gcommands(User user, String nick, String[] params) {
+        informPlayer(nick, getGameNameStr() + " commands:");
+        informPlayer(nick, getCommandsStr());
+        if (channel.isOp(user)) {
+            informPlayer(nick, getGameNameStr() + " Op commands:");
+            informPlayer(nick, getOpCommandsStr());
+        }
+    }
+    
+    /**
+     * Displays the name of the current game.
+     * @param nick
+     * @param params 
+     */
+    protected void game(String nick, String[] params) {
+        showMsg(getMsg("game_name"), getGameNameStr());
+    }
+    
+    /**
+     * Displays a list of users in the game channel, excluding users who are 
+     * in the awayList.
+     * @param nick
+     * @param params 
+     */
+    protected void ping(String nick, String[] params) {
+        // Check for rate-limit
+        if (lastPing != 0 && System.currentTimeMillis() - lastPing < get("ping") * 1000) {
+            informPlayer(nick, "This command is rate-limited. Please wait to use it again.");
+        } else if (inProgress) {
+            informPlayer(nick, "This command cannot be used at this time.");
+        } else {
+            // Grab the users in the channel
+            User tUser;
+            String outStr = "Ping: ";
+            Iterator<User> it = channel.getUsers().iterator();
+            while(it.hasNext()){
+                tUser = it.next();
+                if (!awayList.contains(tUser.getHostmask()) && !isJoined(tUser.getNick())){
+                    outStr += tUser.getNick()+", ";
+                }
+            }
+            showMsg(outStr.substring(0, outStr.length() - 2));
+
+            lastPing = System.currentTimeMillis();
+        }
+    }
+    
+    /**
+     * Attempts to force add a player to the game.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void fjoin(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (params.length < 1){
+            informPlayer(nick, getMsg("no_parameter"));
+        } else {
+            String fNick = params[0];
+            Iterator<User> it = channel.getUsers().iterator();
+            while(it.hasNext()){
+                User u = it.next();
+                if (u.getNick().equalsIgnoreCase(fNick)){
+                    CardGame game = manager.getGame(fNick);
+                    if (joined.size() == get("maxplayers")){
+                        informPlayer(nick, getMsg("max_players"));
+                    } else if (isJoined(fNick)) {
+                        informPlayer(nick, getMsg("is_joined_nick"), fNick);
+                    } else if (isBlacklisted(fNick) || manager.isBlacklisted(fNick)) {
+                        informPlayer(nick, getMsg("on_blacklist_nick"), fNick);
+                    } else if (game != null) {
+                        informPlayer(nick, getMsg("is_joined_other_nick"), fNick, game.getGameNameStr(), game.getChannel().getName());
+                    } else if (inProgress) {
+                        if (isWaitlisted(fNick)) {
+                            informPlayer(nick, getMsg("on_waitlist_nick"), fNick);
+                        } else {
+                            addWaitlistPlayer(u.getNick(), u.getHostmask());
+                        }
+                    } else {
+                        addPlayer(u.getNick(), u.getHostmask());
+                    }
+                    return;
+                }
+            }
+            informPlayer(nick, getMsg("nick_not_found"), fNick);
+        }
+    }
+    
+    /**
+     * Attempts to force a player to leave the game.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void fleave(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (params.length < 1){
+            informPlayer(nick, getMsg("no_parameter"));
+        } else {
+            leave(params[0]);
+        }
+    }
+    
+    /**
+     * Attempts to force a player to make a deposit.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void fdeposit(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (params.length < 2) {
+            informPlayer(nick, getMsg("no_parameter"));
+        } else if (!isJoined(params[0])) {
+            informPlayer(nick, params[0] + " is not currently joined!");
+        } else if (inProgress) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else {
+            try {
+                transfer(params[0], Integer.parseInt(params[1]));
+            } catch (NumberFormatException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }
+        }
+    }
+    
+    /**
+     * Attempts to force a player to make a withdrawal.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void fwithdraw(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (params.length < 2) {
+            informPlayer(nick, getMsg("no_parameter"));
+        } else if (!isJoined(params[0])) {
+            informPlayer(nick, params[0] + " is not currently joined!");
+        } else if (inProgress) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else {
+            try {
+                transfer(params[0], -Integer.parseInt(params[1]));
+            } catch (NumberFormatException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }
+        }
+    }
+    
+    /**
+     * Attempts to reveal the specified top number of cards in the card deck.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void cards(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (inProgress) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else if (params.length < 1){
+            informPlayer(nick, getMsg("no_parameter"));    
+        } else if (deck.getNumberCards() == 0) {
+            informPlayer(nick, "Empty!");
+        } else {
+            try {
+                infoDeckCards(nick, 'c', Integer.parseInt(params[0]));
+            } catch (IllegalArgumentException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }
+        }
+    }
+    
+    /**
+     * Attempts to reveal the specified top number of cards in the discards.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void discards(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (inProgress) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else if (params.length < 1){
+            informPlayer(nick, getMsg("no_parameter"));
+        } else if (deck.getNumberDiscards() == 0) {
+            informPlayer(nick, "Empty!");
+        } else {
+            try {
+                infoDeckCards(nick, 'd', Integer.parseInt(params[0]));
+            } catch (IllegalArgumentException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }
+        }
+    }
+    
+    /**
+     * Reveals the settings available for the current game.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void settings(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (inProgress) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else {
+            informPlayer(nick, getGameNameStr() + " settings:");
+            informPlayer(nick, getSettingsStr());
+        }
+    }
+    
+    /**
+     * Attempts to update the specified setting with the specified value.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void set(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (inProgress) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else if (params.length < 2){
+            informPlayer(nick, getMsg("no_parameter"));
+        } else {
+            try {
+                String setting = params[0].toLowerCase();
+                int value = Integer.parseInt(params[1]);
+                set(setting, value);
+                saveIniFile();
+                showMsg(getMsg("setting_updated"), setting);
+            } catch (IllegalArgumentException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }
+        }
+    }
+    
+    /**
+     * Attempts to get the value of the specified setting.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void get(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (inProgress) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else if (params.length < 1){
+            informPlayer(nick, getMsg("no_parameter"));
+        } else {
+            try {
+                String setting = params[0].toLowerCase();
+                int value = get(params[0].toLowerCase());
+                showMsg(getMsg("setting"), setting, value);
+            } catch (IllegalArgumentException e) {
+                informPlayer(nick, getMsg("bad_parameter"));
+            }
+        }
+    }
+    
+    /**
+     * Erases all hosts from away.txt.
+     * @param user 
+     * @param nick 
+     * @param params 
+     */
+    public void resetaway(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else {
+            awayList.clear();
+            saveHostList("away.txt", awayList);
+            informPlayer(nick, "The away list has been reset.");
+        }
+    }
+    
+    /**
+     * Erases all hosts from simple.txt.
+     * @param user 
+     * @param nick 
+     * @param params 
+     */
+    public void resetsimple(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else {
+            notSimpleList.clear();
+            saveHostList("simple.txt", notSimpleList);
+            informPlayer(nick, "The simple list has been reset.");
+        }
+    }
+    
+    /**
+     * Removes players who haven't played a round of any game from players.txt.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    public void trim(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (manager.gamesInProgress()) {
+            informPlayer(nick, getMsg("no_trim"));
+        } else {
+            try {
+                ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
+                ArrayList<PlayerRecord> newRecords = new ArrayList<PlayerRecord>();
+                loadPlayerFile(records);
+                for (PlayerRecord record : records) {
+                    if (record.has("bjrounds") || record.has("tprounds") || record.has("ttplayed")) {
+                        newRecords.add(record);
+                    }
+                }
+                savePlayerFile(newRecords);
+            } catch (IOException e) {
+                manager.log("Error reading players.txt!");
+                informPlayer(nick, "Error reading players.txt!");
+            }
+        }
+    }
+    
+    //////////////////////////
+    //// Accessor methods ////
+    //////////////////////////
     /**
      * Returns the game channel.
      * @return the game channel
@@ -532,24 +960,43 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     abstract protected void resetGame();
     
     /**
-     * Processes a player's departure from the game.
-     * @param nick the player's nick
-     */
-    abstract protected void leave(String nick);
-    
-    /**
      * Saves the INI file associated with the game instance.
      */
     abstract protected void saveIniFile();
     
     /**
-     * Initializes game settings and properties.
+     * Initializes game settings.
      */
-    protected void initialize() {
-        // In-game properties
-        inProgress = false;
-        roundEnded = false;
-        startCount = 0;
+    abstract protected void initSettings();
+    
+    /**
+     * Additional custom initializations for individual games.
+     */
+    abstract protected void initCustom();
+    
+    /**
+     * Initializes the game.
+     */
+    protected final void initGame() {
+        joined = new ArrayList<Player>();
+        blacklist = new ArrayList<Player>();
+        waitlist = new ArrayList<Player>();
+        gameTimer = new Timer("Game Timer");
+        settings = new HashMap<String,Integer>();
+        cmdMap = new HashMap<String,String>();
+        opCmdMap = new HashMap<String,String>();
+        aliasMap = new HashMap<String,String>();
+        msgMap = new HashMap<String,String>();
+        awayList = new ArrayList<String>();
+        notSimpleList = new ArrayList<String>();
+        respawnTasks = new ArrayList<RespawnTask>();
+        strFile = "strlib.txt";
+        
+        loadStrLib(strFile);
+        loadHostList("away.txt", awayList);
+        loadHostList("simple.txt", notSimpleList);
+        checkPlayerFile();
+        initCustom();
     }
     
     /**
@@ -610,7 +1057,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         } catch (IOException e) {
             /* load defaults if INI file is not found */
             manager.log(iniFile + " not found! Creating new " + iniFile + "...");
-            initialize();
             saveIniFile();
         }
     }
@@ -619,7 +1065,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * Loads data from strlib file.
      * @param file file path
      */
-    protected void loadStrLib(String file) {
+    protected final void loadStrLib(String file) {
         try {
             BufferedReader in = new BufferedReader(new FileReader(file));
             StringTokenizer st;
@@ -643,7 +1089,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * Loads data from help file.
      * @param file file path
      */
-    protected void loadHelp(String file) {
+    protected final void loadHelp(String file) {
         try {
             BufferedReader in = new BufferedReader(new FileReader(file));
             String[] st, st2;
@@ -701,59 +1147,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     
     /**
-     * Attempts to add a player to the game.
-     * @param nick the player's nick
-     * @param host the player's host
-     */
-    protected void join(String nick, String host) {
-        CardGame game = manager.getGame(nick);
-        if (joined.size() == get("maxplayers")){
-            informPlayer(nick, getMsg("max_players"));
-        } else if (isJoined(nick)) {
-            informPlayer(nick, getMsg("is_joined"));
-        } else if (isBlacklisted(nick) || manager.isBlacklisted(nick)) {
-            informPlayer(nick, getMsg("on_blacklist"));
-        } else if (game != null) {
-            informPlayer(nick, getMsg("is_joined_other"), game.getGameNameStr(), game.getChannel().getName());
-        } else if (inProgress) {
-            if (isWaitlisted(nick)) {
-                informPlayer(nick, getMsg("on_waitlist"));
-            } else {
-                addWaitlistPlayer(nick, host);
-            }
-        } else {
-            addPlayer(nick, host);
-        }
-    }
-    
-    /**
-     * Attempts to force add a player to the game.
-     * @param OpNick the channel Op
-     * @param nick the player to be force joined
-     * @param host the player's host
-     */
-    protected void fjoin(String OpNick, String nick, String host) {
-        CardGame game = manager.getGame(nick);
-        if (joined.size() == get("maxplayers")){
-            informPlayer(OpNick, getMsg("max_players"));
-        } else if (isJoined(nick)) {
-            informPlayer(OpNick, getMsg("is_joined_nick"), nick);
-        } else if (isBlacklisted(nick) || manager.isBlacklisted(nick)) {
-            informPlayer(OpNick, getMsg("on_blacklist_nick"), nick);
-        } else if (game != null) {
-            informPlayer(OpNick, getMsg("is_joined_other_nick"), nick, game.getGameNameStr(), game.getChannel().getName());
-        } else if (inProgress) {
-            if (isWaitlisted(nick)) {
-                informPlayer(OpNick, getMsg("on_waitlist_nick"), nick);
-            } else {
-                addWaitlistPlayer(nick, host);
-            }
-        } else {
-            addPlayer(nick, host);
-        }
-    }
-    
-    /**
      * Attempts to remove a player from the game.
      * @param p the player
      */
@@ -769,15 +1162,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             addPlayer(p);
         }
         waitlist.clear();
-    }
-    
-    protected void cancelAutoStarts(String nick){
-        if (startCount != 0) {
-            startCount = 0;
-            showMsg(getMsg("stop"));
-        } else {
-            informPlayer(nick, getMsg("stop_no_autostarts"));
-        }
     }
     
     /**
@@ -857,23 +1241,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             idleOutTask.cancel();
             gameTimer.purge();
         }
-    }
-    
-    /**
-     * Checks if an Op command is allowed.
-     * @param user command issuer
-     * @param nick the user's nick
-     * @return true if the User is allowed use Op commands
-     */
-    protected boolean isOpCommandAllowed(User user, String nick){
-        if (!channel.isOp(user)) {
-            informPlayer(nick, getMsg("ops_only"));
-        } else if (inProgress) {
-            informPlayer(nick, getMsg("wait_round_end"));
-        } else {
-            return true;
-        }
-        return false;
     }
     
     /* 
@@ -1060,24 +1427,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     
     /**
-     * Toggles a player's "simple" status.
-     * Players with "simple" set to true will have game information sent via
-     * notice. Players with "simple" set to false will have game information sent
-     * via message.
-     * 
-     * @param nick the player's nick
-     */
-    protected void togglePlayerSimple(String nick){
-        Player p = findJoined(nick);
-        p.set("simple", (p.get("simple") + 1) % 2);
-        if (p.isSimple()){
-            manager.sendNotice(nick, "Game info will now be noticed to you.");
-        } else {
-            manager.sendMessage(nick, "Game info will now be messaged to you.");
-        }
-    }
-    
-    /**
      * Transfers the specified amount from a player's stack to his bankroll.
      * A negative amount indicates a withdrawal. A positive amount indicates
      * a deposit.
@@ -1220,7 +1569,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     p.set("tprounds", record.get("tprounds"));
                     p.set("ttwins", record.get("ttwins"));
                     p.set("ttplayed", record.get("ttplayed"));
-                    p.set("simple", record.get("simple"));
                     found = true;
                     break;
                 }
@@ -1258,7 +1606,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     record.set("tprounds", p.get("tprounds"));
                     record.set("ttwins", p.get("ttwins"));
                     record.set("ttplayed", p.get("ttplayed"));
-                    record.set("simple", p.get("simple"));
                     found = true;
                     break;
                 }
@@ -1268,8 +1615,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                                         p.get("bank"), p.get("bankrupts"),
                                         p.get("bjwinnings"), p.get("bjrounds"),
                                         p.get("tpwinnings"), p.get("tprounds"),
-                                        p.get("ttwins"), p.get("ttplayed"),
-                                        p.get("simple")));
+                                        p.get("ttwins"), p.get("ttplayed")));
             }
         } catch (IOException e) {
             manager.log("Error reading players.txt!");
@@ -1309,7 +1655,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     protected void loadPlayerFile(ArrayList<PlayerRecord> records) throws IOException {
         String nick;
-        int cash, bank, bankrupts, bjwinnings, bjrounds, tpwinnings, tprounds, ttwins, ttplayed, simple;
+        int cash, bank, bankrupts, bjwinnings, bjrounds, tpwinnings, tprounds, ttwins, ttplayed;
         
         BufferedReader in = new BufferedReader(new FileReader("players.txt"));
         StringTokenizer st;
@@ -1325,9 +1671,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             tprounds = Integer.parseInt(st.nextToken());
             ttwins = Integer.parseInt(st.nextToken());
             ttplayed = Integer.parseInt(st.nextToken());
-            simple = Integer.parseInt(st.nextToken());
             records.add(new PlayerRecord(nick, cash, bank, bankrupts, bjwinnings, 
-                                        bjrounds, tpwinnings, tprounds, ttwins, ttplayed, simple));
+                                        bjrounds, tpwinnings, tprounds, ttwins, ttplayed));
         }
         in.close();
     }
@@ -1358,6 +1703,41 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * Saves the stats for the game to a file.
      */
     abstract protected void saveGameStats();
+    
+    /**
+     * Saves a list of hosts to the specified file.
+     * @param file the file path
+     * @param hostList ArrayList of hosts
+     */
+    protected final void saveHostList(String file, ArrayList<String> hostList){
+        try {
+            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(file)));
+            for (String host : hostList){
+                out.println(host);
+            }
+            out.close();
+        } catch (IOException e){
+            manager.log("Error writing to " + file + "!");
+        }      
+    }
+    
+    /**
+     * Loads a list of hosts from the specified file.
+     * @param file the file path
+     * @param hostList
+     */
+    protected final void loadHostList(String file, ArrayList<String> hostList){
+        try {
+            BufferedReader in = new BufferedReader(new FileReader(file));
+            while (in.ready()) {
+                hostList.add(in.readLine());
+            }
+            in.close();
+        } catch (IOException e){
+            manager.log("Creating " + file + "...");
+            saveHostList(file, hostList);
+        }      
+    }
     
     /* Generic card management methods */
     
@@ -1432,7 +1812,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param msg the message to send
      * @param args the parameters for the message
      */
-    protected void showMsg(String msg, Object... args){
+    protected final void showMsg(String msg, Object... args){
         manager.sendMessage(channel, String.format(msg, args));
     }
     
@@ -1512,10 +1892,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param args parameters to be included in the message
      */
     protected void informPlayer(String nick, String message, Object... args){
-        if (getPlayerStat(nick, "simple") > 0) {
-            manager.sendNotice(nick, String.format(message, args));
-        } else {
+        String host = findUser(nick).getHostmask();
+        if (notSimpleList.contains(host)) {
             manager.sendMessage(nick, String.format(message, args));
+        } else {
+            manager.sendNotice(nick, String.format(message, args));
         }
     }
     

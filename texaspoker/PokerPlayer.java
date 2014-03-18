@@ -91,6 +91,6 @@ public class PokerPlayer extends Player implements Comparable<PokerPlayer> {
      */
     @Override
     public int compareTo(PokerPlayer p){
-        return this.getPokerHand().compareTo(p.getPokerHand());
+        return pHand.compareTo(p.pHand);
     }
 }

@@ -25,7 +25,7 @@ import java.util.TimerTask;
  * Idle warning task for reminding players they are about to idle out.
  * @author Yizhe Shen
  */
-class IdleWarningTask extends TimerTask {
+public class IdleWarningTask extends TimerTask {
     private final Player player;
     private final CardGame game;
     

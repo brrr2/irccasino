@@ -55,7 +55,6 @@ abstract public class Player extends Stats {
         set("tpwinnings", 0);
         set("ttwins", 0);
         set("ttplayed", 0);
-        set("simple", 1);
         set("quit", 0);
     }
 
@@ -108,17 +107,6 @@ abstract public class Player extends Stats {
      */
     public String getHost() {
         return host;
-    }
-
-    /**
-     * Returns the simple status of the Player.
-     * If simple is true, then game information is sent via notices. If simple
-     * is false, then game information is sent via private messages.
-     * 
-     * @return true if simple is turned on
-     */
-    public boolean isSimple(){
-        return get("simple") == 1;
     }
 
     @Override

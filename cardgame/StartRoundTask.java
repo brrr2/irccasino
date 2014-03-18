@@ -25,7 +25,7 @@ import java.util.TimerTask;
  * Start round task to be performed after post-start waiting period.
  * @author Yizhe Shen
  */
-class StartRoundTask extends TimerTask{
+public class StartRoundTask extends TimerTask{
     private final CardGame game;
     
     public StartRoundTask(CardGame g){

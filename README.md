@@ -24,15 +24,19 @@ Standalone Setup
 1.  Copy the *.help* files and *strlib.txt* to the project run directory.
 2.  Create *irccasino.conf* in the project run directory with the following contents:
 
-		nick=bot nick
-		password=bot password (optional)
-		network=IRC network (e.g. chat.freenode.net)
-		channel=IRC channels to auto-join (comma delimited)
-
+        nick=bot nick
+        password=bot password (optional)
+        network=IRC network (e.g. chat.freenode.net)
+        channel=IRC channels to auto-join (comma delimited)
+        bjchannel=IRC channels to auto-start Blackjack (comma delimited)
+        tpchannel=IRC channels to auto-start Texas Hold'em (comma delimited)
+        ttchannel=IRC channels to auto-start Texas Hold'em Tournament (comma delimited)
+                
 ### Run standalone bot ###
 1. Run the project.
 2. Give the bot Op status in the channels that will run the games.
-3. While as channel Op in those channels, type the command ".texaspoker", ".texastourney" or ".blackjack" to start that game in the channel.
+3. While as channel Op in those channels, type the command `.texaspoker`, `.texastourney` or `.blackjack` to start that game in the channel.
+4. Other useful Op commands are `.botquit`, `.reboot`, `.endgame`, and `.games`.
 
 Contributors
 ============
