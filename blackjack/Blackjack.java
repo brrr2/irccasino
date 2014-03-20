@@ -86,7 +86,7 @@ public class Blackjack extends CardGame {
         if (command.equalsIgnoreCase("join") || command.equalsIgnoreCase("j")){
             join(nick, host);
         } else if (command.equalsIgnoreCase("leave") || command.equalsIgnoreCase("quit") || command.equalsIgnoreCase("l") || command.equalsIgnoreCase("q")){
-            leave(nick);
+            leave(nick, params);
         } else if (command.equalsIgnoreCase("start") || command.equalsIgnoreCase("go")){
             start(nick, params);
         } else if (command.equalsIgnoreCase("stop")) {
@@ -1211,61 +1211,51 @@ public class Blackjack extends CardGame {
         waitlist.add(p);
         informPlayer(p.getNick(), getMsg("join_waitlist"));
     }
+    
     @Override
     public void leave(String nick) {
-        // Check if the nick is even joined
-        if (isJoined(nick)){
-            BlackjackPlayer p = (BlackjackPlayer) findJoined(nick);
-            // Check if a round is in progress
-            if (inProgress) {
-                // If in the betting or post-start wait phase
-                if (betting || currentPlayer == null){
-                    if (p == currentPlayer){
-                        cancelIdleOutTask();
-                        currentPlayer = getNextPlayer();
-                        removeJoined(p);
-                        if (currentPlayer == null) {
-                            betting = false;
-                            if (joined.isEmpty()) {
-                                endRound();
-                            } else {
-                                dealTable();
-                                currentPlayer = joined.get(0);
-                                quickEval();
-                            }
-                        } else {
-                            showTurn(currentPlayer, 0);
-                            setIdleOutTask();
-                        }
+        BlackjackPlayer p = (BlackjackPlayer) findJoined(nick);
+
+        // If in the betting or post-start wait phase
+        if (betting || currentPlayer == null){
+            if (p == currentPlayer){
+                cancelIdleOutTask();
+                currentPlayer = getNextPlayer();
+                removeJoined(p);
+                showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
+                if (currentPlayer == null) {
+                    betting = false;
+                    if (joined.isEmpty()) {
+                        endRound();
                     } else {
-                        if (p.has("initialbet")){
-                            p.set("quit", 1);
-                            informPlayer(p.getNick(), getMsg("remove_end_round"));
-                        } else {
-                            removeJoined(p);
-                        }
+                        dealTable();
+                        currentPlayer = joined.get(0);
+                        quickEval();
                     }
-                // Check if it is already in the endRound stage
-                } else if (roundEnded){
-                    p.set("quit", 1);
-                    informPlayer(p.getNick(), getMsg("remove_end_round"));
-                // If in the card-playing phase
                 } else {
-                    p.set("quit", 1);
-                    informPlayer(p.getNick(), getMsg("remove_end_round"));
-                    if (p == currentPlayer){
-                        stay();
-                    }
+                    showTurn(currentPlayer, 0);
+                    setIdleOutTask();
                 }
             } else {
-                removeJoined(p);
+                if (p.has("initialbet")){
+                    p.set("quit", 1);
+                    informPlayer(p.getNick(), getMsg("remove_end_round"));
+                } else {
+                    removeJoined(p);
+                    showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
+                }
             }
-        // Check if on the waitlist
-        } else if (isWaitlisted(nick)) {
-            informPlayer(nick, getMsg("leave_waitlist"));
-            removeWaitlisted(nick);
+        // Check if it is already in the endRound stage
+        } else if (roundEnded){
+            p.set("quit", 1);
+            informPlayer(p.getNick(), getMsg("remove_end_round"));
+        // If in the card-playing phase
         } else {
-            informPlayer(nick, getMsg("no_join"));
+            p.set("quit", 1);
+            informPlayer(p.getNick(), getMsg("remove_end_round"));
+            if (p == currentPlayer){
+                stay();
+            }
         }
     }
     @Override
@@ -1348,6 +1338,7 @@ public class Blackjack extends CardGame {
                         // Check if the player has quit
                         if (p.has("quit")){
                             removeJoined(p);
+                            showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
                             ctr--;
                         }
                     // Give penalty to players with no cash in their bankroll
@@ -1355,12 +1346,14 @@ public class Blackjack extends CardGame {
                         p.increment("bankrupts");
                         blacklist.add(p);
                         removeJoined(p);
+                        showMsg(getMsg("unjoin_bankrupt"), p.getNickStr(), joined.size());
                         setRespawnTask(p);
                         ctr--;
                     }
                 // Quitters
                 } else if (p.has("quit")) {
                     removeJoined(p.getNick());
+                    showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
                     ctr--;
                 // Remaining players
                 } else {

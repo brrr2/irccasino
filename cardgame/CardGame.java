@@ -136,7 +136,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     @Override
     public void onPart(PartEvent<PircBotX> event){
         if (event.getChannel().equals(channel)){
-            processQuit(event.getUser());
+            processPart(event.getUser());
         }
     }
 
@@ -164,7 +164,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     @Override
     public void onKick(KickEvent<PircBotX> event) {
-        processKick(event.getRecipient());
+        if (event.getChannel().equals(channel)) {
+            processKick(event.getRecipient());
+        }
     }
     
     /////////////////////////////////////////
@@ -180,13 +182,29 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     abstract protected void processCommand(User user, String command, String[] params);
     
     /**
-     * Processes a user quit or part event in the game channel.
+     * Process a user part event in the game channel.
+     * @param user 
+     */
+    protected void processPart(User user) {
+        processQuit(user);
+    }
+    
+    /**
+     * Processes a user quit event.
      * 
-     * @param user The IRC user who has quit or parted.
+     * @param user The IRC user who has disconnected from the server.
      */
     protected void processQuit(User user){
         String nick = user.getNick();
-        if (isJoined(nick) || isWaitlisted(nick)){
+        if (isWaitlisted(nick)) {
+            removeWaitlisted(nick);
+            informPlayer(nick, getMsg("leave_waitlist"));
+        } else if (!isJoined(nick)){
+            // Do nothing
+        } else if (!inProgress) {
+            removeJoined(nick);
+            showMsg(getMsg("unjoin"), formatBold(nick), joined.size());
+        } else {
             leave(nick);
         }
     }
@@ -199,16 +217,23 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param newNick The new nick of the user.
      */
     protected void processNickChange(User user, String oldNick, String newNick){
-        String hostmask = user.getHostmask();
-        if (isJoined(oldNick) || isWaitlisted(oldNick)){
+        String host = user.getHostmask();
+        if (isWaitlisted(oldNick)) {
             informPlayer(newNick, getMsg("nick_change"));
-            if (isJoined(oldNick)){
-                manager.deVoice(channel, user);
-                leave(oldNick);
-            } else if(isWaitlisted(oldNick)){
-                removeWaitlisted(oldNick);
-            }
-            join(newNick, hostmask);
+            informPlayer(newNick, getMsg("leave_waitlist"));
+            removeWaitlisted(oldNick);
+            join(newNick, host);
+        } else if (!isJoined(oldNick)){
+            // Do nothing
+        } else if (!inProgress) {
+            informPlayer(newNick, getMsg("nick_change"));
+            removeJoined(oldNick);
+            showMsg(getMsg("unjoin"), formatBold(oldNick), joined.size());
+            join(newNick, host);
+        } else {
+            informPlayer(newNick, getMsg("nick_change"));
+            leave(oldNick);
+            join(newNick, host);
         }
     }
     
@@ -217,10 +242,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param recip 
      */
     protected void processKick(User recip) {
-        String nick = recip.getNick();
-        if (isJoined(nick) || isWaitlisted(nick)) {
-            leave(nick);
-        }
+        processQuit(recip);
     }
     
     /////////////////////////
@@ -241,22 +263,33 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             informPlayer(nick, getMsg("on_blacklist"));
         } else if (game != null) {
             informPlayer(nick, getMsg("is_joined_other"), game.getGameNameStr(), game.getChannel().getName());
+        } else if (isWaitlisted(nick)) {
+            informPlayer(nick, getMsg("on_waitlist"));
         } else if (inProgress) {
-            if (isWaitlisted(nick)) {
-                informPlayer(nick, getMsg("on_waitlist"));
-            } else {
-                addWaitlistPlayer(nick, host);
-            }
+            addWaitlistPlayer(nick, host);
         } else {
             addPlayer(nick, host);
         }
     }
     
     /**
-     * Processes a player's departure from the game.
+     * Attempts to remove a player from the game.
      * @param nick the player's nick
+     * @param params
      */
-    abstract protected void leave(String nick);
+    protected void leave(String nick, String[] params) {
+        if (isWaitlisted(nick)) {
+            removeWaitlisted(nick);
+            informPlayer(nick, getMsg("leave_waitlist"));
+        } else if (!isJoined(nick)){
+            informPlayer(nick, getMsg("no_join"));
+        } else if (!inProgress) {
+            removeJoined(nick);
+            showMsg(getMsg("unjoin"), formatBold(nick), joined.size());
+        } else {
+            leave(nick);
+        }
+    }
     
     /**
      * Cancels any remaining auto-starts.
@@ -1147,6 +1180,12 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     
     /**
+     * Processes a player's departure from the game.
+     * @param nick the player's nick
+     */
+    abstract protected void leave(String nick);
+    
+    /**
      * Attempts to remove a player from the game.
      * @param p the player
      */
@@ -1323,11 +1362,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         savePlayerData(p);
         if (user != null){
             manager.deVoice(channel, user);
-        }
-        if (!p.has("cash")) {
-            showMsg(getMsg("unjoin_bankrupt"), p.getNickStr(), joined.size());
-        } else {
-            showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
         }
     }
     
@@ -1880,11 +1914,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         }
     }
     
-    /* 
-     * Private messages to players.
-     * These methods will all send notices/messages to the specified nick.
-     */
-    
+    /////////////////////////////////////////////
+    //// Private message methods to players. ////
+    /////////////////////////////////////////////
     /**
      * Sends a message to a player via PM or notice depending on simple status.
      * @param nick the player's nick
@@ -1892,11 +1924,15 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param args parameters to be included in the message
      */
     protected void informPlayer(String nick, String message, Object... args){
-        String host = findUser(nick).getHostmask();
-        if (notSimpleList.contains(host)) {
-            manager.sendMessage(nick, String.format(message, args));
-        } else {
-            manager.sendNotice(nick, String.format(message, args));
+        User user = findUser(nick);
+        // Make sure the user is still in the channel
+        if (user != null) {
+            String host = user.getHostmask();
+            if (notSimpleList.contains(host)) {
+                manager.sendMessage(nick, String.format(message, args));
+            } else {
+                manager.sendNotice(nick, String.format(message, args));
+            }
         }
     }
     
