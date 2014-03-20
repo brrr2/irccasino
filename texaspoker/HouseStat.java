@@ -27,7 +27,7 @@ import java.util.ArrayList;
  * Stores game statistics for TexasPoker. 
  * @author Yizhe Shen
  */
-class HouseStat extends Stats {
+public class HouseStat extends Stats {
     private ArrayList<PokerPlayer> donors;
     private ArrayList<PokerPlayer> winners;
 

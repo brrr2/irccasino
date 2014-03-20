@@ -90,7 +90,7 @@ public class TexasTourney extends TexasPoker {
         if (command.equalsIgnoreCase("join") || command.equalsIgnoreCase("j")){
             join(nick, host);
         } else if (command.equalsIgnoreCase("leave") || command.equalsIgnoreCase("quit") || command.equalsIgnoreCase("l") || command.equalsIgnoreCase("q")){
-            leave(nick);
+            leave(nick, params);
         } else if (command.equalsIgnoreCase("start") || command.equalsIgnoreCase("go")) {
             start(nick, params);
         } else if (command.equalsIgnoreCase("stop") || command.equalsIgnoreCase("cancel")) {
@@ -189,20 +189,43 @@ public class TexasTourney extends TexasPoker {
         } 
     }
     
-    /**
-     * If a joined player changes nick, then unfortunately they are out of the
-     * tournament.
-     * @param user
-     * @param oldNick
-     * @param newNick 
-     */
+    @Override
+    protected void processPart(User user) {
+        processQuit(user);
+    }
+    
+    @Override
+    protected void processQuit(User user){
+        String nick = user.getNick();
+        if (!isJoined(nick)){
+            // Do nothing
+        } else if (!inProgress) {
+            removeJoined(nick);
+            showMsg(getMsg("unjoin"), formatBold(nick), joined.size());
+        } else {
+            leave(nick);
+        }
+    }
+    
     @Override
     protected void processNickChange(User user, String oldNick, String newNick){
-        if (isJoined(oldNick)){
+        String host = user.getHostmask();
+        if (!isJoined(oldNick)) {
+            // Do nothing
+        } else if (!inProgress) {
+            informPlayer(newNick, getMsg("nick_change"));
+            removeJoined(oldNick);
+            showMsg(getMsg("unjoin"), formatBold(oldNick), joined.size());
+            join(newNick, host);
+        } else {
             informPlayer(newNick, getMsg("tt_nick_change"));
-            manager.deVoice(channel, user);
             leave(oldNick);
         }
+    }
+    
+    @Override
+    protected void processKick(User recip) {
+        processQuit(recip);
     }
 
     /////////////////////////
@@ -227,54 +250,14 @@ public class TexasTourney extends TexasPoker {
     }
     
     @Override
-    public void leave(String nick) {
-        // Check if the nick is even joined
-        if (isJoined(nick)){
-            PokerPlayer p = (PokerPlayer) findJoined(nick);
-            // Check if a tournament is in progress
-            if (inProgress) {
-                // If still in the post-start-round waiting phase, then 
-                // currentPlayer has not been set yet.
-                if (currentPlayer == null){
-                    removeJoined(p);
-                    blacklist.add(0, p);
-                // Check if it is already in the endRound stage
-                } else if (roundEnded){
-                    p.set("quit", 1);
-                    informPlayer(p.getNick(), getMsg("remove_end_round"));
-                // Force the player to fold if it is his turn
-                } else if (p == currentPlayer){
-                    p.set("quit", 1);
-                    informPlayer(p.getNick(), getMsg("remove_end_round"));
-                    fold();
-                } else {
-                    p.set("quit", 1);
-                    informPlayer(p.getNick(), getMsg("remove_end_round"));
-                    if (!p.has("fold")){
-                        p.set("fold", 1);
-                        // Remove this player from any existing pots
-                        if (currentPot != null && currentPot.hasPlayer(p)){
-                            currentPot.removePlayer(p);
-                        }
-                        for (int ctr = 0; ctr < pots.size(); ctr++){
-                            PokerPot cPot = pots.get(ctr);
-                            if (cPot.hasPlayer(p)){
-                                cPot.removePlayer(p);
-                            }
-                        }
-                        // If there is only one player who hasn't folded,
-                        // force call on that remaining player (whose turn it must be)
-                        if (getNumberNotFolded() == 1){
-                            call();
-                        }
-                    }
-                }
-            // Just remove the player from the joined list if no round in progress
-            } else {
-                removeJoined(p);
-            }
-        } else {
+    protected void leave(String nick, String[] params) {
+        if (!isJoined(nick)){
             informPlayer(nick, getMsg("no_join"));
+        } else if (!inProgress) {
+            removeJoined(nick);
+            showMsg(getMsg("unjoin"), formatBold(nick), joined.size());
+        } else {
+            leave(nick);
         }
     }
     
@@ -813,23 +796,62 @@ public class TexasTourney extends TexasPoker {
         }
     }
     
-    /* Game management methods */
+    /////////////////////////////////
+    //// Game management methods ////
+    /////////////////////////////////
     @Override
     public void addPlayer(String nick, String host) {
         addPlayer(new TourneyPokerPlayer(nick, host));
     }
     
     @Override
+    public void leave(String nick) {
+        PokerPlayer p = (PokerPlayer) findJoined(nick);
+        // If still in the post-start-round waiting phase, then 
+        // currentPlayer has not been set yet.
+        if (currentPlayer == null){
+            removeJoined(p);
+            showMsg(getMsg("tt_unjoin"), p.getNickStr());
+            blacklist.add(0, p);
+        // Check if it is already in the endRound stage
+        } else if (roundEnded){
+            p.set("quit", 1);
+            informPlayer(p.getNick(), getMsg("remove_end_round"));
+        // Force the player to fold if it is his turn
+        } else if (p == currentPlayer){
+            p.set("quit", 1);
+            informPlayer(p.getNick(), getMsg("remove_end_round"));
+            fold();
+        } else {
+            p.set("quit", 1);
+            informPlayer(p.getNick(), getMsg("remove_end_round"));
+            if (!p.has("fold")){
+                p.set("fold", 1);
+                // Remove this player from any existing pots
+                if (currentPot != null && currentPot.hasPlayer(p)){
+                    currentPot.removePlayer(p);
+                }
+                for (int ctr = 0; ctr < pots.size(); ctr++){
+                    PokerPot cPot = pots.get(ctr);
+                    if (cPot.hasPlayer(p)){
+                        cPot.removePlayer(p);
+                    }
+                }
+                // If there is only one player who hasn't folded,
+                // force call on that remaining player (whose turn it must be)
+                if (getNumberNotFolded() == 1){
+                    call();
+                }
+            }
+        }
+    }
+    
+    @Override
     protected void removeJoined(Player p){
         User user = findUser(p.getNick());
         joined.remove(p);
-        if (inProgress) {
-            showMsg(getMsg("tt_unjoin"), p.getNickStr());
-        } else {
-            if (user != null){
-                manager.deVoice(channel, user);
-            }
-            showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
+        if (user != null){
+            manager.deVoice(channel, user);
         }
     }
     
@@ -1013,12 +1035,14 @@ public class TexasTourney extends TexasPoker {
                     // from the tournament
                     blacklist.add(0, p);
                     removeJoined(p);
+                    showMsg(getMsg("tt_unjoin"), p.getNickStr());
                     ctr--;
                     newPlayerOut = true;
                     newOutList.add(p);
                 // Quitters
                 } else if (p.has("quit")) {
                     removeJoined(p);
+                    showMsg(getMsg("tt_unjoin"), p.getNickStr());
                     blacklist.add(0, p);
                     ctr--;
                 }
