@@ -81,6 +81,7 @@ public class TexasTourney extends TexasPoker {
     /////////////////////////////////////////
     //// Methods that process IRC events ////
     /////////////////////////////////////////
+    
     @Override
     public void processCommand(User user, String command, String[] params){
         String nick = user.getNick();
@@ -231,6 +232,7 @@ public class TexasTourney extends TexasPoker {
     /////////////////////////
     //// Command methods ////
     /////////////////////////
+    
     @Override
     public void join(String nick, String host) {
         CardGame game = manager.getGame(nick);
@@ -254,8 +256,9 @@ public class TexasTourney extends TexasPoker {
         if (!isJoined(nick)){
             informPlayer(nick, getMsg("no_join"));
         } else if (!inProgress) {
+            Player p = findJoined(nick);
             removeJoined(nick);
-            showMsg(getMsg("unjoin"), formatBold(nick), joined.size());
+            showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
         } else {
             leave(nick);
         }
@@ -577,6 +580,24 @@ public class TexasTourney extends TexasPoker {
     }
     
     @Override
+    protected void fleave(User user, String nick, String[] params) {
+        String fNick = params[0];
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (params.length < 1){
+            informPlayer(nick, getMsg("no_parameter"));
+        } else if (!isJoined(fNick)){
+            informPlayer(nick, getMsg("no_join_nick"), fNick);
+        } else if (!inProgress) {
+            Player p = findJoined(fNick);
+            removeJoined(fNick);
+            showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
+        } else {
+            leave(fNick);
+        }
+    }
+    
+    @Override
     protected void fstart(User user, String nick, String[] params) {
         if (!channel.isOp(user)) {
             informPlayer(nick, getMsg("ops_only"));
@@ -799,6 +820,7 @@ public class TexasTourney extends TexasPoker {
     /////////////////////////////////
     //// Game management methods ////
     /////////////////////////////////
+    
     @Override
     public void addPlayer(String nick, String host) {
         addPlayer(new TourneyPokerPlayer(nick, host));
@@ -1227,7 +1249,10 @@ public class TexasTourney extends TexasPoker {
         }
     }
     
-    /* Game settings management */
+    //////////////////////////////////
+    //// Game settings management ////
+    //////////////////////////////////
+    
     @Override
     protected void initSettings() {
         // Do not use set()
@@ -1300,6 +1325,10 @@ public class TexasTourney extends TexasPoker {
         }
     }
     
+    /////////////////////////////////////////
+    //// Player stats management methods ////
+    /////////////////////////////////////////
+    
     /**
      * For tournament mode, we don't want to load a player's cash accumulated
      * from other games.
@@ -1367,7 +1396,29 @@ public class TexasTourney extends TexasPoker {
         }
     }
     
-    /* House stats management */
+    @Override
+    public int getTotalPlayers(){
+        try {
+            ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
+            loadPlayerFile(records);
+            int total = 0;
+            
+            for (PlayerRecord record : records) {
+                if (record.has("ttplayed")){
+                    total++;
+                }
+            }
+            return total;
+        } catch (IOException e){
+            manager.log("Error reading players.txt!");
+            return 0;
+        }
+    }  
+    
+    ///////////////////////////////////////
+    //// Game stats management methods ////
+    ///////////////////////////////////////
+    
     @Override
     public void loadGameStats() {
         try {
@@ -1450,28 +1501,12 @@ public class TexasTourney extends TexasPoker {
         } catch (IOException e) {
             manager.log("Error writing to housestats.txt!");
         }
-    }
+    }  
     
-    @Override
-    public int getTotalPlayers(){
-        try {
-            ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
-            loadPlayerFile(records);
-            int total = 0;
-            
-            for (PlayerRecord record : records) {
-                if (record.has("ttplayed")){
-                    total++;
-                }
-            }
-            return total;
-        } catch (IOException e){
-            manager.log("Error reading players.txt!");
-            return 0;
-        }
-    }    
+    /////////////////////////////////////////////////////////////
+    //// Message output methods for Texas Hold'em Tournament ////
+    /////////////////////////////////////////////////////////////
     
-    /* Channel message output methods for Texas Hold'em Tournament*/
     @Override
     public void showResults(){
         ArrayList<PokerPlayer> players;
@@ -1541,6 +1576,10 @@ public class TexasTourney extends TexasPoker {
         showMsg(getMsg("tt_start_round"), tourneyRounds + 1, get("startwait"));
     }
     
+    /**
+     * Displays the number of tournaments the specified player as played.
+     * @param nick 
+     */
     public void showPlayerTourneysPlayed(String nick){
         int ttplayed = getPlayerStat(nick, "ttplayed");
         if (ttplayed == Integer.MIN_VALUE){
@@ -1550,6 +1589,10 @@ public class TexasTourney extends TexasPoker {
         }
     }
     
+    /**
+     * Displays the number of tournament wins for the specified player.
+     * @param nick 
+     */
     public void showPlayerTourneyWins(String nick){
         int ttwins = getPlayerStat(nick, "ttwins");
         if (ttwins == Integer.MIN_VALUE){
@@ -1703,7 +1746,10 @@ public class TexasTourney extends TexasPoker {
         showMsg(msg.substring(0, msg.length()-2));
     }
     
-    /* Formatted strings */
+    ///////////////////////////
+    //// Formatted strings ////
+    ///////////////////////////
+    
     @Override
     public String getGameNameStr() {
         return formatBold(getMsg("tt_game_name"));

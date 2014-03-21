@@ -284,8 +284,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         } else if (!isJoined(nick)){
             informPlayer(nick, getMsg("no_join"));
         } else if (!inProgress) {
+            Player p = findJoined(nick);
             removeJoined(nick);
-            showMsg(getMsg("unjoin"), formatBold(nick), joined.size());
+            showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
         } else {
             leave(nick);
         }
@@ -711,12 +712,22 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param params 
      */
     protected void fleave(User user, String nick, String[] params) {
+        String fNick = params[0];
         if (!channel.isOp(user)) {
             informPlayer(nick, getMsg("ops_only"));
         } else if (params.length < 1){
             informPlayer(nick, getMsg("no_parameter"));
+        } else if (isWaitlisted(fNick)) {
+            removeWaitlisted(fNick);
+            informPlayer(nick, getMsg("leave_waitlist"));
+        } else if (!isJoined(fNick)){
+            informPlayer(nick, getMsg("no_join_nick"), fNick);
+        } else if (!inProgress) {
+            Player p = findJoined(fNick);
+            removeJoined(fNick);
+            showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
         } else {
-            leave(params[0]);
+            leave(fNick);
         }
     }
     
@@ -963,10 +974,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         return inProgress;
     }
     
-    /* 
-     * Game management methods
-     * These methods control the game flow. 
-     */
+    //////////////////////////////////
+    ////  Game management methods ////
+    //////////////////////////////////
     /**
      * Starts a new round of the game.
      */
@@ -1518,9 +1528,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         }
     }
     
-    /* Player file management methods
-     * Methods for reading and saving player data.
-     */
+    /////////////////////////////////////////
+    //// Player stats management methods ////
+    /////////////////////////////////////////
     
     /**
      * Returns the total number of players who have played this game.
@@ -1727,7 +1737,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         out.close();
     }
     
-    /* Methods for managing game stats. */
+    ////////////////////////////////////////
+    //// Game stats management methods. ////
+    ////////////////////////////////////////
+    
     /**
      * Loads the stats for the game from a file.
      */
@@ -1773,7 +1786,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         }      
     }
     
-    /* Generic card management methods */
+    /////////////////////////////////////////
+    //// Generic card management methods ////
+    /////////////////////////////////////////
     
     /**
      * Takes a card from the deck and adds it to the discard pile.
@@ -1790,11 +1805,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         h.add(deck.takeCard());
     }
     
-    /* 
-     * Channel output methods to reduce clutter.
-     * These methods will all send a specific message or set of
-     * messages to the main channel.
-     */
+    ////////////////////////////////
+    //// Message output methods ////
+    ////////////////////////////////
         
     /**
      * Outputs a player's winnings for the game to the game channel.
@@ -1968,7 +1981,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         }
     }
     
-    /* Formatted strings */
+    ///////////////////////////
+    //// Formatted strings ////
+    ///////////////////////////
+    
     /**
      * Returns the name of the game formatted in bold.
      * @return the game name in bold

@@ -852,7 +852,10 @@ public class TexasPoker extends CardGame{
         }
     }
     
-    /* Game management methods */
+    /////////////////////////////////
+    //// Game management methods ////
+    /////////////////////////////////
+    
     @Override
     public void addPlayer(String nick, String host) {
         addPlayer(new PokerPlayer(nick, host));
@@ -1213,7 +1216,10 @@ public class TexasPoker extends CardGame{
         minRaise = get("minbet");
     }
     
-    /* Game settings management */
+    //////////////////////////////////
+    //// Game settings management ////
+    //////////////////////////////////
+    
     @Override
     protected void initSettings() {
         // Do not use set()
@@ -1441,6 +1447,7 @@ public class TexasPoker extends CardGame{
     //////////////////////////////////////////////
     //// Texas Hold'em Poker gameplay methods ////
     //////////////////////////////////////////////
+    
     /**
      * Processes a bet command.
      * @param amount the amount to bet
@@ -1556,7 +1563,9 @@ public class TexasPoker extends CardGame{
         continueRound();
     }
     
-    /* Behind the scenes methods */
+    ///////////////////////////////////
+    //// Behind the scenes methods ////
+    ///////////////////////////////////
     
     /**
      * Determines the number of players who have not folded.
@@ -1716,9 +1725,10 @@ public class TexasPoker extends CardGame{
         }
     }    
     
-    ////////////////////////////////////////////////////////////////
-    //// Channel message output methods for Texas Hold'em Poker ////
-    ////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////
+    //// Message output methods for Texas Hold'em Poker ////
+    ////////////////////////////////////////////////////////
+    
     /**
      * Displays the players who are involved in a round. Players who have not
      * folded are displayed in bold. Designations for small blind, big blind,
@@ -2116,7 +2126,10 @@ public class TexasPoker extends CardGame{
         showMsg(msg.substring(0, msg.length()-2));
     }
     
-    /* Formatted strings */
+    ///////////////////////////
+    //// Formatted strings ////
+    ///////////////////////////
+    
     @Override
     public String getGameNameStr() {
         return formatBold(getMsg("tp_game_name"));

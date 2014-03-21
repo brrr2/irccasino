@@ -238,6 +238,7 @@ public class Blackjack extends CardGame {
     ///////////////////////////////////////
     //// Command methods for Blackjack ////
     ///////////////////////////////////////
+    
     /**
      * Starts a new round.
      * @param nick
@@ -969,6 +970,7 @@ public class Blackjack extends CardGame {
     //////////////////////////////////
     //// Game settings management ////
     //////////////////////////////////
+    
     @Override
     protected void set(String setting, int value) {
         super.set(setting, value);
@@ -1074,6 +1076,7 @@ public class Blackjack extends CardGame {
     /////////////////////////////////////////////
     //// Game stats management for Blackjack ////
     /////////////////////////////////////////////
+    
     @Override
     public final void loadGameStats() {
         try {
@@ -1198,13 +1201,15 @@ public class Blackjack extends CardGame {
         return total;
     }
     
-    //////////////////////////////////////////////
-    //// Game management methods for Blackjack////
-    //////////////////////////////////////////////
+    ///////////////////////////////////////////////
+    //// Game management methods for Blackjack ////
+    ///////////////////////////////////////////////
+    
     @Override
     public void addPlayer(String nick, String host) {
         addPlayer(new BlackjackPlayer(nick, host));
     }
+    
     @Override
     public void addWaitlistPlayer(String nick, String host) {
         Player p = new BlackjackPlayer(nick, host);
@@ -1258,6 +1263,7 @@ public class Blackjack extends CardGame {
             }
         }
     }
+    
     @Override
     public void startRound() {
         if (joined.size() > 0) {
@@ -1271,6 +1277,7 @@ public class Blackjack extends CardGame {
             endRound();
         }
     }
+    
     @Override
     public void continueRound(){
         BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
@@ -1286,6 +1293,7 @@ public class Blackjack extends CardGame {
             }
         }
     }
+    
     @Override
     public void endRound() {
         roundEnded = true;
@@ -1383,6 +1391,7 @@ public class Blackjack extends CardGame {
             setIdleShuffleTask();
         }
     }
+    
     @Override
     public void endGame() {
         cancelStartRoundTask();
@@ -1408,6 +1417,7 @@ public class Blackjack extends CardGame {
         msgMap.clear();
         settings.clear();
     }
+    
     @Override
     public void resetGame() {
         inProgress = false;
@@ -1418,6 +1428,7 @@ public class Blackjack extends CardGame {
         discardPlayerHand(dealer);
         currentPlayer = null;
     }
+    
     /**
      * Resets a BlackjackPlayer back to default values.
      * This method is called at the end of a Blackjack round for each player in
@@ -1455,6 +1466,7 @@ public class Blackjack extends CardGame {
     ///////////////////////////////////////////////
     //// Card management methods for Blackjack ////
     ///////////////////////////////////////////////
+    
     /**
      * Deals a card from the shoe to the specified hand.
      * @param h the hand
@@ -1520,7 +1532,9 @@ public class Blackjack extends CardGame {
         }
     }
 
-    /* Blackjack gameplay methods */
+    ////////////////////////////////////
+    //// Blackjack gameplay methods ////
+    ////////////////////////////////////
     
     /**
      * Sets the initialize bet for the current player to see a hand.
@@ -1696,7 +1710,10 @@ public class Blackjack extends CardGame {
         }
     }
 
-    /* Blackjack behind-the-scenes methods */
+    /////////////////////////////////////////////
+    //// Blackjack behind-the-scenes methods ////
+    /////////////////////////////////////////////
+    
     /**
      * Determines what to do when the action falls to a new player/hand
      */
@@ -1811,7 +1828,10 @@ public class Blackjack extends CardGame {
         }
     }
 
-    /* Card-counting methods */
+    ///////////////////////////////
+    //// Card-counting methods ////
+    ///////////////////////////////
+    
     /**
      * Calculates the Zen count.
      * Contributors: Yky, brrr 
@@ -1893,9 +1913,10 @@ public class Blackjack extends CardGame {
         }
     }
     
-    //////////////////////////////////////////////////////
-    //// Channel message output methods for Blackjack ////
-    //////////////////////////////////////////////////////
+    //////////////////////////////////////////////
+    //// Message output methods for Blackjack ////
+    //////////////////////////////////////////////
+    
     /**
      * Shows house stats for a given shoe size.
      * @param n the number of decks in the shoe
@@ -2384,7 +2405,10 @@ public class Blackjack extends CardGame {
         }
     }
     
-    /* Formatted strings */   
+    ///////////////////////////
+    //// Formatted strings ////
+    ///////////////////////////
+    
     @Override
     public final String getGameNameStr(){
         return formatBold(getMsg("bj_game_name"));
