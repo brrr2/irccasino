@@ -483,13 +483,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             informPlayer(nick, getMsg("wait_round_end"));
         } else if (params.length > 1){
             try {
-                showPlayerRank(params[1].toLowerCase(), params[0].toLowerCase());
+                showPlayerRank(params[1], params[0]);
             } catch (IllegalArgumentException e) {
                 informPlayer(nick, getMsg("bad_parameter"));
             }
         } else if (params.length == 1){
             try {
-                showPlayerRank(nick, params[0].toLowerCase());
+                showPlayerRank(nick, params[0]);
             } catch (IllegalArgumentException e) {
                 informPlayer(nick, getMsg("bad_parameter"));
             }
@@ -508,7 +508,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             informPlayer(nick, getMsg("wait_round_end"));
         } else if (params.length > 1){
             try {
-                showTopPlayers(params[1].toLowerCase(), Integer.parseInt(params[0]));
+                showTopPlayers(params[1], Integer.parseInt(params[0]));
             } catch (IllegalArgumentException e) {
                 informPlayer(nick, getMsg("bad_parameter"));
             }
@@ -948,6 +948,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     }
                 }
                 savePlayerFile(newRecords);
+                showMsg("Player data has been trimmed.");
             } catch (IOException e) {
                 manager.log("Error reading players.txt!");
                 informPlayer(nick, "Error reading players.txt!");

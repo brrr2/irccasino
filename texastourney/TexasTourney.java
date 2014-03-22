@@ -501,13 +501,13 @@ public class TexasTourney extends TexasPoker {
             informPlayer(nick, getMsg("tt_wait_for_end"));
         } else if (params.length > 1){
             try {
-                showPlayerRank(params[1].toLowerCase(), params[0].toLowerCase());
+                showPlayerRank(params[1], params[0]);
             } catch (IllegalArgumentException e) {
                 informPlayer(nick, getMsg("bad_parameter"));
             }
         } else if (params.length == 1){
             try {
-                showPlayerRank(nick, params[0].toLowerCase());
+                showPlayerRank(nick, params[0]);
             } catch (IllegalArgumentException e) {
                 informPlayer(nick, getMsg("bad_parameter"));
             }
@@ -522,7 +522,7 @@ public class TexasTourney extends TexasPoker {
             informPlayer(nick, getMsg("tt_wait_for_end"));
         } else if (params.length > 1){
             try {
-                showTopPlayers(params[1].toLowerCase(), Integer.parseInt(params[0]));
+                showTopPlayers(params[1], Integer.parseInt(params[0]));
             } catch (IllegalArgumentException e) {
                 informPlayer(nick, getMsg("bad_parameter"));
             }
@@ -1634,34 +1634,74 @@ public class TexasTourney extends TexasPoker {
         }
         
         try {
+            PlayerRecord aRecord;
             ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
             loadPlayerFile(records);
-            PlayerRecord aRecord;
             int length = records.size();
             String line = Colors.BLACK + ",08";
-            String statName = "";
             
-            if (stat.equals("wins")){
-                statName = "ttwins";
-                line += "Texas Hold'em Tournament Wins: ";
-            } else if (stat.equals("tourneys")) {
-                statName = "ttplayed";
-                line += "Texas Hold'em Tournaments Played: ";
+            if (stat.equalsIgnoreCase("winrate")) {
+                int highIndex, rank = 0;
+                ArrayList<String> nicks = new ArrayList<String>();
+                ArrayList<Integer> winrates = new ArrayList<Integer>();
+                
+                for (int ctr = 0; ctr < length; ctr++) {
+                    aRecord = records.get(ctr);
+                    nicks.add(aRecord.getNick());
+                    if (aRecord.get("ttplayed") == 0){
+                        winrates.add(0);
+                    } else {
+                        winrates.add((int) Math.round((double) aRecord.get("ttwins") / (double) aRecord.get("ttplayed") * 100));
+                    }
+                }
+                
+                line += "Texas Hold'em Tournament Win Rate: ";
+                
+                // Find the player with the highest value and check if it is 
+                // the requested player. Repeat until found or end.
+                for (int ctr = 0; ctr < length; ctr++){
+                    highIndex = 0;
+                    rank++;
+                    for (int ctr2 = 0; ctr2 < nicks.size(); ctr2++) {
+                        if (winrates.get(ctr2) > winrates.get(highIndex)) {
+                            highIndex = ctr2;
+                        }
+                    }
+                    
+                    if (nick.equalsIgnoreCase(nicks.get(highIndex))){
+                        line += "#" + rank + " " + Colors.WHITE + ",04 " + formatNoPing(nicks.get(highIndex)) + " " + formatNumber(winrates.get(highIndex)) + "%% ";
+                        break;
+                    } else {
+                        nicks.remove(highIndex);
+                        winrates.remove(highIndex);
+                    }
+                }
             } else {
-                throw new IllegalArgumentException();
-            }
-            
-            // Sort based on stat
-            Collections.sort(records, PlayerRecord.getComparator(statName));
-            
-            // Find the player in the records and output rank
-            for (int ctr = 0; ctr < length; ctr++){
-                aRecord = records.get(ctr);
-                if (nick.equalsIgnoreCase(aRecord.getNick())){
-                    line += "#" + (ctr+1) + " " + Colors.WHITE + ",04 " + formatNoPing(nick) + " " + formatNoDecimal(aRecord.get(statName)) + " ";
-                    break;
+                String statName = "";
+                if (stat.equals("wins")){
+                    statName = "ttwins";
+                    line += "Texas Hold'em Tournament Wins: ";
+                } else if (stat.equals("tourneys")) {
+                    statName = "ttplayed";
+                    line += "Texas Hold'em Tournaments Played: ";
+                } else {
+                    throw new IllegalArgumentException();
+                }
+
+                // Sort based on stat
+                Collections.sort(records, PlayerRecord.getComparator(statName));
+
+                // Find the player in the records and output rank
+                for (int ctr = 0; ctr < length; ctr++){
+                    aRecord = records.get(ctr);
+                    if (nick.equalsIgnoreCase(aRecord.getNick())){
+                        line += "#" + (ctr+1) + " " + Colors.WHITE + ",04 " + formatNoPing(aRecord.getNick()) + " " + formatNumber(aRecord.get(statName)) + " ";
+                        break;
+                    }
                 }
             }
+
+            // Show rank
             showMsg(line);
         } catch (IOException e) {
             manager.log("Error reading players.txt!");
@@ -1675,40 +1715,79 @@ public class TexasTourney extends TexasPoker {
         }
         
         try {
+            PlayerRecord aRecord;
             ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
             loadPlayerFile(records);
-            PlayerRecord aRecord;
-            int length = Math.min(n, records.size());
-            String title = Colors.BOLD + Colors.BLACK + ",08 Top " + length;
+            int end = Math.min(n, records.size());
+            int start = Math.max(end - 10, 0);
+            String title = Colors.BOLD + Colors.BLACK + ",08 Top " + (start+1) + "-" + end;
             String list = Colors.BLACK + ",08";
-            String statName = "";
             
-            if (stat.equals("wins")){
-                statName = "ttwins";
-                title += " Texas Hold'em Tournament Wins ";
-            } else if (stat.equals("tourneys")) {
-                statName = "ttplayed";
-                title += " Texas Hold'em Tournaments Played ";
+            if (stat.equalsIgnoreCase("winrate")) {
+                int highIndex;
+                ArrayList<String> nicks = new ArrayList<String>();
+                ArrayList<Integer> winrates = new ArrayList<Integer>();
+                
+                for (int ctr = 0; ctr < records.size(); ctr++) {
+                    aRecord = records.get(ctr);
+                    nicks.add(aRecord.getNick());
+                    if (aRecord.get("ttplayed") == 0){
+                        winrates.add(0);
+                    } else {
+                        winrates.add((int) Math.round((double) aRecord.get("ttwins") / (double) aRecord.get("ttplayed") * 100));
+                    }
+                }
+                
+                title += " Texas Hold'em Tournament Win Rate ";
+                
+                // Find the player with the highest value and check if it is 
+                // the requested player. Repeat until found or end.
+                for (int ctr = 0; ctr < records.size(); ctr++){
+                    highIndex = 0;
+                    for (int ctr2 = 0; ctr2 < nicks.size(); ctr2++) {
+                        if (winrates.get(ctr2) > winrates.get(highIndex)) {
+                            highIndex = ctr2;
+                        }
+                    }
+                    
+                    // Only add those in the required range.
+                    if (ctr >= start) {
+                        list += " #" + (ctr+1) + ": " + Colors.WHITE + ",04 " + formatNoPing(nicks.get(highIndex)) + " " + formatNumber(winrates.get(highIndex)) + "%% " + Colors.BLACK + ",08";
+                    }
+                    
+                    nicks.remove(highIndex);
+                    winrates.remove(highIndex);
+                    
+                    // Break when we've reached the end of required range
+                    if (ctr + 1 == end) {
+                        break;
+                    }
+                }
             } else {
-                throw new IllegalArgumentException();
-            }
+                String statName = "";
+                if (stat.equals("wins")){
+                    statName = "ttwins";
+                    title += " Texas Hold'em Tournament Wins ";
+                } else if (stat.equals("tourneys")) {
+                    statName = "ttplayed";
+                    title += " Texas Hold'em Tournaments Played ";
+                } else {
+                    throw new IllegalArgumentException();
+                }
 
-            // Show title and sort based on stat
-            showMsg(title);
-            Collections.sort(records, PlayerRecord.getComparator(statName));
-            
-            // Find the player with the highest value, add to output string and remove.
-            // Repeat n times or for the length of the list.
-            for (int ctr = 0; ctr < length; ctr++){
-                aRecord = records.get(ctr);
-                list += " #" + (ctr+1) + ": " + Colors.WHITE + ",04 " + formatNoPing(aRecord.getNick()) + " " + formatNoDecimal(aRecord.get(statName)) + " " + Colors.BLACK + ",08";
+                // Sort based on stat
+                Collections.sort(records, PlayerRecord.getComparator(statName));
 
-                // Output and reset after 10 players
-                if (ctr % 10 == 9 || ctr == length - 1){
-                    showMsg(list);
-                    list = Colors.BLACK + ",08";
+                // Add the players in the required range
+                for (int ctr = start; ctr < end; ctr++){
+                    aRecord = records.get(ctr);
+                    list += " #" + (ctr+1) + ": " + Colors.WHITE + ",04 " + formatNoPing(aRecord.getNick()) + " " + formatNumber(aRecord.get(statName)) + " " + Colors.BLACK + ",08";
                 }
             }
+            
+            // Output the title and list
+            showMsg(title);
+            showMsg(list);
         } catch (IOException e) {
             manager.log("Error reading players.txt!");
         }
