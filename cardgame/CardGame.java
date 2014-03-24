@@ -1552,37 +1552,38 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @return the desired statistic
      */
     protected int getPlayerStat(String nick, String stat){
-        if (isJoined(nick) || isBlacklisted(nick)){
-            Player p = findJoined(nick);
-            if (p == null){
-                p = findBlacklisted(nick);
+        if (isBlacklisted(nick)) {
+            return findBlacklisted(nick).get(stat);
+        } else if (isJoined(nick)) {
+            return findJoined(nick).get(stat);
+        } else {
+            PlayerRecord record = loadPlayerRecord(nick);
+            if (record == null) {
+                return Integer.MIN_VALUE;
+            } else {
+                return record.get(stat);
             }
-            return p.get(stat);
         }
-        return loadPlayerStat(nick, stat);
     }
     
     /**
-     * Searches players.txt for a specific player's statistic.
-     * If the player or statistic is not found, Integer.MIN_VALUE is returned.
-     * 
-     * @param nick IRC user's nick
-     * @param stat the statistic's name
-     * @return the desired statistic or Integer.MIN_VALUE if not found
+     * Returns the player record for the specified nick from players.txt.
+     * @param nick
+     * @return 
      */
-    protected int loadPlayerStat(String nick, String stat){
+    protected PlayerRecord loadPlayerRecord(String nick) {
         try {
             ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
             loadPlayerFile(records);
             for (PlayerRecord record : records) {
                 if (nick.equalsIgnoreCase(record.getNick())){
-                    return record.get(stat);
+                    return record;
                 }
             }
-            return Integer.MIN_VALUE;
+            return null;
         } catch (IOException e){
             manager.log("Error reading players.txt!");
-            return Integer.MIN_VALUE;
+            return null;
         }
     }
     
@@ -1594,36 +1595,24 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param p the Player to find
      */
     protected void loadPlayerData(Player p) {
-        try {
-            boolean found = false;
-            ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
-            loadPlayerFile(records);
-
-            for (PlayerRecord record : records) {
-                if (p.getNick().equalsIgnoreCase(record.getNick())) {
-                    if (record.get("cash") <= 0) {
-                        p.set("cash", get("cash"));
-                    } else {
-                        p.set("cash", record.get("cash"));
-                    }
-                    p.set("bank", record.get("bank"));
-                    p.set("bankrupts", record.get("bankrupts"));
-                    p.set("bjwinnings", record.get("bjwinnings"));
-                    p.set("bjrounds", record.get("bjrounds"));
-                    p.set("tpwinnings", record.get("tpwinnings"));
-                    p.set("tprounds", record.get("tprounds"));
-                    p.set("ttwins", record.get("ttwins"));
-                    p.set("ttplayed", record.get("ttplayed"));
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
+        PlayerRecord record = loadPlayerRecord(p.getNick());
+        if (record == null) {
+            p.set("cash", get("cash"));
+            informPlayer(p.getNick(), getMsg("new_player"), getGameNameStr(), get("cash"));
+        } else {
+            if (record.get("cash") <= 0) {
                 p.set("cash", get("cash"));
-                informPlayer(p.getNick(), getMsg("new_player"), getGameNameStr(), get("cash"));
+            } else {
+                p.set("cash", record.get("cash"));
             }
-        } catch (IOException e) {
-            manager.log("Error reading players.txt!");
+            p.set("bank", record.get("bank"));
+            p.set("bankrupts", record.get("bankrupts"));
+            p.set("bjwinnings", record.get("bjwinnings"));
+            p.set("bjrounds", record.get("bjrounds"));
+            p.set("tpwinnings", record.get("tpwinnings"));
+            p.set("tprounds", record.get("tprounds"));
+            p.set("ttwins", record.get("ttwins"));
+            p.set("ttplayed", record.get("ttplayed"));
         }
     }
     
