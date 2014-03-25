@@ -1175,6 +1175,10 @@ public class TexasTourney extends TexasPoker {
             resetTourney();
         // Automatically start a new round if more than 1 player left
         } else {
+            if (tourneyRounds % get("doubleblinds") == 0) {
+                int newBlind = (int) (get("minbet")*(Math.pow(2, tourneyRounds/get("doubleblinds") + numOuts)));
+                showMsg(getMsg("tt_double_blinds"), tourneyRounds, newBlind/2, newBlind);
+            }
             if (newPlayerOut) {
                 numOuts++;
                 int newBlind = (int) (get("minbet")*(Math.pow(2, tourneyRounds/get("doubleblinds") + numOuts)));
@@ -1189,10 +1193,6 @@ public class TexasTourney extends TexasPoker {
                 }
                 newPlayerOut = false;
                 newOutList.clear();
-            }
-            if (tourneyRounds % get("doubleblinds") == 0) {
-                int newBlind = (int) (get("minbet")*(Math.pow(2, tourneyRounds/get("doubleblinds") + numOuts)));
-                showMsg(getMsg("tt_double_blinds"), tourneyRounds, newBlind/2, newBlind);
             }
             showStartRound();
             setStartRoundTask();
