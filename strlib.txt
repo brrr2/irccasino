@@ -45,6 +45,7 @@ no_trim=players.txt may not be trimmed while any game is in progress.
 ###################
 is_joined_nick=%s is already joined!
 is_joined_other_nick=%s is already joined in a game of %s in %s!
+no_join_nick=%s is not joined!
 on_waitlist_nick=%s has already joined the waitlist!
 on_blacklist_nick=%s is bankrupt and cannot join!
 new_player=Welcome to %s! Here's $%,d to get you started!

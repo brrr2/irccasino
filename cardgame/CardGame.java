@@ -284,8 +284,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         } else if (!isJoined(nick)){
             informPlayer(nick, getMsg("no_join"));
         } else if (!inProgress) {
+            Player p = findJoined(nick);
             removeJoined(nick);
-            showMsg(getMsg("unjoin"), formatBold(nick), joined.size());
+            showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
         } else {
             leave(nick);
         }
@@ -482,13 +483,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             informPlayer(nick, getMsg("wait_round_end"));
         } else if (params.length > 1){
             try {
-                showPlayerRank(params[1].toLowerCase(), params[0].toLowerCase());
+                showPlayerRank(params[1], params[0]);
             } catch (IllegalArgumentException e) {
                 informPlayer(nick, getMsg("bad_parameter"));
             }
         } else if (params.length == 1){
             try {
-                showPlayerRank(nick, params[0].toLowerCase());
+                showPlayerRank(nick, params[0]);
             } catch (IllegalArgumentException e) {
                 informPlayer(nick, getMsg("bad_parameter"));
             }
@@ -507,7 +508,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             informPlayer(nick, getMsg("wait_round_end"));
         } else if (params.length > 1){
             try {
-                showTopPlayers(params[1].toLowerCase(), Integer.parseInt(params[0]));
+                showTopPlayers(params[1], Integer.parseInt(params[0]));
             } catch (IllegalArgumentException e) {
                 informPlayer(nick, getMsg("bad_parameter"));
             }
@@ -711,12 +712,22 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param params 
      */
     protected void fleave(User user, String nick, String[] params) {
+        String fNick = params[0];
         if (!channel.isOp(user)) {
             informPlayer(nick, getMsg("ops_only"));
         } else if (params.length < 1){
             informPlayer(nick, getMsg("no_parameter"));
+        } else if (isWaitlisted(fNick)) {
+            removeWaitlisted(fNick);
+            informPlayer(nick, getMsg("leave_waitlist"));
+        } else if (!isJoined(fNick)){
+            informPlayer(nick, getMsg("no_join_nick"), fNick);
+        } else if (!inProgress) {
+            Player p = findJoined(fNick);
+            removeJoined(fNick);
+            showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
         } else {
-            leave(params[0]);
+            leave(fNick);
         }
     }
     
@@ -937,6 +948,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     }
                 }
                 savePlayerFile(newRecords);
+                showMsg("Player data has been trimmed.");
             } catch (IOException e) {
                 manager.log("Error reading players.txt!");
                 informPlayer(nick, "Error reading players.txt!");
@@ -963,10 +975,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         return inProgress;
     }
     
-    /* 
-     * Game management methods
-     * These methods control the game flow. 
-     */
+    //////////////////////////////////
+    ////  Game management methods ////
+    //////////////////////////////////
     /**
      * Starts a new round of the game.
      */
@@ -1518,9 +1529,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         }
     }
     
-    /* Player file management methods
-     * Methods for reading and saving player data.
-     */
+    /////////////////////////////////////////
+    //// Player stats management methods ////
+    /////////////////////////////////////////
     
     /**
      * Returns the total number of players who have played this game.
@@ -1541,37 +1552,38 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @return the desired statistic
      */
     protected int getPlayerStat(String nick, String stat){
-        if (isJoined(nick) || isBlacklisted(nick)){
-            Player p = findJoined(nick);
-            if (p == null){
-                p = findBlacklisted(nick);
+        if (isBlacklisted(nick)) {
+            return findBlacklisted(nick).get(stat);
+        } else if (isJoined(nick)) {
+            return findJoined(nick).get(stat);
+        } else {
+            PlayerRecord record = loadPlayerRecord(nick);
+            if (record == null) {
+                return Integer.MIN_VALUE;
+            } else {
+                return record.get(stat);
             }
-            return p.get(stat);
         }
-        return loadPlayerStat(nick, stat);
     }
     
     /**
-     * Searches players.txt for a specific player's statistic.
-     * If the player or statistic is not found, Integer.MIN_VALUE is returned.
-     * 
-     * @param nick IRC user's nick
-     * @param stat the statistic's name
-     * @return the desired statistic or Integer.MIN_VALUE if not found
+     * Returns the player record for the specified nick from players.txt.
+     * @param nick
+     * @return 
      */
-    protected int loadPlayerStat(String nick, String stat){
+    protected PlayerRecord loadPlayerRecord(String nick) {
         try {
             ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
             loadPlayerFile(records);
             for (PlayerRecord record : records) {
                 if (nick.equalsIgnoreCase(record.getNick())){
-                    return record.get(stat);
+                    return record;
                 }
             }
-            return Integer.MIN_VALUE;
+            return null;
         } catch (IOException e){
             manager.log("Error reading players.txt!");
-            return Integer.MIN_VALUE;
+            return null;
         }
     }
     
@@ -1583,36 +1595,24 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param p the Player to find
      */
     protected void loadPlayerData(Player p) {
-        try {
-            boolean found = false;
-            ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
-            loadPlayerFile(records);
-
-            for (PlayerRecord record : records) {
-                if (p.getNick().equalsIgnoreCase(record.getNick())) {
-                    if (record.get("cash") <= 0) {
-                        p.set("cash", get("cash"));
-                    } else {
-                        p.set("cash", record.get("cash"));
-                    }
-                    p.set("bank", record.get("bank"));
-                    p.set("bankrupts", record.get("bankrupts"));
-                    p.set("bjwinnings", record.get("bjwinnings"));
-                    p.set("bjrounds", record.get("bjrounds"));
-                    p.set("tpwinnings", record.get("tpwinnings"));
-                    p.set("tprounds", record.get("tprounds"));
-                    p.set("ttwins", record.get("ttwins"));
-                    p.set("ttplayed", record.get("ttplayed"));
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
+        PlayerRecord record = loadPlayerRecord(p.getNick());
+        if (record == null) {
+            p.set("cash", get("cash"));
+            informPlayer(p.getNick(), getMsg("new_player"), getGameNameStr(), get("cash"));
+        } else {
+            if (record.get("cash") <= 0) {
                 p.set("cash", get("cash"));
-                informPlayer(p.getNick(), getMsg("new_player"), getGameNameStr(), get("cash"));
+            } else {
+                p.set("cash", record.get("cash"));
             }
-        } catch (IOException e) {
-            manager.log("Error reading players.txt!");
+            p.set("bank", record.get("bank"));
+            p.set("bankrupts", record.get("bankrupts"));
+            p.set("bjwinnings", record.get("bjwinnings"));
+            p.set("bjrounds", record.get("bjrounds"));
+            p.set("tpwinnings", record.get("tpwinnings"));
+            p.set("tprounds", record.get("tprounds"));
+            p.set("ttwins", record.get("ttwins"));
+            p.set("ttplayed", record.get("ttplayed"));
         }
     }
     
@@ -1727,7 +1727,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         out.close();
     }
     
-    /* Methods for managing game stats. */
+    ////////////////////////////////////////
+    //// Game stats management methods. ////
+    ////////////////////////////////////////
+    
     /**
      * Loads the stats for the game from a file.
      */
@@ -1773,7 +1776,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         }      
     }
     
-    /* Generic card management methods */
+    /////////////////////////////////////////
+    //// Generic card management methods ////
+    /////////////////////////////////////////
     
     /**
      * Takes a card from the deck and adds it to the discard pile.
@@ -1790,11 +1795,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         h.add(deck.takeCard());
     }
     
-    /* 
-     * Channel output methods to reduce clutter.
-     * These methods will all send a specific message or set of
-     * messages to the main channel.
-     */
+    ////////////////////////////////
+    //// Message output methods ////
+    ////////////////////////////////
         
     /**
      * Outputs a player's winnings for the game to the game channel.
@@ -1968,7 +1971,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         }
     }
     
-    /* Formatted strings */
+    ///////////////////////////
+    //// Formatted strings ////
+    ///////////////////////////
+    
     /**
      * Returns the name of the game formatted in bold.
      * @return the game name in bold
