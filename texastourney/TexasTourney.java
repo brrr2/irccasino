@@ -1206,14 +1206,12 @@ public class TexasTourney extends TexasPoker {
     protected void setBlindBets(){
         // Calculate the current blind bet
         int newBlind = (int) (get("minbet")*(Math.pow(2, tourneyRounds/get("doubleblinds") + numOuts)));
-        // Set the small blind to minimum raise or the player's cash, 
-        // whichever is less.
+        // Set the small blind to newBlind/2 or the player's cash, whichever is less.
         smallBlind.set("bet", Math.min(newBlind/2, smallBlind.get("cash")));
-        // Set the big blind to minimum raise + small blind or the player's 
-        // cash, whichever is less.
+        // Set the big blind to newBlind or the player's cash, whichever is less.
         bigBlind.set("bet", Math.min(newBlind, bigBlind.get("cash")));
         // Set the current bet to the bigger of the two blinds.
-        currentBet = Math.max(smallBlind.get("bet"), bigBlind.get("bet"));
+        currentBet = newBlind;
         minRaise = newBlind;
     }
     

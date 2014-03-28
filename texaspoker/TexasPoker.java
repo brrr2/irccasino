@@ -1205,14 +1205,12 @@ public class TexasPoker extends CardGame{
      * Sets the bets for the small and big blinds.
      */
     protected void setBlindBets(){
-        // Set the small blind to minimum raise or the player's cash, 
-        // whichever is less.
+        // Set the small blind to minbet/2 or the player's cash, whichever is less.
         smallBlind.set("bet", Math.min(get("minbet")/2, smallBlind.get("cash")));
-        // Set the big blind to minimum raise + small blind or the player's 
-        // cash, whichever is less.
+        // Set the big blind to minbet or the player's cash, whichever is less.
         bigBlind.set("bet", Math.min(get("minbet"), bigBlind.get("cash")));
-        // Set the current bet to the bigger of the two blinds.
-        currentBet = Math.max(smallBlind.get("bet"), bigBlind.get("bet"));
+        // Set the current bet to minbet regardless of actual blinds
+        currentBet = get("minbet");
         minRaise = get("minbet");
     }
     
