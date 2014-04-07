@@ -1247,7 +1247,7 @@ public class TexasPoker extends CardGame{
         // Set the big blind
         if (get("minbet") > bigBlind.get("cash")) {
             bigBlind.set("allin", 1);
-            bigBlind.set("cash", bigBlind.get("cash"));
+            bigBlind.set("bet", bigBlind.get("cash"));
         } else {
             bigBlind.set("bet", get("minbet"));
         }
