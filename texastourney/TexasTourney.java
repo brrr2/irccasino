@@ -990,7 +990,7 @@ public class TexasTourney extends TexasPoker {
                     sim = new PokerSimulator(players, community);
                     String showdownStr = formatHeader(" Showdown: ") + " ";
                     for (PokerPlayer p : players) {
-                        showdownStr += p.getNickStr() + " (" + p.getHand() + "||" + formatBold(sim.getWinPct(p) + "/" + sim.getTiePct(p) + "%%") + "), ";
+                        showdownStr += p.getNickStr() + " (" + p.getHand() + "||" + formatBold(Math.round(sim.getWinPct(p)) + "/" + Math.round(sim.getTiePct(p)) + "%%") + "), ";
                     }
                     showMsg(showdownStr);
 
