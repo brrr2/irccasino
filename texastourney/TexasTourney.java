@@ -268,7 +268,7 @@ public class TexasTourney extends TexasPoker {
         } else if (joined.size() < get("minplayers")) {
             showMsg(getMsg("no_players"));
         } else {
-            inProgress = true;
+            state = PokerState.PRE_START;
             showMsg(formatHeader(" " + getMsg("tt_new_tourney") + " "));
             showStartRound();
             setStartRoundTask();
@@ -592,7 +592,7 @@ public class TexasTourney extends TexasPoker {
         } else if (joined.size() < get("minplayers")) {
             showMsg(getMsg("no_players"));
         } else {
-            inProgress = true;
+            state = PokerState.PRE_START;
             showMsg(formatHeader(getMsg("tt_new_tourney")));
             showStartRound();
             setStartRoundTask();

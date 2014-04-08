@@ -1094,15 +1094,13 @@ public class TexasPoker extends CardGame{
         betState = PokerBet.NONE;
         
         // Check if auto-starts remaining
-        if (startCount > 0){
+        if (startCount > 0 && joined.size() > 1){
             startCount--;
-            if (joined.size() > 1) {
-                state = PokerState.PRE_START;
-                showStartRound();
-                setStartRoundTask();
-            } else {
-                startCount = 0;
-            }
+            state = PokerState.PRE_START;
+            showStartRound();
+            setStartRoundTask();
+        } else {
+            startCount = 0;
         }
     }
     

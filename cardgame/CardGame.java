@@ -61,9 +61,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     /** INI file settings **/
     protected HashMap<String,Integer> settings;
     // Game properties
-    protected boolean inProgress;
-    protected boolean roundEnded;
-    protected boolean continuingRound;
     protected int startCount;
     protected long lastPing;
     protected String name;
@@ -284,10 +281,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             informPlayer(nick, getMsg("leave_waitlist"));
         } else if (!isJoined(nick)){
             informPlayer(nick, getMsg("no_join"));
-        } else if (!isInProgress()) {
-            Player p = findJoined(nick);
-            removeJoined(nick);
-            showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
         } else {
             leave(nick);
         }
@@ -1009,11 +1002,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     
     /**
      * Public accessor required for GameManager.
-     * @return true if a round is in progress
+     * @return true if a game is in progress
      */
-    public boolean isInProgress() {
-        return inProgress;
-    }
+    abstract public boolean isInProgress();
     
     //////////////////////////////////
     ////  Game management methods ////

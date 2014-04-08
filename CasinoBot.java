@@ -519,7 +519,7 @@ public class CasinoBot extends PircBotX implements GameManager {
      * @throws Exception 
      */
     protected void runBot() throws Exception{
-        int timeInt = 10000;    // milliseconds
+        int timeInt = 30000;    // milliseconds
         int attempt = 0;
         
         // Continue trying to connect to the server if not in a connected state
@@ -547,7 +547,7 @@ public class CasinoBot extends PircBotX implements GameManager {
                 if (outputThread != null) outputThread.join();
                 
                 // Set delay up to 600 seconds or 10 minutes
-                int delay = Math.min(attempt * timeInt, timeInt * 60);
+                int delay = Math.min(attempt * timeInt, timeInt * 15);
                 log("Attempt to reconnect in " + (delay/1000) + " seconds...");
                 Thread.sleep(delay);
                 
