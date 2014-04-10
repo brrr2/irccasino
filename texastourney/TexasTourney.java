@@ -437,7 +437,7 @@ public class TexasTourney extends TexasPoker {
         if (!isJoined(nick)) {
             informPlayer(nick, getMsg("no_join"));
         } else {
-            showCommunityCards();
+            showCommunityCards(false);
         }
     }
     
@@ -960,7 +960,7 @@ public class TexasTourney extends TexasPoker {
             
             // Show final community if required
             if (settings.get("revealcommunity") == 1){
-                showCommunityCards();
+                showCommunityCards(true);
             }
             endRound();
         } else if (nextPlayer == topBettor || nextPlayer == currentPlayer) {
@@ -1001,14 +1001,14 @@ public class TexasTourney extends TexasPoker {
                    burnCard();
                    dealCommunity();
                    betState = betState.next();
-                   showCommunityCards();
+                   showCommunityCards(false);
                 }
                 endRound();
             } else {
                 burnCard();
                 dealCommunity();
                 betState = betState.next();
-                showCommunityCards();
+                showCommunityCards(false);
                 continueRound();
             }
         // Continue to the next bettor

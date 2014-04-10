@@ -401,7 +401,7 @@ public class TexasPoker extends CardGame{
         } else if (!isInProgress()) {
             informPlayer(nick, getMsg("no_start"));
         } else {
-            showCommunityCards();
+            showCommunityCards(false);
         }
     }
     
@@ -949,7 +949,7 @@ public class TexasPoker extends CardGame{
             
             // Show final community if required
             if (settings.get("revealcommunity") == 1){
-                showCommunityCards();
+                showCommunityCards(true);
             }
             endRound();
         } else if (nextPlayer == topBettor || nextPlayer == currentPlayer) {
@@ -988,14 +988,14 @@ public class TexasPoker extends CardGame{
                     burnCard();
                     dealCommunity();
                     betState = betState.next();
-                    showCommunityCards();
+                    showCommunityCards(false);
                 }
                 endRound();
             } else {
                 burnCard();
                 dealCommunity();
                 betState = betState.next();
-                showCommunityCards();
+                showCommunityCards(false);
                 continueRound();
             }
         // Continue to the next bettor
@@ -1818,12 +1818,15 @@ public class TexasPoker extends CardGame{
     
     /**
      * Displays the community cards along with existing pots.
+     * @param noTitle
      */
-    public void showCommunityCards(){
+    public void showCommunityCards(boolean noTitle){
         String msg = "";
         
         // Append community cards to StringBuilder
-        if (betState.equals(PokerBet.FLOP)) {
+        if (noTitle && betState.equals(PokerBet.RIVER)) {
+            msg += formatHeader(" Community: ") + " " + community.toString() + " ";
+        } else if (betState.equals(PokerBet.FLOP)) {
             msg += formatHeader(" Flop: ") + " " + community.toString() + " ";
         } else if (betState.equals(PokerBet.TURN)) {
             msg += formatHeader(" Turn: ") + " " + community.toString() + " ";
