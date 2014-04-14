@@ -609,6 +609,9 @@ public class TexasTourney extends TexasPoker {
         } else {
             cancelStartRoundTask();
             cancelIdleOutTask();
+            for (Player p : joined) {
+                resetPlayer(p);
+            }
             resetGame();
             showMsg(getMsg("tt_end_round"), ++tourneyRounds);
             showMsg(getMsg("tt_no_winner_cancel"));
@@ -1064,9 +1067,9 @@ public class TexasTourney extends TexasPoker {
                     newOutList.add(p);
                 // Quitters
                 } else if (p.has("quit")) {
+                    blacklist.add(0, p);
                     removeJoined(p);
                     showMsg(getMsg("tt_unjoin"), p.getNickStr());
-                    blacklist.add(0, p);
                     ctr--;
                 }
                 
@@ -1200,6 +1203,16 @@ public class TexasTourney extends TexasPoker {
         }
     }
     
+    @Override
+    protected void resetPlayer(Player p) {
+        discardPlayerHand((TourneyPokerPlayer) p);
+        p.clear("fold");
+        p.clear("quit");
+        p.clear("allin");
+        p.clear("change");
+        p.clear("cancel");
+    }
+    
     /**
      * Sets the bets for the small and big blinds.
      */
@@ -1243,9 +1256,8 @@ public class TexasTourney extends TexasPoker {
             p.set("cancel", 1);
             
             // Check if all players have made a request
-            for (int ctr = 0; ctr < joined.size(); ctr++) {
-                p = (TourneyPokerPlayer) joined.get(ctr);
-                if (!p.has("cancel")) {
+            for (Player pp : joined) {
+                if (!pp.has("cancel")) {
                     return;
                 }
             }
@@ -1254,6 +1266,9 @@ public class TexasTourney extends TexasPoker {
             cancelStartRoundTask();
             cancelIdleOutTask();
             showMsg(getMsg("tt_cancel_tourney"));
+            for (Player pp : joined) {
+                resetPlayer(pp);
+            }
             resetGame();
             showMsg(getMsg("tt_end_round"), ++tourneyRounds);
             showMsg(getMsg("tt_no_winner_cancel"));
@@ -1590,11 +1605,19 @@ public class TexasTourney extends TexasPoker {
      * @param nick 
      */
     public void showPlayerTourneysPlayed(String nick){
-        int ttplayed = getPlayerStat(nick, "ttplayed");
-        if (ttplayed == Integer.MIN_VALUE){
-            showMsg(getMsg("no_data"), formatNoPing(nick));
+        if (isBlacklisted(nick)) {
+            Player p = findBlacklisted(nick);
+            showMsg(getMsg("tt_player_played"), p.getNick(false), p.get("ttplayed"));
+        } else if (isJoined(nick)) {
+            Player p = findJoined(nick);
+            showMsg(getMsg("tt_player_played"), p.getNick(false), p.get("ttplayed"));
         } else {
-            showMsg(getMsg("tt_player_played"), formatNoPing(nick), ttplayed);
+            PlayerRecord record = loadPlayerRecord(nick);
+            if (record == null) {
+                showMsg(getMsg("no_data"), formatNoPing(nick));
+            } else {
+                showMsg(getMsg("tt_player_played"), record.getNick(false), record.get("ttplayed"));
+            }
         }
     }
     
@@ -1603,35 +1626,65 @@ public class TexasTourney extends TexasPoker {
      * @param nick 
      */
     public void showPlayerTourneyWins(String nick){
-        int ttwins = getPlayerStat(nick, "ttwins");
-        if (ttwins == Integer.MIN_VALUE){
-            showMsg(getMsg("no_data"), formatNoPing(nick));
+        if (isBlacklisted(nick)) {
+            Player p = findBlacklisted(nick);
+            showMsg(getMsg("tt_player_wins"), p.getNick(false), p.get("ttwins"));
+        } else if (isJoined(nick)) {
+            Player p = findJoined(nick);
+            showMsg(getMsg("tt_player_wins"), p.getNick(false), p.get("ttwins"));
         } else {
-            showMsg(getMsg("tt_player_wins"), formatNoPing(nick), ttwins);
+            PlayerRecord record = loadPlayerRecord(nick);
+            if (record == null) {
+                showMsg(getMsg("no_data"), formatNoPing(nick));
+            } else {
+                showMsg(getMsg("tt_player_wins"), record.getNick(false), record.get("ttwins"));
+            }
         }
     }
     
     @Override
     public void showPlayerWinRate(String nick) {
-        int ttwins = getPlayerStat(nick, "ttwins");
-        int ttplayed = getPlayerStat(nick, "ttplayed");
-        if (ttplayed == Integer.MIN_VALUE) {
-            showMsg(getMsg("no_data"), formatNoPing(nick));
-        } else if (ttplayed == 0) {
-            showMsg(getMsg("tt_player_no_tourneys"), formatNoPing(nick));
+        if (isBlacklisted(nick)) {
+            Player p = findBlacklisted(nick);
+            if (p.get("ttplayed") == 0) {
+                showMsg(getMsg("tt_player_no_tourneys"), p.getNick(false));
+            } else {
+                showMsg(getMsg("tt_player_winrate"), p.getNick(false), Math.round((double) p.get("ttwins")/ (double) p.get("ttplayed") * 100));
+            }
+        } else if (isJoined(nick)) {
+            Player p = findJoined(nick);
+            if (p.get("ttplayed") == 0) {
+                showMsg(getMsg("tt_player_no_tourneys"), p.getNick(false));
+            } else {
+                showMsg(getMsg("tt_player_winrate"), p.getNick(false), Math.round((double) p.get("ttwins")/ (double) p.get("ttplayed") * 100));
+            }
         } else {
-            showMsg(getMsg("tt_player_winrate"), formatNoPing(nick), Math.round((double) ttwins/ (double) ttplayed * 100));
+            PlayerRecord record = loadPlayerRecord(nick);
+            if (record == null) {
+                showMsg(getMsg("no_data"), formatNoPing(nick));
+            }  else if (record.get("ttplayed") == 0) {
+                showMsg(getMsg("tt_player_no_tourneys"), record.getNick(false));
+            } else {
+                showMsg(getMsg("tt_player_winrate"), record.getNick(false), Math.round((double) record.get("ttwins")/ (double) record.get("ttplayed") * 100));
+            }
         }
     }
     
     @Override
     public void showPlayerAllStats(String nick){
-        int ttwins = getPlayerStat(nick, "ttwins");
-        int ttplayed = getPlayerStat(nick, "ttplayed");
-        if (ttwins == Integer.MIN_VALUE) {
-            showMsg(getMsg("no_data"), formatNoPing(nick));
+        if (isBlacklisted(nick)) {
+            Player p = findBlacklisted(nick);
+            showMsg(getMsg("tt_player_all_stats"), p.getNick(false), p.get("ttwins"), p.get("ttplayed"));
+        } else if (isJoined(nick)) {
+            Player p = findJoined(nick);
+            showMsg(getMsg("tt_player_all_stats"), p.getNick(false), p.get("ttwins"), p.get("ttplayed"));
         } else {
-            showMsg(getMsg("tt_player_all_stats"), formatNoPing(nick), ttwins, ttplayed);
+            PlayerRecord record = loadPlayerRecord(nick);
+            if (record == null) {
+                showMsg(getMsg("no_data"), formatNoPing(nick));
+            } else {
+                showMsg(getMsg("tt_player_all_stats"), record.getNick(false), record.get("ttwins"), record.get("ttplayed"));
+            }
         }
     }
 

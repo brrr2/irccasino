@@ -717,13 +717,14 @@ public class Blackjack extends CardGame {
         } else {
             cancelStartRoundTask();
             cancelIdleOutTask();
-            for (int ctr = 0; ctr < joined.size(); ctr++) {
-                resetPlayer((BlackjackPlayer) joined.get(ctr));
+            for (Player p : joined) {
+                resetPlayer(p);
             }
             resetGame();
             startCount = 0;
             showMsg(getMsg("end_round"), getGameNameStr(), commandChar);
             setIdleShuffleTask();
+            state = BlackjackState.NONE;
         }
     }
     
@@ -1359,10 +1360,17 @@ public class Blackjack extends CardGame {
                 p = (BlackjackPlayer) joined.get(ctr);
                 p.increment("bjrounds");
 
-                // Bankrupts
-                if (!p.has("cash")) {
-                    // Make a withdrawal if the player has a positive bankroll
-                    if (p.get("bank") > 0){
+                if (p.has("cash")) {
+                    if (p.has("quit")) {
+                        removeJoined(p.getNick());
+                        showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
+                        ctr--;
+                    } else {
+                        savePlayerData(p);
+                    }
+                } else {
+                    if (p.has("bank")){
+                        // Make a withdrawal if the player has a positive bankroll
                         int amount = Math.min(p.get("bank"), get("cash"));
                         p.bankTransfer(-amount);
                         savePlayerData(p);
@@ -1373,8 +1381,8 @@ public class Blackjack extends CardGame {
                             showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
                             ctr--;
                         }
-                    // Give penalty to players with no cash in their bankroll
                     } else {
+                        // Give penalty to players with no cash in their bankroll
                         p.increment("bankrupts");
                         blacklist.add(p);
                         removeJoined(p);
@@ -1382,15 +1390,8 @@ public class Blackjack extends CardGame {
                         setRespawnTask(p);
                         ctr--;
                     }
-                // Quitters
-                } else if (p.has("quit")) {
-                    removeJoined(p.getNick());
-                    showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
-                    ctr--;
-                // Remaining players
-                } else {
-                    savePlayerData(p);
                 }
+                
                 resetPlayer(p);
             }
             saveGameStats();
@@ -1450,15 +1451,9 @@ public class Blackjack extends CardGame {
         currentPlayer = null;
     }
     
-    /**
-     * Resets a BlackjackPlayer back to default values.
-     * This method is called at the end of a Blackjack round for each player in
-     * preparation for the following round.
-     * 
-     * @param p the player
-     */
-    private void resetPlayer(BlackjackPlayer p) {
-        discardPlayerHand(p);
+    @Override
+    protected void resetPlayer(Player p) {
+        discardPlayerHand((BlackjackPlayer) p);
         p.clear("currentindex");
         p.clear("initialbet");
         p.clear("quit");
@@ -2190,51 +2185,93 @@ public class Blackjack extends CardGame {
     
     @Override
     public void showPlayerWinnings(String nick){
-        int winnings = getPlayerStat(nick, "bjwinnings");
-        if (winnings == Integer.MIN_VALUE) {
-            showMsg(getMsg("no_data"), formatNoPing(nick));
+        if (isBlacklisted(nick)) {
+            Player p = findBlacklisted(nick);
+            showMsg(getMsg("player_winnings"), p.getNick(false), p.get("bjwinnings"), getGameNameStr());
+        } else if (isJoined(nick)) {
+            Player p = findJoined(nick);
+            showMsg(getMsg("player_winnings"), p.getNick(false), p.get("bjwinnings"), getGameNameStr());
         } else {
-            showMsg(getMsg("player_winnings"), formatNoPing(nick), winnings, getGameNameStr());
+            PlayerRecord record = loadPlayerRecord(nick);
+            if (record == null) {
+                showMsg(getMsg("no_data"), formatNoPing(nick));
+            } else {
+                showMsg(getMsg("player_winnings"), record.getNick(false), record.get("bjwinnings"), getGameNameStr());
+            }
         }
     }
     
     @Override
     public void showPlayerWinRate(String nick){
-        double winnings = (double) getPlayerStat(nick, "bjwinnings");
-        double rounds = (double) getPlayerStat(nick, "bjrounds");
-        if (rounds == Integer.MIN_VALUE) {
-            showMsg(getMsg("no_data"), formatNoPing(nick));
-        } else if (rounds == 0){
-            showMsg(getMsg("player_no_rounds"), formatNoPing(nick), getGameNameStr());
+        if (isBlacklisted(nick)) {
+            Player p = findBlacklisted(nick);
+            if (p.get("bjrounds") == 0) {
+                showMsg(getMsg("player_no_rounds"), p.getNick(false), getGameNameStr());
+            } else {
+                showMsg(getMsg("player_winrate"), p.getNick(false), (double) p.get("bjwinnings")/(double) p.get("bjrounds"), getGameNameStr());
+            }
+        } else if (isJoined(nick)) {
+            Player p = findJoined(nick);
+            if (p.get("bjrounds") == 0) {
+                showMsg(getMsg("player_no_rounds"), p.getNick(false), getGameNameStr());
+            } else {
+                showMsg(getMsg("player_winrate"), p.getNick(false), (double) p.get("bjwinnings")/(double) p.get("bjrounds"), getGameNameStr());
+            }
         } else {
-            showMsg(getMsg("player_winrate"), formatNoPing(nick), winnings/rounds, getGameNameStr());
+            PlayerRecord record = loadPlayerRecord(nick);
+            if (record == null) {
+                showMsg(getMsg("no_data"), formatNoPing(nick));
+            } else if (record.get("bjrounds") == 0){
+                showMsg(getMsg("player_no_rounds"), record.getNick(false), getGameNameStr());
+            } else {
+                showMsg(getMsg("player_winrate"), record.getNick(false), (double) record.get("bjwinnings")/(double) record.get("bjrounds"), getGameNameStr());
+            }  
         }
     }
     
     @Override
     public void showPlayerRounds(String nick){
-        int rounds = getPlayerStat(nick, "bjrounds");
-        if (rounds == Integer.MIN_VALUE) {
-            showMsg(getMsg("no_data"), formatNoPing(nick));
-        } else if (rounds == 0){
-            showMsg(getMsg("player_no_rounds"), formatNoPing(nick), getGameNameStr());
+        if (isBlacklisted(nick)) {
+            Player p = findBlacklisted(nick);
+            if (p.get("bjrounds") == 0) {
+                showMsg(getMsg("player_no_rounds"), p.getNick(false), getGameNameStr());
+            } else {
+                showMsg(getMsg("player_rounds"), p.getNick(false), p.get("bjrounds"), getGameNameStr());
+            }
+        } else if (isJoined(nick)) {
+            Player p = findJoined(nick);
+            if (p.get("bjrounds") == 0) {
+                showMsg(getMsg("player_no_rounds"), p.getNick(false), getGameNameStr());
+            } else {
+                showMsg(getMsg("player_rounds"), p.getNick(false), p.get("bjrounds"), getGameNameStr());
+            }
         } else {
-            showMsg(getMsg("player_rounds"), formatNoPing(nick), rounds, getGameNameStr());
-        }  
+            PlayerRecord record = loadPlayerRecord(nick);
+            if (record == null) {
+                showMsg(getMsg("no_data"), formatNoPing(nick));
+            } else if (record.get("bjrounds") == 0){
+                showMsg(getMsg("player_no_rounds"), record.getNick(false), getGameNameStr());
+            } else {
+                showMsg(getMsg("player_rounds"), record.getNick(false), record.get("bjrounds"), getGameNameStr());
+            }  
+        }
     } 
     
     @Override
     public void showPlayerAllStats(String nick){
-        int cash = getPlayerStat(nick, "cash");
-        int bank = getPlayerStat(nick, "bank");
-        int net = getPlayerStat(nick, "netcash");
-        int bankrupts = getPlayerStat(nick, "bankrupts");
-        int winnings = getPlayerStat(nick, "bjwinnings");
-        int rounds = getPlayerStat(nick, "bjrounds");
-        if (cash != Integer.MIN_VALUE) {
-            showMsg(getMsg("player_all_stats"), formatNoPing(nick), cash, bank, net, bankrupts, winnings, rounds);
+        if (isBlacklisted(nick)) {
+            Player p = findBlacklisted(nick);
+            showMsg(getMsg("player_all_stats"), p.getNick(false), p.get("cash"), p.get("bank"), p.get("netcash"), p.get("bankrupts"), p.get("bjwinnings"), p.get("bjrounds"));
+        } else if (isJoined(nick)) {
+            Player p = findJoined(nick);
+            showMsg(getMsg("player_all_stats"), p.getNick(false), p.get("cash"), p.get("bank"), p.get("netcash"), p.get("bankrupts"), p.get("bjwinnings"), p.get("bjrounds"));
         } else {
-            showMsg(getMsg("no_data"), formatNoPing(nick));
+            PlayerRecord record = loadPlayerRecord(nick);
+            if (record == null) {
+                showMsg(getMsg("no_data"), formatNoPing(nick));
+            } else {
+                showMsg(getMsg("player_all_stats"), record.getNick(false), record.get("cash"), record.get("bank"), record.get("netcash"), record.get("bankrupts"), record.get("bjwinnings"), record.get("bjrounds"));
+            }
         }
     }
     

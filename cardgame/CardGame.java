@@ -306,6 +306,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     /**
      * Cancels any remaining auto-starts.
      * @param nick 
+     * @param params 
      */
     protected void stop(String nick, String[] params) {
         if (!isJoined(nick)) {
@@ -1503,6 +1504,12 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     
     /**
+     * Resets a player's in-game properties.
+     * @param p 
+     */
+    abstract protected void resetPlayer(Player p);
+    
+    /**
      * Transfers the specified amount from a player's stack to his bankroll.
      * A negative amount indicates a withdrawal. A positive amount indicates
      * a deposit.
@@ -1900,11 +1907,19 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param nick the player's nick
      */
     protected void showPlayerCash(String nick){
-        int cash = getPlayerStat(nick, "cash");
-        if (cash != Integer.MIN_VALUE){
-            showMsg(getMsg("player_cash"), formatNoPing(nick), cash);
+        if (isBlacklisted(nick)) {
+            Player p = findBlacklisted(nick);
+            showMsg(getMsg("player_cash"), p.getNick(false), p.get("cash"));
+        } else if (isJoined(nick)) {
+            Player p = findJoined(nick);
+            showMsg(getMsg("player_cash"), p.getNick(false), p.get("cash"));
         } else {
-            showMsg(getMsg("no_data"), formatNoPing(nick));
+            PlayerRecord record = loadPlayerRecord(nick);
+            if (record == null) {
+                showMsg(getMsg("no_data"), formatNoPing(nick));
+            } else {
+                showMsg(getMsg("player_cash"), record.getNick(false), record.get("cash"));
+            }
         }
     }
     
@@ -1913,11 +1928,19 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param nick the player's nick
      */
     protected void showPlayerNetCash(String nick){
-        int netcash = getPlayerStat(nick, "netcash");
-        if (netcash != Integer.MIN_VALUE){
-            showMsg(getMsg("player_net"), formatNoPing(nick), netcash);
+        if (isBlacklisted(nick)) {
+            Player p = findBlacklisted(nick);
+            showMsg(getMsg("player_net"), p.getNick(false), p.get("netcash"));
+        } else if (isJoined(nick)) {
+            Player p = findJoined(nick);
+            showMsg(getMsg("player_net"), p.getNick(false), p.get("netcash"));
         } else {
-            showMsg(getMsg("no_data"), formatNoPing(nick));
+            PlayerRecord record = loadPlayerRecord(nick);
+            if (record == null) {
+                showMsg(getMsg("no_data"), formatNoPing(nick));
+            } else {
+                showMsg(getMsg("player_net"), record.getNick(false), record.get("netcash"));
+            }
         }
     }
     
@@ -1926,11 +1949,19 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param nick the player's nick
      */
     protected void showPlayerBank(String nick){
-        int bank = getPlayerStat(nick, "bank");
-        if (bank != Integer.MIN_VALUE){
-            showMsg(getMsg("player_bank"), formatNoPing(nick), bank);
+        if (isBlacklisted(nick)) {
+            Player p = findBlacklisted(nick);
+            showMsg(getMsg("player_bank"), p.getNick(false), p.get("bank"));
+        } else if (isJoined(nick)) {
+            Player p = findJoined(nick);
+            showMsg(getMsg("player_bank"), p.getNick(false), p.get("bank"));
         } else {
-            showMsg(getMsg("no_data"), formatNoPing(nick));
+            PlayerRecord record = loadPlayerRecord(nick);
+            if (record == null) {
+                showMsg(getMsg("no_data"), formatNoPing(nick));
+            } else {
+                showMsg(getMsg("player_bank"), record.getNick(false), record.get("bank"));
+            }
         }
     }
     
@@ -1940,11 +1971,19 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param nick the player's nick
      */
     protected void showPlayerBankrupts(String nick){
-        int bankrupts = getPlayerStat(nick, "bankrupts");
-        if (bankrupts != Integer.MIN_VALUE){
-            showMsg(getMsg("player_bankrupts"), formatNoPing(nick), bankrupts);
+        if (isBlacklisted(nick)) {
+            Player p = findBlacklisted(nick);
+            showMsg(getMsg("player_bankrupts"), p.getNick(false), p.get("bankrupts"));
+        } else if (isJoined(nick)) {
+            Player p = findJoined(nick);
+            showMsg(getMsg("player_bankrupts"), p.getNick(false), p.get("bankrupts"));
         } else {
-            showMsg(getMsg("no_data"), formatNoPing(nick));
+            PlayerRecord record = loadPlayerRecord(nick);
+            if (record == null) {
+                showMsg(getMsg("no_data"), formatNoPing(nick));
+            } else {
+                showMsg(getMsg("player_bankrupts"), record.getNick(false), record.get("bankrupts"));
+            }
         }
     }
     
