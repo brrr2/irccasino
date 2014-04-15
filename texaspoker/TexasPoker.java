@@ -945,12 +945,12 @@ public class TexasPoker extends CardGame{
                 burnCard();
                 dealCommunity();
                 betState = betState.next();
+                // Show final community if required
+                if (settings.get("revealcommunity") == 1 && betState.equals(PokerBet.RIVER)){
+                    showCommunityCards(true);
+                }
             }
             
-            // Show final community if required
-            if (settings.get("revealcommunity") == 1){
-                showCommunityCards(true);
-            }
             endRound();
         } else if (nextPlayer == topBettor || nextPlayer == currentPlayer) {
             // If we reach the firstPlayer or topBettor, then we have reached 
@@ -1809,7 +1809,7 @@ public class TexasPoker extends CardGame{
      * Displays info on the dealer and blinds.
      */
     public void showButtonInfo() {
-        showMsg(getMsg("tp_button_info"), dealer.getNickStr(false), smallBlind.getNickStr(false), minRaise/2, bigBlind.getNickStr(false), minRaise);
+        showMsg(getMsg("tp_button_info"), dealer.getNickStr(false), smallBlind.getNickStr(false), smallBlind.get("bet"), bigBlind.getNickStr(false), bigBlind.get("bet"));
     }
     
     /**

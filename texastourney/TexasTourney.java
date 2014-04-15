@@ -959,12 +959,12 @@ public class TexasTourney extends TexasPoker {
                 burnCard();
                 dealCommunity();
                 betState = betState.next();
+                // Show final community if required
+                if (settings.get("revealcommunity") == 1 && betState.equals(PokerBet.RIVER)){
+                    showCommunityCards(true);
+                }
             }
             
-            // Show final community if required
-            if (settings.get("revealcommunity") == 1){
-                showCommunityCards(true);
-            }
             endRound();
         } else if (nextPlayer == topBettor || nextPlayer == currentPlayer) {
             // If we reach the firstPlayer or topBettor, then we have reached 
