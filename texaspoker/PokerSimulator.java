@@ -22,8 +22,10 @@ package irccasino.texaspoker;
 import irccasino.cardgame.Card;
 import irccasino.cardgame.CardDeck;
 import irccasino.cardgame.Hand;
+import irccasino.cardgame.Player;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Random;
 
 /**
  * Game simulator for calculating winning percentages.
@@ -34,11 +36,13 @@ public class PokerSimulator {
     private ArrayList<PokerPlayer> simList;
     private Hand simComm;
     private int rounds;
+    private Random randGen;
 
     public PokerSimulator(ArrayList<PokerPlayer> list, Hand comm) {
         simDeck = new CardDeck(1);
         simList = new ArrayList<PokerPlayer>();
         simComm = new Hand();
+        randGen = new Random();
         rounds = 0;
 
         PokerPlayer simP;
@@ -58,13 +62,15 @@ public class PokerSimulator {
                    simP.set("ties", 0);
                 }
                 simList.add(simP);
-                simP.getPokerHand().addAll(simP.getHand());
-                simP.getPokerHand().addAll(simComm);
             }
         }
 
         // Run simulation
-        simulate(0);
+        if (simComm.size() == 0) {
+            monteSim();
+        } else {
+            bruteSim(0);
+        }
     }
 
     /**
@@ -76,56 +82,91 @@ public class PokerSimulator {
      * @param index the index in simDeck from which to start adding cards
      *              to simComm
      */
-    private void simulate(int index) {
+    private void bruteSim(int index) {
         Card c;
         // Add another card if the simulated community isn't full
         if (simComm.size() < 5) {
             for (int ctr = index; ctr < simDeck.getNumberCards(); ctr++) {
                 c = simDeck.peekCard(ctr);
                 simComm.add(c);
-                for (PokerPlayer p : simList) {
-                    p.getPokerHand().add(c);
-                }
-                simulate(ctr + 1);
+                bruteSim(ctr + 1);
                 simComm.remove(c);
-                for (PokerPlayer p : simList) {
-                    p.getPokerHand().remove(c);
-                }
             }
         } else {
-            rounds++;
-            int winners = 1;
-
-            // Create PokerHands
-            for (PokerPlayer p : simList) {
-                Collections.sort(p.getPokerHand());
-                Collections.reverse(p.getPokerHand());
-            }
-
-            // Sort players by PokerHand
-            Collections.sort(simList);
-            Collections.reverse(simList);
-
-            // Determine number of winners
-            for (int ctr = 1; ctr < simList.size(); ctr++){
-                if (simList.get(0).compareTo(simList.get(ctr)) == 0){
-                    winners++;
+            findWinners();
+        }
+    }
+    
+    /**
+     * Runs a Monte Carlo simulation to determine win and tie percentages. The
+     * number of trials is hard-coded to produce results with a good degree
+     * of accuracy (+/-1%) while running reasonably fast. 
+     */
+    private void monteSim() {
+        ArrayList<Integer> indices = new ArrayList<Integer>();
+        int origSize = simComm.size();
+        int newIndex;
+        
+        for (int trial = 0; trial < 100000; trial++) {
+            // Pick random cards to complete the simulated community
+            for (int ctr = origSize; ctr < 5; ctr++) {
+                newIndex = randGen.nextInt(simDeck.getNumberCards());
+                while(indices.contains(newIndex)) {
+                    newIndex = randGen.nextInt(simDeck.getNumberCards());
                 }
+                indices.add(newIndex);
+                simComm.add(simDeck.peekCard(newIndex));
             }
+            
+            findWinners();
+            
+            // Remove the randomly picked cards
+            indices.clear();
+            for (int ctr = 4; ctr >= origSize; ctr--) {
+                simComm.remove(ctr);
+            }
+        }
+    }
+    
+    /**
+     * Determines the winners for a full simulated community.
+     */
+    private void findWinners() {
+        rounds++;
+        int winners = 1;
+        
+        // Create PokerHands
+        for (PokerPlayer p : simList) {
+            p.getPokerHand().addAll(p.getHand());
+            p.getPokerHand().addAll(simComm);
+            Collections.sort(p.getPokerHand());
+            Collections.reverse(p.getPokerHand());
+        }
 
-            // Increment win count for winners
-            if (winners == 1) {
-                simList.get(0).increment("wins");
-            } else {
-                for (int ctr = 0; ctr < winners; ctr++){
-                    simList.get(ctr).increment("ties");
-                }
-            }
+        // Sort players by PokerHand
+        Collections.sort(simList);
+        Collections.reverse(simList);
 
-            // Clear PokerHands
-            for (PokerPlayer p : simList) {
-                p.getPokerHand().resetValue();
+        // Determine number of winners
+        for (int ctr = 1; ctr < simList.size(); ctr++){
+            if (simList.get(0).compareTo(simList.get(ctr)) == 0){
+                winners++;
             }
+        }
+
+        // Increment win count for winners
+        if (winners == 1) {
+            simList.get(0).increment("wins");
+        } else {
+            for (int ctr = 0; ctr < winners; ctr++){
+                simList.get(ctr).increment("ties");
+            }
+        }
+
+        // Clear PokerHands
+        for (PokerPlayer p : simList) {
+            p.getPokerHand().clear();
+            p.getPokerHand().resetValue();
         }
     }
 
@@ -134,13 +175,13 @@ public class PokerSimulator {
      * @param p the player
      * @return the win percentage or -1 if the player is not found
      */
-    public int getWinPct(PokerPlayer p) {
+    public double getWinPct(PokerPlayer p) {
         for (PokerPlayer simP : simList) {
             if (simP.equals(p)) {
-                return (int) Math.round((double) simP.get("wins") / (double) rounds * 100);
+                return (double) simP.get("wins") / (double) rounds * 100;
             }
         }
-        return -1;
+        return -1.0;
     }
 
     /**
@@ -148,13 +189,13 @@ public class PokerSimulator {
      * @param p the player
      * @return the tie percentage or -1 if the player is not found
      */
-    public int getTiePct(PokerPlayer p) {
+    public double getTiePct(PokerPlayer p) {
         for (PokerPlayer simP : simList) {
             if (simP.equals(p)) {
-                return (int) Math.round((double) simP.get("ties") / (double) rounds * 100);
+                return (double) simP.get("ties") / (double) rounds * 100;
             }
         }
-        return -1;
+        return -1.0;
     }
 
     /**
@@ -164,10 +205,10 @@ public class PokerSimulator {
      */
     @Override
     public String toString() {
+        Collections.sort(simList, Player.getComparator("wins"));
         String out = "Showdown: ";
         for (PokerPlayer p : simList) {
-            //out += p.getNickStr() + " (" + p.getHand() + ", " + p.get("wins") +  "/" + p.get("splits") + "/" + rounds + "), ";
-            out += p.getNick() + " (" + p.getHand() + ", " + Math.round((double) p.get("wins") / (double) rounds * 100) + "%%, " + Math.round((double) p.get("ties") / (double) rounds * 100) + "%%), ";
+            out += p.getNick() + " (" + p.getHand() + ", " + Math.round(getWinPct(p)) + "%%, " + Math.round(getTiePct(p)) + "%%), ";
         }
         return out.substring(0, out.length() - 2);
     }

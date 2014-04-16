@@ -2,6 +2,7 @@
 start|auto-starts|go|Starts a new round of Texas Hold'em Poker if there are sufficient players. An optional parameter can be added to specify the number of auto-starts.
 stop|||Cancels any remaining auto-starts.
 join|||Joins the game. If a round is in progress, you will be added to a waiting list and automatically added to the next round.
+last|||Removes you from the game at the end of the round.
 quit||q,leave,l|Leaves the current game if joined, or the waiting list if on the waiting list.
 bet|value|b|Commits the specified amount to the pot.
 raise|value|r|Raises the current bet by the specified amount.
@@ -39,6 +40,7 @@ gcommands|||Tells you the list of commands supported by this game.
 ##### Op Commands #####
 fstart||fgo|Op command that forces a new round to start, if possible.
 fjoin|nick|fj|Op command that forces a user to join the game or waiting list.
+flast|nick||Op command that forces a player to be removed from the game at the end of the round.
 fquit|nick|fq,fleave,fl|Op command that forces a player to leave the game or waiting list.
 fbet|value|fb|Op command that forces the current player to bet the specified amount, if possible.
 fraise|value|fr|Op command that forces the current player to raise by the specified amount, if possible.

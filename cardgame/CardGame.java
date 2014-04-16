@@ -61,9 +61,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     /** INI file settings **/
     protected HashMap<String,Integer> settings;
     // Game properties
-    protected boolean inProgress;
-    protected boolean roundEnded;
-    protected boolean continuingRound;
     protected int startCount;
     protected long lastPing;
     protected String name;
@@ -201,7 +198,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             informPlayer(nick, getMsg("leave_waitlist"));
         } else if (!isJoined(nick)){
             // Do nothing
-        } else if (!inProgress) {
+        } else if (!isInProgress()) {
             removeJoined(nick);
             showMsg(getMsg("unjoin"), formatBold(nick), joined.size());
         } else {
@@ -225,7 +222,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             join(newNick, host);
         } else if (!isJoined(oldNick)){
             // Do nothing
-        } else if (!inProgress) {
+        } else if (!isInProgress()) {
             informPlayer(newNick, getMsg("nick_change"));
             removeJoined(oldNick);
             showMsg(getMsg("unjoin"), formatBold(oldNick), joined.size());
@@ -248,6 +245,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     /////////////////////////
     //// Command methods ////
     /////////////////////////
+    
     /**
      * Attempts to add a player to the game.
      * @param nick the player's nick
@@ -265,7 +263,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             informPlayer(nick, getMsg("is_joined_other"), game.getGameNameStr(), game.getChannel().getName());
         } else if (isWaitlisted(nick)) {
             informPlayer(nick, getMsg("on_waitlist"));
-        } else if (inProgress) {
+        } else if (isInProgress()) {
             addWaitlistPlayer(nick, host);
         } else {
             addPlayer(nick, host);
@@ -283,23 +281,37 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             informPlayer(nick, getMsg("leave_waitlist"));
         } else if (!isJoined(nick)){
             informPlayer(nick, getMsg("no_join"));
-        } else if (!inProgress) {
-            Player p = findJoined(nick);
-            removeJoined(nick);
-            showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
         } else {
             leave(nick);
         }
     }
     
     /**
-     * Cancels any remaining auto-starts.
-     * @param nick 
+     * Allows the user to automatically leave after the end of the round.
+     * @param nick
+     * @param params 
      */
-    protected void stop(String nick) {
+    protected void last(String nick, String[] params) {
         if (!isJoined(nick)) {
             informPlayer(nick, getMsg("no_join"));
-        } else if (!inProgress) {
+        } else if (!isInProgress()) {
+            informPlayer(nick, getMsg("no_start"));
+        } else {
+            Player p = findJoined(nick);
+            p.set("quit", 1);
+            informPlayer(p.getNick(), getMsg("remove_end_round"));
+        }
+    }
+    
+    /**
+     * Cancels any remaining auto-starts.
+     * @param nick 
+     * @param params 
+     */
+    protected void stop(String nick, String[] params) {
+        if (!isJoined(nick)) {
+            informPlayer(nick, getMsg("no_join"));
+        } else if (!isInProgress()) {
             informPlayer(nick, getMsg("no_start"));
         } else if (startCount == 0) {
             informPlayer(nick, getMsg("stop_no_autostarts"));
@@ -421,7 +433,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected void deposit(String nick, String[] params) {
         if (!isJoined(nick)) {
             informPlayer(nick, getMsg("no_join"));
-        } else if (inProgress) {
+        } else if (isInProgress()) {
             informPlayer(nick, getMsg("wait_round_end"));
         } else if (params.length < 1){
             informPlayer(nick, getMsg("no_parameter"));
@@ -442,7 +454,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected void withdraw(String nick, String[] params) {
         if (!isJoined(nick)) {
             informPlayer(nick, getMsg("no_join"));
-        } else if (inProgress) {
+        } else if (isInProgress()) {
             informPlayer(nick, getMsg("wait_round_end"));
         } else if (params.length < 1){
             informPlayer(nick, getMsg("no_parameter"));
@@ -479,7 +491,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param params 
      */
     protected void rank(String nick, String[] params) {
-        if (inProgress) {
+        if (isInProgress()) {
             informPlayer(nick, getMsg("wait_round_end"));
         } else if (params.length > 1){
             try {
@@ -504,7 +516,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param params 
      */
     protected void top(String nick, String[] params) {
-        if (inProgress) {
+        if (isInProgress()) {
             informPlayer(nick, getMsg("wait_round_end"));
         } else if (params.length > 1){
             try {
@@ -581,7 +593,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param params 
      */
     protected void stats(String nick, String[] params) {
-        if (inProgress) {
+        if (isInProgress()) {
             informPlayer(nick, getMsg("wait_round_end"));
         } else {
             showMsg(getGameStatsStr());
@@ -644,7 +656,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         // Check for rate-limit
         if (lastPing != 0 && System.currentTimeMillis() - lastPing < get("ping") * 1000) {
             informPlayer(nick, "This command is rate-limited. Please wait to use it again.");
-        } else if (inProgress) {
+        } else if (isInProgress()) {
             informPlayer(nick, "This command cannot be used at this time.");
         } else {
             // Grab the users in the channel
@@ -689,7 +701,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                         informPlayer(nick, getMsg("on_blacklist_nick"), fNick);
                     } else if (game != null) {
                         informPlayer(nick, getMsg("is_joined_other_nick"), fNick, game.getGameNameStr(), game.getChannel().getName());
-                    } else if (inProgress) {
+                    } else if (isInProgress()) {
                         if (isWaitlisted(fNick)) {
                             informPlayer(nick, getMsg("on_waitlist_nick"), fNick);
                         } else {
@@ -722,12 +734,34 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             informPlayer(nick, getMsg("leave_waitlist"));
         } else if (!isJoined(fNick)){
             informPlayer(nick, getMsg("no_join_nick"), fNick);
-        } else if (!inProgress) {
+        } else if (!isInProgress()) {
             Player p = findJoined(fNick);
             removeJoined(fNick);
             showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
         } else {
             leave(fNick);
+        }
+    }
+    
+    /**
+     * 
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void flast(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (params.length < 1) {
+            informPlayer(nick, getMsg("no_parameter"));
+        } else if (!isJoined(params[0])) {
+            informPlayer(nick, params[0] + " is not currently joined!");
+        } else if (!isInProgress()) {
+            informPlayer(nick, getMsg("no_start"));
+        } else {
+            Player p = findJoined(params[0]);
+            p.set("quit", 1);
+            informPlayer(nick, getMsg("remove_end_round_nick"), params[0]);
         }
     }
     
@@ -744,7 +778,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             informPlayer(nick, getMsg("no_parameter"));
         } else if (!isJoined(params[0])) {
             informPlayer(nick, params[0] + " is not currently joined!");
-        } else if (inProgress) {
+        } else if (isInProgress()) {
             informPlayer(nick, getMsg("wait_round_end"));
         } else {
             try {
@@ -768,7 +802,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             informPlayer(nick, getMsg("no_parameter"));
         } else if (!isJoined(params[0])) {
             informPlayer(nick, params[0] + " is not currently joined!");
-        } else if (inProgress) {
+        } else if (isInProgress()) {
             informPlayer(nick, getMsg("wait_round_end"));
         } else {
             try {
@@ -788,7 +822,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected void cards(User user, String nick, String[] params) {
         if (!channel.isOp(user)) {
             informPlayer(nick, getMsg("ops_only"));
-        } else if (inProgress) {
+        } else if (isInProgress()) {
             informPlayer(nick, getMsg("wait_round_end"));
         } else if (params.length < 1){
             informPlayer(nick, getMsg("no_parameter"));    
@@ -812,7 +846,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected void discards(User user, String nick, String[] params) {
         if (!channel.isOp(user)) {
             informPlayer(nick, getMsg("ops_only"));
-        } else if (inProgress) {
+        } else if (isInProgress()) {
             informPlayer(nick, getMsg("wait_round_end"));
         } else if (params.length < 1){
             informPlayer(nick, getMsg("no_parameter"));
@@ -836,7 +870,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected void settings(User user, String nick, String[] params) {
         if (!channel.isOp(user)) {
             informPlayer(nick, getMsg("ops_only"));
-        } else if (inProgress) {
+        } else if (isInProgress()) {
             informPlayer(nick, getMsg("wait_round_end"));
         } else {
             informPlayer(nick, getGameNameStr() + " settings:");
@@ -853,7 +887,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected void set(User user, String nick, String[] params) {
         if (!channel.isOp(user)) {
             informPlayer(nick, getMsg("ops_only"));
-        } else if (inProgress) {
+        } else if (isInProgress()) {
             informPlayer(nick, getMsg("wait_round_end"));
         } else if (params.length < 2){
             informPlayer(nick, getMsg("no_parameter"));
@@ -879,7 +913,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected void get(User user, String nick, String[] params) {
         if (!channel.isOp(user)) {
             informPlayer(nick, getMsg("ops_only"));
-        } else if (inProgress) {
+        } else if (isInProgress()) {
             informPlayer(nick, getMsg("wait_round_end"));
         } else if (params.length < 1){
             informPlayer(nick, getMsg("no_parameter"));
@@ -969,11 +1003,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     
     /**
      * Public accessor required for GameManager.
-     * @return true if a round is in progress
+     * @return true if a game is in progress
      */
-    public boolean isInProgress() {
-        return inProgress;
-    }
+    abstract public boolean isInProgress();
     
     //////////////////////////////////
     ////  Game management methods ////
@@ -1472,6 +1504,12 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     
     /**
+     * Resets a player's in-game properties.
+     * @param p 
+     */
+    abstract protected void resetPlayer(Player p);
+    
+    /**
      * Transfers the specified amount from a player's stack to his bankroll.
      * A negative amount indicates a withdrawal. A positive amount indicates
      * a deposit.
@@ -1869,11 +1907,19 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param nick the player's nick
      */
     protected void showPlayerCash(String nick){
-        int cash = getPlayerStat(nick, "cash");
-        if (cash != Integer.MIN_VALUE){
-            showMsg(getMsg("player_cash"), formatNoPing(nick), cash);
+        if (isBlacklisted(nick)) {
+            Player p = findBlacklisted(nick);
+            showMsg(getMsg("player_cash"), p.getNick(false), p.get("cash"));
+        } else if (isJoined(nick)) {
+            Player p = findJoined(nick);
+            showMsg(getMsg("player_cash"), p.getNick(false), p.get("cash"));
         } else {
-            showMsg(getMsg("no_data"), formatNoPing(nick));
+            PlayerRecord record = loadPlayerRecord(nick);
+            if (record == null) {
+                showMsg(getMsg("no_data"), formatNoPing(nick));
+            } else {
+                showMsg(getMsg("player_cash"), record.getNick(false), record.get("cash"));
+            }
         }
     }
     
@@ -1882,11 +1928,19 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param nick the player's nick
      */
     protected void showPlayerNetCash(String nick){
-        int netcash = getPlayerStat(nick, "netcash");
-        if (netcash != Integer.MIN_VALUE){
-            showMsg(getMsg("player_net"), formatNoPing(nick), netcash);
+        if (isBlacklisted(nick)) {
+            Player p = findBlacklisted(nick);
+            showMsg(getMsg("player_net"), p.getNick(false), p.get("netcash"));
+        } else if (isJoined(nick)) {
+            Player p = findJoined(nick);
+            showMsg(getMsg("player_net"), p.getNick(false), p.get("netcash"));
         } else {
-            showMsg(getMsg("no_data"), formatNoPing(nick));
+            PlayerRecord record = loadPlayerRecord(nick);
+            if (record == null) {
+                showMsg(getMsg("no_data"), formatNoPing(nick));
+            } else {
+                showMsg(getMsg("player_net"), record.getNick(false), record.get("netcash"));
+            }
         }
     }
     
@@ -1895,11 +1949,19 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param nick the player's nick
      */
     protected void showPlayerBank(String nick){
-        int bank = getPlayerStat(nick, "bank");
-        if (bank != Integer.MIN_VALUE){
-            showMsg(getMsg("player_bank"), formatNoPing(nick), bank);
+        if (isBlacklisted(nick)) {
+            Player p = findBlacklisted(nick);
+            showMsg(getMsg("player_bank"), p.getNick(false), p.get("bank"));
+        } else if (isJoined(nick)) {
+            Player p = findJoined(nick);
+            showMsg(getMsg("player_bank"), p.getNick(false), p.get("bank"));
         } else {
-            showMsg(getMsg("no_data"), formatNoPing(nick));
+            PlayerRecord record = loadPlayerRecord(nick);
+            if (record == null) {
+                showMsg(getMsg("no_data"), formatNoPing(nick));
+            } else {
+                showMsg(getMsg("player_bank"), record.getNick(false), record.get("bank"));
+            }
         }
     }
     
@@ -1909,11 +1971,19 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param nick the player's nick
      */
     protected void showPlayerBankrupts(String nick){
-        int bankrupts = getPlayerStat(nick, "bankrupts");
-        if (bankrupts != Integer.MIN_VALUE){
-            showMsg(getMsg("player_bankrupts"), formatNoPing(nick), bankrupts);
+        if (isBlacklisted(nick)) {
+            Player p = findBlacklisted(nick);
+            showMsg(getMsg("player_bankrupts"), p.getNick(false), p.get("bankrupts"));
+        } else if (isJoined(nick)) {
+            Player p = findJoined(nick);
+            showMsg(getMsg("player_bankrupts"), p.getNick(false), p.get("bankrupts"));
         } else {
-            showMsg(getMsg("no_data"), formatNoPing(nick));
+            PlayerRecord record = loadPlayerRecord(nick);
+            if (record == null) {
+                showMsg(getMsg("no_data"), formatNoPing(nick));
+            } else {
+                showMsg(getMsg("player_bankrupts"), record.getNick(false), record.get("bankrupts"));
+            }
         }
     }
     

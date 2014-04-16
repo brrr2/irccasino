@@ -1,5 +1,5 @@
 /*
-    Copyright (C) 2013 Yizhe Shen <brrr@live.ca>
+    Copyright (C) 2013-2014 Yizhe Shen <brrr@live.ca>
 
     This file is part of irccasino.
 
@@ -37,6 +37,8 @@ public class CardDeck {
     private ArrayList<Card> discards;
     /** The number of sets of cards in this deck. */
     private int numDecks;
+    /** Random number generator. */
+    private Random randGen;
     
     /**
      * Default constructor creates a CardDeck with a single set of cards (52 cards).
@@ -55,6 +57,7 @@ public class CardDeck {
         cards = new ArrayList<Card>();
         discards = new ArrayList<Card>();
         makeCards();
+        randGen = new Random();
     }
     
     /* Accessor methods */
@@ -127,6 +130,15 @@ public class CardDeck {
     }
     
     /**
+     * Takes a random card from this deck.
+     * @return 
+     */
+    public Card takeRandomCard() {
+        int index = randGen.nextInt(cards.size());
+        return cards.remove(index);
+    }
+    
+    /**
      * Returns the Card at the index without removing it from the deck.
      * @param index the index of the Card
      * @return the Card at the index
@@ -172,13 +184,11 @@ public class CardDeck {
      */
     public void shuffleCards(){
         ArrayList<Card> tCards = new ArrayList<Card>(cards);
-        int randomNum;
-        Random numGen = new Random();        
+        int index;
         cards.clear();
         while(!tCards.isEmpty()){
-            randomNum = numGen.nextInt(tCards.size());
-            cards.add(tCards.get(randomNum));
-            tCards.remove(randomNum);
+            index = randGen.nextInt(tCards.size());
+            cards.add(tCards.remove(index));
         }
     }
     

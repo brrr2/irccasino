@@ -198,12 +198,7 @@ public class TexasTourney extends TexasPoker {
     @Override
     protected void processQuit(User user){
         String nick = user.getNick();
-        if (!isJoined(nick)){
-            // Do nothing
-        } else if (!inProgress) {
-            removeJoined(nick);
-            showMsg(getMsg("unjoin"), formatBold(nick), joined.size());
-        } else {
+        if (isJoined(nick)){
             leave(nick);
         }
     }
@@ -213,10 +208,9 @@ public class TexasTourney extends TexasPoker {
         String host = user.getHostmask();
         if (!isJoined(oldNick)) {
             // Do nothing
-        } else if (!inProgress) {
+        } else if (!isInProgress()) {
             informPlayer(newNick, getMsg("nick_change"));
-            removeJoined(oldNick);
-            showMsg(getMsg("unjoin"), formatBold(oldNick), joined.size());
+            leave(oldNick);
             join(newNick, host);
         } else {
             informPlayer(newNick, getMsg("tt_nick_change"));
@@ -244,7 +238,7 @@ public class TexasTourney extends TexasPoker {
             informPlayer(nick, getMsg("on_blacklist"));
         } else if (game != null) {
             informPlayer(nick, getMsg("is_joined_other"), game.getGameNameStr(), game.getChannel().getName());
-        } else if (inProgress) {
+        } else if (isInProgress()) {
             informPlayer(nick, getMsg("tt_started_unable_join"));
         } else {
             addPlayer(nick, host);
@@ -255,10 +249,6 @@ public class TexasTourney extends TexasPoker {
     protected void leave(String nick, String[] params) {
         if (!isJoined(nick)){
             informPlayer(nick, getMsg("no_join"));
-        } else if (!inProgress) {
-            Player p = findJoined(nick);
-            removeJoined(nick);
-            showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
         } else {
             leave(nick);
         }
@@ -273,12 +263,12 @@ public class TexasTourney extends TexasPoker {
     protected void start(String nick, String[] params) {
         if (!isJoined(nick)) {
             informPlayer(nick, getMsg("no_join"));
-        } else if (inProgress) {
+        } else if (isInProgress()) {
             informPlayer(nick, getMsg("tt_started"));
         } else if (joined.size() < get("minplayers")) {
             showMsg(getMsg("no_players"));
         } else {
-            inProgress = true;
+            state = PokerState.PRE_START;
             showMsg(formatHeader(" " + getMsg("tt_new_tourney") + " "));
             showStartRound();
             setStartRoundTask();
@@ -291,7 +281,7 @@ public class TexasTourney extends TexasPoker {
      * @param params 
      */
     protected void stop(String nick, String[] params) {
-        if (!inProgress) {
+        if (!isInProgress()) {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (isBlacklisted(nick)) {
             informPlayer(nick, getMsg("tt_no_cancel"));
@@ -304,7 +294,7 @@ public class TexasTourney extends TexasPoker {
     
     @Override
     protected void cash(String nick, String[] params) {
-        if (!inProgress) {
+        if (!isInProgress()) {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (params.length > 0){
             showPlayerCash(params[0]);
@@ -344,11 +334,11 @@ public class TexasTourney extends TexasPoker {
     protected void bet(String nick, String[] params) {
         if (!isJoined(nick)){
             informPlayer(nick, getMsg("no_join"));
-        } else if (!inProgress) {
+        } else if (!isInProgress()) {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (findJoined(nick) != currentPlayer){
             informPlayer(nick, getMsg("wrong_turn"));
-        } else if (continuingRound) {
+        } else if (state.equals(PokerState.CONTINUE_ROUND)) {
             informPlayer(nick, getMsg("game_lagging"));
         } else if (params.length < 1){
             informPlayer(nick, getMsg("no_parameter"));  
@@ -365,11 +355,11 @@ public class TexasTourney extends TexasPoker {
     protected void call(String nick, String[] params) {
         if (!isJoined(nick)){
             informPlayer(nick, getMsg("no_join"));
-        } else if (!inProgress) {
+        } else if (!isInProgress()) {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (findJoined(nick) != currentPlayer){
             informPlayer(nick, getMsg("wrong_turn"));
-        } else if (continuingRound) {
+        } else if (state.equals(PokerState.CONTINUE_ROUND)) {
             informPlayer(nick, getMsg("game_lagging"));
         } else {
             call();
@@ -380,11 +370,11 @@ public class TexasTourney extends TexasPoker {
     protected void check(String nick, String[] params) {
         if (!isJoined(nick)){
             informPlayer(nick, getMsg("no_join"));
-        } else if (!inProgress) {
+        } else if (!isInProgress()) {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (findJoined(nick) != currentPlayer){
             informPlayer(nick, getMsg("wrong_turn"));
-        } else if (continuingRound) {
+        } else if (state.equals(PokerState.CONTINUE_ROUND)) {
             informPlayer(nick, getMsg("game_lagging"));
         } else {
             check();
@@ -395,11 +385,11 @@ public class TexasTourney extends TexasPoker {
     protected void fold(String nick, String[] params) {
         if (!isJoined(nick)){
             informPlayer(nick, getMsg("no_join"));
-        } else if (!inProgress) {
+        } else if (!isInProgress()) {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (findJoined(nick) != currentPlayer){
             informPlayer(nick, getMsg("wrong_turn"));
-        } else if (continuingRound) {
+        } else if (state.equals(PokerState.CONTINUE_ROUND)) {
             informPlayer(nick, getMsg("game_lagging"));
         } else {
             fold();
@@ -410,11 +400,11 @@ public class TexasTourney extends TexasPoker {
     protected void raise(String nick, String[] params) {
         if (!isJoined(nick)){
             informPlayer(nick, getMsg("no_join"));
-        } else if (!inProgress) {
+        } else if (!isInProgress()) {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (findJoined(nick) != currentPlayer){
             informPlayer(nick, getMsg("wrong_turn"));
-        } else if (continuingRound) {
+        } else if (state.equals(PokerState.CONTINUE_ROUND)) {
             informPlayer(nick, getMsg("game_lagging"));
         } else if (params.length < 1){
             informPlayer(nick, getMsg("no_parameter"));
@@ -431,11 +421,11 @@ public class TexasTourney extends TexasPoker {
     protected void allin(String nick, String[] params) {
         if (!isJoined(nick)){
             informPlayer(nick, getMsg("no_join"));
-        } else if (!inProgress) {
+        } else if (!isInProgress()) {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (findJoined(nick) != currentPlayer){
             informPlayer(nick, getMsg("wrong_turn"));
-        } else if (continuingRound) {
+        } else if (state.equals(PokerState.CONTINUE_ROUND)) {
             informPlayer(nick, getMsg("game_lagging"));
         } else {
             bet(currentPlayer.get("cash"));
@@ -446,12 +436,8 @@ public class TexasTourney extends TexasPoker {
     protected void community(String nick, String[] params) {
         if (!isJoined(nick)) {
             informPlayer(nick, getMsg("no_join"));
-        } else if (!inProgress) {
-            informPlayer(nick, getMsg("tt_no_start"));
-        } else if (community.isEmpty()){
-            informPlayer(nick, getMsg("no_community"));
         } else {
-            showCommunityCards();
+            showCommunityCards(false);
         }
     }
     
@@ -459,7 +445,7 @@ public class TexasTourney extends TexasPoker {
     protected void hand(String nick, String[] params) {
         if (!isJoined(nick)) {
             informPlayer(nick, getMsg("no_join"));
-        } else if (!inProgress) {
+        } else if (!isInProgress()) {
             informPlayer(nick, getMsg("tt_no_start"));
         } else {
             PokerPlayer p = (PokerPlayer) findJoined(nick);
@@ -471,7 +457,7 @@ public class TexasTourney extends TexasPoker {
     protected void turn(String nick, String[] params) {
         if (!isJoined(nick)) {
             informPlayer(nick, getMsg("no_join"));
-        } else if (!inProgress) {
+        } else if (!isInProgress()) {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (currentPlayer == null) {
             informPlayer(nick, getMsg("nobody_turn"));
@@ -488,7 +474,7 @@ public class TexasTourney extends TexasPoker {
      */
     @Override
     protected void blacklist(String nick, String[] params) {
-        if (!inProgress) {
+        if (!isInProgress()) {
             showMsg(getMsg("tt_no_start"));
         } else {
             showMsg(getMsg("tt_out_of_tourney"), getPlayerListString(blacklist));
@@ -497,7 +483,7 @@ public class TexasTourney extends TexasPoker {
     
     @Override
     protected void rank(String nick, String[] params) {
-        if (inProgress) {
+        if (isInProgress()) {
             informPlayer(nick, getMsg("tt_wait_for_end"));
         } else if (params.length > 1){
             try {
@@ -518,7 +504,7 @@ public class TexasTourney extends TexasPoker {
     
     @Override
     protected void top(String nick, String[] params) {
-        if (inProgress) {
+        if (isInProgress()) {
             informPlayer(nick, getMsg("tt_wait_for_end"));
         } else if (params.length > 1){
             try {
@@ -539,7 +525,7 @@ public class TexasTourney extends TexasPoker {
     
     @Override
     protected void stats(String nick, String[] params) {
-        if (inProgress) {
+        if (isInProgress()) {
             informPlayer(nick, getMsg("tt_wait_for_end"));
         } else {
             showMsg(getGameStatsStr());
@@ -567,7 +553,7 @@ public class TexasTourney extends TexasPoker {
                         informPlayer(nick, getMsg("on_blacklist_nick"), fNick);
                     } else if (game != null) {
                         informPlayer(nick, getMsg("is_joined_other_nick"), fNick, game.getGameNameStr(), game.getChannel().getName());
-                    } else if (inProgress) {
+                    } else if (isInProgress()) {
                         informPlayer(nick, getMsg("tt_started_unable_join"));
                     } else {
                         addPlayer(u.getNick(), u.getHostmask());
@@ -588,7 +574,7 @@ public class TexasTourney extends TexasPoker {
             informPlayer(nick, getMsg("no_parameter"));
         } else if (!isJoined(fNick)){
             informPlayer(nick, getMsg("no_join_nick"), fNick);
-        } else if (!inProgress) {
+        } else if (!isInProgress()) {
             Player p = findJoined(fNick);
             removeJoined(fNick);
             showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
@@ -601,12 +587,12 @@ public class TexasTourney extends TexasPoker {
     protected void fstart(User user, String nick, String[] params) {
         if (!channel.isOp(user)) {
             informPlayer(nick, getMsg("ops_only"));
-        } else if (inProgress) {
+        } else if (isInProgress()) {
             informPlayer(nick, getMsg("tt_started"));
         } else if (joined.size() < get("minplayers")) {
             showMsg(getMsg("no_players"));
         } else {
-            inProgress = true;
+            state = PokerState.PRE_START;
             showMsg(formatHeader(getMsg("tt_new_tourney")));
             showStartRound();
             setStartRoundTask();
@@ -618,11 +604,14 @@ public class TexasTourney extends TexasPoker {
         // Equivalent to canceling the tournament
         if (!channel.isOp(user)) {
             informPlayer(nick, getMsg("ops_only"));
-        } else if (!inProgress) {
+        } else if (!isInProgress()) {
             informPlayer(nick, getMsg("tt_no_start"));
         } else {
             cancelStartRoundTask();
             cancelIdleOutTask();
+            for (Player p : joined) {
+                resetPlayer(p);
+            }
             resetGame();
             showMsg(getMsg("tt_end_round"), ++tourneyRounds);
             showMsg(getMsg("tt_no_winner_cancel"));
@@ -634,11 +623,11 @@ public class TexasTourney extends TexasPoker {
     protected void fbet(User user, String nick, String[] params) {
         if (!channel.isOp(user)) {
             informPlayer(nick, getMsg("ops_only"));
-        } else if (!inProgress) {
+        } else if (!isInProgress()) {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (currentPlayer == null) {
             informPlayer(nick, getMsg("nobody_turn"));
-        } else if (continuingRound) {
+        } else if (state.equals(PokerState.CONTINUE_ROUND)) {
             informPlayer(nick, getMsg("game_lagging"));
         } else if (params.length < 1){
             informPlayer(nick, getMsg("no_parameter"));       
@@ -655,11 +644,11 @@ public class TexasTourney extends TexasPoker {
     protected void fallin(User user, String nick, String[] params) {
         if (!channel.isOp(user)) {
             informPlayer(nick, getMsg("ops_only"));
-        } else if (!inProgress) {
+        } else if (!isInProgress()) {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (currentPlayer == null) {
             informPlayer(nick, getMsg("nobody_turn"));
-        } else if (continuingRound) {
+        } else if (state.equals(PokerState.CONTINUE_ROUND)) {
             informPlayer(nick, getMsg("game_lagging"));
         } else {
             bet(currentPlayer.get("cash"));
@@ -670,11 +659,11 @@ public class TexasTourney extends TexasPoker {
     protected void fraise(User user, String nick, String[] params) {
         if (!channel.isOp(user)) {
             informPlayer(nick, getMsg("ops_only"));
-        } else if (!inProgress) {
+        } else if (!isInProgress()) {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (currentPlayer == null) {
             informPlayer(nick, getMsg("nobody_turn"));
-        } else if (continuingRound) {
+        } else if (state.equals(PokerState.CONTINUE_ROUND)) {
             informPlayer(nick, getMsg("game_lagging"));
         } else if (params.length < 1){
             informPlayer(nick, getMsg("no_parameter"));
@@ -691,11 +680,11 @@ public class TexasTourney extends TexasPoker {
     protected void fcall(User user, String nick, String[] params) {
         if (!channel.isOp(user)) {
             informPlayer(nick, getMsg("ops_only"));
-        } else if (!inProgress) {
+        } else if (!isInProgress()) {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (currentPlayer == null) {
             informPlayer(nick, getMsg("nobody_turn"));
-        } else if (continuingRound) {
+        } else if (state.equals(PokerState.CONTINUE_ROUND)) {
             informPlayer(nick, getMsg("game_lagging"));
         } else {
             call();
@@ -706,11 +695,11 @@ public class TexasTourney extends TexasPoker {
     protected void fcheck(User user, String nick, String[] params) {
         if (!channel.isOp(user)) {
             informPlayer(nick, getMsg("ops_only"));
-        } else if (!inProgress) {
+        } else if (!isInProgress()) {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (currentPlayer == null) {
             informPlayer(nick, getMsg("nobody_turn"));
-        } else if (continuingRound) {
+        } else if (state.equals(PokerState.CONTINUE_ROUND)) {
             informPlayer(nick, getMsg("game_lagging"));
         } else {
             check();
@@ -721,11 +710,11 @@ public class TexasTourney extends TexasPoker {
     protected void ffold(User user, String nick, String[] params) {
         if (!channel.isOp(user)) {
             informPlayer(nick, getMsg("ops_only"));
-        } else if (!inProgress) {
+        } else if (!isInProgress()) {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (currentPlayer == null) {
             informPlayer(nick, getMsg("nobody_turn"));
-        } else if (continuingRound) {
+        } else if (state.equals(PokerState.CONTINUE_ROUND)) {
             informPlayer(nick, getMsg("game_lagging"));
         } else {
             fold();
@@ -736,7 +725,7 @@ public class TexasTourney extends TexasPoker {
     protected void shuffle(User user, String nick, String[] params) {
         if (!channel.isOp(user)) {
             informPlayer(nick, getMsg("ops_only"));
-        } else if (inProgress) {
+        } else if (isInProgress()) {
             informPlayer(nick, getMsg("tt_wait_for_end"));
         } else {
             shuffleDeck();
@@ -747,7 +736,7 @@ public class TexasTourney extends TexasPoker {
     protected void reload(User user, String nick, String[] params) {
         if (!channel.isOp(user)) {
             informPlayer(nick, getMsg("ops_only"));
-        } else if (inProgress) {
+        } else if (isInProgress()) {
             informPlayer(nick, getMsg("tt_wait_for_end"));
         } else {
             awayList.clear();
@@ -769,7 +758,7 @@ public class TexasTourney extends TexasPoker {
     protected void settings(User user, String nick, String[] params) {
         if (!channel.isOp(user)) {
             informPlayer(nick, getMsg("ops_only"));
-        } else if (inProgress) {
+        } else if (isInProgress()) {
             informPlayer(nick, getMsg("tt_wait_for_end"));
         } else {
             informPlayer(nick, getGameNameStr() + " settings:");
@@ -781,7 +770,7 @@ public class TexasTourney extends TexasPoker {
     protected void set(User user, String nick, String[] params) {
         if (!channel.isOp(user)) {
             informPlayer(nick, getMsg("ops_only"));
-        } else if (inProgress) {
+        } else if (isInProgress()) {
             informPlayer(nick, getMsg("tt_wait_for_end"));
         } else if (params.length < 2){
             informPlayer(nick, getMsg("no_parameter"));
@@ -802,7 +791,7 @@ public class TexasTourney extends TexasPoker {
     protected void get(User user, String nick, String[] params) {
         if (!channel.isOp(user)) {
             informPlayer(nick, getMsg("ops_only"));
-        } else if (inProgress) {
+        } else if (isInProgress()) {
             informPlayer(nick, getMsg("tt_wait_for_end"));
         } else if (params.length < 1){
             informPlayer(nick, getMsg("no_parameter"));
@@ -829,42 +818,52 @@ public class TexasTourney extends TexasPoker {
     @Override
     public void leave(String nick) {
         PokerPlayer p = (PokerPlayer) findJoined(nick);
-        // If still in the post-start-round waiting phase, then 
-        // currentPlayer has not been set yet.
-        if (currentPlayer == null){
-            removeJoined(p);
-            showMsg(getMsg("tt_unjoin"), p.getNickStr());
-            blacklist.add(0, p);
-        // Check if it is already in the endRound stage
-        } else if (roundEnded){
-            p.set("quit", 1);
-            informPlayer(p.getNick(), getMsg("remove_end_round"));
-        // Force the player to fold if it is his turn
-        } else if (p == currentPlayer){
-            p.set("quit", 1);
-            informPlayer(p.getNick(), getMsg("remove_end_round"));
-            fold();
-        } else {
-            p.set("quit", 1);
-            informPlayer(p.getNick(), getMsg("remove_end_round"));
-            if (!p.has("fold")){
-                p.set("fold", 1);
-                // Remove this player from any existing pots
-                if (currentPot != null && currentPot.hasPlayer(p)){
-                    currentPot.removePlayer(p);
-                }
-                for (int ctr = 0; ctr < pots.size(); ctr++){
-                    PokerPot cPot = pots.get(ctr);
-                    if (cPot.hasPlayer(p)){
-                        cPot.removePlayer(p);
+        
+        switch (state) {
+            case NONE:
+                removeJoined(p);
+                showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
+                break;
+            case PRE_START:
+                removeJoined(p);
+                showMsg(getMsg("tt_unjoin"), p.getNickStr());
+                blacklist.add(0, p);
+                break;
+            case BETTING:
+                p.set("quit", 1);
+                informPlayer(p.getNick(), getMsg("remove_end_round"));
+                if (p == currentPlayer){
+                    fold();
+                } else if (!p.has("fold")){
+                    p.set("fold", 1);
+                    // Remove this player from any existing pots
+                    if (currentPot != null && currentPot.hasPlayer(p)){
+                        currentPot.removePlayer(p);
+                    }
+                    for (int ctr = 0; ctr < pots.size(); ctr++){
+                        PokerPot cPot = pots.get(ctr);
+                        if (cPot.hasPlayer(p)){
+                            cPot.removePlayer(p);
+                        }
+                    }
+                    // If there is only one player who hasn't folded,
+                    // force call on that remaining player (whose turn it must be)
+                    if (getNumberNotFolded() == 1){
+                        call();
                     }
                 }
-                // If there is only one player who hasn't folded,
-                // force call on that remaining player (whose turn it must be)
-                if (getNumberNotFolded() == 1){
-                    call();
-                }
-            }
+                break;
+            case BLINDS: case CONTINUE_ROUND:
+                p.set("quit", 1);
+                p.set("fold", 1);
+                informPlayer(p.getNick(), getMsg("remove_end_round"));
+                break;
+            case SHOWDOWN: case END_ROUND:
+                p.set("quit", 1);
+                informPlayer(p.getNick(), getMsg("remove_end_round"));
+                break;
+            default:
+                break;
         }
     }
     
@@ -914,116 +913,121 @@ public class TexasTourney extends TexasPoker {
         if (joined.size() < 2){
             endRound();
         } else {
+            state = PokerState.BLINDS;
+            betState = PokerBet.PRE_FLOP;
             setButton();
             setBlindBets();
             showTablePlayers();
             showButtonInfo();
             dealTable();
-            currentPlayer = getPlayerAfter(bigBlind);
-            showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentBet-currentPlayer.get("bet"), 
-                        currentPlayer.get("bet"), currentBet, getCashInPlay(), currentPlayer.get("cash")-currentPlayer.get("bet"));
-            setIdleOutTask();
+            continueRound();
         }
     }
     
     @Override
     public void continueRound() {
-        continuingRound = true;
+        state = PokerState.CONTINUE_ROUND;
         
-        // Store currentPlayer as firstPlayer and find the next player
-        Player firstPlayer = currentPlayer;
-        currentPlayer = getPlayerAfter(currentPlayer);
-        PokerPlayer p = (PokerPlayer) currentPlayer;
-        
-        /*
-         * Look for a player who can bet that is not the firstPlayer or the
-         * topBettor. If we reach the firstPlayer or topBettor then stop
-         * looking.
-         */
-        while ((p.has("fold") || p.has("allin")) && currentPlayer != firstPlayer
-                        && currentPlayer != topBettor) {
-            currentPlayer = getPlayerAfter(currentPlayer);
-            p = (PokerPlayer) currentPlayer;
+        // Set currentPlayer if it hasn't been set yet
+        if (currentPlayer == null) {
+            if (betState.equals(PokerBet.PRE_FLOP)) {
+                currentPlayer = bigBlind;
+            } else {
+                currentPlayer = dealer;
+            }
         }
         
-        /* If we reach the firstPlayer or topBettor, then we have reached the
-         * end of a round of betting and we should deal community cards. */
-        if (currentPlayer == topBettor || currentPlayer == firstPlayer) {
-            // Reset minimum raise (override)
-            minRaise = (int) (get("minbet")*(Math.pow(2, tourneyRounds/get("doubleblinds") + numOuts)));
-            
-            // Add bets from this round of betting to the pot
+        /*
+         * Find the next player. Look for a player who can bet that is not the 
+         * currentPlayer or the topBettor. If we reach the currentPlayer or 
+         * topBettor then stop looking.
+         */
+        Player nextPlayer = getPlayerAfter(currentPlayer);
+        while ((nextPlayer.has("fold") || nextPlayer.has("allin")) && 
+                nextPlayer != currentPlayer && nextPlayer != topBettor) {
+            nextPlayer = getPlayerAfter(nextPlayer);
+        }
+        
+        if (getNumberNotFolded() < 2) {
+            // If only one player hasn't folded, expedite to end of round
             addBetsToPot();
-            stage++;
+            currentPlayer = null;
+            topBettor = null;
             
-            // If all community cards have been dealt, move to end of round
-            if (stage == 4){
-                continuingRound = false;
-                currentPlayer = null;
-                endRound();
-            // Otherwise, deal community cards
-            } else {
-                /* 
-                * If fewer than two players can bet and there are more
-                * than 1 non-folded player remaining, only show hands once
-                * before dealing the rest of the community cards. Adds a
-                * 10-second delay in between each line.
-                */
-                if (getNumberCanBet() < 2 && getNumberNotFolded() > 1) {
-                    ArrayList<PokerPlayer> players;
-                    PokerSimulator sim;
-                    players = pots.get(0).getPlayers();
-                    sim = new PokerSimulator(players, community);
-                    String showdownStr = formatHeader(" Showdown: ") + " ";
-                    for (int ctr = 0; ctr < players.size(); ctr++) {
-                        p = players.get(ctr);
-                        showdownStr += p.getNickStr() + " (" + p.getHand() + "||" + formatBold(sim.getWinPct(p) + "/" + sim.getTiePct(p) + "%%") + ")";
-                        if (ctr < players.size()-1){
-                            showdownStr += ", ";
-                        }
-                    }
-                    showMsg(showdownStr);
-                   
-                   // Add a delay for dramatic effect
-                   try { Thread.sleep(get("showdown") * 1000); } catch (InterruptedException e){}
-                }
-                
-                // Burn a card before flop, turn and river
+            // Deal some community cards
+            while (!betState.equals(PokerBet.RIVER)) {
                 burnCard();
                 dealCommunity();
-                
-                /* Only show dealt community cards when there are 
-                 * more than 1 non-folded player remaining. Also
-                 * show community if stage = 3 and "revealcommunity"
-                 * is set to true. */
-                if (getNumberNotFolded() > 1 || 
-                        stage == 3 && settings.get("revealcommunity") == 1){
-                    showCommunityCards();
+                betState = betState.next();
+                // Show final community if required
+                if (settings.get("revealcommunity") == 1 && betState.equals(PokerBet.RIVER)){
+                    showCommunityCards(true);
                 }
+            }
+            
+            endRound();
+        } else if (nextPlayer == topBettor || nextPlayer == currentPlayer) {
+            // If we reach the firstPlayer or topBettor, then we have reached 
+            // the end of a round of betting and we should deal community cards.
+            // Reset minimum raise (override)
+            minRaise = (int) (get("minbet")*(Math.pow(2, tourneyRounds/get("doubleblinds") + numOuts)));
+            addBetsToPot();
+            currentPlayer = null;
+            topBettor = null;
+            
+            // If all community cards have been dealt, move to end of round.
+            // Otherwise, deal more community cards
+            if (betState.equals(PokerBet.RIVER)){
+                endRound();
+            } else if (getNumberCanBet() < 2 && getNumberNotFolded() > 1) {
+                /* 
+                 * Check for showdown. Show player hands and their win/tie 
+                 * probabilities immediately and each time additional community
+                 * cards are revealed. Adds a dramatic delay between each reveal.
+                 */
+                state = PokerState.SHOWDOWN;
+                PokerSimulator sim;
+                ArrayList<PokerPlayer> players = pots.get(0).getPlayers();
                 
-                topBettor = null;
-                /* Set the currentPlayer to be dealer to determine who bets
-                 * first in the next round of betting. */
-                currentPlayer = dealer;
+                while (!betState.equals(PokerBet.RIVER)) {
+                    sim = new PokerSimulator(players, community);
+                    String showdownStr = formatHeader(" Showdown: ") + " ";
+                    for (PokerPlayer p : players) {
+                        showdownStr += p.getNickStr() + " (" + p.getHand() + "||" + formatBold(Math.round(sim.getWinPct(p)) + "/" + Math.round(sim.getTiePct(p)) + "%%") + "), ";
+                    }
+                    showMsg(showdownStr);
+
+                   // Add a delay for dramatic effect
+                   try { Thread.sleep(get("showdown") * 1000); } catch (InterruptedException e){}
+                   
+                   // Deal some community cards
+                   burnCard();
+                   dealCommunity();
+                   betState = betState.next();
+                   showCommunityCards(false);
+                }
+                endRound();
+            } else {
+                burnCard();
+                dealCommunity();
+                betState = betState.next();
+                showCommunityCards(false);
                 continueRound();
             }
-        // Continue round, if less than 2 players can bet
-        } else if (getNumberCanBet() < 2 && topBettor == null){
-            continueRound();
         // Continue to the next bettor
         } else {
+            state = PokerState.BETTING;
+            currentPlayer = nextPlayer;
             showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentBet-currentPlayer.get("bet"), 
                         currentPlayer.get("bet"), currentBet, getCashInPlay(), currentPlayer.get("cash")-currentPlayer.get("bet"));
             setIdleOutTask();
-            continuingRound = false;
         }
     }
     
     @Override
     public void endRound() {
+        state = PokerState.END_ROUND;
         PokerPlayer p;
-        
-        roundEnded = true;
 
         // Check if anybody left during post-start waiting period
         if (joined.size() > 1 && pots.size() > 0) {
@@ -1063,9 +1067,9 @@ public class TexasTourney extends TexasPoker {
                     newOutList.add(p);
                 // Quitters
                 } else if (p.has("quit")) {
+                    blacklist.add(0, p);
                     removeJoined(p);
                     showMsg(getMsg("tt_unjoin"), p.getNickStr());
-                    blacklist.add(0, p);
                     ctr--;
                 }
                 
@@ -1108,11 +1112,8 @@ public class TexasTourney extends TexasPoker {
     
     @Override
     public void resetGame() {
-        stage = 0;
         currentBet = 0;
         minRaise = 0;
-        roundEnded = false;
-        continuingRound = false;
         discardCommunity();
         currentPot = null;
         pots.clear();
@@ -1124,7 +1125,8 @@ public class TexasTourney extends TexasPoker {
     }
     
     public void resetTourney() {
-        inProgress = false;
+        state = PokerState.NONE;
+        betState = PokerBet.NONE;
         tourneyRounds = 0;
         numOuts = 0;
         newPlayerOut = false;
@@ -1194,9 +1196,21 @@ public class TexasTourney extends TexasPoker {
                 newPlayerOut = false;
                 newOutList.clear();
             }
+            state = PokerState.PRE_START;
+            betState = PokerBet.NONE;
             showStartRound();
             setStartRoundTask();
         }
+    }
+    
+    @Override
+    protected void resetPlayer(Player p) {
+        discardPlayerHand((TourneyPokerPlayer) p);
+        p.clear("fold");
+        p.clear("quit");
+        p.clear("allin");
+        p.clear("change");
+        p.clear("cancel");
     }
     
     /**
@@ -1206,14 +1220,25 @@ public class TexasTourney extends TexasPoker {
     protected void setBlindBets(){
         // Calculate the current blind bet
         int newBlind = (int) (get("minbet")*(Math.pow(2, tourneyRounds/get("doubleblinds") + numOuts)));
-        // Set the small blind to minimum raise or the player's cash, 
-        // whichever is less.
-        smallBlind.set("bet", Math.min(newBlind/2, smallBlind.get("cash")));
-        // Set the big blind to minimum raise + small blind or the player's 
-        // cash, whichever is less.
-        bigBlind.set("bet", Math.min(newBlind, bigBlind.get("cash")));
+        
+        // Set the small blind
+        if (newBlind/2 > smallBlind.get("cash")) {
+            smallBlind.set("allin", 1);
+            smallBlind.set("bet", smallBlind.get("cash"));
+        } else {
+            smallBlind.set("bet", newBlind/2);
+        }
+        
+        // Set the big blind
+        if (newBlind > bigBlind.get("cash")) {
+            bigBlind.set("allin", 1);
+            bigBlind.set("bet", bigBlind.get("cash"));
+        } else {
+            bigBlind.set("bet", newBlind);
+        }
+        
         // Set the current bet to the bigger of the two blinds.
-        currentBet = Math.max(smallBlind.get("bet"), bigBlind.get("bet"));
+        currentBet = newBlind;
         minRaise = newBlind;
     }
     
@@ -1231,9 +1256,8 @@ public class TexasTourney extends TexasPoker {
             p.set("cancel", 1);
             
             // Check if all players have made a request
-            for (int ctr = 0; ctr < joined.size(); ctr++) {
-                p = (TourneyPokerPlayer) joined.get(ctr);
-                if (!p.has("cancel")) {
+            for (Player pp : joined) {
+                if (!pp.has("cancel")) {
                     return;
                 }
             }
@@ -1242,6 +1266,9 @@ public class TexasTourney extends TexasPoker {
             cancelStartRoundTask();
             cancelIdleOutTask();
             showMsg(getMsg("tt_cancel_tourney"));
+            for (Player pp : joined) {
+                resetPlayer(pp);
+            }
             resetGame();
             showMsg(getMsg("tt_end_round"), ++tourneyRounds);
             showMsg(getMsg("tt_no_winner_cancel"));
@@ -1287,6 +1314,8 @@ public class TexasTourney extends TexasPoker {
         loadHelp(helpFile);
         loadGameStats();
         loadIni();
+        state = PokerState.NONE;
+        betState = PokerBet.NONE;
         showMsg(getMsg("game_start"), getGameNameStr());
     }
     
@@ -1557,17 +1586,12 @@ public class TexasTourney extends TexasPoker {
     public void showTourneyResults() {
         String msg = "";
         
-        // Append title
+        // Append title and the players in the order in which they placed
         msg += formatHeader(" Final Standings: ") + " ";
-        
-        // Append winner
         msg += " " + formatBold("#1:") + " " + joined.get(0).getNickStr() + " ";
-        
-        // Append the other players in the order in which they placed
         for (int ctr = 0; ctr < blacklist.size(); ctr++) {
             msg += " " + formatBold("#" + (ctr + 2) + ":") + " " + blacklist.get(ctr).getNickStr() + " ";
         }
-
         showMsg(msg);
     }    
     
@@ -1581,11 +1605,19 @@ public class TexasTourney extends TexasPoker {
      * @param nick 
      */
     public void showPlayerTourneysPlayed(String nick){
-        int ttplayed = getPlayerStat(nick, "ttplayed");
-        if (ttplayed == Integer.MIN_VALUE){
-            showMsg(getMsg("no_data"), formatNoPing(nick));
+        if (isBlacklisted(nick)) {
+            Player p = findBlacklisted(nick);
+            showMsg(getMsg("tt_player_played"), p.getNick(false), p.get("ttplayed"));
+        } else if (isJoined(nick)) {
+            Player p = findJoined(nick);
+            showMsg(getMsg("tt_player_played"), p.getNick(false), p.get("ttplayed"));
         } else {
-            showMsg(getMsg("tt_player_played"), formatNoPing(nick), ttplayed);
+            PlayerRecord record = loadPlayerRecord(nick);
+            if (record == null) {
+                showMsg(getMsg("no_data"), formatNoPing(nick));
+            } else {
+                showMsg(getMsg("tt_player_played"), record.getNick(false), record.get("ttplayed"));
+            }
         }
     }
     
@@ -1594,35 +1626,65 @@ public class TexasTourney extends TexasPoker {
      * @param nick 
      */
     public void showPlayerTourneyWins(String nick){
-        int ttwins = getPlayerStat(nick, "ttwins");
-        if (ttwins == Integer.MIN_VALUE){
-            showMsg(getMsg("no_data"), formatNoPing(nick));
+        if (isBlacklisted(nick)) {
+            Player p = findBlacklisted(nick);
+            showMsg(getMsg("tt_player_wins"), p.getNick(false), p.get("ttwins"));
+        } else if (isJoined(nick)) {
+            Player p = findJoined(nick);
+            showMsg(getMsg("tt_player_wins"), p.getNick(false), p.get("ttwins"));
         } else {
-            showMsg(getMsg("tt_player_wins"), formatNoPing(nick), ttwins);
+            PlayerRecord record = loadPlayerRecord(nick);
+            if (record == null) {
+                showMsg(getMsg("no_data"), formatNoPing(nick));
+            } else {
+                showMsg(getMsg("tt_player_wins"), record.getNick(false), record.get("ttwins"));
+            }
         }
     }
     
     @Override
     public void showPlayerWinRate(String nick) {
-        int ttwins = getPlayerStat(nick, "ttwins");
-        int ttplayed = getPlayerStat(nick, "ttplayed");
-        if (ttplayed == Integer.MIN_VALUE) {
-            showMsg(getMsg("no_data"), formatNoPing(nick));
-        } else if (ttplayed == 0) {
-            showMsg(getMsg("tt_player_no_tourneys"), formatNoPing(nick));
+        if (isBlacklisted(nick)) {
+            Player p = findBlacklisted(nick);
+            if (p.get("ttplayed") == 0) {
+                showMsg(getMsg("tt_player_no_tourneys"), p.getNick(false));
+            } else {
+                showMsg(getMsg("tt_player_winrate"), p.getNick(false), Math.round((double) p.get("ttwins")/ (double) p.get("ttplayed") * 100));
+            }
+        } else if (isJoined(nick)) {
+            Player p = findJoined(nick);
+            if (p.get("ttplayed") == 0) {
+                showMsg(getMsg("tt_player_no_tourneys"), p.getNick(false));
+            } else {
+                showMsg(getMsg("tt_player_winrate"), p.getNick(false), Math.round((double) p.get("ttwins")/ (double) p.get("ttplayed") * 100));
+            }
         } else {
-            showMsg(getMsg("tt_player_winrate"), formatNoPing(nick), Math.round((double) ttwins/ (double) ttplayed * 100));
+            PlayerRecord record = loadPlayerRecord(nick);
+            if (record == null) {
+                showMsg(getMsg("no_data"), formatNoPing(nick));
+            }  else if (record.get("ttplayed") == 0) {
+                showMsg(getMsg("tt_player_no_tourneys"), record.getNick(false));
+            } else {
+                showMsg(getMsg("tt_player_winrate"), record.getNick(false), Math.round((double) record.get("ttwins")/ (double) record.get("ttplayed") * 100));
+            }
         }
     }
     
     @Override
     public void showPlayerAllStats(String nick){
-        int ttwins = getPlayerStat(nick, "ttwins");
-        int ttplayed = getPlayerStat(nick, "ttplayed");
-        if (ttwins == Integer.MIN_VALUE) {
-            showMsg(getMsg("no_data"), formatNoPing(nick));
+        if (isBlacklisted(nick)) {
+            Player p = findBlacklisted(nick);
+            showMsg(getMsg("tt_player_all_stats"), p.getNick(false), p.get("ttwins"), p.get("ttplayed"));
+        } else if (isJoined(nick)) {
+            Player p = findJoined(nick);
+            showMsg(getMsg("tt_player_all_stats"), p.getNick(false), p.get("ttwins"), p.get("ttplayed"));
         } else {
-            showMsg(getMsg("tt_player_all_stats"), formatNoPing(nick), ttwins, ttplayed);
+            PlayerRecord record = loadPlayerRecord(nick);
+            if (record == null) {
+                showMsg(getMsg("no_data"), formatNoPing(nick));
+            } else {
+                showMsg(getMsg("tt_player_all_stats"), record.getNick(false), record.get("ttwins"), record.get("ttplayed"));
+            }
         }
     }
 

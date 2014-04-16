@@ -35,6 +35,7 @@ no_players=Not enough players.
 separator=u0002------------------------------------------------------------------u0002
 reload=Configuration and library files have been reloaded.
 remove_end_round=You will be removed at the end of the round.
+remove_end_round_nick=%s will be removed at the end of the round.
 stop=All remaining auto-starts have been canceled.
 stop_no_autostarts=No auto-starts are scheduled after this round.
 no_manual_start=The next round will automatically begin.
@@ -159,7 +160,7 @@ bj_rules_soft17stand=Dealer stands on soft 17. The dealer's shoe has %,d deck(s)
 #################
 # No parameters #
 #################
-no_community=No community cards have been dealt yet.
+tp_no_community=No community cards have been dealt yet.
 tp_commands=go, join, quit, bet, check, call, raise, fold, community, turn, hand, cash, netcash, bank, transfer, deposit, withdraw, bankrupts, winnings, winrate, rounds, player, players, waitlist, blacklist, rank, top, simple, stats, game, ghelp, grules, gcommands
 tp_game_name=Texas Hold'em Poker
 tp_shuffle_deck=The deck has been shuffled.
@@ -169,7 +170,7 @@ tp_shuffle_deck=The deck has been shuffled.
 tp_bet_too_low=Bet too low. Current bet is $%,d.
 raise_too_low=Minimum raise is $%,d. Try again.
 no_checking=Current bet is $%,d. You must call or raise.
-tp_turn=%s's turn. u0002$%,du0002 to call | u0002$%,du0002 --> u0002$%,du0002 | In-play: u0002$%,du0002 | Stack: u0002$%,du0002
+tp_turn=%s's turn. u0002$%,du0002 to call | u0002$%,du0002 --> u0002$%,du0002 | Pot: u0002$%,du0002 | Stack: u0002$%,du0002
 tp_bet=%s bets u0002$%,du0002. Stack: u0002$%,du0002
 tp_raise=%s has raised to u0002$%,du0002. Stack: u0002$%,du0002
 tp_allin=%s has gone all in! Committed: u0002$%,du0002. Stack: u0002$%,du0002

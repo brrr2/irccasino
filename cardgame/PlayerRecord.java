@@ -69,7 +69,20 @@ public class PlayerRecord extends Stats{
      * @return the stored nick
      */
     public String getNick(){
-        return nick;
+        return getNick(true);
+    }
+    
+    /**
+     * Returns the stored nick with option for zero-width character.
+     * @param ping
+     * @return 
+     */
+    public String getNick(boolean ping) {
+        if (ping) {
+            return nick;
+        } else {
+            return nick.substring(0, 1) + "\u200b" + nick.substring(1);
+        }
     }
     
     /**
