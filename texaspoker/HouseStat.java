@@ -62,19 +62,27 @@ public class HouseStat extends Stats {
     }
 
     protected String getDonorsString(){
-        String outStr = "";
-        for (int ctr = 0; ctr < donors.size(); ctr++){
-            outStr += donors.get(ctr).getNick() + " ";
+        if (donors.isEmpty()) {
+            return "";
+        } else {
+            String outStr = "";
+            for (PokerPlayer donor : donors) {
+                outStr += donor.getNick() + " ";
+            }
+            return outStr.substring(0, outStr.length() - 1);
         }
-        return outStr.substring(0, outStr.length() - 1);
     }
 
     protected String getWinnersString(){
-        String outStr = "";
-        for (int ctr = 0; ctr < winners.size(); ctr++){
-            outStr += winners.get(ctr).getNick() + " ";
+        if (winners.isEmpty()) {
+            return "";
+        } else {
+            String outStr = "";
+            for (PokerPlayer winner : winners) {
+                outStr += winner.getNick() + " ";
+            }
+            return outStr.substring(0, outStr.length() - 1);
         }
-        return outStr.substring(0, outStr.length() - 1);
     }
 
     protected String getToStringList(){
@@ -86,21 +94,14 @@ public class HouseStat extends Stats {
             outStr = CardGame.formatBold("1") + " player: " + donors.get(0).getNickStr();
         } else {
             outStr = CardGame.formatBold(size) + " players: ";
-            for (int ctr = 0; ctr < size; ctr++){
-                if (ctr == size-1){
-                    if (winners.contains(donors.get(ctr))) {
-                        outStr += donors.get(ctr).getNickStr(false);
-                    } else {
-                        outStr += donors.get(ctr).getNick(false);
-                    }
+            for (PokerPlayer donor : donors) {
+                if (winners.contains(donor)) {
+                    outStr += donor.getNickStr(false) + ", ";
                 } else {
-                    if (winners.contains(donors.get(ctr))) {
-                        outStr += donors.get(ctr).getNickStr(false) + ", ";
-                    } else {
-                        outStr += donors.get(ctr).getNick(false) + ", ";
-                    }
+                    outStr += donor.getNick(false) + ", ";
                 }
-            }   
+            }
+            outStr = outStr.substring(0, outStr.length() - 2);
         }
         return outStr;
     }
