@@ -38,8 +38,8 @@ public class HouseStat extends Stats {
     public HouseStat(int pot) {
         super();
         set("biggestpot", pot);
-        donors = new ArrayList<PokerPlayer>();
-        winners = new ArrayList<PokerPlayer>();
+        donors = new ArrayList<>();
+        winners = new ArrayList<>();
     }
 
     protected int getNumDonors() {

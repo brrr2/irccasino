@@ -40,7 +40,7 @@ public class PokerSimulator {
 
     public PokerSimulator(ArrayList<PokerPlayer> list, Hand comm) {
         simDeck = new CardDeck(1);
-        simList = new ArrayList<PokerPlayer>();
+        simList = new ArrayList<>();
         simComm = new Hand();
         randGen = new Random();
         rounds = 0;
@@ -103,7 +103,7 @@ public class PokerSimulator {
      * of accuracy (+/-1%) while running reasonably fast. 
      */
     private void monteSim() {
-        ArrayList<Integer> indices = new ArrayList<Integer>();
+        ArrayList<Integer> indices = new ArrayList<>();
         int origSize = simComm.size();
         int newIndex;
         

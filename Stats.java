@@ -30,7 +30,7 @@ public abstract class Stats {
     protected HashMap<String,Integer> statsMap;
     
     public Stats() {
-        statsMap = new HashMap<String,Integer>();
+        statsMap = new HashMap<>();
     }
     
     /**

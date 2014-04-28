@@ -39,7 +39,7 @@ class BlackjackPlayer extends Player{
      */
     public BlackjackPlayer(String nick, String host){
         super(nick, host);
-        hands = new ArrayList<BlackjackHand>();
+        hands = new ArrayList<>();
         set("initialbet", 0);
         set("insurebet", 0);
         set("surrender", 0);

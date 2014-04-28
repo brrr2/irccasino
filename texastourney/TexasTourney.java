@@ -280,6 +280,7 @@ public class TexasTourney extends TexasPoker {
      * @param nick
      * @param params 
      */
+    @Override
     protected void stop(String nick, String[] params) {
         if (!isInProgress()) {
             informPlayer(nick, getMsg("tt_no_start"));
@@ -1303,11 +1304,11 @@ public class TexasTourney extends TexasPoker {
     protected void initCustom(){
         name = "texastourney";
         helpFile = "texastourney.help";
-        newOutList = new ArrayList<Player>();
+        newOutList = new ArrayList<>();
         tourneyStats = new TourneyStat();
         deck = new CardDeck();
         deck.shuffleCards();
-        pots = new ArrayList<PokerPot>();
+        pots = new ArrayList<>();
         community = new Hand();
         
         initSettings();
@@ -1367,7 +1368,7 @@ public class TexasTourney extends TexasPoker {
     protected void loadPlayerData(Player p) {
         try {
             boolean found = false;
-            ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
+            ArrayList<PlayerRecord> records = new ArrayList<>();
             loadPlayerFile(records);
 
             for (PlayerRecord statLine : records) {
@@ -1428,7 +1429,7 @@ public class TexasTourney extends TexasPoker {
     @Override
     public int getTotalPlayers(){
         try {
-            ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
+            ArrayList<PlayerRecord> records = new ArrayList<>();
             loadPlayerFile(records);
             int total = 0;
             
@@ -1488,7 +1489,7 @@ public class TexasTourney extends TexasPoker {
     public void saveGameStats() {
         boolean found = false;
         int index = 0;
-        ArrayList<String> lines = new ArrayList<String>();
+        ArrayList<String> lines = new ArrayList<>();
         try {
             BufferedReader in = new BufferedReader(new FileReader("housestats.txt"));
             String str;
@@ -1697,15 +1698,15 @@ public class TexasTourney extends TexasPoker {
         
         try {
             PlayerRecord aRecord;
-            ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
+            ArrayList<PlayerRecord> records = new ArrayList<>();
             loadPlayerFile(records);
             int length = records.size();
             String line = Colors.BLACK + ",08";
             
             if (stat.equalsIgnoreCase("winrate")) {
                 int highIndex, rank = 0;
-                ArrayList<String> nicks = new ArrayList<String>();
-                ArrayList<Integer> winrates = new ArrayList<Integer>();
+                ArrayList<String> nicks = new ArrayList<>();
+                ArrayList<Integer> winrates = new ArrayList<>();
                 
                 for (int ctr = 0; ctr < length; ctr++) {
                     aRecord = records.get(ctr);
@@ -1778,7 +1779,7 @@ public class TexasTourney extends TexasPoker {
         
         try {
             PlayerRecord aRecord;
-            ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
+            ArrayList<PlayerRecord> records = new ArrayList<>();
             loadPlayerFile(records);
             int end = Math.min(n, records.size());
             int start = Math.max(end - 10, 0);
@@ -1787,8 +1788,8 @@ public class TexasTourney extends TexasPoker {
             
             if (stat.equalsIgnoreCase("winrate")) {
                 int highIndex;
-                ArrayList<String> nicks = new ArrayList<String>();
-                ArrayList<Integer> winrates = new ArrayList<Integer>();
+                ArrayList<String> nicks = new ArrayList<>();
+                ArrayList<Integer> winrates = new ArrayList<>();
                 
                 for (int ctr = 0; ctr < records.size(); ctr++) {
                     aRecord = records.get(ctr);
@@ -1857,7 +1858,7 @@ public class TexasTourney extends TexasPoker {
     
     @Override
     public void showStacks() {
-        ArrayList<Player> list = new ArrayList<Player>(joined);
+        ArrayList<Player> list = new ArrayList<>(joined);
         String msg = Colors.YELLOW + ",01 Stacks: " + Colors.NORMAL + " ";
         Collections.sort(list, Player.getComparator("cash"));
         

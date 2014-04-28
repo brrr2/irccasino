@@ -287,8 +287,8 @@ public class CasinoBot extends PircBotX implements GameManager {
     public CasinoBot(){
         super();
         logFile = "";
-        gameList = new ArrayList<CardGame>();
-        configMap = new HashMap<String,String>();
+        gameList = new ArrayList<>();
+        configMap = new HashMap<>();
     }
     
     /**
@@ -494,6 +494,8 @@ public class CasinoBot extends PircBotX implements GameManager {
     
     /**
      * Initializes bot with custom parameters.
+     * @param config
+     * @param log
      */
     protected void initBot(String config, String log) {
         version = "CasinoBot using PircBotX";

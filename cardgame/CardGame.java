@@ -973,8 +973,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             informPlayer(nick, getMsg("no_trim"));
         } else {
             try {
-                ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
-                ArrayList<PlayerRecord> newRecords = new ArrayList<PlayerRecord>();
+                ArrayList<PlayerRecord> records = new ArrayList<>();
+                ArrayList<PlayerRecord> newRecords = new ArrayList<>();
                 loadPlayerFile(records);
                 for (PlayerRecord record : records) {
                     if (record.has("bjrounds") || record.has("tprounds") || record.has("ttplayed")) {
@@ -1611,7 +1611,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     protected PlayerRecord loadPlayerRecord(String nick) {
         try {
-            ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
+            ArrayList<PlayerRecord> records = new ArrayList<>();
             loadPlayerFile(records);
             for (PlayerRecord record : records) {
                 if (nick.equalsIgnoreCase(record.getNick())){
@@ -1663,7 +1663,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     protected void savePlayerData(Player p){
         boolean found = false;
-        ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
+        ArrayList<PlayerRecord> records = new ArrayList<>();
         
         try {
             loadPlayerFile(records);

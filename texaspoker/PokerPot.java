@@ -32,8 +32,8 @@ public class PokerPot {
 
     public PokerPot(){
         total = 0;
-        players = new ArrayList<PokerPlayer>();
-        donors = new ArrayList<PokerPlayer>();
+        players = new ArrayList<>();
+        donors = new ArrayList<>();
     }
 
     public int getTotal(){

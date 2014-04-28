@@ -39,7 +39,7 @@ public class TourneyStat extends Stats{
     public TourneyStat(int num) {
         super();
         set("numtourneys", num);
-        players = new ArrayList<Player>();
+        players = new ArrayList<>();
         winner = null;
     }
     

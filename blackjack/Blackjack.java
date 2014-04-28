@@ -1027,7 +1027,7 @@ public class Blackjack extends CardGame {
         name = "blackjack";
         helpFile = "blackjack.help";
         dealer = new BlackjackPlayer("Dealer", "");
-        houseStatsList = new ArrayList<HouseStat>();
+        houseStatsList = new ArrayList<>();
         
         initSettings();
         loadHelp(helpFile);
@@ -1134,7 +1134,7 @@ public class Blackjack extends CardGame {
     public void saveGameStats() {
         boolean found = false;
         int index = 0;
-        ArrayList<String> lines = new ArrayList<String>();
+        ArrayList<String> lines = new ArrayList<>();
         try {
             BufferedReader in = new BufferedReader(new FileReader("housestats.txt"));
             String str;
@@ -1917,7 +1917,7 @@ public class Blackjack extends CardGame {
     @Override
     public int getTotalPlayers(){
         try {
-            ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
+            ArrayList<PlayerRecord> records = new ArrayList<>();
             loadPlayerFile(records);
             int total = 0, numLines = records.size();
             
@@ -2284,15 +2284,15 @@ public class Blackjack extends CardGame {
         
         try {
             PlayerRecord aRecord;
-            ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
+            ArrayList<PlayerRecord> records = new ArrayList<>();
             loadPlayerFile(records);
             int length = records.size();
             String line = Colors.BLACK + ",08";
             
             if (stat.equalsIgnoreCase("winrate")) {
                 int highIndex, rank = 0;
-                ArrayList<String> nicks = new ArrayList<String>();
-                ArrayList<Double> winrates = new ArrayList<Double>();
+                ArrayList<String> nicks = new ArrayList<>();
+                ArrayList<Double> winrates = new ArrayList<>();
   
                 for (int ctr = 0; ctr < length; ctr++) {
                     aRecord = records.get(ctr);
@@ -2381,7 +2381,7 @@ public class Blackjack extends CardGame {
         
         try {
             PlayerRecord aRecord;
-            ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
+            ArrayList<PlayerRecord> records = new ArrayList<>();
             loadPlayerFile(records);
             int end = Math.min(n, records.size());
             int start = Math.max(end - 10, 0);
@@ -2390,8 +2390,8 @@ public class Blackjack extends CardGame {
             
             if (stat.equalsIgnoreCase("winrate")) {
                 int highIndex;
-                ArrayList<String> nicks = new ArrayList<String>();
-                ArrayList<Double> winrates = new ArrayList<Double>();
+                ArrayList<String> nicks = new ArrayList<>();
+                ArrayList<Double> winrates = new ArrayList<>();
                 
                 for (int ctr = 0; ctr < records.size(); ctr++) {
                     aRecord = records.get(ctr);
