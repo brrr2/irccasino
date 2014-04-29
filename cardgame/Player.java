@@ -111,9 +111,9 @@ abstract public class Player extends Stats {
 
     @Override
     public int get(String stat){
-        if (stat.equals("exists")){
+        if (stat.equalsIgnoreCase("exists")){
             return 1;
-        } else if (stat.equals("netcash")){
+        } else if (stat.equalsIgnoreCase("netcash")){
             return get("cash") + get("bank");
         }
         return super.get(stat);

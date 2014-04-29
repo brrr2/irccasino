@@ -186,12 +186,10 @@ public class CasinoBot extends PircBotX implements GameManager {
         public void blackjack(Channel channel, User user, String[] params, String msg) {
             if (bot.hasGame(channel)) {
                 bot.sendMessage(channel, bot.getGame(channel).getGameNameStr() + " is already running in this channel.");
+            } else if (params.length > 0) {
+                bot.startGame(new Blackjack(bot, commandChar, channel, params[0]));
             } else {
-                if (params.length > 0) {
-                    bot.startGame(new Blackjack(bot, commandChar, channel, params[0]));
-                } else {
-                    bot.startGame(new Blackjack(bot, commandChar, channel));
-                }
+                bot.startGame(new Blackjack(bot, commandChar, channel));
             }
         }
         
@@ -205,12 +203,10 @@ public class CasinoBot extends PircBotX implements GameManager {
         public void texaspoker(Channel channel, User user, String[] params, String msg) {
             if (bot.hasGame(channel)) {
                 bot.sendMessage(channel, bot.getGame(channel).getGameNameStr() + " is already running in this channel.");
+            } else if (params.length > 0) {
+                bot.startGame(new TexasPoker(bot, commandChar, channel, params[0]));
             } else {
-                if (params.length > 0) {
-                    bot.startGame(new TexasPoker(bot, commandChar, channel, params[0]));
-                } else {
-                    bot.startGame(new TexasPoker(bot, commandChar, channel));
-                }
+                bot.startGame(new TexasPoker(bot, commandChar, channel));
             }
         }
         
@@ -224,12 +220,10 @@ public class CasinoBot extends PircBotX implements GameManager {
         public void texastourney(Channel channel, User user, String[] params, String msg) {
             if (bot.hasGame(channel)) {
                 bot.sendMessage(channel, bot.getGame(channel).getGameNameStr() + " is already running in this channel.");
+            } else if (params.length > 0) {
+                bot.startGame(new TexasTourney(bot, commandChar, channel, params[0]));
             } else {
-                if (params.length > 0) {
-                    bot.startGame(new TexasTourney(bot, commandChar, channel, params[0]));
-                } else {
-                    bot.startGame(new TexasTourney(bot, commandChar, channel));
-                }
+                bot.startGame(new TexasTourney(bot, commandChar, channel));
             }
         }
         
