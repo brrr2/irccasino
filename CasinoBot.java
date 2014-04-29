@@ -28,14 +28,18 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.StringTokenizer;
 import org.pircbotx.Channel;
+import org.pircbotx.Colors;
 import org.pircbotx.PircBotX;
 import org.pircbotx.User;
 import org.pircbotx.cap.SASLCapHandler;
+import org.pircbotx.exception.IrcException;
 import org.pircbotx.hooks.ListenerAdapter;
 import org.pircbotx.hooks.events.*;
 
@@ -49,6 +53,7 @@ public class CasinoBot extends PircBotX implements GameManager {
     protected HashMap<String,String> configMap;
     protected ArrayList<CardGame> gameList;
     protected String logFile;
+    protected SimpleDateFormat timeFormat;
     
     /**
      * Listener for CasinoBot initialization commands.
@@ -289,6 +294,7 @@ public class CasinoBot extends PircBotX implements GameManager {
         logFile = "";
         gameList = new ArrayList<>();
         configMap = new HashMap<>();
+        timeFormat = new SimpleDateFormat("yyyy/MM/dd  HH:mm:ss:SSS");
     }
     
     /**
@@ -298,13 +304,13 @@ public class CasinoBot extends PircBotX implements GameManager {
      */
     @Override
     public void log(String line){
-        super.log(line);
         if (verbose) {
-            try{
-                PrintWriter out;
-                out = new PrintWriter(new BufferedWriter(new FileWriter(logFile,true)));
-                out.println(System.currentTimeMillis() + " " + line);
-                out.close();
+            Date time = new Date(System.currentTimeMillis());
+            String output = Colors.removeFormattingAndColors(line);
+            
+            System.out.println(timeFormat.format(time) + "  " + output);
+            try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(logFile,true)))) {
+                out.println(timeFormat.format(time) + "  " + output);
             } catch(IOException e) {
                 System.err.println("Error: unable to write to " + logFile);
             }
@@ -331,14 +337,14 @@ public class CasinoBot extends PircBotX implements GameManager {
             try {
                 socket.shutdownInput();
                 socket.close();
-            } catch (Exception e) {
+            } catch (IOException e) {
                 logException(e);
             }
         
         //Close the DCC Manager
         try {
             dccManager.close();
-        } catch (Exception ex) {
+        } catch (IOException ex) {
             //Not much we can do with it here. And throwing it would not let other things shutdown
             logException(ex);
         }
@@ -433,8 +439,7 @@ public class CasinoBot extends PircBotX implements GameManager {
      * @param configFile the configuration file
      */
     protected void loadConfig(String configFile){
-        try {
-            BufferedReader in = new BufferedReader(new FileReader(configFile));
+        try (BufferedReader in = new BufferedReader(new FileReader(configFile))) {
             String str, key, value;
             StringTokenizer st;
             while (in.ready()) {
@@ -449,7 +454,6 @@ public class CasinoBot extends PircBotX implements GameManager {
                     configMap.put(key, value);
                 }
             }
-            in.close();
         } catch (IOException e) {
             /* load defaults if config file is not found */
             log(configFile + " not found! Loading default values...");
@@ -470,8 +474,7 @@ public class CasinoBot extends PircBotX implements GameManager {
      */
     protected void saveConfig(String configFile) {
         /* Write these values to a new file */
-        try{
-            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(configFile)));
+        try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(configFile)))) {
             out.println("#Bot nick");
             out.println("nick=" + configMap.get("nick"));
             out.println("#SASL password");
@@ -486,7 +489,6 @@ public class CasinoBot extends PircBotX implements GameManager {
             out.println("tpchannel=" + configMap.get("tpchannel"));
             out.println("#Texas Hold'em Tournament channel");
             out.println("ttchannel=" + configMap.get("ttchannel"));
-            out.close();
         } catch (IOException f) {
             log("Error creating " + configFile + "!");
         }
@@ -540,7 +542,7 @@ public class CasinoBot extends PircBotX implements GameManager {
                 // Attempt to connect
                 log("Connection attempt " + attempt + "...");
                 connect(configMap.get("network"));
-            } catch (Exception e){
+            } catch (IOException | IrcException e){
                 // Log the exception that caused connection failure
                 logException(e);
                 

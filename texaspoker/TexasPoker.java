@@ -1298,8 +1298,7 @@ public class TexasPoker extends CardGame{
     
     @Override
     protected void saveIniFile() {
-        try {
-            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(iniFile)));
+        try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(iniFile)))) {
             out.println("#Settings");
             out.println("#Number of seconds before a player idles out");
             out.println("idle=" + get("idle"));
@@ -1323,7 +1322,6 @@ public class TexasPoker extends CardGame{
             out.println("revealcommunity=" + get("revealcommunity"));
             out.println("#The rate-limit of the ping command");
             out.println("ping=" + get("ping"));
-            out.close();
         } catch (IOException e) {
             manager.log("Error creating " + iniFile + "!");
         }
@@ -1332,8 +1330,7 @@ public class TexasPoker extends CardGame{
     /* House stats management */
     @Override
     public void loadGameStats() {
-        try {
-            BufferedReader in = new BufferedReader(new FileReader("housestats.txt"));
+        try (BufferedReader in = new BufferedReader(new FileReader("housestats.txt"))) {
             String str;
             int biggestpot, players, winners;
             StringTokenizer st;
@@ -1360,7 +1357,6 @@ public class TexasPoker extends CardGame{
                     break;
                 }
             }
-            in.close();
         } catch (IOException e) {
             manager.log("housestats.txt not found! Creating new housestats.txt...");
             try {
@@ -1377,8 +1373,7 @@ public class TexasPoker extends CardGame{
         boolean found = false;
         int index = 0;
         ArrayList<String> lines = new ArrayList<>();
-        try {
-            BufferedReader in = new BufferedReader(new FileReader("housestats.txt"));
+        try (BufferedReader in = new BufferedReader(new FileReader("housestats.txt"))) {
             String str;
             while (in.ready()) {
                 //Add all lines until we find texaspoker lines
@@ -1386,8 +1381,8 @@ public class TexasPoker extends CardGame{
                 lines.add(str);
                 if (str.startsWith("#texaspoker")) {
                     found = true;
-                    /* Store the index where texaspoker stats go so they can be 
-                     * overwritten. */
+                    /* Store the index where texaspoker stats go so they can be
+                    * overwritten. */
                     index = lines.size();
                     //Skip existing texaspoker lines but add all the rest
                     while (in.ready()) {
@@ -1399,7 +1394,6 @@ public class TexasPoker extends CardGame{
                     }
                 }
             }
-            in.close();
         } catch (IOException e) {
             /* housestats.txt is not found */
             manager.log("Error reading housestats.txt!");
@@ -1750,21 +1744,17 @@ public class TexasPoker extends CardGame{
     
     @Override
     public int getTotalPlayers(){
-        try {
-            ArrayList<PlayerRecord> records = new ArrayList<>();
-            loadPlayerFile(records);
-            int total = 0;
-            
+        int total = 0;
+        ArrayList<PlayerRecord> records = loadPlayerFile();
+        
+        if (records != null) {
             for (PlayerRecord record : records) {
                 if (record.has("tprounds")){
                     total++;
                 }
             }
-            return total;
-        } catch (IOException e){
-            manager.log("Error reading players.txt!");
-            return 0;
         }
+        return total;
     }    
     
     ////////////////////////////////////////////////////////
@@ -2008,24 +1998,24 @@ public class TexasPoker extends CardGame{
     }
 
     @Override
-    public void showPlayerRank(String nick, String stat){
+    public void showPlayerRank(String nick, String stat) throws IllegalArgumentException {
         if (getPlayerStat(nick, "exists") != 1){
             showMsg(getMsg("no_data"), formatNoPing(nick));
             return;
         }
         
-        try {
+        ArrayList<PlayerRecord> records = loadPlayerFile();
+        
+        if (records != null) {
             PlayerRecord aRecord;
-            ArrayList<PlayerRecord> records = new ArrayList<>();
-            loadPlayerFile(records);
             int length = records.size();
             String line = Colors.BLACK + ",08";
-            
+
             if (stat.equalsIgnoreCase("winrate")) {
                 int highIndex, rank = 0;
                 ArrayList<String> nicks = new ArrayList<>();
                 ArrayList<Double> winrates = new ArrayList<>();
-                
+
                 for (int ctr = 0; ctr < length; ctr++) {
                     aRecord = records.get(ctr);
                     nicks.add(aRecord.getNick());
@@ -2035,9 +2025,9 @@ public class TexasPoker extends CardGame{
                         winrates.add((double) aRecord.get("tpwinnings") / (double) aRecord.get("tprounds"));
                     }
                 }
-                
+
                 line += "Texas Hold'em Win Rate: ";
-                
+
                 // Find the player with the highest value and check if it is 
                 // the requested player. Repeat until found or end.
                 for (int ctr = 0; ctr < length; ctr++){
@@ -2048,7 +2038,7 @@ public class TexasPoker extends CardGame{
                             highIndex = ctr2;
                         }
                     }
-                    
+
                     if (nick.equalsIgnoreCase(nicks.get(highIndex))){
                         line += "#" + rank + " " + Colors.WHITE + ",04 " + formatNoPing(nicks.get(highIndex)) + " $" + formatDecimal(winrates.get(highIndex)) + " ";
                         break;
@@ -2080,10 +2070,10 @@ public class TexasPoker extends CardGame{
                 } else {
                     throw new IllegalArgumentException();
                 }
-                
+
                 // Sort based on stat
                 Collections.sort(records, PlayerRecord.getComparator(statName));
-                
+
                 // Find the rank of the player
                 for (int ctr = 0; ctr < length; ctr++){
                     aRecord = records.get(ctr);
@@ -2097,24 +2087,22 @@ public class TexasPoker extends CardGame{
                     }
                 }
             }
-            
+
             // Show rank
             showMsg(line);
-        } catch (IOException e) {
-            manager.log("Error reading players.txt!");
         }
     }
     
     @Override
-    public void showTopPlayers(String stat, int n) {
+    public void showTopPlayers(String stat, int n) throws IllegalArgumentException {
         if (n < 1){
             throw new IllegalArgumentException();
         }
         
-        try {
+        ArrayList<PlayerRecord> records = loadPlayerFile();
+        if (records != null) {
             PlayerRecord aRecord;
-            ArrayList<PlayerRecord> records = new ArrayList<>();
-            loadPlayerFile(records);
+
             int end = Math.min(n, records.size());
             int start = Math.max(end - 10, 0);
             String title = Colors.BOLD + Colors.BLACK + ",08 Top " + (start+1) + "-" + end;
@@ -2200,8 +2188,6 @@ public class TexasPoker extends CardGame{
             // Output title and the list
             showMsg(title);
             showMsg(list);
-        } catch (IOException e) {
-            manager.log("Error reading players.txt!");
         }
     }
     

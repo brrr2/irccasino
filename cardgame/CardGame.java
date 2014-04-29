@@ -972,10 +972,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         } else if (manager.gamesInProgress()) {
             informPlayer(nick, getMsg("no_trim"));
         } else {
-            try {
-                ArrayList<PlayerRecord> records = new ArrayList<>();
+            ArrayList<PlayerRecord> records = loadPlayerFile();
+            if (records != null) {
                 ArrayList<PlayerRecord> newRecords = new ArrayList<>();
-                loadPlayerFile(records);
                 for (PlayerRecord record : records) {
                     if (record.has("bjrounds") || record.has("tprounds") || record.has("ttplayed")) {
                         newRecords.add(record);
@@ -983,9 +982,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 }
                 savePlayerFile(newRecords);
                 showMsg("Player data has been trimmed.");
-            } catch (IOException e) {
-                manager.log("Error reading players.txt!");
-                informPlayer(nick, "Error reading players.txt!");
             }
         }
     }
@@ -1054,18 +1050,18 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * Initializes the game.
      */
     protected final void initGame() {
-        joined = new ArrayList<Player>();
-        blacklist = new ArrayList<Player>();
-        waitlist = new ArrayList<Player>();
+        joined = new ArrayList<>();
+        blacklist = new ArrayList<>();
+        waitlist = new ArrayList<>();
         gameTimer = new Timer("Game Timer");
-        settings = new HashMap<String,Integer>();
-        cmdMap = new HashMap<String,String>();
-        opCmdMap = new HashMap<String,String>();
-        aliasMap = new HashMap<String,String>();
-        msgMap = new HashMap<String,String>();
-        awayList = new ArrayList<String>();
-        notSimpleList = new ArrayList<String>();
-        respawnTasks = new ArrayList<RespawnTask>();
+        settings = new HashMap<>();
+        cmdMap = new HashMap<>();
+        opCmdMap = new HashMap<>();
+        aliasMap = new HashMap<>();
+        msgMap = new HashMap<>();
+        awayList = new ArrayList<>();
+        notSimpleList = new ArrayList<>();
+        respawnTasks = new ArrayList<>();
         strFile = "strlib.txt";
         
         loadStrLib(strFile);
@@ -1118,8 +1114,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * Loads the settings from the INI file.
      */
     protected void loadIni() {
-        try {
-            BufferedReader in = new BufferedReader(new FileReader(iniFile));
+        try (BufferedReader in = new BufferedReader(new FileReader(iniFile))) {
             String str;
             StringTokenizer st;
             while (in.ready()) {
@@ -1129,7 +1124,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     set(st.nextToken(), Integer.parseInt(st.nextToken()));
                 }
             }
-            in.close();
         } catch (IOException e) {
             /* load defaults if INI file is not found */
             manager.log(iniFile + " not found! Creating new " + iniFile + "...");
@@ -1142,8 +1136,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param file file path
      */
     protected final void loadStrLib(String file) {
-        try {
-            BufferedReader in = new BufferedReader(new FileReader(file));
+        try (BufferedReader in = new BufferedReader(new FileReader(file))) {
             StringTokenizer st;
             String str;
             while (in.ready()){
@@ -1155,7 +1148,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     msgMap.put(st.nextToken(), st.nextToken());
                 }
             }
-            in.close();
         } catch (IOException e) {
             manager.log("Error reading from " + file + "!");
         }
@@ -1166,8 +1158,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param file file path
      */
     protected final void loadHelp(String file) {
-        try {
-            BufferedReader in = new BufferedReader(new FileReader(file));
+        try (BufferedReader in = new BufferedReader(new FileReader(file))) {
             String[] st, st2;
             String str, cmd, params, alias, def, line;
             while (in.ready()){
@@ -1216,7 +1207,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     }
                 }
             }
-            in.close();
         } catch (IOException e) {
             manager.log("Error reading from " + file + "!");
         }
@@ -1610,19 +1600,15 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @return 
      */
     protected PlayerRecord loadPlayerRecord(String nick) {
-        try {
-            ArrayList<PlayerRecord> records = new ArrayList<>();
-            loadPlayerFile(records);
+        ArrayList<PlayerRecord> records = loadPlayerFile();
+        if (records != null) {
             for (PlayerRecord record : records) {
                 if (nick.equalsIgnoreCase(record.getNick())){
                     return record;
                 }
             }
-            return null;
-        } catch (IOException e){
-            manager.log("Error reading players.txt!");
-            return null;
         }
+        return null;
     }
     
     /**
@@ -1663,10 +1649,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     protected void savePlayerData(Player p){
         boolean found = false;
-        ArrayList<PlayerRecord> records = new ArrayList<>();
+        ArrayList<PlayerRecord> records = loadPlayerFile();
         
-        try {
-            loadPlayerFile(records);
+        if (records != null) {
             for (PlayerRecord record : records) {
                 if (p.getNick().equalsIgnoreCase(record.getNick())) {
                     record.set("cash", p.get("cash"));
@@ -1689,14 +1674,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                                         p.get("tpwinnings"), p.get("tprounds"),
                                         p.get("ttwins"), p.get("ttplayed")));
             }
-        } catch (IOException e) {
-            manager.log("Error reading players.txt!");
-        }
-
-        try {
+            
             savePlayerFile(records);
-        } catch (IOException e) {
-            manager.log("Error writing to players.txt!");
         }
     }
     
@@ -1722,31 +1701,34 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * Loads players.txt.
      * Reads the file's contents into an ArrayList of PlayerRecord.
      * 
-     * @param records stores the records read from file
-     * @throws IOException
+     * @return 
      */
-    protected void loadPlayerFile(ArrayList<PlayerRecord> records) throws IOException {
+    protected ArrayList<PlayerRecord> loadPlayerFile() {
         String nick;
         int cash, bank, bankrupts, bjwinnings, bjrounds, tpwinnings, tprounds, ttwins, ttplayed;
-        
-        BufferedReader in = new BufferedReader(new FileReader("players.txt"));
-        StringTokenizer st;
-        while (in.ready()){
-            st = new StringTokenizer(in.readLine());
-            nick = st.nextToken();
-            cash = Integer.parseInt(st.nextToken());
-            bank = Integer.parseInt(st.nextToken());
-            bankrupts = Integer.parseInt(st.nextToken());
-            bjwinnings = Integer.parseInt(st.nextToken());
-            bjrounds = Integer.parseInt(st.nextToken());
-            tpwinnings = Integer.parseInt(st.nextToken());
-            tprounds = Integer.parseInt(st.nextToken());
-            ttwins = Integer.parseInt(st.nextToken());
-            ttplayed = Integer.parseInt(st.nextToken());
-            records.add(new PlayerRecord(nick, cash, bank, bankrupts, bjwinnings, 
-                                        bjrounds, tpwinnings, tprounds, ttwins, ttplayed));
+        try (BufferedReader in = new BufferedReader(new FileReader("players.txt"))) {
+            ArrayList<PlayerRecord> records = new ArrayList<>();
+            StringTokenizer st;
+            while (in.ready()){
+                st = new StringTokenizer(in.readLine());
+                nick = st.nextToken();
+                cash = Integer.parseInt(st.nextToken());
+                bank = Integer.parseInt(st.nextToken());
+                bankrupts = Integer.parseInt(st.nextToken());
+                bjwinnings = Integer.parseInt(st.nextToken());
+                bjrounds = Integer.parseInt(st.nextToken());
+                tpwinnings = Integer.parseInt(st.nextToken());
+                tprounds = Integer.parseInt(st.nextToken());
+                ttwins = Integer.parseInt(st.nextToken());
+                ttplayed = Integer.parseInt(st.nextToken());
+                records.add(new PlayerRecord(nick, cash, bank, bankrupts, bjwinnings,
+                        bjrounds, tpwinnings, tprounds, ttwins, ttplayed));
+            }
+            return records;
+        } catch (IOException e) {
+            manager.log("Error reading players.txt!");
+            return null;
         }
-        in.close();
     }
     
     /**
@@ -1754,15 +1736,15 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * Saves an ArrayList of StatFileLine to the file.
      * 
      * @param records
-     * @throws IOException
      */
-    protected void savePlayerFile(ArrayList<PlayerRecord> records) throws IOException {
-        PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("players.txt")));
-        
-        for (PlayerRecord record : records) {
-            out.println(record);
+    protected void savePlayerFile(ArrayList<PlayerRecord> records) {
+        try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("players.txt")))) {
+            for (PlayerRecord record : records) {
+                out.println(record);
+            }
+        } catch (IOException e) {
+            manager.log("Error writing to players.txt!");
         }
-        out.close();
     }
     
     ////////////////////////////////////////
@@ -1785,12 +1767,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param hostList ArrayList of hosts
      */
     protected final void saveHostList(String file, ArrayList<String> hostList){
-        try {
-            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(file)));
+        try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(file)))) {
             for (String host : hostList){
                 out.println(host);
             }
-            out.close();
         } catch (IOException e){
             manager.log("Error writing to " + file + "!");
         }      
@@ -1802,12 +1782,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param hostList
      */
     protected final void loadHostList(String file, ArrayList<String> hostList){
-        try {
-            BufferedReader in = new BufferedReader(new FileReader(file));
+        try (BufferedReader in = new BufferedReader(new FileReader(file))) {
             while (in.ready()) {
                 hostList.add(in.readLine());
             }
-            in.close();
         } catch (IOException e){
             manager.log("Creating " + file + "...");
             saveHostList(file, hostList);
@@ -1871,7 +1849,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param nick the player's nick
      * @param stat the stat name
      */
-    abstract protected void showPlayerRank(String nick, String stat);
+    abstract protected void showPlayerRank(String nick, String stat) throws IllegalArgumentException;
     
     /**
      * Outputs the top N players for a given statistic.
@@ -1880,7 +1858,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param stat the statistic used for ranking
      * @param n the length of the list up to n players
      */
-    abstract protected void showTopPlayers(String stat, int n);
+    abstract protected void showTopPlayers(String stat, int n) throws IllegalArgumentException;
     
     /**
      * Sends a message to the game channel.
@@ -2015,7 +1993,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param type undealt cards or discards
      * @param num the number of cards to reveal
      */
-    protected void infoDeckCards(String nick, char type, int num){
+    protected void infoDeckCards(String nick, char type, int num) throws IllegalArgumentException{
         if (num < 1){
             throw new IllegalArgumentException();
         }

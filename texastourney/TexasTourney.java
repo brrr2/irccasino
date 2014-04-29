@@ -1322,8 +1322,7 @@ public class TexasTourney extends TexasPoker {
     
     @Override
     protected void saveIniFile() {
-        try {
-            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(iniFile)));
+        try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(iniFile)))) {
             out.println("#Settings");
             out.println("#Number of seconds before a player idles out");
             out.println("idle=" + get("idle"));
@@ -1349,7 +1348,6 @@ public class TexasTourney extends TexasPoker {
             out.println("doubleonbankrupt=" + get("doubleonbankrupt"));
             out.println("#The rate-limit of the ping command");
             out.println("ping=" + get("ping"));
-            out.close();
         } catch (IOException e) {
             manager.log("Error creating " + iniFile + "!");
         }
@@ -1366,25 +1364,16 @@ public class TexasTourney extends TexasPoker {
      */
     @Override
     protected void loadPlayerData(Player p) {
-        try {
-            boolean found = false;
-            ArrayList<PlayerRecord> records = new ArrayList<>();
-            loadPlayerFile(records);
-
+        ArrayList<PlayerRecord> records = loadPlayerFile();
+        if (records != null) {
+            p.set("cash", get("cash"));
             for (PlayerRecord statLine : records) {
                 if (p.getNick().equalsIgnoreCase(statLine.getNick())) {
-                    p.set("cash", get("cash"));
                     p.set("ttwins", statLine.get("ttwins"));
                     p.set("ttplayed", statLine.get("ttplayed"));
-                    found = true;
                     break;
                 }
             }
-            if (!found) {
-                p.set("cash", get("cash"));
-            }
-        } catch (IOException e) {
-            manager.log("Error reading players.txt!");
         }
     }
     
@@ -1396,10 +1385,9 @@ public class TexasTourney extends TexasPoker {
     @Override
     protected void savePlayerData(Player p){
         boolean found = false;
-        ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
+        ArrayList<PlayerRecord> records = loadPlayerFile();
         
-        try {
-            loadPlayerFile(records);
+        if (records != null) {
             for (PlayerRecord record : records) {
                 if (p.getNick().equalsIgnoreCase(record.getNick())) {
                     record.set("ttwins", p.get("ttwins"));
@@ -1415,34 +1403,24 @@ public class TexasTourney extends TexasPoker {
                                         p.get("tpwinnings"), p.get("tprounds"),
                                         p.get("ttwins"), p.get("ttplayed")));
             }
-        } catch (IOException e) {
-            manager.log("Error reading players.txt!");
-        }
 
-        try {
             savePlayerFile(records);
-        } catch (IOException e) {
-            manager.log("Error writing to players.txt!");
         }
     }
     
     @Override
     public int getTotalPlayers(){
-        try {
-            ArrayList<PlayerRecord> records = new ArrayList<>();
-            loadPlayerFile(records);
-            int total = 0;
-            
+        int total = 0;
+        ArrayList<PlayerRecord> records = loadPlayerFile();
+        
+        if (records != null) {
             for (PlayerRecord record : records) {
                 if (record.has("ttplayed")){
                     total++;
                 }
             }
-            return total;
-        } catch (IOException e){
-            manager.log("Error reading players.txt!");
-            return 0;
         }
+        return total;
     }  
     
     ///////////////////////////////////////
@@ -1451,8 +1429,7 @@ public class TexasTourney extends TexasPoker {
     
     @Override
     public void loadGameStats() {
-        try {
-            BufferedReader in = new BufferedReader(new FileReader("housestats.txt"));
+        try (BufferedReader in = new BufferedReader(new FileReader("housestats.txt"))) {
             String str;
             StringTokenizer st;
             while (in.ready()) {
@@ -1473,7 +1450,6 @@ public class TexasTourney extends TexasPoker {
                     break;
                 }
             }
-            in.close();
         } catch (IOException e) {
             manager.log("housestats.txt not found! Creating new housestats.txt...");
             try {
@@ -1490,8 +1466,7 @@ public class TexasTourney extends TexasPoker {
         boolean found = false;
         int index = 0;
         ArrayList<String> lines = new ArrayList<>();
-        try {
-            BufferedReader in = new BufferedReader(new FileReader("housestats.txt"));
+        try (BufferedReader in = new BufferedReader(new FileReader("housestats.txt"))) {
             String str;
             while (in.ready()) {
                 //Add all lines until we find texaspoker lines
@@ -1499,8 +1474,8 @@ public class TexasTourney extends TexasPoker {
                 lines.add(str);
                 if (str.startsWith("#texastourney")) {
                     found = true;
-                    /* Store the index where texastourney stats go so they can be 
-                     * overwritten. */
+                    /* Store the index where texastourney stats go so they can be
+                    * overwritten. */
                     index = lines.size();
                     //Skip existing texastourney lines but add all the rest
                     while (in.ready()) {
@@ -1512,7 +1487,6 @@ public class TexasTourney extends TexasPoker {
                     }
                 }
             }
-            in.close();
         } catch (IOException e) {
             /* housestats.txt is not found */
             manager.log("Error reading housestats.txt!");
@@ -1522,12 +1496,10 @@ public class TexasTourney extends TexasPoker {
             index = lines.size();
         }
         lines.add(index, tourneyStats.get("numtourneys") + " " + tourneyStats.getWinner().getNick() + " " + tourneyStats.getPlayersString());
-        try {
-            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("housestats.txt")));
+        try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("housestats.txt")))) {
             for (int ctr = 0; ctr < lines.size(); ctr++) {
                 out.println(lines.get(ctr));
             }
-            out.close();
         } catch (IOException e) {
             manager.log("Error writing to housestats.txt!");
         }
@@ -1690,16 +1662,16 @@ public class TexasTourney extends TexasPoker {
     }
 
     @Override
-    public void showPlayerRank(String nick, String stat){
+    public void showPlayerRank(String nick, String stat) throws IllegalArgumentException {
         if (getPlayerStat(nick, "exists") != 1){
             showMsg(getMsg("no_data"), formatNoPing(nick));
             return;
         }
         
-        try {
+        ArrayList<PlayerRecord> records = loadPlayerFile();
+        
+        if (records != null) {
             PlayerRecord aRecord;
-            ArrayList<PlayerRecord> records = new ArrayList<>();
-            loadPlayerFile(records);
             int length = records.size();
             String line = Colors.BLACK + ",08";
             
@@ -1766,21 +1738,19 @@ public class TexasTourney extends TexasPoker {
 
             // Show rank
             showMsg(line);
-        } catch (IOException e) {
-            manager.log("Error reading players.txt!");
         }
     }
     
     @Override
-    public void showTopPlayers(String stat, int n) {
+    public void showTopPlayers(String stat, int n) throws IllegalArgumentException {
         if (n < 1){
             throw new IllegalArgumentException();
         }
         
-        try {
+        ArrayList<PlayerRecord> records = loadPlayerFile();
+        
+        if (records != null) {
             PlayerRecord aRecord;
-            ArrayList<PlayerRecord> records = new ArrayList<>();
-            loadPlayerFile(records);
             int end = Math.min(n, records.size());
             int start = Math.max(end - 10, 0);
             String title = Colors.BOLD + Colors.BLACK + ",08 Top " + (start+1) + "-" + end;
@@ -1851,8 +1821,6 @@ public class TexasTourney extends TexasPoker {
             // Output the title and list
             showMsg(title);
             showMsg(list);
-        } catch (IOException e) {
-            manager.log("Error reading players.txt!");
         }
     }
     

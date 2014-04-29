@@ -1051,8 +1051,7 @@ public class Blackjack extends CardGame {
     }
     @Override
     protected void saveIniFile() {
-        try {
-            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(iniFile)));
+        try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(iniFile)))) {
             out.println("#Settings");
             out.println("#Number of decks in the dealer's shoe");
             out.println("decks=" + get("decks"));
@@ -1084,7 +1083,6 @@ public class Blackjack extends CardGame {
             out.println("startwait=" + get("startwait"));
             out.println("#The rate-limit of the ping command");
             out.println("ping=" + get("ping"));
-            out.close();
         } catch (IOException e) {
             manager.log("Error creating " + iniFile + "!");
         }
@@ -1096,8 +1094,7 @@ public class Blackjack extends CardGame {
     
     @Override
     public final void loadGameStats() {
-        try {
-            BufferedReader in = new BufferedReader(new FileReader("housestats.txt"));
+        try (BufferedReader in = new BufferedReader(new FileReader("housestats.txt"))) {
             String str;
             int ndecks, nrounds, cash;
             StringTokenizer st;
@@ -1118,11 +1115,9 @@ public class Blackjack extends CardGame {
                     break;
                 }
             }
-            in.close();
         } catch (IOException e) {
             manager.log("housestats.txt not found! Creating new housestats.txt...");
-            try {
-                PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("housestats.txt")));
+            try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("housestats.txt")))) {
                 out.close();
             } catch (IOException f) {
                 manager.log("Error creating housestats.txt!");
@@ -1135,8 +1130,7 @@ public class Blackjack extends CardGame {
         boolean found = false;
         int index = 0;
         ArrayList<String> lines = new ArrayList<>();
-        try {
-            BufferedReader in = new BufferedReader(new FileReader("housestats.txt"));
+        try (BufferedReader in = new BufferedReader(new FileReader("housestats.txt"))) {
             String str;
             while (in.ready()) {
                 //Add all lines until we find blackjack lines
@@ -1144,20 +1138,19 @@ public class Blackjack extends CardGame {
                 lines.add(str);
                 if (str.startsWith("#blackjack")) {
                     found = true;
-                    /* Store the index where blackjack stats go so they can be 
-                     * overwritten. */
+                    /* Store the index where blackjack stats go so they can be
+                    * overwritten. */
                     index = lines.size();
                     //Skip existing blackjack lines but add all the rest
                     while (in.ready()) {
                         str = in.readLine();
                         if (str.startsWith("#")) {
-                                lines.add(str);
-                                break;
+                            lines.add(str);
+                            break;
                         }
                     }
                 }
             }
-            in.close();
         } catch (IOException e) {
             /* housestats.txt is not found */
             manager.log("Error reading housestats.txt!");
@@ -1169,12 +1162,10 @@ public class Blackjack extends CardGame {
         for (int ctr = 0; ctr < houseStatsList.size(); ctr++) {
             lines.add(index, houseStatsList.get(ctr).toFileString());
         }
-        try {
-            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("housestats.txt")));
+        try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("housestats.txt")))) {
             for (int ctr = 0; ctr < lines.size(); ctr++) {
                 out.println(lines.get(ctr));
             }
-            out.close();
         } catch (IOException e) {
             manager.log("Error writing to housestats.txt!");
         }
@@ -1916,21 +1907,17 @@ public class Blackjack extends CardGame {
     
     @Override
     public int getTotalPlayers(){
-        try {
-            ArrayList<PlayerRecord> records = new ArrayList<>();
-            loadPlayerFile(records);
-            int total = 0, numLines = records.size();
-            
+        int total = 0;
+        ArrayList<PlayerRecord> records = loadPlayerFile();
+        
+        if (records != null) {
             for (PlayerRecord record : records){
                 if (record.has("bjrounds")){
                     total++;
                 }
             }
-            return total;
-        } catch (IOException e){
-            manager.log("Error reading players.txt!");
-            return 0;
         }
+        return total;
     }
     
     //////////////////////////////////////////////
@@ -2276,16 +2263,16 @@ public class Blackjack extends CardGame {
     }
     
     @Override
-    public void showPlayerRank(String nick, String stat){
+    public void showPlayerRank(String nick, String stat) throws IllegalArgumentException {
         if (getPlayerStat(nick, "exists") != 1){
             showMsg(getMsg("no_data"), formatNoPing(nick));
             return;
         }
         
-        try {
+        ArrayList<PlayerRecord> records = loadPlayerFile();
+        
+        if (records != null) {
             PlayerRecord aRecord;
-            ArrayList<PlayerRecord> records = new ArrayList<>();
-            loadPlayerFile(records);
             int length = records.size();
             String line = Colors.BLACK + ",08";
             
@@ -2368,21 +2355,19 @@ public class Blackjack extends CardGame {
             
             // Show rank
             showMsg(line);
-        } catch (IOException e) {
-            manager.log("Error reading players.txt!");
         }
     }
         
     @Override
-    public void showTopPlayers(String stat, int n) {
+    public void showTopPlayers(String stat, int n) throws IllegalArgumentException {
         if (n < 1){
             throw new IllegalArgumentException();
         }
         
-        try {
+        ArrayList<PlayerRecord> records = loadPlayerFile();
+        
+        if (records != null) {
             PlayerRecord aRecord;
-            ArrayList<PlayerRecord> records = new ArrayList<>();
-            loadPlayerFile(records);
             int end = Math.min(n, records.size());
             int start = Math.max(end - 10, 0);
             String title = Colors.BOLD + Colors.BLACK + ",08 Top " + (start+1) + "-" + end;
@@ -2468,8 +2453,6 @@ public class Blackjack extends CardGame {
             // Output title and the list
             showMsg(title);
             showMsg(list);
-        } catch (IOException e) {
-            manager.log("Error reading players.txt!");
         }
     }
     
