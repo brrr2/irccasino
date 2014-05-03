@@ -456,8 +456,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         } else if (isInProgress()) {
             informPlayer(nick, getMsg("wait_round_end"));
         } else {
-        	Player p = findJoined(nick);
-        	int amount = p.get("cash") - 1000; 
+            Player p = findJoined(nick);
+            int amount = p.get("cash") - 1000; 
             transfer(nick, amount);
         }
     }    
