@@ -447,6 +447,20 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     
     /**
+     * Deposits/withdraws the amount over/under 1000 to/from the player's bank.
+     * @param nick
+     */
+    protected void rathole(String nick) {
+        if (!isJoined(nick)) {
+            informPlayer(nick, getMsg("no_join"));
+        } else if (isInProgress()) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else {
+                transfer(nick);
+        }
+    }    
+
+    /**
      * Withdraws the specified amount from the player's bank.
      * @param nick
      * @param params 
@@ -1519,6 +1533,39 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     protected void transfer(String nick, int amount){
         Player p = findJoined(nick);
+        // Ignore a transfer of $0
+        if (amount == 0){
+            informPlayer(nick, getMsg("no_transaction"));
+        // Disallow withdrawals for bankrolls with insufficient funds
+        } else if (amount < 0 && p.get("bank") < -amount){
+            informPlayer(nick, getMsg("no_withdrawal"));
+        // Disallow deposits of amounts larger than cash
+        } else if (amount > 0 && amount > p.get("cash")){
+            informPlayer(nick, getMsg("no_deposit_cash"));
+        // Disallow deposits that leave the player with $0 cash
+        } else if (amount > 0 && amount == p.get("cash")){
+            informPlayer(nick, getMsg("no_deposit_bankrupt"));
+        } else {
+            p.bankTransfer(amount);
+            savePlayerData(p);
+            if (amount > 0){
+                showMsg(getMsg("deposit"), p.getNickStr(), amount, p.get("cash"), p.get("bank"));
+            } else {
+                showMsg(getMsg("withdraw"), p.getNickStr(), -amount, p.get("cash"), p.get("bank"));
+            }
+        }
+    }
+
+    /**
+     * Transfers the amount over 1000 from a player's stack to his bankroll.
+     * A negative amount indicates a withdrawal. A positive amount indicates
+     * a deposit.
+     * 
+     * @param nick the player's nick
+     */
+    protected void transfer(String nick){
+        Player p = findJoined(nick);
+        int amount = p.get("cash") - 1000; 
         // Ignore a transfer of $0
         if (amount == 0){
             informPlayer(nick, getMsg("no_transaction"));

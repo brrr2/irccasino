@@ -23,6 +23,7 @@ rounds|nick||Shows the number of rounds of this game the specified player has pl
 player|nick|p|Shows all the statistics for the specified player. Shows your own statistics if no nick is specified.
 deposit|amount||Deposit cash to your bankroll. A positive amount corresponds to a deposit. A negative amount corresponds to a withdrawal.
 withdraw|amount||Withdraw cash from your bankroll. A positive amount corresponds to a withdrawal. A negative amount corresponds to a deposit.
+rathole|||Deposit all cash over $1000 to your bankroll. If cash is under $1000, withdraw difference from bankroll.
 simple|||Toggles whether player receives hand information via message or notice.
 away|||Removes yourself from the PING list.
 back|||Adds yourself back to the PING list.
