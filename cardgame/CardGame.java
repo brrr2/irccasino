@@ -450,15 +450,14 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * Deposits/withdraws the amount over/under 1000 to/from the player's bank.
      * @param nick
      */
-    protected void rathole(String nick) {
+    protected void rathole(String nick, String[] params) {
         if (!isJoined(nick)) {
             informPlayer(nick, getMsg("no_join"));
         } else if (isInProgress()) {
             informPlayer(nick, getMsg("wait_round_end"));
         } else {
             Player p = findJoined(nick);
-            int amount = p.get("cash") - 1000; 
-            transfer(nick, amount);
+            transfer(nick, p.get("cash") - 1000);
         }
     }    
 

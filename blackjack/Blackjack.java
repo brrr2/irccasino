@@ -160,7 +160,7 @@ public class Blackjack extends CardGame {
         } else if (command.equalsIgnoreCase("deposit")) {
             deposit(nick, params);
         } else if (command.equalsIgnoreCase("rathole")) {
-        	rathole(nick);
+            rathole(nick, params);
         } else if (command.equalsIgnoreCase("withdraw")) {
             withdraw(nick, params);
         } else if (command.equalsIgnoreCase("waitlist")) {
@@ -190,7 +190,7 @@ public class Blackjack extends CardGame {
         } else if (command.equalsIgnoreCase("game")) {
             game(nick, params);
         /* Op commands */
-            } else if (command.equalsIgnoreCase("fj") || command.equalsIgnoreCase("fjoin")){
+        } else if (command.equalsIgnoreCase("fj") || command.equalsIgnoreCase("fjoin")){
             fjoin(user, nick, params);
         } else if (command.equalsIgnoreCase("fl") || command.equalsIgnoreCase("fq") || command.equalsIgnoreCase("fquit") || command.equalsIgnoreCase("fleave")){
             fleave(user, nick, params);

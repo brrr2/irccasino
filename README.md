@@ -9,7 +9,7 @@ irccasino is a Java package that implements casino games for IRC using the [Pirc
 * No Limit Texas Hold'em Tournament
 
 ### Requirements ###
-1. [Java][2] 6 or higher
+1. [Java][2] 7 or higher
 2. [PircBotX 1.9][3]
 
 Standalone Setup
@@ -41,7 +41,8 @@ Standalone Setup
 Contributors
 ============
 [brrr2][6] (Main Author)  
-[Yky][7]
+[Yky][7]  
+[RantingHuman][8]
 
 [1]: http://code.google.com/p/pircbotx/ "PircBotX"
 [2]: http://www.oracle.com/technetwork/java/javase/downloads/index.html "Java SE"
@@ -50,3 +51,4 @@ Contributors
 [5]: https://webchat.freenode.net/?channels=##casino,##holdem "Freenode"
 [6]: https://github.com/brrr2 "brrr2"
 [7]: https://github.com/Yky "Yky"
+[8]: https://github.com/RantingHuman "RantingHuman"

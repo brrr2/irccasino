@@ -147,7 +147,7 @@ public class TexasPoker extends CardGame{
         } else if (command.equalsIgnoreCase("deposit")) {
             deposit(nick, params);
         } else if (command.equalsIgnoreCase("rathole")) {
-        	rathole(nick);
+            rathole(nick, params);
         } else if (command.equalsIgnoreCase("withdraw")) {
             withdraw(nick, params);
         } else if (command.equalsIgnoreCase("players")) {
