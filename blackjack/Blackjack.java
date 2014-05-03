@@ -159,6 +159,8 @@ public class Blackjack extends CardGame {
             player(nick, params);
         } else if (command.equalsIgnoreCase("deposit")) {
             deposit(nick, params);
+        } else if (command.equalsIgnoreCase("rathole")) {
+        	rathole(nick);
         } else if (command.equalsIgnoreCase("withdraw")) {
             withdraw(nick, params);
         } else if (command.equalsIgnoreCase("waitlist")) {

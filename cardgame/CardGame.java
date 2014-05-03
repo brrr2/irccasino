@@ -447,6 +447,22 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     
     /**
+     * Deposits/withdraws the amount over/under 1000 to/from the player's bank.
+     * @param nick
+     */
+    protected void rathole(String nick) {
+        if (!isJoined(nick)) {
+            informPlayer(nick, getMsg("no_join"));
+        } else if (isInProgress()) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else {
+            Player p = findJoined(nick);
+            int amount = p.get("cash") - 1000; 
+            transfer(nick, amount);
+        }
+    }    
+
+    /**
      * Withdraws the specified amount from the player's bank.
      * @param nick
      * @param params 
@@ -1531,7 +1547,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             }
         }
     }
-    
+
     /**
      * Devoices all players joined in a game and saves their data.
      * This method only needs to be called when a game is shutdown.
