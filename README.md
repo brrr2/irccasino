@@ -15,10 +15,11 @@ irccasino is a Java package that implements casino games for IRC using the [Pirc
 Standalone Setup
 ================
 ### Create project ###
-1. Download the [PircBotX][3] library (the JAR package). 
-2. Download irccasino and create a new project for it.
-3. Add the PircBotX library to the build/compile path for the project.
-4. Set the project to run *CasinoBot.java*.
+1. Create a new project using your preferred IDE.
+2. Download the *irccasino* package into the source directory of the project.
+3. Download the [PircBotX][3] library (the JAR package). 
+4. Add the PircBotX library to the build/compile path for the project.
+5. Set the project to run *CasinoBot.java*.
 
 ### Configuration ###
 1.  Copy the *.help* files and *strlib.txt* to the project run directory.
