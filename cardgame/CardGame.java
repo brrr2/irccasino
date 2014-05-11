@@ -25,6 +25,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.sql.SQLWarning;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -449,6 +450,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     /**
      * Deposits/withdraws the amount over/under 1000 to/from the player's bank.
      * @param nick
+     * @param params
      */
     protected void rathole(String nick, String[] params) {
         if (!isJoined(nick)) {
@@ -1052,6 +1054,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     abstract protected void saveIniFile();
     
     /**
+     * Loads the database and creates any necessary tables.
+     */
+    abstract protected void initDB();
+    
+    /**
      * Initializes game settings.
      */
     abstract protected void initSettings();
@@ -1078,6 +1085,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         notSimpleList = new ArrayList<>();
         respawnTasks = new ArrayList<>();
         strFile = "strlib.txt";
+        
+        // Load SQLite JDBC driver
+        try {
+            Class.forName("org.sqlite.JDBC");
+        } catch (ClassNotFoundException ex) {}
         
         loadStrLib(strFile);
         loadHostList("away.txt", awayList);
@@ -1762,6 +1774,31 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         }
     }
     
+    /**
+     * Uses the GameManager interface to log DB warnings.
+     * @param warning 
+     */
+    protected void logDBWarning(SQLWarning warning) {
+        while (warning != null) {
+            manager.log("Message: " + warning.getMessage());
+            manager.log("SQLState: " + warning.getSQLState());
+            manager.log("Vendor error code: " + warning.getErrorCode());
+            warning = warning.getNextWarning();
+        }
+    }
+    
+    /**
+     * Loads a player's stats from the database.
+     * @param p
+     */
+    abstract protected void loadDBPlayerStats(Player p);
+    
+    /**
+     * Saves a player's stats to the database.
+     * @param p
+     */
+    abstract protected void saveDBPlayerStats(Player p);
+    
     ////////////////////////////////////////
     //// Game stats management methods. ////
     ////////////////////////////////////////
@@ -1775,6 +1812,16 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * Saves the stats for the game to a file.
      */
     abstract protected void saveGameStats();
+    
+    /**
+     * Loads game stats from the database.
+     */
+    abstract protected void loadDBGameStats();
+    
+    /**
+     * saves game stats to the database.
+     */
+    abstract protected void saveDBGameStats();
     
     /**
      * Saves a list of hosts to the specified file.

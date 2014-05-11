@@ -35,6 +35,9 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.util.*;
 import org.pircbotx.*;
 
@@ -1277,9 +1280,22 @@ public class TexasTourney extends TexasPoker {
         }
     }
     
-    //////////////////////////////////
-    //// Game settings management ////
-    //////////////////////////////////
+    ////////////////////////////////////////
+    //// Game initialization management ////
+    ////////////////////////////////////////
+    
+    @Override
+    protected void initDB() {
+        String url = "jdbc:sqlite:stats.sqlite3";
+        
+        try (Connection conn = DriverManager.getConnection(url)) {
+            logDBWarning(conn.getWarnings());
+            
+            // Create tables if necessary
+        } catch (SQLException ex) {
+            // Do something
+        }
+    }
     
     @Override
     protected void initSettings() {
@@ -1299,7 +1315,6 @@ public class TexasTourney extends TexasPoker {
         settings.put("ping", 600);
     }
     
-    
     @Override
     protected void initCustom(){
         name = "texastourney";
@@ -1311,6 +1326,7 @@ public class TexasTourney extends TexasPoker {
         pots = new ArrayList<>();
         community = new Hand();
         
+        initDB();
         initSettings();
         loadHelp(helpFile);
         loadGameStats();
@@ -1423,6 +1439,16 @@ public class TexasTourney extends TexasPoker {
         return total;
     }  
     
+    @Override
+    protected void loadDBPlayerStats(Player p) {
+        
+    }
+    
+    @Override
+    protected void saveDBPlayerStats(Player p) {
+        
+    }
+    
     ///////////////////////////////////////
     //// Game stats management methods ////
     ///////////////////////////////////////
@@ -1504,6 +1530,16 @@ public class TexasTourney extends TexasPoker {
             manager.log("Error writing to housestats.txt!");
         }
     }  
+    
+    @Override
+    protected void loadDBGameStats() {
+        
+    }
+    
+    @Override
+    protected void saveDBGameStats() {
+        
+    }
     
     /////////////////////////////////////////////////////////////
     //// Message output methods for Texas Hold'em Tournament ////

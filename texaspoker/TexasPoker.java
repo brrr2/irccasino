@@ -31,6 +31,9 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.util.*;
 import org.pircbotx.*;
 
@@ -1258,9 +1261,22 @@ public class TexasPoker extends CardGame{
         return !state.equals(PokerState.NONE);
     }
     
-    //////////////////////////////////
-    //// Game settings management ////
-    //////////////////////////////////
+    ////////////////////////////////////////
+    //// Game initialization management ////
+    ////////////////////////////////////////
+    
+    @Override
+    protected void initDB() {
+        String url = "jdbc:sqlite:stats.sqlite3";
+        
+        try (Connection conn = DriverManager.getConnection(url)) {
+            logDBWarning(conn.getWarnings());
+            
+            // Create tables if necessary
+        } catch (SQLException ex) {
+            // Do something
+        }
+    }
     
     @Override
     protected void initSettings() {
@@ -1289,6 +1305,7 @@ public class TexasPoker extends CardGame{
         community = new Hand();
         house = new HouseStat();
         
+        initDB();
         initSettings();
         loadHelp(helpFile);
         loadGameStats();
@@ -1329,7 +1346,24 @@ public class TexasPoker extends CardGame{
         }
     }
     
-    /* House stats management */
+    /////////////////////////////////////////
+    //// Player stats management methods ////
+    /////////////////////////////////////////
+    
+    @Override
+    protected void loadDBPlayerStats(Player p) {
+        
+    }
+    
+    @Override
+    protected void saveDBPlayerStats(Player p) {
+        
+    }
+    
+    ////////////////////////////////
+    //// House stats management ////
+    ////////////////////////////////
+    
     @Override
     public void loadGameStats() {
         try (BufferedReader in = new BufferedReader(new FileReader("housestats.txt"))) {
@@ -1405,15 +1439,23 @@ public class TexasPoker extends CardGame{
             index = lines.size();
         }
         lines.add(index, house.get("biggestpot") + " " + house.getNumDonors() + " " + house.getDonorsString() + " " + house.getNumWinners() + " " + house.getWinnersString());
-        try {
-            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("housestats.txt")));
+        try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("housestats.txt")))) {
             for (int ctr = 0; ctr < lines.size(); ctr++) {
                 out.println(lines.get(ctr));
             }
-            out.close();
         } catch (IOException e) {
             manager.log("Error writing to housestats.txt!");
         }
+    }
+    
+    @Override
+    protected void loadDBGameStats() {
+        
+    }
+    
+    @Override
+    protected void saveDBGameStats() {
+        
     }
     
     /////////////////////////////////////////////////////////

@@ -34,6 +34,9 @@ import irccasino.cardgame.CardGame;
 import irccasino.cardgame.Hand;
 import irccasino.cardgame.Player;
 import irccasino.cardgame.PlayerRecord;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
 
 /**
  * Class for IRC Blackjack.
@@ -984,9 +987,9 @@ public class Blackjack extends CardGame {
         }
     }
     
-    //////////////////////////////////
-    //// Game settings management ////
-    //////////////////////////////////
+    ////////////////////////////////////////
+    //// Game initialization management ////
+    ////////////////////////////////////////
     
     @Override
     protected void set(String setting, int value) {
@@ -1000,6 +1003,19 @@ public class Blackjack extends CardGame {
                 house = new HouseStat(get("decks"), 0, 0);
                 houseStatsList.add(house);
             }
+        }
+    }
+    
+    @Override
+    protected void initDB() {
+        String url = "jdbc:sqlite:stats.sqlite3";
+        
+        try (Connection conn = DriverManager.getConnection(url)) {
+            logDBWarning(conn.getWarnings());
+            
+            // Create tables if necessary
+        } catch (SQLException ex) {
+            // Do something
         }
     }
     
@@ -1031,6 +1047,7 @@ public class Blackjack extends CardGame {
         dealer = new BlackjackPlayer("Dealer", "");
         houseStatsList = new ArrayList<>();
         
+        initDB();
         initSettings();
         loadHelp(helpFile);
         loadGameStats();
@@ -1090,6 +1107,20 @@ public class Blackjack extends CardGame {
         }
     }
 
+    /////////////////////////////////////////
+    //// Player stats management methods ////
+    /////////////////////////////////////////
+    
+    @Override
+    protected void loadDBPlayerStats(Player p) {
+        
+    }
+    
+    @Override
+    protected void saveDBPlayerStats(Player p) {
+        
+    }
+    
     /////////////////////////////////////////////
     //// Game stats management for Blackjack ////
     /////////////////////////////////////////////
@@ -1209,6 +1240,16 @@ public class Blackjack extends CardGame {
             total += hs.get("cash");
         }
         return total;
+    }
+    
+    @Override
+    protected void loadDBGameStats() {
+        
+    }
+    
+    @Override
+    protected void saveDBGameStats() {
+        
     }
     
     ///////////////////////////////////////////////
