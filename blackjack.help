@@ -33,7 +33,7 @@ numdiscards||ndiscards|Shows the number of cards that have been played.
 hilo||hc|Shows the current Hi-lo count.
 zen||zc|Shows the current Zen count.
 red7||rc|Shows the current Red7 count.
-count|||Shows all of the current counts and the number of cards remaining in the shoe.
+count||c|Shows all of the current counts and the number of cards remaining in the shoe.
 simple|||Toggles whether player receives hand information via message or notice.
 away|||Removes yourself from the PING list.
 back|||Adds yourself back to the PING list.

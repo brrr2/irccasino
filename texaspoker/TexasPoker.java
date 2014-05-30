@@ -969,14 +969,12 @@ public class TexasPoker extends CardGame{
                 // If all community cards have been dealt, move to end of round.
                 endRound();
             } else if (getNumberCanBet() < 2 && getNumberNotFolded() > 1) {
-                /* 
-                 * If showdown, show player hands and their win/tie 
-                 * probabilities immediately and each time additional community
-                 * cards are revealed. Adds a dramatic delay between each reveal.
-                 */
+                // If showdown, show player hands and their win/tie 
+                // probabilities immediately and each time additional community
+                // cards are revealed. Adds a dramatic delay between each reveal.
                 state = PokerState.SHOWDOWN;
                 PokerSimulator sim;
-                ArrayList<PokerPlayer> players = pots.get(0).getPlayers();
+                ArrayList<PokerPlayer> players = pots.get(0).getEligibles();
 
                 while (!betState.equals(PokerBet.RIVER)) {
                     sim = new PokerSimulator(players, community);
@@ -1169,13 +1167,13 @@ public class TexasPoker extends CardGame{
                 } else if (!p.has("fold")){
                     p.set("fold", 1);
                     // Remove this player from any existing pots
-                    if (currentPot != null && currentPot.hasPlayer(p)){
-                        currentPot.removePlayer(p);
+                    if (currentPot != null && currentPot.isEligible(p)){
+                        currentPot.disqualify(p);
                     }
                     for (int ctr = 0; ctr < pots.size(); ctr++){
                         PokerPot cPot = pots.get(ctr);
-                        if (cPot.hasPlayer(p)){
-                            cPot.removePlayer(p);
+                        if (cPot.isEligible(p)){
+                            cPot.disqualify(p);
                         }
                     }
                     // If there is only one player who hasn't folded,
@@ -1632,12 +1630,12 @@ public class TexasPoker extends CardGame{
         p.set("fold", 1);
 
         //Remove this player from any existing pots
-        if (currentPot != null && currentPot.hasPlayer(p)){
-            currentPot.removePlayer(p);
+        if (currentPot != null && currentPot.isEligible(p)){
+            currentPot.disqualify(p);
         }
         for (PokerPot pot : pots) {
-            if (pot.hasPlayer(p)){
-                pot.removePlayer(p);
+            if (pot.isEligible(p)){
+                pot.disqualify(p);
             }
         }
         continueRound();
@@ -1715,7 +1713,6 @@ public class TexasPoker extends CardGame{
      * If no pot exists, a new one is created. Sidepots are created as necessary.
      */
     protected void addBetsToPot(){
-        PokerPlayer p;
         int lowBet;
         while(currentBet != 0){
             lowBet = currentBet;
@@ -1729,9 +1726,8 @@ public class TexasPoker extends CardGame{
                     // Determine if anybody in the current pot has no more bet
                     // left to contribute but is still in the game. If so, 
                     // then a new pot will be required.
-                    for (int ctr = 0; ctr < currentPot.getNumPlayers(); ctr++) {
-                        p = currentPot.getPlayer(ctr);
-                        if (!p.has("bet") && currentBet != 0 && !p.has("fold") && currentPot.hasPlayer(p)) {
+                    for (PokerPlayer p : currentPot.getEligibles()) {
+                        if (!p.has("bet") && currentBet != 0 && !p.has("fold")) {
                             currentPot = new PokerPot();
                             pots.add(currentPot);
                             break;
@@ -1740,26 +1736,17 @@ public class TexasPoker extends CardGame{
                 }
 
                 // Determine the lowest non-zero bet
-                for (int ctr = 0; ctr < joined.size(); ctr++) {
-                    p = (PokerPlayer) joined.get(ctr);
+                for (Player p : joined) {
                     if (p.get("bet") < lowBet && p.has("bet")){
                         lowBet = p.get("bet");
                     }
                 }
+                
                 // Subtract lowBet from each player's (non-zero) bet and add to pot.
-                for (int ctr = 0; ctr < joined.size(); ctr++){
-                    p = (PokerPlayer) joined.get(ctr);
+                for (Player p : joined) {
                     if (p.has("bet")){
-                        // Check if player has been added to donor list
-                        if (!currentPot.hasDonor(p)) {
-                            currentPot.addDonor(p);
-                        }
-                        // Ensure a non-folded player is included in this pot
-                        if (!p.has("fold") && !currentPot.hasPlayer(p)){
-                            currentPot.addPlayer(p);
-                        }
-                        // Transfer lowBet from the player to the pot
-                        currentPot.add(lowBet);
+                        // Add a lowBet pot contribution for the player
+                        currentPot.contribute((PokerPlayer) p, lowBet);
                         p.add("cash", -1 * lowBet);
                         p.add("tpwinnings", -1 * lowBet);
                         p.add("bet", -1 * lowBet);
@@ -1773,8 +1760,7 @@ public class TexasPoker extends CardGame{
             // contributed to the current pot and his bet and currentBet should
             // be reset.
             } else {
-                for (int ctr = 0; ctr < joined.size(); ctr++){
-                    p = (PokerPlayer) joined.get(ctr);
+                for (Player p : joined) {
                     if (p.get("bet") != 0){
                         p.clear("bet");
                         break;
@@ -1890,59 +1876,60 @@ public class TexasPoker extends CardGame{
      */
     public void showResults(){
         ArrayList<PokerPlayer> players;
-        PokerPlayer p;
-        int winners;
-        // Show introduction to end results
+        
+        // Show introduction to end results and sort players by hand
         showMsg(formatHeader(" Results: "));
-        players = pots.get(0).getPlayers();
+        players = pots.get(0).getEligibles();
         Collections.sort(players);
         Collections.reverse(players);
         
-        // Show each remaining player's hand
-        if (pots.get(0).getNumPlayers() > 1){
-            for (int ctr = 0; ctr < players.size(); ctr++){
-                p = players.get(ctr);
+        // Show each remaining player's hand if more than one player unfolded
+        if (players.size() > 1){
+            for (PokerPlayer p : players) {
                 showMsg(getMsg("tp_player_result"), p.getNickStr(false), p.getHand(), p.getPokerHand().getName(), p.getPokerHand());
             }
         }
         
         // Find the winner(s) from each pot
         for (int ctr = 0; ctr < pots.size(); ctr++){
-            winners = 1;
             currentPot = pots.get(ctr);
-            players = currentPot.getPlayers();
+            players = currentPot.getEligibles();
             Collections.sort(players);
             Collections.reverse(players);
+            
+            int winners = 1;
+            int potTotal = currentPot.getTotal();
+            
             // Determine number of winners
-            for (int ctr2=1; ctr2 < currentPot.getNumPlayers(); ctr2++){
+            for (int ctr2 = 1; ctr2 < players.size(); ctr2++){
                 if (players.get(0).compareTo(players.get(ctr2)) == 0){
                     winners++;
                 }
             }
             
             // Output winners
-            for (int ctr2=0; ctr2<winners; ctr2++){
-                p = players.get(ctr2);
-                p.add("cash", currentPot.getTotal()/winners);
-                p.add("tpwinnings", currentPot.getTotal()/winners);
-                p.add("change", currentPot.getTotal()/winners);
+            for (int ctr2 = 0; ctr2 < winners; ctr2++){
+                PokerPlayer p = players.get(ctr2);
+                p.add("cash", potTotal/winners);
+                p.add("tpwinnings", potTotal/winners);
+                p.add("change", potTotal/winners);
                 showMsg(Colors.YELLOW+",01 Pot #" + (ctr+1) + ": " + Colors.NORMAL + " " + 
-                    p.getNickStr() + " wins $" + formatNumber(currentPot.getTotal()/winners) + 
-                    ". (" + getPlayerListString(currentPot.getPlayers()) + ")");
+                    p.getNickStr() + " wins $" + formatNumber(potTotal/winners) + 
+                    ". (" + getPlayerListString(players) + ")");
             }
             
             // Check if it's the biggest pot
-            if (house.get("biggestpot") < currentPot.getTotal()){
-                house.set("biggestpot", currentPot.getTotal());
+            if (house.get("biggestpot") < potTotal){
+                house.set("biggestpot", potTotal);
                 house.clearDonors();
                 house.clearWinners();
                 // Store the list of donors
-                for (int ctr2 = 0; ctr2 < currentPot.getNumDonors(); ctr2++){
-                    house.addDonor(new PokerPlayer(currentPot.getDonor(ctr2).getNick(), ""));
+                for (PokerPlayer donor : currentPot.getDonors()) {
+                    house.addDonor(new PokerPlayer(donor.getNick(), ""));
                 }
                 // Store the list of winners
                 for (int ctr2 = 0; ctr2 < winners; ctr2++){
-                    house.addWinner(new PokerPlayer(currentPot.getPlayer(ctr2).getNick(), ""));
+                    house.addWinner(new PokerPlayer(players.get(ctr2).getNick(), ""));
                 }
                 saveGameStats();
             }

@@ -841,13 +841,13 @@ public class TexasTourney extends TexasPoker {
                 } else if (!p.has("fold")){
                     p.set("fold", 1);
                     // Remove this player from any existing pots
-                    if (currentPot != null && currentPot.hasPlayer(p)){
-                        currentPot.removePlayer(p);
+                    if (currentPot != null && currentPot.isEligible(p)){
+                        currentPot.disqualify(p);
                     }
                     for (int ctr = 0; ctr < pots.size(); ctr++){
                         PokerPot cPot = pots.get(ctr);
-                        if (cPot.hasPlayer(p)){
-                            cPot.removePlayer(p);
+                        if (cPot.isEligible(p)){
+                            cPot.disqualify(p);
                         }
                     }
                     // If there is only one player who hasn't folded,
@@ -991,7 +991,7 @@ public class TexasTourney extends TexasPoker {
                  */
                 state = PokerState.SHOWDOWN;
                 PokerSimulator sim;
-                ArrayList<PokerPlayer> players = pots.get(0).getPlayers();
+                ArrayList<PokerPlayer> players = pots.get(0).getEligibles();
                 
                 while (!betState.equals(PokerBet.RIVER)) {
                     sim = new PokerSimulator(players, community);
@@ -1548,43 +1548,46 @@ public class TexasTourney extends TexasPoker {
     @Override
     public void showResults(){
         ArrayList<PokerPlayer> players;
-        PokerPlayer p;
-        int winners;
-        // Show introduction to end results
+        
+        // Show introduction to end results and sort players by hand
         showMsg(formatHeader(" Results: "));
-        players = pots.get(0).getPlayers();
+        players = pots.get(0).getEligibles();
         Collections.sort(players);
         Collections.reverse(players);
-        // Show each remaining player's hand
-        if (pots.get(0).getNumPlayers() > 1){
-            for (int ctr = 0; ctr < players.size(); ctr++){
-                p = players.get(ctr);
+        
+        // Show each remaining player's hand if more than one player unfolded
+        if (players.size() > 1){
+            for (PokerPlayer p : players) {
                 showMsg(getMsg("tp_player_result"), p.getNickStr(false), p.getHand(), p.getPokerHand().getName(), p.getPokerHand());
             }
         }
+        
         // Find the winner(s) from each pot
         for (int ctr = 0; ctr < pots.size(); ctr++){
-            winners = 1;
             currentPot = pots.get(ctr);
-            players = currentPot.getPlayers();
+            players = currentPot.getEligibles();
             Collections.sort(players);
             Collections.reverse(players);
+            
+            int winners = 1;
+            int potTotal = currentPot.getTotal();
+            
             // Determine number of winners
-            for (int ctr2=1; ctr2 < currentPot.getNumPlayers(); ctr2++){
+            for (int ctr2 = 1; ctr2 < players.size(); ctr2++){
                 if (players.get(0).compareTo(players.get(ctr2)) == 0){
                     winners++;
                 }
             }
             
             // Output winners
-            for (int ctr2=0; ctr2<winners; ctr2++){
-                p = players.get(ctr2);
-                p.add("cash", currentPot.getTotal()/winners);
-                p.add("tpwinnings", currentPot.getTotal()/winners);
-                p.add("change", currentPot.getTotal()/winners);
+            for (int ctr2 = 0; ctr2 < winners; ctr2++){
+                PokerPlayer p = players.get(ctr2);
+                p.add("cash", potTotal/winners);
+                p.add("tpwinnings", potTotal/winners);
+                p.add("change", potTotal/winners);
                 showMsg(Colors.YELLOW+",01 Pot #" + (ctr+1) + ": " + Colors.NORMAL + " " + 
-                    p.getNickStr() + " wins $" + formatNumber(currentPot.getTotal()/winners) + 
-                    ". (" + getPlayerListString(currentPot.getPlayers()) + ")");
+                    p.getNickStr() + " wins $" + formatNumber(potTotal/winners) + 
+                    ". (" + getPlayerListString(players) + ")");
             }
         }
     }
