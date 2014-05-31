@@ -37,6 +37,7 @@ import irccasino.cardgame.PlayerRecord;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.sql.Statement;
 
 /**
  * Class for IRC Blackjack.
@@ -1011,11 +1012,81 @@ public class Blackjack extends CardGame {
         String url = "jdbc:sqlite:stats.sqlite3";
         
         try (Connection conn = DriverManager.getConnection(url)) {
-            logDBWarning(conn.getWarnings());
-            
             // Create tables if necessary
+            try (Statement stmt = conn.createStatement()) {
+                // Player table
+                stmt.execute(
+                    "CREATE TABLE IF NOT EXISTS Player (" +
+                        "player_id INTEGER PRIMARY KEY, " +
+                        "time_created INTEGER, nick TEXT, " +
+                        "cash INTEGER, bank INTEGER, bankrupts INTEGER)");
+                
+                // Bank table
+                stmt.execute(
+                    "CREATE TABLE IF NOT EXISTS Bank (" +
+                        "player_id INTEGER, transaction_time INTEGER, " +
+                        "cash_change INTEGER, cash INTEGER, bank INTEGER, " +
+                        "FOREIGN KEY(player_id) REFERENCES Player(player_id))");
+                
+                // BJPlayerStat table
+                stmt.execute(
+                    "CREATE TABLE IF NOT EXISTS BJPlayerStat (" +
+                        "player_id INTEGER, rounds INTEGER, " +
+                        "winnings INTEGER, UNIQUE(player_id), " +
+                        "FOREIGN KEY(player_id) REFERENCES Player(player_id))");
+                
+                // BJRound table
+                stmt.execute(
+                    "CREATE TABLE IF NOT EXISTS BJRound (" +
+                        "round_id INTEGER PRIMARY KEY, " +
+                        "start_time INTEGER, end_time INTEGER)");
+                
+                // BJHand table
+                stmt.execute(
+                    "CREATE TABLE IF NOT EXISTS BJHand (" +
+                        "hand_id INTEGER PRIMARY KEY, " +
+                        "round_id INTEGER, hand TEXT, " +
+                        "UNIQUE(hand_id, round_id), " +
+                        "FOREIGN KEY(round_id) REFERENCES BJRound(round_id))");
+                
+                // BJPlayerHand table
+                stmt.execute(
+                    "CREATE TABLE IF NOT EXISTS BJPlayerHand (" +
+                        "player_id INTEGER, hand_id INTEGER, " +
+                        "bet INTEGER, split BOOLEAN, surrender BOOLEAN, " +
+                        "doubledown BOOLEAN, result INTEGER, " +
+                        "UNIQUE(player_id, hand_id), " +
+                        "FOREIGN KEY(player_id) REFERENCES Player(player_id), " +
+                        "FOREIGN KEY(hand_id) REFERENCES BJHand(hand_id))");
+                
+                // BJPlayerInsurance table
+                stmt.execute(
+                    "CREATE TABLE IF NOT EXISTS BJPlayerInsurance (" +
+                        "player_id INTEGER, round_id INTEGER, " +
+                        "bet INTEGER, result INTEGER, " +
+                        "UNIQUE(player_id, round_id), " +
+                        "FOREIGN KEY(player_id) REFERENCES Player(player_id), " +
+                        "FOREIGN KEY(round_id) REFERENCES BJRound(round_id))");
+                
+                // BJPlayerChange table
+                stmt.execute(
+                    "CREATE TABLE IF NOT EXISTS BJPlayerChange (" +
+                        "player_id INTEGER, round_id INTEGER, " +
+                        "change INTEGER, cash INTEGER, " +
+                        "UNIQUE(player_id, round_id), " +
+                        "FOREIGN KEY(player_id) REFERENCES Player(player_id), " +
+                        "FOREIGN KEY(round_id) REFERENCES BJRound(round_id))");
+                
+                // BJHouseStat table
+                stmt.execute(
+                    "CREATE TABLE IF NOT EXISTS BJHouseStat (" +
+                        "shoe_size INTEGER, rounds INTEGER, " +
+                        "winnings INTEGER, UNIQUE(shoe_size))");
+            }
+            
+            logDBWarning(conn.getWarnings());
         } catch (SQLException ex) {
-            // Do something
+            manager.log(ex.getMessage());
         }
     }
     

@@ -38,6 +38,7 @@ import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.*;
 import org.pircbotx.*;
 
@@ -1289,11 +1290,33 @@ public class TexasTourney extends TexasPoker {
         String url = "jdbc:sqlite:stats.sqlite3";
         
         try (Connection conn = DriverManager.getConnection(url)) {
-            logDBWarning(conn.getWarnings());
-            
             // Create tables if necessary
+            try (Statement stmt = conn.createStatement()) {
+                // Player table
+                stmt.execute(
+                    "CREATE TABLE IF NOT EXISTS Player (" +
+                        "player_id INTEGER PRIMARY KEY, " +
+                        "time_created INTEGER, nick TEXT, " +
+                        "cash INTEGER, bank INTEGER, bankrupts INTEGER)");
+                
+                // TTPlayerStat table
+                stmt.execute(
+                    "CREATE TABLE IF NOT EXISTS TTPlayerStat (" +
+                        "player_id INTEGER, tourneys INTEGER, " +
+                        "points INTEGER, UNIQUE(player_id), " +
+                        "FOREIGN KEY(player_id) REFERENCES Player(player_id))");
+                
+                // TTTourney table
+                stmt.execute(
+                    "CREATE TABLE IF NOT EXISTS TTTourney (" +
+                        "tourney_id INTEGER PRIMARY INTEGER, " +
+                        "start_time INTEGER, end_time INTEGER, " +
+                        "winner TEXT, players TEXT)");
+            }
+            
+            logDBWarning(conn.getWarnings());
         } catch (SQLException ex) {
-            // Do something
+            manager.log(ex.getMessage());
         }
     }
     

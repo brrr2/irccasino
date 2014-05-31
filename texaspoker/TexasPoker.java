@@ -1285,9 +1285,9 @@ public class TexasPoker extends CardGame{
                         "cash_change INTEGER, cash INTEGER, bank INTEGER, " +
                         "FOREIGN KEY(player_id) REFERENCES Player(player_id))");
                 
-                // TexasPoker table
+                // TPPlayerStat table
                 stmt.execute(
-                    "CREATE TABLE IF NOT EXISTS TexasPoker (" +
+                    "CREATE TABLE IF NOT EXISTS TPPlayerStat (" +
                         "player_id INTEGER, rounds INTEGER, " +
                         "winnings INTEGER, UNIQUE(player_id), " +
                         "FOREIGN KEY(player_id) REFERENCES Player(player_id))");
@@ -1309,7 +1309,7 @@ public class TexasPoker extends CardGame{
                 stmt.execute(
                     "CREATE TABLE IF NOT EXISTS TPPlayerPot (" +
                         "player_id INTEGER, pot_id INTEGER, " +
-                        "contribution INTEGER, win BOOLEAN, " +
+                        "contribution INTEGER, result BOOLEAN, " +
                         "UNIQUE(player_id, pot_ID), " + 
                         "FOREIGN KEY(player_id) REFERENCES Player(player_id), " +
                         "FOREIGN KEY(pot_id) REFERENCES TPPot(pot_id))");
@@ -1323,7 +1323,7 @@ public class TexasPoker extends CardGame{
                         "FOREIGN KEY(player_id) REFERENCES Player(player_id), " +
                         "FOREIGN KEY(round_id) REFERENCES TPRound(round_id))");
                 
-                // TPHand table
+                // TPPlayerHand table
                 stmt.execute(
                     "CREATE TABLE IF NOT EXISTS TPHand (" +
                         "player_id INTEGER, round_id INTEGER, " +
