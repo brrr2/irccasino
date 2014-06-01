@@ -1109,12 +1109,18 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             try (Statement s = conn.createStatement()) {
                 // Player table
                 s.execute( "CREATE TABLE IF NOT EXISTS Player (" +
-                           "id INTEGER PRIMARY KEY, " +
-                           "nick TEXT, time_created INTEGER, cash INTEGER, " +
-                           "bank INTEGER, bankrupts INTEGER, UNIQUE(nick))");
+                           "id INTEGER PRIMARY KEY, nick TEXT, " +
+                           "time_created INTEGER, UNIQUE(nick))");
                 
-                // Bank transaction table
-                s.execute( "CREATE TABLE IF NOT EXISTS Bank (" +
+                // Purse table
+                s.execute( "CREATE TABLE IF NOT EXISTS Purse (" +
+                           "player_id INTEGER, cash INTEGER, " +
+                           "bank INTEGER, bankrupts INTEGER, " +
+                           "UNIQUE(player_id), " +
+                           "FOREIGN KEY(player_id) REFERENCES Player(id))");
+                
+                // Banking table
+                s.execute( "CREATE TABLE IF NOT EXISTS Banking (" +
                            "player_id INTEGER, transaction_time INTEGER, " +
                            "cash_change INTEGER, cash INTEGER, bank INTEGER, " +
                            "FOREIGN KEY(player_id) REFERENCES Player(id))");

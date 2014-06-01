@@ -1340,30 +1340,22 @@ public class TexasPoker extends CardGame{
     protected void loadDBPlayerData(Player p) {
         try (Connection conn = DriverManager.getConnection(dbURL)) {
             // Retrieve data from Player table if possible
-            String sql = "SELECT id, cash, bank, bankrupts " +
-                         "FROM Player WHERE nick = ? COLLATE NOCASE";
+            String sql = "SELECT id FROM Player WHERE nick = ? COLLATE NOCASE";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, p.getNick());
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.isBeforeFirst()) {
                         p.set("id", rs.getInt("id"));
-                        p.set("cash", rs.getInt("cash"));
-                        p.set("bank", rs.getInt("bank"));
-                        p.set("bankrupts", rs.getInt("bankrupts"));
                     }
                 }
             }
             
             // Add new record if not found in Player table
             if (!p.has("id")) {
-                sql = "INSERT INTO Player (nick, time_created, cash, bank, bankrupts) " +
-                      "VALUES(?, ?, ?, ?, ?)";
+                sql = "INSERT INTO Player (nick, time_created) VALUES(?, ?)";
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setString(1, p.getNick());
                     ps.setLong(2, System.currentTimeMillis() / 1000);
-                    ps.setInt(3, p.get("cash"));
-                    ps.setInt(4, p.get("bank"));
-                    ps.setInt(5, p.get("bankrupts"));
                     ps.executeUpdate();
                 }
                 
@@ -1377,8 +1369,36 @@ public class TexasPoker extends CardGame{
                 }
             }
             
-            // Retrieve data from TPPlayerStat table if possible
+            // Retrieve data from Purse table if possible
             boolean found = false;
+            sql = "SELECT cash, bank, bankrupts FROM Purse WHERE player_id = ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, p.get("id"));
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.isBeforeFirst()) {
+                        found = true;
+                        p.set("cash", rs.getInt("cash"));
+                        p.set("bank", rs.getInt("bank"));
+                        p.set("bankrupts", rs.getInt("bankrupts"));
+                    }
+                }
+            }
+            
+            // Add new record if not found in Purse
+            if (!found) {
+                sql = "INSERT INTO Purse (player_id, cash, bank, bankrupts) " +
+                      "VALUES(?, ?, ?, ?)";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setInt(1, p.get("id"));
+                    ps.setInt(2, p.get("cash"));
+                    ps.setInt(3, p.get("bank"));
+                    ps.setInt(4, p.get("bankrupts"));
+                    ps.executeUpdate();
+                }
+            }
+
+            // Retrieve data from TPPlayerStat table if possible
+            found = false;
             sql = "SELECT player_id, rounds, winnings " +
                   "FROM TPPlayerStat WHERE player_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -1413,9 +1433,9 @@ public class TexasPoker extends CardGame{
     @Override
     protected void saveDBPlayerData(Player p) {        
         try (Connection conn = DriverManager.getConnection(dbURL)) {
-            // Update data in Player table
-            String sql = "UPDATE Player SET cash = ?, bank = ?, bankrupts = ? " +
-                         "WHERE id = ?";
+            // Update data in Purse table
+            String sql = "UPDATE Purse SET cash = ?, bank = ?, bankrupts = ? " +
+                         "WHERE player_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setInt(1, p.get("cash"));
                 ps.setInt(2, p.get("bank"));
