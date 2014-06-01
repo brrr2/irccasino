@@ -37,8 +37,9 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.*;
 import org.pircbotx.*;
 
@@ -1157,11 +1158,13 @@ public class TexasTourney extends TexasPoker {
             p.add("ttwins", 1);
             p.add("ttplayed", 1);
             savePlayerData(p);
+            saveDBPlayerData(p);
             showMsg(getMsg("tt_winner"), p.getNickStr(), p.get("ttwins"));
             for (int ctr = 0; ctr < blacklist.size(); ctr++) {
                 p = (PokerPlayer) blacklist.get(ctr);
                 p.add("ttplayed", 1);
                 savePlayerData(p);
+                saveDBPlayerData(p);
             }
             
             // Display tournament results
@@ -1286,41 +1289,6 @@ public class TexasTourney extends TexasPoker {
     ////////////////////////////////////////
     
     @Override
-    protected void initDB() {
-        String url = "jdbc:sqlite:stats.sqlite3";
-        
-        try (Connection conn = DriverManager.getConnection(url)) {
-            // Create tables if necessary
-            try (Statement stmt = conn.createStatement()) {
-                // Player table
-                stmt.execute(
-                    "CREATE TABLE IF NOT EXISTS Player (" +
-                        "player_id INTEGER PRIMARY KEY, " +
-                        "time_created INTEGER, nick TEXT, " +
-                        "cash INTEGER, bank INTEGER, bankrupts INTEGER)");
-                
-                // TTPlayerStat table
-                stmt.execute(
-                    "CREATE TABLE IF NOT EXISTS TTPlayerStat (" +
-                        "player_id INTEGER, tourneys INTEGER, " +
-                        "points INTEGER, UNIQUE(player_id), " +
-                        "FOREIGN KEY(player_id) REFERENCES Player(player_id))");
-                
-                // TTTourney table
-                stmt.execute(
-                    "CREATE TABLE IF NOT EXISTS TTTourney (" +
-                        "tourney_id INTEGER PRIMARY INTEGER, " +
-                        "start_time INTEGER, end_time INTEGER, " +
-                        "winner TEXT, players TEXT)");
-            }
-            
-            logDBWarning(conn.getWarnings());
-        } catch (SQLException ex) {
-            manager.log(ex.getMessage());
-        }
-    }
-    
-    @Override
     protected void initSettings() {
         // Do not use set()
         // Ini file settings
@@ -1349,7 +1317,6 @@ public class TexasTourney extends TexasPoker {
         pots = new ArrayList<>();
         community = new Hand();
         
-        initDB();
         initSettings();
         loadHelp(helpFile);
         loadGameStats();
@@ -1463,13 +1430,89 @@ public class TexasTourney extends TexasPoker {
     }  
     
     @Override
-    protected void loadDBPlayerStats(Player p) {
-        
+    protected void loadDBPlayerData(Player p) {
+        try (Connection conn = DriverManager.getConnection(dbURL)) {
+            // Retrieve data from Player table if possible
+            String sql = "SELECT id FROM Player WHERE nick = ? COLLATE NOCASE";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, p.getNick());
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.isBeforeFirst()) {
+                        p.set("id", rs.getInt("id"));
+                    }
+                }
+            }
+            
+            // Add new player if not found in Player table
+            if (!p.has("id")) {
+                sql = "INSERT INTO Player (nick, time_created) " +
+                      "VALUES(?, ?)";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setString(1, p.getNick());
+                    ps.setLong(2, System.currentTimeMillis() / 1000);
+                    ps.executeUpdate();
+                }
+                
+                // Retrieve player's new ID
+                sql = "SELECT id FROM Player WHERE nick = ? COLLATE NOCASE";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setString(1, p.getNick());
+                    try (ResultSet rs = ps.executeQuery()) {
+                        p.set("id", rs.getInt("id"));
+                    }
+                }
+            }
+            
+            // Retrieve data from TTPlayerStat table if possible
+            boolean found = false;
+            sql = "SELECT player_id, tourneys, points " +
+                  "FROM TTPlayerStat WHERE player_id = ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, p.get("id"));
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.isBeforeFirst()) {
+                        found = true;
+                        p.set("ttplayed", rs.getInt("tourneys"));
+                        p.set("ttwins", rs.getInt("points"));
+                    }
+                }
+            }
+            
+            // Add new record if not found in TPPlayerStat table
+            if (!found) {
+                sql = "INSERT INTO TTPlayerStat (player_id, tourneys, points) " +
+                      "VALUES(?, ?, ?)";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setInt(1, p.get("id"));
+                    ps.setInt(2, p.get("ttplayed"));
+                    ps.setInt(3, p.get("ttwins"));
+                    ps.executeUpdate();
+                }
+            }
+            
+            logDBWarning(conn.getWarnings());
+        } catch (SQLException ex) {
+            manager.log(ex.getMessage());
+        }
     }
     
     @Override
-    protected void saveDBPlayerStats(Player p) {
-        
+    protected void saveDBPlayerData(Player p) {
+        try (Connection conn = DriverManager.getConnection(dbURL)) {
+            // Update data in TTPlayerStat table
+            String sql = "UPDATE TTPlayerStat SET tourneys = ?, points = ? " +
+                         "WHERE player_id = ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, p.get("ttplayed"));
+                ps.setInt(2, p.get("ttwins"));
+                ps.setInt(3, p.get("id"));
+                ps.executeUpdate();
+            }
+            
+            logDBWarning(conn.getWarnings());
+        } catch (SQLException ex) {
+            manager.log(ex.getMessage());
+        }
     }
     
     ///////////////////////////////////////

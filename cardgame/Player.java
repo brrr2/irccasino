@@ -46,6 +46,7 @@ abstract public class Player extends Stats {
         super();
         this.nick = nick;
         this.host = host;
+        set("id", 0);
         set("cash", 0);
         set("bank", 0);
         set("bankrupts", 0);

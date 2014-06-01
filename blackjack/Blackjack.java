@@ -36,8 +36,9 @@ import irccasino.cardgame.Player;
 import irccasino.cardgame.PlayerRecord;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 
 /**
  * Class for IRC Blackjack.
@@ -1008,89 +1009,6 @@ public class Blackjack extends CardGame {
     }
     
     @Override
-    protected void initDB() {
-        String url = "jdbc:sqlite:stats.sqlite3";
-        
-        try (Connection conn = DriverManager.getConnection(url)) {
-            // Create tables if necessary
-            try (Statement stmt = conn.createStatement()) {
-                // Player table
-                stmt.execute(
-                    "CREATE TABLE IF NOT EXISTS Player (" +
-                        "player_id INTEGER PRIMARY KEY, " +
-                        "time_created INTEGER, nick TEXT, " +
-                        "cash INTEGER, bank INTEGER, bankrupts INTEGER)");
-                
-                // Bank table
-                stmt.execute(
-                    "CREATE TABLE IF NOT EXISTS Bank (" +
-                        "player_id INTEGER, transaction_time INTEGER, " +
-                        "cash_change INTEGER, cash INTEGER, bank INTEGER, " +
-                        "FOREIGN KEY(player_id) REFERENCES Player(player_id))");
-                
-                // BJPlayerStat table
-                stmt.execute(
-                    "CREATE TABLE IF NOT EXISTS BJPlayerStat (" +
-                        "player_id INTEGER, rounds INTEGER, " +
-                        "winnings INTEGER, UNIQUE(player_id), " +
-                        "FOREIGN KEY(player_id) REFERENCES Player(player_id))");
-                
-                // BJRound table
-                stmt.execute(
-                    "CREATE TABLE IF NOT EXISTS BJRound (" +
-                        "round_id INTEGER PRIMARY KEY, " +
-                        "start_time INTEGER, end_time INTEGER)");
-                
-                // BJHand table
-                stmt.execute(
-                    "CREATE TABLE IF NOT EXISTS BJHand (" +
-                        "hand_id INTEGER PRIMARY KEY, " +
-                        "round_id INTEGER, hand TEXT, " +
-                        "UNIQUE(hand_id, round_id), " +
-                        "FOREIGN KEY(round_id) REFERENCES BJRound(round_id))");
-                
-                // BJPlayerHand table
-                stmt.execute(
-                    "CREATE TABLE IF NOT EXISTS BJPlayerHand (" +
-                        "player_id INTEGER, hand_id INTEGER, " +
-                        "bet INTEGER, split BOOLEAN, surrender BOOLEAN, " +
-                        "doubledown BOOLEAN, result INTEGER, " +
-                        "UNIQUE(player_id, hand_id), " +
-                        "FOREIGN KEY(player_id) REFERENCES Player(player_id), " +
-                        "FOREIGN KEY(hand_id) REFERENCES BJHand(hand_id))");
-                
-                // BJPlayerInsurance table
-                stmt.execute(
-                    "CREATE TABLE IF NOT EXISTS BJPlayerInsurance (" +
-                        "player_id INTEGER, round_id INTEGER, " +
-                        "bet INTEGER, result INTEGER, " +
-                        "UNIQUE(player_id, round_id), " +
-                        "FOREIGN KEY(player_id) REFERENCES Player(player_id), " +
-                        "FOREIGN KEY(round_id) REFERENCES BJRound(round_id))");
-                
-                // BJPlayerChange table
-                stmt.execute(
-                    "CREATE TABLE IF NOT EXISTS BJPlayerChange (" +
-                        "player_id INTEGER, round_id INTEGER, " +
-                        "change INTEGER, cash INTEGER, " +
-                        "UNIQUE(player_id, round_id), " +
-                        "FOREIGN KEY(player_id) REFERENCES Player(player_id), " +
-                        "FOREIGN KEY(round_id) REFERENCES BJRound(round_id))");
-                
-                // BJHouseStat table
-                stmt.execute(
-                    "CREATE TABLE IF NOT EXISTS BJHouseStat (" +
-                        "shoe_size INTEGER, rounds INTEGER, " +
-                        "winnings INTEGER, UNIQUE(shoe_size))");
-            }
-            
-            logDBWarning(conn.getWarnings());
-        } catch (SQLException ex) {
-            manager.log(ex.getMessage());
-        }
-    }
-    
-    @Override
     protected void initSettings() {
         // Do not use set()
         // Ini file settings
@@ -1118,7 +1036,6 @@ public class Blackjack extends CardGame {
         dealer = new BlackjackPlayer("Dealer", "");
         houseStatsList = new ArrayList<>();
         
-        initDB();
         initSettings();
         loadHelp(helpFile);
         loadGameStats();
@@ -1183,13 +1100,107 @@ public class Blackjack extends CardGame {
     /////////////////////////////////////////
     
     @Override
-    protected void loadDBPlayerStats(Player p) {
-        
+    protected void loadDBPlayerData(Player p) {
+        try (Connection conn = DriverManager.getConnection(dbURL)) {
+            // Retrieve data from Player table if possible
+            String sql = "SELECT id, cash, bank, bankrupts " +
+                         "FROM Player WHERE nick = ? COLLATE NOCASE";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, p.getNick());
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.isBeforeFirst()) {
+                        p.set("id", rs.getInt("id"));
+                        p.set("cash", rs.getInt("cash"));
+                        p.set("bank", rs.getInt("bank"));
+                        p.set("bankrupts", rs.getInt("bankrupts"));
+                    }
+                }
+            }
+            
+            // Add new record if not found in Player table
+            if (!p.has("id")) {
+                sql = "INSERT INTO Player (nick, time_created, cash, bank, bankrupts) " +
+                      "VALUES(?, ?, ?, ?, ?)";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setString(1, p.getNick());
+                    ps.setLong(2, System.currentTimeMillis() / 1000);
+                    ps.setInt(3, p.get("cash"));
+                    ps.setInt(4, p.get("bank"));
+                    ps.setInt(5, p.get("bankrupts"));
+                    ps.executeUpdate();
+                }
+                
+                // Retrieve player's new ID
+                sql = "SELECT id FROM Player WHERE nick = ? COLLATE NOCASE";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setString(1, p.getNick());
+                    try (ResultSet rs = ps.executeQuery()) {
+                        p.set("id", rs.getInt("id"));
+                    }
+                }
+            }
+            
+            // Retrieve data from BJPlayerStat table if possible
+            boolean found = false;
+            sql = "SELECT player_id, rounds, winnings " +
+                  "FROM BJPlayerStat WHERE player_id = ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, p.get("id"));
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.isBeforeFirst()) {
+                        found = true;
+                        p.set("bjrounds", rs.getInt("rounds"));
+                        p.set("bjwinnings", rs.getInt("winnings"));
+                    }
+                }
+            }
+            
+            // Add new record if not found in BJPlayerStat table
+            if (!found) {
+                sql = "INSERT INTO BJPlayerStat (player_id, rounds, winnings) " +
+                      "VALUES(?, ?, ?)";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setInt(1, p.get("id"));
+                    ps.setInt(2, p.get("bjrounds"));
+                    ps.setInt(3, p.get("bjwinnings"));
+                    ps.executeUpdate();
+                }
+            }
+            
+            logDBWarning(conn.getWarnings());
+        } catch (SQLException ex) {
+            manager.log(ex.getMessage());
+        }
     }
     
     @Override
-    protected void saveDBPlayerStats(Player p) {
-        
+    protected void saveDBPlayerData(Player p) {
+        try (Connection conn = DriverManager.getConnection(dbURL)) {
+            // Update data in Player table
+            String sql = "UPDATE Player SET cash = ?, bank = ?, bankrupts = ? " +
+                         "WHERE id = ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, p.get("cash"));
+                ps.setInt(2, p.get("bank"));
+                ps.setInt(3, p.get("bankrupts"));
+                ps.setInt(4, p.get("id"));
+                ps.executeUpdate();
+            }
+            
+            // Update data in BJPlayerStat table
+            sql = "UPDATE BJPlayerStat SET rounds = ?, winnings = ? " +
+                  "WHERE player_id = ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, p.get("bjrounds"));
+                ps.setInt(2, p.get("bjwinnings"));
+                ps.setInt(3, p.get("id"));
+                ps.executeUpdate();
+            }
+            
+            logDBWarning(conn.getWarnings());
+        } catch (SQLException ex) {
+            manager.log(ex.getMessage());
+        }
     }
     
     /////////////////////////////////////////////

@@ -33,8 +33,9 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.*;
 import org.pircbotx.*;
 
@@ -1265,80 +1266,6 @@ public class TexasPoker extends CardGame{
     ////////////////////////////////////////
     
     @Override
-    protected void initDB() {
-        String url = "jdbc:sqlite:stats.sqlite3";
-        
-        try (Connection conn = DriverManager.getConnection(url)) {
-            // Create tables if necessary
-            try (Statement stmt = conn.createStatement()) {
-                // Player table
-                stmt.execute(
-                    "CREATE TABLE IF NOT EXISTS Player (" +
-                        "player_id INTEGER PRIMARY KEY, " +
-                        "time_created INTEGER, nick TEXT, " +
-                        "cash INTEGER, bank INTEGER, bankrupts INTEGER)");
-                
-                // Bank table
-                stmt.execute(
-                    "CREATE TABLE IF NOT EXISTS Bank (" +
-                        "player_id INTEGER, transaction_time INTEGER, " +
-                        "cash_change INTEGER, cash INTEGER, bank INTEGER, " +
-                        "FOREIGN KEY(player_id) REFERENCES Player(player_id))");
-                
-                // TPPlayerStat table
-                stmt.execute(
-                    "CREATE TABLE IF NOT EXISTS TPPlayerStat (" +
-                        "player_id INTEGER, rounds INTEGER, " +
-                        "winnings INTEGER, UNIQUE(player_id), " +
-                        "FOREIGN KEY(player_id) REFERENCES Player(player_id))");
-                
-                // TPRound table
-                stmt.execute(
-                    "CREATE TABLE IF NOT EXISTS TPRound (" +
-                        "round_id INTEGER PRIMARY KEY, start_time INTEGER, " +
-                        "end_time INTEGER, community TEXT)");
-                
-                // TPPot table
-                stmt.execute(
-                    "CREATE TABLE IF NOT EXISTS TPPot (" +
-                        "pot_id INTEGER PRIMARY KEY, round_id INTEGER, " +
-                        "amount INTEGER, UNIQUE(pot_id, round_id), " +
-                        "FOREIGN KEY(round_id) REFERENCES TPRound(round_id))");
-                
-                // TPPlayerPot table
-                stmt.execute(
-                    "CREATE TABLE IF NOT EXISTS TPPlayerPot (" +
-                        "player_id INTEGER, pot_id INTEGER, " +
-                        "contribution INTEGER, result BOOLEAN, " +
-                        "UNIQUE(player_id, pot_ID), " + 
-                        "FOREIGN KEY(player_id) REFERENCES Player(player_id), " +
-                        "FOREIGN KEY(pot_id) REFERENCES TPPot(pot_id))");
-                
-                // TPPlayerChange table
-                stmt.execute(
-                    "CREATE TABLE IF NOT EXISTS TPPlayerChange (" +
-                        "player_id INTEGER, round_id INTEGER, " +
-                        "change INTEGER, cash INTEGER, " + 
-                        "UNIQUE(player_id, round_id), " +
-                        "FOREIGN KEY(player_id) REFERENCES Player(player_id), " +
-                        "FOREIGN KEY(round_id) REFERENCES TPRound(round_id))");
-                
-                // TPPlayerHand table
-                stmt.execute(
-                    "CREATE TABLE IF NOT EXISTS TPHand (" +
-                        "player_id INTEGER, round_id INTEGER, " +
-                        "hand TEXT, UNIQUE(player_id, round_id), " +
-                        "FOREIGN KEY(player_id) REFERENCES Player(player_id), " +
-                        "FOREIGN KEY(round_id) REFERENCES TPRound(round_id))");
-            }
-            
-            logDBWarning(conn.getWarnings());
-        } catch (SQLException ex) {
-            manager.log(ex.getMessage());
-        }
-    }
-    
-    @Override
     protected void initSettings() {
         // Do not use set()
         // Ini file settings
@@ -1365,7 +1292,6 @@ public class TexasPoker extends CardGame{
         community = new Hand();
         house = new HouseStat();
         
-        initDB();
         initSettings();
         loadHelp(helpFile);
         loadGameStats();
@@ -1411,13 +1337,107 @@ public class TexasPoker extends CardGame{
     /////////////////////////////////////////
     
     @Override
-    protected void loadDBPlayerStats(Player p) {
-        
+    protected void loadDBPlayerData(Player p) {
+        try (Connection conn = DriverManager.getConnection(dbURL)) {
+            // Retrieve data from Player table if possible
+            String sql = "SELECT id, cash, bank, bankrupts " +
+                         "FROM Player WHERE nick = ? COLLATE NOCASE";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, p.getNick());
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.isBeforeFirst()) {
+                        p.set("id", rs.getInt("id"));
+                        p.set("cash", rs.getInt("cash"));
+                        p.set("bank", rs.getInt("bank"));
+                        p.set("bankrupts", rs.getInt("bankrupts"));
+                    }
+                }
+            }
+            
+            // Add new record if not found in Player table
+            if (!p.has("id")) {
+                sql = "INSERT INTO Player (nick, time_created, cash, bank, bankrupts) " +
+                      "VALUES(?, ?, ?, ?, ?)";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setString(1, p.getNick());
+                    ps.setLong(2, System.currentTimeMillis() / 1000);
+                    ps.setInt(3, p.get("cash"));
+                    ps.setInt(4, p.get("bank"));
+                    ps.setInt(5, p.get("bankrupts"));
+                    ps.executeUpdate();
+                }
+                
+                // Retrieve player's new ID
+                sql = "SELECT id FROM Player WHERE nick = ? COLLATE NOCASE";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setString(1, p.getNick());
+                    try (ResultSet rs = ps.executeQuery()) {
+                        p.set("id", rs.getInt("id"));
+                    }
+                }
+            }
+            
+            // Retrieve data from TPPlayerStat table if possible
+            boolean found = false;
+            sql = "SELECT player_id, rounds, winnings " +
+                  "FROM TPPlayerStat WHERE player_id = ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, p.get("id"));
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.isBeforeFirst()) {
+                        found = true;
+                        p.set("tprounds", rs.getInt("rounds"));
+                        p.set("tpwinnings", rs.getInt("winnings"));
+                    }
+                }
+            }
+            
+            // Add new record if not found in TPPlayerStat table
+            if (!found) {
+                sql = "INSERT INTO TPPlayerStat (player_id, rounds, winnings) " +
+                      "VALUES(?, ?, ?)";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setInt(1, p.get("id"));
+                    ps.setInt(2, p.get("tprounds"));
+                    ps.setInt(3, p.get("tpwinnings"));
+                    ps.executeUpdate();
+                }
+            }
+            
+            logDBWarning(conn.getWarnings());
+        } catch (SQLException ex) {
+            manager.log(ex.getMessage());
+        }
     }
     
     @Override
-    protected void saveDBPlayerStats(Player p) {
-        
+    protected void saveDBPlayerData(Player p) {        
+        try (Connection conn = DriverManager.getConnection(dbURL)) {
+            // Update data in Player table
+            String sql = "UPDATE Player SET cash = ?, bank = ?, bankrupts = ? " +
+                         "WHERE id = ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, p.get("cash"));
+                ps.setInt(2, p.get("bank"));
+                ps.setInt(3, p.get("bankrupts"));
+                ps.setInt(4, p.get("id"));
+                ps.executeUpdate();
+            }
+            
+            // Update data in TPPlayerStat table
+            sql = "UPDATE TPPlayerStat SET rounds = ?, winnings = ? " +
+                  "WHERE player_id = ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, p.get("tprounds"));
+                ps.setInt(2, p.get("tpwinnings"));
+                ps.setInt(3, p.get("id"));
+                ps.executeUpdate();
+            }
+            
+            logDBWarning(conn.getWarnings());
+        } catch (SQLException ex) {
+            manager.log(ex.getMessage());
+        }
     }
     
     ////////////////////////////////

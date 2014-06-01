@@ -25,7 +25,11 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.sql.SQLWarning;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -68,6 +72,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected String iniFile;
     protected String helpFile;
     protected String strFile;
+    protected String dbURL;
     protected HashMap<String,String> cmdMap;
     protected HashMap<String,String> opCmdMap;
     protected HashMap<String,String> aliasMap;
@@ -1054,11 +1059,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     abstract protected void saveIniFile();
     
     /**
-     * Loads the database and creates any necessary tables.
-     */
-    abstract protected void initDB();
-    
-    /**
      * Initializes game settings.
      */
     abstract protected void initSettings();
@@ -1085,6 +1085,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         notSimpleList = new ArrayList<>();
         respawnTasks = new ArrayList<>();
         strFile = "strlib.txt";
+        dbURL = "jdbc:sqlite:stats.sqlite3";
         
         // Load SQLite JDBC driver
         try {
@@ -1095,7 +1096,133 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         loadHostList("away.txt", awayList);
         loadHostList("simple.txt", notSimpleList);
         checkPlayerFile();
+        initDB();
         initCustom();
+    }
+    
+    /**
+     * Loads the database and creates any necessary tables.
+     */
+    protected final void initDB() {
+        try (Connection conn = DriverManager.getConnection(dbURL)) {
+            // Create tables if necessary
+            try (Statement s = conn.createStatement()) {
+                // Player table
+                s.execute( "CREATE TABLE IF NOT EXISTS Player (" +
+                           "id INTEGER PRIMARY KEY, " +
+                           "nick TEXT, time_created INTEGER, cash INTEGER, " +
+                           "bank INTEGER, bankrupts INTEGER, UNIQUE(nick))");
+                
+                // Bank transaction table
+                s.execute( "CREATE TABLE IF NOT EXISTS Bank (" +
+                           "player_id INTEGER, transaction_time INTEGER, " +
+                           "cash_change INTEGER, cash INTEGER, bank INTEGER, " +
+                           "FOREIGN KEY(player_id) REFERENCES Player(id))");
+                
+                // BJPlayerStat table
+                s.execute( "CREATE TABLE IF NOT EXISTS BJPlayerStat (" +
+                           "player_id INTEGER, rounds INTEGER, " +
+                           "winnings INTEGER, UNIQUE(player_id), " +
+                           "FOREIGN KEY(player_id) REFERENCES Player(id))");
+                
+                // BJRound table
+                s.execute( "CREATE TABLE IF NOT EXISTS BJRound (" +
+                           "id INTEGER PRIMARY KEY, " +
+                           "start_time INTEGER, end_time INTEGER)");
+                
+                // BJHand table
+                s.execute( "CREATE TABLE IF NOT EXISTS BJHand (" +
+                           "id INTEGER PRIMARY KEY, " +
+                           "round_id INTEGER, hand TEXT, " +
+                           "FOREIGN KEY(round_id) REFERENCES BJRound(id))");
+                
+                // BJPlayerHand table
+                s.execute( "CREATE TABLE IF NOT EXISTS BJPlayerHand (" +
+                           "player_id INTEGER, hand_id INTEGER, " +
+                           "bet INTEGER, split BOOLEAN, surrender BOOLEAN, " +
+                           "doubledown BOOLEAN, result INTEGER, " +
+                           "UNIQUE(player_id, hand_id), " +
+                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
+                           "FOREIGN KEY(hand_id) REFERENCES BJHand(id))");
+                
+                // BJPlayerInsurance table
+                s.execute( "CREATE TABLE IF NOT EXISTS BJPlayerInsurance (" +
+                           "player_id INTEGER, round_id INTEGER, " +
+                           "bet INTEGER, result INTEGER, " +
+                           "UNIQUE(player_id, round_id), " +
+                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
+                           "FOREIGN KEY(round_id) REFERENCES BJRound(id))");
+                
+                // BJPlayerChange table
+                s.execute( "CREATE TABLE IF NOT EXISTS BJPlayerChange (" +
+                           "player_id INTEGER, round_id INTEGER, " +
+                           "change INTEGER, cash INTEGER, " +
+                           "UNIQUE(player_id, round_id), " +
+                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
+                           "FOREIGN KEY(round_id) REFERENCES BJRound(id))");
+                
+                // BJHouseStat table
+                s.execute( "CREATE TABLE IF NOT EXISTS BJHouseStat (" +
+                           "shoe_size INTEGER, rounds INTEGER, " +
+                           "winnings INTEGER, UNIQUE(shoe_size))");
+                
+                // TPPlayerStat table
+                s.execute( "CREATE TABLE IF NOT EXISTS TPPlayerStat (" +
+                           "player_id INTEGER, rounds INTEGER, " +
+                           "winnings INTEGER, UNIQUE(player_id), " +
+                           "FOREIGN KEY(player_id) REFERENCES Player(id))");
+                
+                // TPRound table
+                s.execute( "CREATE TABLE IF NOT EXISTS TPRound (" +
+                           "id INTEGER PRIMARY KEY, start_time INTEGER, " +
+                           "end_time INTEGER, community TEXT)");
+                
+                // TPPot table
+                s.execute( "CREATE TABLE IF NOT EXISTS TPPot (" +
+                           "pot_id INTEGER PRIMARY KEY, " +
+                           "round_id INTEGER, amount INTEGER, " +
+                           "FOREIGN KEY(round_id) REFERENCES TPRound(id))");
+                
+                // TPPlayerPot table
+                s.execute( "CREATE TABLE IF NOT EXISTS TPPlayerPot (" +
+                           "player_id INTEGER, pot_id INTEGER, " +
+                           "contribution INTEGER, result BOOLEAN, " +
+                           "UNIQUE(player_id, pot_ID), " + 
+                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
+                           "FOREIGN KEY(pot_id) REFERENCES TPPot(id))");
+                
+                // TPPlayerChange table
+                s.execute( "CREATE TABLE IF NOT EXISTS TPPlayerChange (" +
+                           "player_id INTEGER, round_id INTEGER, " +
+                           "change INTEGER, cash INTEGER, " + 
+                           "UNIQUE(player_id, round_id), " +
+                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
+                           "FOREIGN KEY(round_id) REFERENCES TPRound(id))");
+                
+                // TPPlayerHand table
+                s.execute( "CREATE TABLE IF NOT EXISTS TPPlayerHand (" +
+                           "player_id INTEGER, round_id INTEGER, " +
+                           "hand TEXT, UNIQUE(player_id, round_id), " +
+                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
+                           "FOREIGN KEY(round_id) REFERENCES TPRound(id))");
+                
+                // TTPlayerStat table
+                s.execute( "CREATE TABLE IF NOT EXISTS TTPlayerStat (" +
+                           "player_id INTEGER, tourneys INTEGER, " +
+                           "points INTEGER, UNIQUE(player_id), " +
+                           "FOREIGN KEY(player_id) REFERENCES Player(id))");
+                
+                // TTTourney table
+                s.execute( "CREATE TABLE IF NOT EXISTS TTTourney (" +
+                           "id INTEGER PRIMARY KEY, " +
+                           "start_time INTEGER, end_time INTEGER, " +
+                           "rounds INTEGER, winner TEXT, players TEXT)");
+            }
+            
+            logDBWarning(conn.getWarnings());
+        } catch (SQLException ex) {
+            manager.log(ex.getMessage());
+        }
     }
     
     /**
@@ -1290,6 +1417,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             p.set("cash", get("cash"));
             p.add("bank", -get("cash"));
             savePlayerData(p);
+            saveDBPlayerData(p);
         }
     }
     
@@ -1370,6 +1498,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         User user = findUser(p.getNick());
         joined.add(p);
         loadPlayerData(p);
+        loadDBPlayerData(p);
         if (user != null){
             manager.voice(channel, user);
         }
@@ -1420,6 +1549,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         User user = findUser(p.getNick());
         joined.remove(p);
         savePlayerData(p);
+        saveDBPlayerData(p);
         if (user != null){
             manager.deVoice(channel, user);
         }
@@ -1550,7 +1680,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             informPlayer(nick, getMsg("no_deposit_bankrupt"));
         } else {
             p.bankTransfer(amount);
-            savePlayerData(p);
             if (amount > 0){
                 showMsg(getMsg("deposit"), p.getNickStr(), amount, p.get("cash"), p.get("bank"));
             } else {
@@ -1569,6 +1698,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         int count = 0;
         for (Player p : joined) {
             savePlayerData(p);
+            saveDBPlayerData(p);
             modeSet += "v";
             nickStr += " " + p.getNick();
             count++;
@@ -1791,13 +1921,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * Loads a player's stats from the database.
      * @param p
      */
-    abstract protected void loadDBPlayerStats(Player p);
+    abstract protected void loadDBPlayerData(Player p);
     
     /**
      * Saves a player's stats to the database.
      * @param p
      */
-    abstract protected void saveDBPlayerStats(Player p);
+    abstract protected void saveDBPlayerData(Player p);
     
     ////////////////////////////////////////
     //// Game stats management methods. ////
