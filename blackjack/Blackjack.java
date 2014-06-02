@@ -1485,49 +1485,47 @@ public class Blackjack extends CardGame {
             if (insuranceBets) {
                 showInsuranceResults();
             }
+            
+            /* Bookkeeping tasks
+             * 1. Increment the number of rounds played for each player
+             * 2. Make auto-withdrawals
+             * 3. Save player stats
+             */
+            for (Player pp : joined) {
+                pp.increment("bjrounds");
+                if (!pp.has("cash") && pp.has("bank")) {
+                    // Make a withdrawal if the player has a positive bankroll
+                    int amount = Math.min(pp.get("bank"), get("cash"));
+                    pp.bankTransfer(-amount);
+                    informPlayer(pp.getNick(), getMsg("auto_withdraw"), amount);
+                }
+                savePlayerData(pp);
+                saveDBPlayerData(pp);
+            }
+            
+            // Save game stats to DB
+            saveDBGameStats();
+            
             /* Clean-up tasks
-             * 1. Increment the number of rounds played for player
-             * 2. Remove players who have gone bankrupt and set respawn timers
-             * 3. Remove players who have quit mid-round
-             * 4. Save player data
-             * 5. Reset the player
+             * 1. Remove players who have gone bankrupt and set respawn timers
+             * 2. Remove players who have quit mid-round
+             * 3. Reset the players
              */
             for (int ctr = 0; ctr < joined.size(); ctr++) {
                 p = (BlackjackPlayer) joined.get(ctr);
-                p.increment("bjrounds");
-
-                if (p.has("cash")) {
-                    if (p.has("quit")) {
-                        removeJoined(p.getNick());
-                        showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
-                        ctr--;
-                    } else {
-                        savePlayerData(p);
-                    }
-                } else {
-                    if (p.has("bank")){
-                        // Make a withdrawal if the player has a positive bankroll
-                        int amount = Math.min(p.get("bank"), get("cash"));
-                        p.bankTransfer(-amount);
-                        savePlayerData(p);
-                        informPlayer(p.getNick(), getMsg("auto_withdraw"), amount);
-                        // Check if the player has quit
-                        if (p.has("quit")){
-                            removeJoined(p);
-                            showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
-                            ctr--;
-                        }
-                    } else {
-                        // Give penalty to players with no cash in their bankroll
-                        p.increment("bankrupts");
-                        blacklist.add(p);
-                        removeJoined(p);
-                        showMsg(getMsg("unjoin_bankrupt"), p.getNickStr(), joined.size());
-                        setRespawnTask(p);
-                        ctr--;
-                    }
+                if (!p.has("cash")) {
+                    // Give penalty to players with no cash in their bankroll
+                    p.increment("bankrupts");
+                    blacklist.add(p);
+                    removeJoined(p);
+                    showMsg(getMsg("unjoin_bankrupt"), p.getNickStr(), joined.size());
+                    setRespawnTask(p);
+                    ctr--;
+                } else if (p.has("quit")) {
+                    removeJoined(p.getNick());
+                    showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
+                    ctr--;
                 }
-                
                 resetPlayer(p);
             }
             saveGameStats();
