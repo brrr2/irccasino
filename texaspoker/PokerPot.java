@@ -29,6 +29,7 @@ import java.util.HashMap;
 public class PokerPot {
     private HashMap<PokerPlayer,Boolean> eligibles;
     private HashMap<PokerPlayer,Integer> donations;
+    private HashMap<PokerPlayer,Boolean> winners;
 
     /**
      * Initializes eligibles and donations ArrayLists.
@@ -36,6 +37,7 @@ public class PokerPot {
     public PokerPot(){
         eligibles = new HashMap<>();
         donations = new HashMap<>();
+        winners = new HashMap<>();
     }
 
     /**
@@ -49,6 +51,7 @@ public class PokerPot {
         } else {
             eligibles.put(p, Boolean.TRUE);
             donations.put(p, amount);
+            winners.put(p, false);
         }
     }
     
@@ -61,12 +64,38 @@ public class PokerPot {
     }
     
     /**
+     * Sets the player to be a winner of this pot.
+     * @param p 
+     */
+    public void setWinner(PokerPlayer p) {
+        winners.put(p, Boolean.TRUE);
+    }
+    
+    /**
+     * Returns the total contribution to this pot made by the specified player.
+     * @param p
+     * @return 
+     */
+    public int getContribution(PokerPlayer p) {
+        return donations.get(p);
+    }
+    
+    /**
      * Determines if a player is eligible to win the pot.
      * @param p
      * @return 
      */
     public boolean isEligible(PokerPlayer p) {
         return eligibles.containsKey(p) && eligibles.get(p);
+    }
+    
+    /**
+     * Determines if a player is a winner of this pot.
+     * @param p
+     * @return 
+     */
+    public boolean isWinner(PokerPlayer p) {
+        return winners.get(p);
     }
     
     /**
@@ -101,6 +130,20 @@ public class PokerPot {
      */
     public ArrayList<PokerPlayer> getDonors() {
         return new ArrayList<>(donations.keySet());
+    }
+    
+    /**
+     * Returns an ArrayList of all winners of this pot.
+     * @return 
+     */
+    public ArrayList<PokerPlayer> getWinners() {
+       ArrayList<PokerPlayer> list = new ArrayList<>();
+       for (PokerPlayer p : winners.keySet()) {
+            if (winners.get(p)) {
+                list.add(p);
+            }
+        }
+        return list;
     }
     
     /**

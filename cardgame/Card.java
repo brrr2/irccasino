@@ -187,7 +187,19 @@ public class Card implements Comparable<Card>{
             color = Colors.BLACK;
         }
         
-        return color+",00"+face+suit;
+        return color + ",00" + face + suit;
+    }
+    
+    /**
+     * String representation of the card with or without IRC color formatting.
+     * @param color
+     * @return 
+     */
+    public String toString(boolean color) {
+        if (color) {
+            return toString();
+        }
+        return face + suit;
     }
     
     /**

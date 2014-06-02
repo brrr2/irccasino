@@ -27,6 +27,8 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLWarning;
 import java.sql.Statement;
@@ -68,6 +70,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     // Game properties
     protected int startCount;
     protected long lastPing;
+    protected long startTime;
+    protected long endTime;
     protected String name;
     protected String iniFile;
     protected String helpFile;
@@ -1008,6 +1012,49 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         }
     }
     
+    /**
+     * Performs an SQL query to the stats DB and outputs a result string.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    public void query(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else {
+            try (Connection conn = DriverManager.getConnection(dbURL)) {
+                // Rebuild query
+                String sql = "";
+                for (String s : params) {
+                    sql += s + " ";
+                }
+                
+                // Attempt query and output results to channel
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ResultSet rs = ps.executeQuery();
+                    if (rs.isBeforeFirst()) {
+                        String output;
+                        int numCol = rs.getMetaData().getColumnCount();
+                        int row = 1;
+                        while(rs.next()) {
+                            output = "";
+                            for (int ctr = 1; ctr <= numCol; ctr++) {
+                                output += rs.getObject(ctr) + ", ";
+                            }
+                            showMsg("Row " + row++ + ": " +
+                                    output.substring(0, Math.min(300, output.length() - 2)));
+                            try { Thread.sleep(1000); } catch (InterruptedException e){}
+                        }
+                    } else {
+                        showMsg("SQL query produced no results.");
+                    }
+                }
+            } catch (SQLException ex) {
+                showMsg("SQL Error: " + ex.getMessage());
+            }
+        }
+    }
+    
     //////////////////////////
     //// Accessor methods ////
     //////////////////////////
@@ -1227,7 +1274,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             
             logDBWarning(conn.getWarnings());
         } catch (SQLException ex) {
-            manager.log(ex.getMessage());
+            manager.log("SQL Error: " + ex.getMessage());
         }
     }
     

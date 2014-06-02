@@ -1445,21 +1445,12 @@ public class TexasTourney extends TexasPoker {
             
             // Add new player if not found in Player table
             if (!p.has("id")) {
-                sql = "INSERT INTO Player (nick, time_created) " +
-                      "VALUES(?, ?)";
+                sql = "INSERT INTO Player (nick, time_created) VALUES(?, ?)";
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setString(1, p.getNick());
                     ps.setLong(2, System.currentTimeMillis() / 1000);
                     ps.executeUpdate();
-                }
-                
-                // Retrieve player's new ID
-                sql = "SELECT id FROM Player WHERE nick = ? COLLATE NOCASE";
-                try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                    ps.setString(1, p.getNick());
-                    try (ResultSet rs = ps.executeQuery()) {
-                        p.set("id", rs.getInt("id"));
-                    }
+                    p.set("id", ps.getGeneratedKeys().getInt(1));
                 }
             }
             
@@ -1492,7 +1483,7 @@ public class TexasTourney extends TexasPoker {
             
             logDBWarning(conn.getWarnings());
         } catch (SQLException ex) {
-            manager.log(ex.getMessage());
+            manager.log("SQL Error: " + ex.getMessage());
         }
     }
     
@@ -1511,7 +1502,7 @@ public class TexasTourney extends TexasPoker {
             
             logDBWarning(conn.getWarnings());
         } catch (SQLException ex) {
-            manager.log(ex.getMessage());
+            manager.log("SQL Error: " + ex.getMessage());
         }
     }
     

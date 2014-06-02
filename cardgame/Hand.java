@@ -98,4 +98,16 @@ public class Hand extends ArrayList<Card>{
         }
         return outStr.substring(0, outStr.length() - 1) + Colors.NORMAL;
     }
+    
+    /**
+     * Returns a comma-delimited, colorless string representation of the hand.
+     * @return 
+     */
+    public String toStringDB() {
+        String outStr = "";
+        for (Card c : this){
+            outStr += c.toString(false) + ",";
+        }
+        return outStr.substring(0, outStr.length() - 1);
+    }
 }

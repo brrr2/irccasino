@@ -230,6 +230,8 @@ public class TexasPoker extends CardGame{
             reload(user, nick, params);
         } else if (command.equalsIgnoreCase("trim")) {
             trim(user, nick, params);
+        } else if (command.equalsIgnoreCase("query")) {
+            query(user, nick, params);
         } else if (command.equalsIgnoreCase("test1")) {
             test1(user, nick, params);
         } else if (command.equalsIgnoreCase("test2")) {
@@ -266,6 +268,7 @@ public class TexasPoker extends CardGame{
                 }
             }
             state = PokerState.PRE_START;
+            startTime = System.currentTimeMillis() / 1000;
             showStartRound();
             setStartRoundTask();
         }
@@ -1054,6 +1057,7 @@ public class TexasPoker extends CardGame{
             }
             
             // Save game stats to DB
+            endTime = System.currentTimeMillis() / 1000;
             saveDBGameStats();
             
             /* Clean-up tasks
@@ -1096,6 +1100,7 @@ public class TexasPoker extends CardGame{
         if (startCount > 0 && joined.size() > 1){
             startCount--;
             state = PokerState.PRE_START;
+            startTime = System.currentTimeMillis() / 1000;
             showStartRound();
             setStartRoundTask();
         } else {
@@ -1352,15 +1357,7 @@ public class TexasPoker extends CardGame{
                     ps.setString(1, p.getNick());
                     ps.setLong(2, System.currentTimeMillis() / 1000);
                     ps.executeUpdate();
-                }
-                
-                // Retrieve player's new ID
-                sql = "SELECT id FROM Player WHERE nick = ? COLLATE NOCASE";
-                try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                    ps.setString(1, p.getNick());
-                    try (ResultSet rs = ps.executeQuery()) {
-                        p.set("id", rs.getInt("id"));
-                    }
+                    p.set("id", ps.getGeneratedKeys().getInt(1));
                 }
             }
             
@@ -1421,7 +1418,7 @@ public class TexasPoker extends CardGame{
             
             logDBWarning(conn.getWarnings());
         } catch (SQLException ex) {
-            manager.log(ex.getMessage());
+            manager.log("SQL Error: " + ex.getMessage());
         }
     }
     
@@ -1451,7 +1448,7 @@ public class TexasPoker extends CardGame{
             
             logDBWarning(conn.getWarnings());
         } catch (SQLException ex) {
-            manager.log(ex.getMessage());
+            manager.log("SQL Error: " + ex.getMessage());
         }
     }
     
@@ -1550,7 +1547,72 @@ public class TexasPoker extends CardGame{
     
     @Override
     protected void saveDBGameStats() {
+        int roundID, potID;
         
+        try (Connection conn = DriverManager.getConnection(dbURL)) {
+            // Insert data into TPRound table
+            String sql = "INSERT INTO TPRound (start_time, end_time, " +
+                         "community) VALUES (?, ?, ?)";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setLong(1, startTime);
+                ps.setLong(2, endTime);
+                ps.setString(3, community.toStringDB());
+                ps.executeUpdate();
+                roundID = ps.getGeneratedKeys().getInt(1);
+            }
+            
+            
+            for (Player p : joined) {
+                // Insert data into TPPlayerChange table
+                sql = "INSERT INTO TPPlayerChange (player_id, round_id, " +
+                      "change, cash) VALUES (?, ?, ?, ?)";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setInt(1, p.get("id"));
+                    ps.setInt(2, roundID);
+                    ps.setInt(3, p.get("change"));
+                    ps.setInt(4, p.get("cash"));
+                    ps.executeUpdate();
+                }
+                
+                // Insert data into TPPlayerHand table
+                sql = "INSERT INTO TPPlayerHand (player_id, round_id, " +
+                      "hand) VALUES (?, ?, ?)";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setInt(1, p.get("id"));
+                    ps.setInt(2, roundID);
+                    ps.setString(3, ((PokerPlayer) p).getHand().toStringDB());
+                    ps.executeUpdate();
+                }
+            }
+            
+            for (PokerPot pot : pots) {
+                // Insert data into TPPot table
+                sql = "INSERT INTO TPPot (round_id, amount) VALUES (?, ?)";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setInt(1, roundID);
+                    ps.setInt(2, pot.getTotal());
+                    ps.executeUpdate();
+                    potID = ps.getGeneratedKeys().getInt(1);
+                }
+                
+                // Insert data into TPPlayerPot table
+                for (PokerPlayer p : pot.getDonors()) {
+                    sql = "INSERT INTO TPPlayerPot (player_id, pot_id, " +
+                          "contribution, result) VALUES (?, ?, ?, ?)";
+                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                        ps.setInt(1, p.get("id"));
+                        ps.setInt(2, potID);
+                        ps.setInt(3, pot.getContribution(p));
+                        ps.setBoolean(4, pot.isWinner(p));
+                        ps.executeUpdate();
+                    }
+                }
+            }
+            
+            logDBWarning(conn.getWarnings());
+        } catch (SQLException ex) {
+            manager.log("SQL Error: " + ex.getMessage());
+        }
     }
     
     /////////////////////////////////////////////////////////
@@ -1998,21 +2060,23 @@ public class TexasPoker extends CardGame{
             int potTotal = currentPot.getTotal();
             
             // Determine number of winners
+            currentPot.setWinner(players.get(0));
             for (int ctr2 = 1; ctr2 < players.size(); ctr2++){
                 if (players.get(0).compareTo(players.get(ctr2)) == 0){
+                    currentPot.setWinner(players.get(ctr2));
                     winners++;
                 }
             }
             
             // Output winners
-            for (int ctr2 = 0; ctr2 < winners; ctr2++){
-                PokerPlayer p = players.get(ctr2);
+            for (PokerPlayer p : currentPot.getWinners()) {
                 p.add("cash", potTotal/winners);
                 p.add("tpwinnings", potTotal/winners);
                 p.add("change", potTotal/winners);
-                showMsg(Colors.YELLOW+",01 Pot #" + (ctr+1) + ": " + Colors.NORMAL + " " + 
-                    p.getNickStr() + " wins $" + formatNumber(potTotal/winners) + 
-                    ". (" + getPlayerListString(players) + ")");
+                showMsg(Colors.YELLOW + ",01 Pot #" + (ctr+1) + ": " + 
+                        Colors.NORMAL + " " + p.getNickStr() + " wins $" + 
+                        formatNumber(potTotal/winners) + ". (" + 
+                        getPlayerListString(players) + ")");
             }
             
             // Check if it's the biggest pot
@@ -2025,8 +2089,8 @@ public class TexasPoker extends CardGame{
                     house.addDonor(new PokerPlayer(donor.getNick(), ""));
                 }
                 // Store the list of winners
-                for (int ctr2 = 0; ctr2 < winners; ctr2++){
-                    house.addWinner(new PokerPlayer(players.get(ctr2).getNick(), ""));
+                for (PokerPlayer winner : currentPot.getWinners()) {
+                    house.addWinner(new PokerPlayer(winner.getNick(), ""));
                 }
                 saveGameStats();
             }
