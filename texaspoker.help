@@ -60,6 +60,7 @@ settings|||Op command that lists the settings available for Texas Hold'em.
 resetsimple|||Op command that clears the simple list.
 resetaway|||Op command that clears the away list.
 trim|||Op command that removes players who have not played any rounds of any game from players.txt.
+query|SQL statement|sql|Op command that queries the stats database and outputs the results to the game channel.
 test1|numPlayers||Op command that provides a simple test to determine the winner of a simulated game with 2-5 players.
 test2|handSize||Op command that provides a simple test to determine the type and value of a hand based on the specified number of cards dealt.
 test3|numPlayers||Op command that provides a test of the algorithm for calculating the winning percentages of a simulated game with 2-5 players.

@@ -47,3 +47,4 @@ settings|||Op command that lists the settings available for Texas Hold'em.
 resetsimple|||Op command that clears the simple list.
 resetaway|||Op command that clears the away list.
 trim|||Op command that removes players who have not played any rounds of any game from players.txt.
+query|SQL statement|sql|Op command that queries the stats database and outputs the results to the game channel.
