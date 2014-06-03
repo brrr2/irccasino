@@ -29,6 +29,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.SQLWarning;
 import java.sql.Statement;
@@ -1033,24 +1034,34 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ResultSet rs = ps.executeQuery();
                     if (rs.isBeforeFirst()) {
-                        String output;
-                        int numCol = rs.getMetaData().getColumnCount();
+                        ResultSetMetaData rsmd = rs.getMetaData();
+                        String output = "";
+                        int numCol = rsmd.getColumnCount();
+                        
+                        // Append field names
+                        output += "Fields {";
+                        for (int ctr = 1; ctr <= numCol; ctr++) {
+                            output += rsmd.getColumnName(ctr) + ":";
+                        }
+                        output = output.substring(0, output.length() - 1) + "}, ";
+                        
+                        // Append records
                         int row = 1;
                         while(rs.next()) {
-                            output = "";
+                            output += "R" + row++ + " {";
                             for (int ctr = 1; ctr <= numCol; ctr++) {
-                                output += rs.getObject(ctr) + ", ";
+                                output += rs.getObject(ctr) + ":";
                             }
-                            showMsg("Row " + row++ + ": " +
-                                    output.substring(0, Math.min(300, output.length() - 2)));
-                            try { Thread.sleep(1000); } catch (InterruptedException e){}
+                            output = output.substring(0, output.length() - 1) + "}, ";
                         }
+                        showMsg(output.substring(0, Math.min(500, output.length() - 2)));
                     } else {
                         showMsg("SQL query produced no results.");
                     }
                 }
             } catch (SQLException ex) {
                 showMsg("SQL Error: " + ex.getMessage());
+                manager.log("SQL Error: " + ex.getMessage());
             }
         }
     }
@@ -1201,7 +1212,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 // BJPlayerInsurance table
                 s.execute( "CREATE TABLE IF NOT EXISTS BJPlayerInsurance (" +
                            "player_id INTEGER, round_id INTEGER, " +
-                           "bet INTEGER, result INTEGER, " +
+                           "bet INTEGER, result BOOLEAN, " +
                            "UNIQUE(player_id, round_id), " +
                            "FOREIGN KEY(player_id) REFERENCES Player(id), " +
                            "FOREIGN KEY(round_id) REFERENCES BJRound(id))");
@@ -1267,9 +1278,15 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 
                 // TTTourney table
                 s.execute( "CREATE TABLE IF NOT EXISTS TTTourney (" +
-                           "id INTEGER PRIMARY KEY, " +
-                           "start_time INTEGER, end_time INTEGER, " +
-                           "rounds INTEGER, winner TEXT, players TEXT)");
+                           "id INTEGER PRIMARY KEY, start_time INTEGER, " +
+                           "end_time INTEGER, rounds INTEGER)");
+                
+                // TTPlayerTourney table
+                s.execute( "CREATE TABLE IF NOT EXISTS TTPlayerTourney (" +
+                           "player_id INTEGER, tourney_id INTEGER, " +
+                           "result BOOLEAN, UNIQUE(player_id, tourney_id), " +
+                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
+                           "FOREIGN KEY(tourney_id) REFERENCES TTTourney(id))");
             }
             
             logDBWarning(conn.getWarnings());

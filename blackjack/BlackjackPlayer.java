@@ -41,8 +41,11 @@ class BlackjackPlayer extends Player{
         super(nick, host);
         hands = new ArrayList<>();
         set("initialbet", 0);
+        set("change", 0);
         set("insurebet", 0);
+        set("split", 0);
         set("surrender", 0);
+        set("doubledown", 0);
         set("currentindex", 0);
     }
 
@@ -81,6 +84,14 @@ class BlackjackPlayer extends Player{
     }
 
     /**
+     * Returns the ArrayList hands.
+     * @return 
+     */
+    protected ArrayList<BlackjackHand> getAllHands() {
+        return hands;
+    }
+    
+    /**
      * Returns the number BlackjackHands the player has.
      * @return the number of BlackjackHands
      */
@@ -104,23 +115,6 @@ class BlackjackPlayer extends Player{
     }
 
     /**
-     * Whether or not the player has surrendered.
-     * @return true if the player has surrendered.
-     */
-    protected boolean hasSurrendered(){
-        return get("surrender") == 1;
-    }
-
-    /* Methods related to splitting hands */
-    /**
-     * Whether or not the player has split his initial hand.
-     * @return true if hands contains more than one BlackjackHand
-     */
-    protected boolean hasSplit(){
-        return hands.size() > 1;
-    }
-
-    /**
      * Splits a BlackjackHand into two BlackjackHands.
      * Creates a new BlackjackHand and gives it the second card of the original.
      * The card is then removed from the original BlackjackHand. The new
@@ -133,5 +127,6 @@ class BlackjackPlayer extends Player{
         cHand.remove(1);
 
         hands.add(get("currentindex") + 1, tHand);
+        set("split", 1);
     }
 }

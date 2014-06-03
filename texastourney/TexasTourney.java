@@ -192,7 +192,9 @@ public class TexasTourney extends TexasPoker {
             resetsimple(user, nick, params);
         } else if (command.equalsIgnoreCase("trim")) {
             trim(user, nick, params);
-        } 
+        } else if (command.equalsIgnoreCase("query") || command.equalsIgnoreCase("sql")) {
+            query(user, nick, params);
+        }
     }
     
     @Override
@@ -274,6 +276,7 @@ public class TexasTourney extends TexasPoker {
             showMsg(getMsg("no_players"));
         } else {
             state = PokerState.PRE_START;
+            startTime = System.currentTimeMillis() / 1000;
             showMsg(formatHeader(" " + getMsg("tt_new_tourney") + " "));
             showStartRound();
             setStartRoundTask();
@@ -1174,14 +1177,18 @@ public class TexasTourney extends TexasPoker {
             if (tourneyStats.getBiggestTourney() < joined.size() + blacklist.size()) {
                 tourneyStats.setWinner(new PokerPlayer(joined.get(0).getNick(), ""));
                 tourneyStats.getPlayers().clear();
-                for (Player pp : joined) {
-                    tourneyStats.addPlayer(new PokerPlayer(pp.getNick(), ""));
-                }
+                tourneyStats.addPlayer(new PokerPlayer(joined.get(0).getNick(), ""));
                 for (Player pp : blacklist) {
                     tourneyStats.addPlayer(new PokerPlayer(pp.getNick(), ""));
                 }
             }
+            
+            // Save game stats
+            endTime = System.currentTimeMillis() / 1000;
             saveGameStats();
+            saveDBGameStats();
+            
+            // Reset tournament
             resetTourney();
         // Automatically start a new round if more than 1 player left
         } else {
@@ -1595,7 +1602,45 @@ public class TexasTourney extends TexasPoker {
     
     @Override
     protected void saveDBGameStats() {
-        
+        int tourneyID;
+        try (Connection conn = DriverManager.getConnection(dbURL)) {
+            // Insert data into TTTourney table
+            String sql = "INSERT INTO TTTourney (start_time, end_time, rounds) " +
+                         "VALUES (?, ?, ?)";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setLong(1, startTime);
+                ps.setLong(2, endTime);
+                ps.setInt(3, tourneyRounds);
+                ps.executeUpdate();
+                tourneyID = ps.getGeneratedKeys().getInt(1);
+            }
+            
+            // Insert winner into TTPlayerTourney table
+            sql = "INSERT INTO TTPlayerTourney (player_id, tourney_id, " +
+                  "result) VALUES (?, ?, ?)";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, joined.get(0).get("id"));
+                ps.setInt(2, tourneyID);
+                ps.setBoolean(3, Boolean.TRUE);
+                ps.executeUpdate();
+            }
+            
+            for (Player p : blacklist) {
+                // Insert other players into TTPlayerTourney table
+                sql = "INSERT INTO TTPlayerTourney (player_id, tourney_id, " +
+                      "result) VALUES (?, ?, ?)";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setInt(1, p.get("id"));
+                    ps.setInt(2, tourneyID);
+                    ps.setBoolean(3, Boolean.FALSE);
+                    ps.executeUpdate();
+                }
+            }
+            
+            logDBWarning(conn.getWarnings());
+        } catch (SQLException ex) {
+            manager.log("SQL Error: " + ex.getMessage());
+        }
     }
     
     /////////////////////////////////////////////////////////////

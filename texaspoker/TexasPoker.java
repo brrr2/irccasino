@@ -230,7 +230,7 @@ public class TexasPoker extends CardGame{
             reload(user, nick, params);
         } else if (command.equalsIgnoreCase("trim")) {
             trim(user, nick, params);
-        } else if (command.equalsIgnoreCase("query")) {
+        } else if (command.equalsIgnoreCase("query") || command.equalsIgnoreCase("sql")) {
             query(user, nick, params);
         } else if (command.equalsIgnoreCase("test1")) {
             test1(user, nick, params);
@@ -1548,7 +1548,6 @@ public class TexasPoker extends CardGame{
     @Override
     protected void saveDBGameStats() {
         int roundID, potID;
-        
         try (Connection conn = DriverManager.getConnection(dbURL)) {
             // Insert data into TPRound table
             String sql = "INSERT INTO TPRound (start_time, end_time, " +
