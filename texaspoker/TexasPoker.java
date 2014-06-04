@@ -232,6 +232,8 @@ public class TexasPoker extends CardGame{
             trim(user, nick, params);
         } else if (command.equalsIgnoreCase("query") || command.equalsIgnoreCase("sql")) {
             query(user, nick, params);
+        } else if (command.equalsIgnoreCase("migrate")) {
+            migrate(user, nick, params);
         } else if (command.equalsIgnoreCase("test1")) {
             test1(user, nick, params);
         } else if (command.equalsIgnoreCase("test2")) {
@@ -1050,6 +1052,7 @@ public class TexasPoker extends CardGame{
                 if (!pp.has("cash") && pp.has("bank")) {
                     int amount = Math.min(pp.get("bank"), get("cash"));
                     pp.bankTransfer(-amount);
+                    saveDBPlayerBanking(pp);
                     informPlayer(pp.getNick(), getMsg("auto_withdraw"), amount);
                 }
                 savePlayerData(pp);
@@ -1905,6 +1908,9 @@ public class TexasPoker extends CardGame{
                     if (p.has("bet")){
                         // Add a lowBet pot contribution for the player
                         currentPot.contribute((PokerPlayer) p, lowBet);
+                        if (p.has("fold")) {
+                            currentPot.disqualify((PokerPlayer) p);
+                        }
                         p.add("cash", -1 * lowBet);
                         p.add("tpwinnings", -1 * lowBet);
                         p.add("bet", -1 * lowBet);

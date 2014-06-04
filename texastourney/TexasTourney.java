@@ -194,6 +194,8 @@ public class TexasTourney extends TexasPoker {
             trim(user, nick, params);
         } else if (command.equalsIgnoreCase("query") || command.equalsIgnoreCase("sql")) {
             query(user, nick, params);
+        } else if (command.equalsIgnoreCase("migrate")) {
+            migrate(user, nick, params);
         }
     }
     

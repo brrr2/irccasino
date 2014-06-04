@@ -56,6 +56,7 @@ abstract public class Player extends Stats {
         set("tpwinnings", 0);
         set("ttwins", 0);
         set("ttplayed", 0);
+        set("transaction", 0);
         set("quit", 0);
     }
 
@@ -128,6 +129,7 @@ abstract public class Player extends Stats {
     public void bankTransfer(int amount){
         add("bank", amount);
         add("cash", -1 * amount);
+        set("transaction", -1 * amount);
     }
 
     /**

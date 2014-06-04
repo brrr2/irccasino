@@ -247,6 +247,8 @@ public class Blackjack extends CardGame {
             trim(user, nick, params);
         } else if (command.equalsIgnoreCase("query") || command.equalsIgnoreCase("sql")) {
             query(user, nick, params);
+        } else if (command.equalsIgnoreCase("migrate")) {
+            migrate(user, nick, params);
         } else if (command.equalsIgnoreCase("test1")){
             test1(user, nick, params);
         }
@@ -1576,6 +1578,7 @@ public class Blackjack extends CardGame {
                     // Make a withdrawal if the player has a positive bankroll
                     int amount = Math.min(pp.get("bank"), get("cash"));
                     pp.bankTransfer(-amount);
+                    saveDBPlayerBanking(pp);
                     informPlayer(pp.getNick(), getMsg("auto_withdraw"), amount);
                 }
                 savePlayerData(pp);
@@ -2591,7 +2594,7 @@ public class Blackjack extends CardGame {
             showMsg(line);
         }
     }
-        
+    
     @Override
     public void showTopPlayers(String stat, int n) throws IllegalArgumentException {
         if (n < 1){

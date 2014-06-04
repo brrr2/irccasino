@@ -1054,7 +1054,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                             }
                             output = output.substring(0, output.length() - 1) + "}, ";
                         }
-                        showMsg(output.substring(0, Math.min(500, output.length() - 2)));
+                        showMsg(output.substring(0, Math.min(300, output.length() - 2)));
                     } else {
                         showMsg("SQL query produced no results.");
                     }
@@ -1064,6 +1064,158 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 manager.log("SQL Error: " + ex.getMessage());
             }
         }
+    }
+    
+    /**
+     * Migrates players.txt entries into stats.sqlite3.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    public void migrate(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (manager.gamesInProgress()) {
+            informPlayer(nick, getMsg("no_trim"));
+        } else {
+            showMsg("Performing migration from players.txt to stats.sqlite3. Please wait...");
+            
+            ArrayList<PlayerRecord> records = loadPlayerFile();
+            int playerID;
+            
+            try (Connection conn = DriverManager.getConnection(dbURL)) {
+                // Iterate over records
+                for (PlayerRecord record : records) {
+                    playerID = -1;
+
+                    // Retrieve data from Player table if possible
+                    String sql = "SELECT id FROM Player WHERE nick = ? COLLATE NOCASE";
+                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                        ps.setString(1, record.getNick());
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.isBeforeFirst()) {
+                                playerID = rs.getInt("id");
+                            }
+                        }
+                    }
+
+                    // Add new record if not found in Player table
+                    if (playerID == -1) {
+                        sql = "INSERT INTO Player (nick, time_created) VALUES(?, ?)";
+                        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                            ps.setString(1, record.getNick());
+                            ps.setLong(2, System.currentTimeMillis() / 1000);
+                            ps.executeUpdate();
+                            playerID = ps.getGeneratedKeys().getInt(1);
+                        }
+                    }
+
+                    // Retrieve data from Purse table if possible
+                    boolean found = false;
+                    sql = "SELECT cash, bank, bankrupts FROM Purse WHERE player_id = ?";
+                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                        ps.setInt(1, playerID);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.isBeforeFirst()) {
+                                found = true;
+                            }
+                        }
+                    }
+
+                    // Add new record if not found in Purse
+                    if (!found) {
+                        sql = "INSERT INTO Purse (player_id, cash, bank, bankrupts) " +
+                              "VALUES(?, ?, ?, ?)";
+                        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                            ps.setInt(1, playerID);
+                            ps.setInt(2, record.get("cash"));
+                            ps.setInt(3, record.get("bank"));
+                            ps.setInt(4, record.get("bankrupts"));
+                            ps.executeUpdate();
+                        }
+                    }
+
+                    // Retrieve data from TPPlayerStat table if possible
+                    found = false;
+                    sql = "SELECT player_id, rounds, winnings " +
+                          "FROM TPPlayerStat WHERE player_id = ?";
+                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                        ps.setInt(1, playerID);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.isBeforeFirst()) {
+                                found = true;
+                            }
+                        }
+                    }
+
+                    // Add new record if not found in TPPlayerStat table
+                    if (!found) {
+                        sql = "INSERT INTO TPPlayerStat (player_id, rounds, winnings) " +
+                              "VALUES(?, ?, ?)";
+                        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                            ps.setInt(1, playerID);
+                            ps.setInt(2, record.get("tprounds"));
+                            ps.setInt(3, record.get("tpwinnings"));
+                            ps.executeUpdate();
+                        }
+                    }
+
+                    // Retrieve data from BJPlayerStat table if possible
+                    found = false;
+                    sql = "SELECT player_id, rounds, winnings " +
+                          "FROM BJPlayerStat WHERE player_id = ?";
+                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                        ps.setInt(1, playerID);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.isBeforeFirst()) {
+                                found = true;
+                            }
+                        }
+                    }
+
+                    // Add new record if not found in BJPlayerStat table
+                    if (!found) {
+                        sql = "INSERT INTO BJPlayerStat (player_id, rounds, winnings) " +
+                              "VALUES(?, ?, ?)";
+                        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                            ps.setInt(1, playerID);
+                            ps.setInt(2, record.get("bjrounds"));
+                            ps.setInt(3, record.get("bjwinnings"));
+                            ps.executeUpdate();
+                        }
+                    }
+
+                    // Retrieve data from TTPlayerStat table if possible
+                    found = false;
+                    sql = "SELECT player_id, tourneys, points " +
+                          "FROM TTPlayerStat WHERE player_id = ?";
+                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                        ps.setInt(1, playerID);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.isBeforeFirst()) {
+                                found = true;
+                            }
+                        }
+                    }
+
+                    // Add new record if not found in TPPlayerStat table
+                    if (!found) {
+                        sql = "INSERT INTO TTPlayerStat (player_id, tourneys, points) " +
+                              "VALUES(?, ?, ?)";
+                        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                            ps.setInt(1, playerID);
+                            ps.setInt(2, record.get("ttplayed"));
+                            ps.setInt(3, record.get("ttwins"));
+                            ps.executeUpdate();
+                        }
+                    }
+                }
+            } catch (SQLException ex) {
+                manager.log("SQL Error: " + ex.getMessage());
+            }
+        }
+        
+        showMsg("Migration complete.");
     }
     
     //////////////////////////
@@ -1179,8 +1331,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 
                 // Banking table
                 s.execute( "CREATE TABLE IF NOT EXISTS Banking (" +
-                           "player_id INTEGER, transaction_time INTEGER, " +
-                           "cash_change INTEGER, cash INTEGER, bank INTEGER, " +
+                           "id INTEGER PRIMARY KEY, player_id INTEGER, " + 
+                           "transaction_time INTEGER, cash_change INTEGER, " +
+                           "cash INTEGER, bank INTEGER, " +
                            "FOREIGN KEY(player_id) REFERENCES Player(id))");
                 
                 // BJPlayerStat table
@@ -1486,8 +1639,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         for (Player p : blacklist) {
             p.set("cash", get("cash"));
             p.add("bank", -get("cash"));
+            p.set("transaction", get("cash"));
             savePlayerData(p);
             saveDBPlayerData(p);
+            saveDBPlayerBanking(p);
         }
     }
     
@@ -1750,6 +1905,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             informPlayer(nick, getMsg("no_deposit_bankrupt"));
         } else {
             p.bankTransfer(amount);
+            saveDBPlayerBanking(p);
             if (amount > 0){
                 showMsg(getMsg("deposit"), p.getNickStr(), amount, p.get("cash"), p.get("bank"));
             } else {
@@ -1998,6 +2154,30 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param p
      */
     abstract protected void saveDBPlayerData(Player p);
+    
+    /**
+     * Records a banking transaction into the database.
+     * @param p 
+     */
+    protected void saveDBPlayerBanking(Player p) {
+        try (Connection conn = DriverManager.getConnection(dbURL)) {
+            // Insert banking transaction into Banking table
+            String sql = "INSERT INTO Banking (player_id, transaction_time, " +
+                         "cash_change, cash, bank) VALUES (?, ?, ?, ?, ?)";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, p.get("id"));
+                ps.setLong(2, System.currentTimeMillis() / 1000);
+                ps.setInt(3, p.get("transaction"));
+                ps.setInt(4, p.get("cash"));
+                ps.setInt(5, p.get("bank"));
+                ps.executeUpdate();
+            }
+            
+            logDBWarning(conn.getWarnings());
+        } catch (SQLException ex) {
+            manager.log("SQL Error: " + ex.getMessage());
+        }
+    }
     
     ////////////////////////////////////////
     //// Game stats management methods. ////
