@@ -1436,14 +1436,19 @@ public class TexasTourney extends TexasPoker {
     @Override
     public int getTotalPlayers(){
         int total = 0;
-        ArrayList<Player> records = loadPlayerFile();
-        
-        if (records != null) {
-            for (Player record : records) {
-                if (record.has("ttplayed")){
-                    total++;
+        try (Connection conn = DriverManager.getConnection(dbURL)) {
+            // Retrieve record count for TTPlayerStat table where tourneys > 0
+            String sql = "SELECT count(*) FROM TTPlayerStat WHERE tourneys > 0";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.isBeforeFirst()) {
+                        total = rs.getInt(1);
+                    }
                 }
             }
+            logDBWarning(conn.getWarnings());
+        } catch (SQLException ex) {
+            manager.log("SQL Error: " + ex.getMessage());
         }
         return total;
     }  

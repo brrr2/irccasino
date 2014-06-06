@@ -1943,14 +1943,19 @@ public class TexasPoker extends CardGame{
     @Override
     public int getTotalPlayers(){
         int total = 0;
-        ArrayList<Player> records = loadPlayerFile();
-        
-        if (records != null) {
-            for (Player record : records) {
-                if (record.has("tprounds")){
-                    total++;
+        try (Connection conn = DriverManager.getConnection(dbURL)) {
+            // Retrieve record count from TPPlayerStat table where rounds > 0
+            String sql = "SELECT count(*) FROM TPPlayerStat WHERE rounds > 0";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.isBeforeFirst()) {
+                        total = rs.getInt(1);
+                    }
                 }
             }
+            logDBWarning(conn.getWarnings());
+        } catch (SQLException ex) {
+            manager.log("SQL Error: " + ex.getMessage());
         }
         return total;
     }    
