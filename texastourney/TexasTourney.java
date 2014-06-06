@@ -1163,15 +1163,13 @@ public class TexasTourney extends TexasPoker {
         // Declare a winner if only one player is left
         } else if (joined.size() == 1) {
             p = (PokerPlayer) joined.get(0);
-            p.add("ttwins", 1);
-            p.add("ttplayed", 1);
-            savePlayerData(p);
+            p.add("points", 1);
+            p.add("tourneys", 1);
             saveDBPlayerData(p);
-            showMsg(getMsg("tt_winner"), p.getNickStr(), p.get("ttwins"));
+            showMsg(getMsg("tt_winner"), p.getNickStr(), p.get("points"));
             for (int ctr = 0; ctr < blacklist.size(); ctr++) {
                 p = (PokerPlayer) blacklist.get(ctr);
-                p.add("ttplayed", 1);
-                savePlayerData(p);
+                p.add("tourneys", 1);
                 saveDBPlayerData(p);
             }
             
@@ -1375,64 +1373,6 @@ public class TexasTourney extends TexasPoker {
     //// Player stats management methods ////
     /////////////////////////////////////////
     
-    /**
-     * For tournament mode, we don't want to load a player's cash accumulated
-     * from other games.
-     * @param p the player to load
-     */
-    @Override
-    protected void loadPlayerData(Player p) {
-        ArrayList<Player> records = loadPlayerFile();
-        if (records != null) {
-            p.put("cash", get("cash"));
-            for (Player statLine : records) {
-                if (p.getNick().equalsIgnoreCase(statLine.getNick())) {
-                    p.put("ttwins", statLine.get("ttwins"));
-                    p.put("ttplayed", statLine.get("ttplayed"));
-                    break;
-                }
-            }
-        }
-    }
-    
-    /**
-     * For tournament mode, we don't want to save a player's cash. Also, only
-     * values which are applicable will be overwritten.
-     * @param p the player to save
-     */
-    @Override
-    protected void savePlayerData(Player p){
-        boolean found = false;
-        ArrayList<Player> records = loadPlayerFile();
-        
-        if (records != null) {
-            for (Player record : records) {
-                if (p.getNick().equalsIgnoreCase(record.getNick())) {
-                    record.put("ttwins", p.get("ttwins"));
-                    record.put("ttplayed", p.get("ttplayed"));
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                Player record = new Player("");
-                record.put("nick", p.getString("nick"));
-                record.put("cash", 0);
-                record.put("bank", 0);
-                record.put("bankrupts", 0);
-                record.put("bjwinnings", 0);
-                record.put("bjrounds", 0);
-                record.put("tpwinnings", 0);
-                record.put("tprounds", 0);
-                record.put("ttwins", p.get("ttwins"));
-                record.put("ttplayed", p.get("ttplayed"));
-                records.add(record);
-            }
-
-            savePlayerFile(records);
-        }
-    }
-    
     @Override
     public int getTotalPlayers(){
         int total = 0;
@@ -1456,6 +1396,8 @@ public class TexasTourney extends TexasPoker {
     @Override
     protected void loadDBPlayerData(Player p) {
         try (Connection conn = DriverManager.getConnection(dbURL)) {
+            p.put("id", 0);
+            p.put("cash", get("cash"));
             // Retrieve data from Player table if possible
             String sql = "SELECT id FROM Player WHERE nick = ? COLLATE NOCASE";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -1480,6 +1422,8 @@ public class TexasTourney extends TexasPoker {
             
             // Retrieve data from TTPlayerStat table if possible
             boolean found = false;
+            p.put("tourneys", 0);
+            p.put("points", 0);
             sql = "SELECT player_id, tourneys, points " +
                   "FROM TTPlayerStat WHERE player_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -1487,8 +1431,8 @@ public class TexasTourney extends TexasPoker {
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.isBeforeFirst()) {
                         found = true;
-                        p.put("ttplayed", rs.getInt("tourneys"));
-                        p.put("ttwins", rs.getInt("points"));
+                        p.put("tourneys", rs.getInt("tourneys"));
+                        p.put("points", rs.getInt("points"));
                     }
                 }
             }
@@ -1499,8 +1443,8 @@ public class TexasTourney extends TexasPoker {
                       "VALUES(?, ?, ?)";
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setInt(1, p.getInteger("id"));
-                    ps.setInt(2, p.getInteger("ttplayed"));
-                    ps.setInt(3, p.getInteger("ttwins"));
+                    ps.setInt(2, p.getInteger("tourneys"));
+                    ps.setInt(3, p.getInteger("points"));
                     ps.executeUpdate();
                 }
             }
@@ -1518,8 +1462,8 @@ public class TexasTourney extends TexasPoker {
             String sql = "UPDATE TTPlayerStat SET tourneys = ?, points = ? " +
                          "WHERE player_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setInt(1, p.getInteger("ttplayed"));
-                ps.setInt(2, p.getInteger("ttwins"));
+                ps.setInt(1, p.getInteger("tourneys"));
+                ps.setInt(2, p.getInteger("points"));
                 ps.setInt(3, p.getInteger("id"));
                 ps.executeUpdate();
             }
@@ -1738,16 +1682,16 @@ public class TexasTourney extends TexasPoker {
     public void showPlayerTourneysPlayed(String nick){
         if (isBlacklisted(nick)) {
             Player p = findBlacklisted(nick);
-            showMsg(getMsg("tt_player_played"), p.getNick(false), p.get("ttplayed"));
+            showMsg(getMsg("tt_player_played"), p.getNick(false), p.get("tourneys"));
         } else if (isJoined(nick)) {
             Player p = findJoined(nick);
-            showMsg(getMsg("tt_player_played"), p.getNick(false), p.get("ttplayed"));
+            showMsg(getMsg("tt_player_played"), p.getNick(false), p.get("tourneys"));
         } else {
             Player record = loadPlayerRecord(nick);
             if (record == null) {
                 showMsg(getMsg("no_data"), formatNoPing(nick));
             } else {
-                showMsg(getMsg("tt_player_played"), record.getNick(false), record.get("ttplayed"));
+                showMsg(getMsg("tt_player_played"), record.getNick(false), record.get("tourneys"));
             }
         }
     }
@@ -1759,16 +1703,16 @@ public class TexasTourney extends TexasPoker {
     public void showPlayerTourneyWins(String nick){
         if (isBlacklisted(nick)) {
             Player p = findBlacklisted(nick);
-            showMsg(getMsg("tt_player_wins"), p.getNick(false), p.get("ttwins"));
+            showMsg(getMsg("tt_player_wins"), p.getNick(false), p.get("points"));
         } else if (isJoined(nick)) {
             Player p = findJoined(nick);
-            showMsg(getMsg("tt_player_wins"), p.getNick(false), p.get("ttwins"));
+            showMsg(getMsg("tt_player_wins"), p.getNick(false), p.get("points"));
         } else {
             Player record = loadPlayerRecord(nick);
             if (record == null) {
                 showMsg(getMsg("no_data"), formatNoPing(nick));
             } else {
-                showMsg(getMsg("tt_player_wins"), record.getNick(false), record.get("ttwins"));
+                showMsg(getMsg("tt_player_wins"), record.getNick(false), record.get("points"));
             }
         }
     }
@@ -1777,26 +1721,26 @@ public class TexasTourney extends TexasPoker {
     public void showPlayerWinRate(String nick) {
         if (isBlacklisted(nick)) {
             Player p = findBlacklisted(nick);
-            if (p.getInteger("ttplayed") == 0) {
+            if (p.getInteger("tourneys") == 0) {
                 showMsg(getMsg("tt_player_no_tourneys"), p.getNick(false));
             } else {
-                showMsg(getMsg("tt_player_winrate"), p.getNick(false), Math.round((double) p.get("ttwins")/ (double) p.get("ttplayed") * 100));
+                showMsg(getMsg("tt_player_winrate"), p.getNick(false), Math.round((double) p.get("points")/ (double) p.get("tourneys") * 100));
             }
         } else if (isJoined(nick)) {
             Player p = findJoined(nick);
-            if (p.getInteger("ttplayed") == 0) {
+            if (p.getInteger("tourneys") == 0) {
                 showMsg(getMsg("tt_player_no_tourneys"), p.getNick(false));
             } else {
-                showMsg(getMsg("tt_player_winrate"), p.getNick(false), Math.round((double) p.get("ttwins")/ (double) p.get("ttplayed") * 100));
+                showMsg(getMsg("tt_player_winrate"), p.getNick(false), Math.round((double) p.get("points")/ (double) p.get("tourneys") * 100));
             }
         } else {
             Player record = loadPlayerRecord(nick);
             if (record == null) {
                 showMsg(getMsg("no_data"), formatNoPing(nick));
-            }  else if (record.getInteger("ttplayed") == 0) {
+            }  else if (record.getInteger("tourneys") == 0) {
                 showMsg(getMsg("tt_player_no_tourneys"), record.getNick(false));
             } else {
-                showMsg(getMsg("tt_player_winrate"), record.getNick(false), Math.round((double) record.get("ttwins")/ (double) record.get("ttplayed") * 100));
+                showMsg(getMsg("tt_player_winrate"), record.getNick(false), Math.round((double) record.get("points")/ (double) record.get("tourneys") * 100));
             }
         }
     }
@@ -1805,16 +1749,16 @@ public class TexasTourney extends TexasPoker {
     public void showPlayerAllStats(String nick){
         if (isBlacklisted(nick)) {
             Player p = findBlacklisted(nick);
-            showMsg(getMsg("tt_player_all_stats"), p.getNick(false), p.get("ttwins"), p.get("ttplayed"));
+            showMsg(getMsg("tt_player_all_stats"), p.getNick(false), p.get("points"), p.get("tourneys"));
         } else if (isJoined(nick)) {
             Player p = findJoined(nick);
-            showMsg(getMsg("tt_player_all_stats"), p.getNick(false), p.get("ttwins"), p.get("ttplayed"));
+            showMsg(getMsg("tt_player_all_stats"), p.getNick(false), p.get("points"), p.get("tourneys"));
         } else {
             Player record = loadPlayerRecord(nick);
             if (record == null) {
                 showMsg(getMsg("no_data"), formatNoPing(nick));
             } else {
-                showMsg(getMsg("tt_player_all_stats"), record.getNick(false), record.get("ttwins"), record.get("ttplayed"));
+                showMsg(getMsg("tt_player_all_stats"), record.getNick(false), record.get("points"), record.get("tourneys"));
             }
         }
     }
@@ -1841,10 +1785,10 @@ public class TexasTourney extends TexasPoker {
                 for (int ctr = 0; ctr < length; ctr++) {
                     aRecord = records.get(ctr);
                     nicks.add(aRecord.getNick());
-                    if (aRecord.getInteger("ttplayed") == 0){
+                    if (aRecord.getInteger("tourneys") == 0){
                         winrates.add(0);
                     } else {
-                        winrates.add((int) Math.round((double) aRecord.get("ttwins") / (double) aRecord.get("ttplayed") * 100));
+                        winrates.add((int) Math.round((double) aRecord.get("points") / (double) aRecord.get("tourneys") * 100));
                     }
                 }
                 
@@ -1872,10 +1816,10 @@ public class TexasTourney extends TexasPoker {
             } else {
                 String statName = "";
                 if (stat.equals("wins")){
-                    statName = "ttwins";
+                    statName = "points";
                     line += "Texas Hold'em Tournament Wins: ";
                 } else if (stat.equals("tourneys")) {
-                    statName = "ttplayed";
+                    statName = "tourneys";
                     line += "Texas Hold'em Tournaments Played: ";
                 } else {
                     throw new IllegalArgumentException();
@@ -1922,10 +1866,10 @@ public class TexasTourney extends TexasPoker {
                 for (int ctr = 0; ctr < records.size(); ctr++) {
                     aRecord = records.get(ctr);
                     nicks.add(aRecord.getNick());
-                    if (aRecord.getInteger("ttplayed") == 0){
+                    if (aRecord.getInteger("tourneys") == 0){
                         winrates.add(0);
                     } else {
-                        winrates.add((int) Math.round((double) aRecord.get("ttwins") / (double) aRecord.get("ttplayed") * 100));
+                        winrates.add((int) Math.round((double) aRecord.get("points") / (double) aRecord.get("tourneys") * 100));
                     }
                 }
                 
@@ -1957,10 +1901,10 @@ public class TexasTourney extends TexasPoker {
             } else {
                 String statName = "";
                 if (stat.equals("wins")){
-                    statName = "ttwins";
+                    statName = "points";
                     title += " Texas Hold'em Tournament Wins ";
                 } else if (stat.equals("tourneys")) {
-                    statName = "ttplayed";
+                    statName = "tourneys";
                     title += " Texas Hold'em Tournaments Played ";
                 } else {
                     throw new IllegalArgumentException();

@@ -1052,14 +1052,13 @@ public class TexasPoker extends CardGame{
              * 3. Save player stats
              */
             for (Player pp : joined) {
-                pp.add("tprounds", 1);
+                pp.add("rounds", 1);
                 if (!pp.has("cash") && pp.has("bank")) {
                     int amount = Math.min(pp.getInteger("bank"), get("cash"));
                     pp.bankTransfer(-amount);
                     saveDBPlayerBanking(pp);
                     informPlayer(pp.getNick(), getMsg("auto_withdraw"), amount);
                 }
-                savePlayerData(pp);
                 saveDBPlayerData(pp);
             }
             
@@ -1346,6 +1345,7 @@ public class TexasPoker extends CardGame{
     @Override
     protected void loadDBPlayerData(Player p) {
         try (Connection conn = DriverManager.getConnection(dbURL)) {
+            p.put("id", 0);
             // Retrieve data from Player table if possible
             String sql = "SELECT id FROM Player WHERE nick = ? COLLATE NOCASE";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -1370,6 +1370,9 @@ public class TexasPoker extends CardGame{
             
             // Retrieve data from Purse table if possible
             boolean found = false;
+            p.put("cash", get("cash"));
+            p.put("bank", 0);
+            p.put("bankrupts", 0);
             sql = "SELECT cash, bank, bankrupts FROM Purse WHERE player_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setInt(1, p.getInteger("id"));
@@ -1385,6 +1388,7 @@ public class TexasPoker extends CardGame{
             
             // Add new record if not found in Purse
             if (!found) {
+                informPlayer(p.getNick(), getMsg("new_player"), getGameNameStr(), get("cash"));
                 sql = "INSERT INTO Purse (player_id, cash, bank, bankrupts) " +
                       "VALUES(?, ?, ?, ?)";
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -1398,6 +1402,8 @@ public class TexasPoker extends CardGame{
 
             // Retrieve data from TPPlayerStat table if possible
             found = false;
+            p.put("rounds", 0);
+            p.put("winnings", 0);
             sql = "SELECT player_id, rounds, winnings " +
                   "FROM TPPlayerStat WHERE player_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -1405,8 +1411,8 @@ public class TexasPoker extends CardGame{
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.isBeforeFirst()) {
                         found = true;
-                        p.put("tprounds", rs.getInt("rounds"));
-                        p.put("tpwinnings", rs.getInt("winnings"));
+                        p.put("rounds", rs.getInt("rounds"));
+                        p.put("winnings", rs.getInt("winnings"));
                     }
                 }
             }
@@ -1417,8 +1423,8 @@ public class TexasPoker extends CardGame{
                       "VALUES(?, ?, ?)";
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setInt(1, p.getInteger("id"));
-                    ps.setInt(2, p.getInteger("tprounds"));
-                    ps.setInt(3, p.getInteger("tpwinnings"));
+                    ps.setInt(2, p.getInteger("rounds"));
+                    ps.setInt(3, p.getInteger("winnings"));
                     ps.executeUpdate();
                 }
             }
@@ -1447,8 +1453,8 @@ public class TexasPoker extends CardGame{
             sql = "UPDATE TPPlayerStat SET rounds = ?, winnings = ? " +
                   "WHERE player_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setInt(1, p.getInteger("tprounds"));
-                ps.setInt(2, p.getInteger("tpwinnings"));
+                ps.setInt(1, p.getInteger("rounds"));
+                ps.setInt(2, p.getInteger("winnings"));
                 ps.setInt(3, p.getInteger("id"));
                 ps.executeUpdate();
             }
@@ -1916,7 +1922,7 @@ public class TexasPoker extends CardGame{
                             currentPot.disqualify((PokerPlayer) p);
                         }
                         p.add("cash", -1 * lowBet);
-                        p.add("tpwinnings", -1 * lowBet);
+                        p.add("winnings", -1 * lowBet);
                         p.add("bet", -1 * lowBet);
                         p.add("change", -1 * lowBet);
                     }
@@ -2085,7 +2091,7 @@ public class TexasPoker extends CardGame{
             // Output winners
             for (PokerPlayer p : currentPot.getWinners()) {
                 p.add("cash", potTotal/winners);
-                p.add("tpwinnings", potTotal/winners);
+                p.add("winnings", potTotal/winners);
                 p.add("change", potTotal/winners);
                 showMsg(Colors.YELLOW + ",01 Pot #" + (ctr+1) + ": " + 
                         Colors.NORMAL + " " + p.getNickStr() + " wins $" + 
@@ -2115,16 +2121,16 @@ public class TexasPoker extends CardGame{
     public void showPlayerWinnings(String nick){
         if (isBlacklisted(nick)) {
             Player p = findBlacklisted(nick);
-            showMsg(getMsg("player_winnings"), p.getNick(false), p.get("tpwinnings"), getGameNameStr());
+            showMsg(getMsg("player_winnings"), p.getNick(false), p.get("winnings"), getGameNameStr());
         } else if (isJoined(nick)) {
             Player p = findJoined(nick);
-            showMsg(getMsg("player_winnings"), p.getNick(false), p.get("tpwinnings"), getGameNameStr());
+            showMsg(getMsg("player_winnings"), p.getNick(false), p.get("winnings"), getGameNameStr());
         } else {
             Player record = loadPlayerRecord(nick);
             if (record == null) {
                 showMsg(getMsg("no_data"), formatNoPing(nick));
             } else {
-                showMsg(getMsg("player_winnings"), record.getNick(false), record.get("tpwinnings"), getGameNameStr());
+                showMsg(getMsg("player_winnings"), record.getNick(false), record.get("winnings"), getGameNameStr());
             }
         }
     }
@@ -2133,26 +2139,26 @@ public class TexasPoker extends CardGame{
     public void showPlayerWinRate(String nick){
         if (isBlacklisted(nick)) {
             Player p = findBlacklisted(nick);
-            if (p.getInteger("tprounds") == 0){
+            if (p.getInteger("rounds") == 0){
                 showMsg(getMsg("player_no_rounds"), p.getNick(false), getGameNameStr());
             } else {
-                showMsg(getMsg("player_winrate"), p.getNick(false), (double) p.get("tpwinnings")/(double) p.get("tprounds"), getGameNameStr());
+                showMsg(getMsg("player_winrate"), p.getNick(false), (double) p.get("winnings")/(double) p.get("rounds"), getGameNameStr());
             }  
         } else if (isJoined(nick)) {
             Player p = findJoined(nick);
-            if (p.getInteger("tprounds") == 0){
+            if (p.getInteger("rounds") == 0){
                 showMsg(getMsg("player_no_rounds"), p.getNick(false), getGameNameStr());
             } else {
-                showMsg(getMsg("player_winrate"), p.getNick(false), (double) p.get("tpwinnings")/(double) p.get("tprounds"), getGameNameStr());
+                showMsg(getMsg("player_winrate"), p.getNick(false), (double) p.get("winnings")/(double) p.get("rounds"), getGameNameStr());
             }  
         } else {
             Player record = loadPlayerRecord(nick);
             if (record == null) {
                 showMsg(getMsg("no_data"), formatNoPing(nick));
-            } else if (record.getInteger("tprounds") == 0){
+            } else if (record.getInteger("rounds") == 0){
                 showMsg(getMsg("player_no_rounds"), record.getNick(false), getGameNameStr());
             } else {
-                showMsg(getMsg("player_winrate"), record.getNick(false), (double) record.get("tpwinnings")/(double) record.get("tprounds"), getGameNameStr());
+                showMsg(getMsg("player_winrate"), record.getNick(false), (double) record.get("winnings")/(double) record.get("rounds"), getGameNameStr());
             }  
         }
     }
@@ -2161,26 +2167,26 @@ public class TexasPoker extends CardGame{
     public void showPlayerRounds(String nick){
         if (isBlacklisted(nick)) {
             Player p = findBlacklisted(nick);
-            if (p.getInteger("tprounds") == 0){
+            if (p.getInteger("rounds") == 0){
                 showMsg(getMsg("player_no_rounds"), p.getNick(false), getGameNameStr());
             } else {
-                showMsg(getMsg("player_rounds"), p.getNick(false), p.get("tprounds"), getGameNameStr());
+                showMsg(getMsg("player_rounds"), p.getNick(false), p.get("rounds"), getGameNameStr());
             }
         } else if (isJoined(nick)) {
             Player p = findJoined(nick);
-            if (p.getInteger("tprounds") == 0){
+            if (p.getInteger("rounds") == 0){
                 showMsg(getMsg("player_no_rounds"), p.getNick(false), getGameNameStr());
             } else {
-                showMsg(getMsg("player_rounds"), p.getNick(false), p.get("tprounds"), getGameNameStr());
+                showMsg(getMsg("player_rounds"), p.getNick(false), p.get("rounds"), getGameNameStr());
             }
         } else {
             Player record = loadPlayerRecord(nick);
             if (record == null) {
                 showMsg(getMsg("no_data"), formatNoPing(nick));
-            } else if (record.getInteger("tprounds") == 0) {
+            } else if (record.getInteger("rounds") == 0) {
                 showMsg(getMsg("player_no_rounds"), record.getNick(false), getGameNameStr());
             } else {
-                showMsg(getMsg("player_rounds"), record.getNick(false), record.get("tprounds"), getGameNameStr());
+                showMsg(getMsg("player_rounds"), record.getNick(false), record.get("rounds"), getGameNameStr());
             }
         }
     }
@@ -2189,16 +2195,16 @@ public class TexasPoker extends CardGame{
     public void showPlayerAllStats(String nick){
         if (isBlacklisted(nick)) {
             Player p = findBlacklisted(nick);
-            showMsg(getMsg("player_all_stats"), p.getNick(false), p.get("cash"), p.get("bank"), p.get("netcash"), p.get("bankrupts"), p.get("tpwinnings"), p.get("tprounds"));
+            showMsg(getMsg("player_all_stats"), p.getNick(false), p.get("cash"), p.get("bank"), p.get("netcash"), p.get("bankrupts"), p.get("winnings"), p.get("rounds"));
         } else if (isJoined(nick)) {
             Player p = findJoined(nick);
-            showMsg(getMsg("player_all_stats"), p.getNick(false), p.get("cash"), p.get("bank"), p.get("netcash"), p.get("bankrupts"), p.get("tpwinnings"), p.get("tprounds"));
+            showMsg(getMsg("player_all_stats"), p.getNick(false), p.get("cash"), p.get("bank"), p.get("netcash"), p.get("bankrupts"), p.get("winnings"), p.get("rounds"));
         } else {
             Player record = loadPlayerRecord(nick);
             if (record == null) {
                 showMsg(getMsg("no_data"), formatNoPing(nick));
             } else {
-                showMsg(getMsg("player_all_stats"), record.getNick(false), record.get("cash"), record.get("bank"), record.get("netcash"), record.get("bankrupts"), record.get("tpwinnings"), record.get("tprounds"));
+                showMsg(getMsg("player_all_stats"), record.getNick(false), record.get("cash"), record.get("bank"), record.get("netcash"), record.get("bankrupts"), record.get("winnings"), record.get("rounds"));
             }
         }
     }
@@ -2225,10 +2231,10 @@ public class TexasPoker extends CardGame{
                 for (int ctr = 0; ctr < length; ctr++) {
                     aRecord = records.get(ctr);
                     nicks.add(aRecord.getNick());
-                    if (aRecord.getInteger("tprounds") == 0){
+                    if (aRecord.getInteger("rounds") == 0){
                         winrates.add(0.);
                     } else {
-                        winrates.add((double) aRecord.get("tpwinnings") / (double) aRecord.get("tprounds"));
+                        winrates.add((double) aRecord.get("winnings") / (double) aRecord.get("rounds"));
                     }
                 }
 
@@ -2268,10 +2274,10 @@ public class TexasPoker extends CardGame{
                     statName = "netcash";
                     line += "Net Cash: ";
                 } else if (stat.equalsIgnoreCase("winnings")){
-                    statName = "tpwinnings";
+                    statName = "winnings";
                     line += "Texas Hold'em Winnings: ";
                 } else if (stat.equalsIgnoreCase("rounds")) {
-                    statName = "tprounds";
+                    statName = "rounds";
                     line += "Texas Hold'em Rounds: ";
                 } else {
                     throw new IllegalArgumentException();
@@ -2322,10 +2328,10 @@ public class TexasPoker extends CardGame{
                 for (int ctr = 0; ctr < records.size(); ctr++) {
                     aRecord = records.get(ctr);
                     nicks.add(aRecord.getNick());
-                    if (aRecord.getInteger("tprounds") == 0){
+                    if (aRecord.getInteger("rounds") == 0){
                         winrates.add(0.);
                     } else {
-                        winrates.add((double) aRecord.get("tpwinnings") / (double) aRecord.get("tprounds"));
+                        winrates.add((double) aRecord.get("winnings") / (double) aRecord.get("rounds"));
                     }
                 }
                 
@@ -2368,10 +2374,10 @@ public class TexasPoker extends CardGame{
                     statName = "netcash";
                     title += " Net Cash ";
                 } else if (stat.equalsIgnoreCase("winnings")){
-                    statName = "tpwinnings";
+                    statName = "winnings";
                     title += " Texas Hold'em Winnings ";
                 } else if (stat.equalsIgnoreCase("rounds")) {
-                    statName = "tprounds";
+                    statName = "rounds";
                     title += " Texas Hold'em Rounds ";
                 } else {
                     throw new IllegalArgumentException();

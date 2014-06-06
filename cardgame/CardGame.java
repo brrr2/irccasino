@@ -1640,7 +1640,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             p.put("cash", get("cash"));
             p.add("bank", -get("cash"));
             p.put("transaction", get("cash"));
-            savePlayerData(p);
             saveDBPlayerData(p);
             saveDBPlayerBanking(p);
         }
@@ -1722,7 +1721,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected void addPlayer(Player p){
         User user = findUser(p.getNick());
         joined.add(p);
-        loadPlayerData(p);
         loadDBPlayerData(p);
         if (user != null){
             manager.voice(channel, user);
@@ -1773,7 +1771,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected void removeJoined(Player p){
         User user = findUser(p.getNick());
         joined.remove(p);
-        savePlayerData(p);
         saveDBPlayerData(p);
         if (user != null){
             manager.deVoice(channel, user);
@@ -1923,7 +1920,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         String nickStr = "";
         int count = 0;
         for (Player p : joined) {
-            savePlayerData(p);
             saveDBPlayerData(p);
             modeSet += "v";
             nickStr += " " + p.getNick();
@@ -1991,81 +1987,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             }
         }
         return null;
-    }
-    
-    /**
-     * Loads a Player's data from players.txt.
-     * If a matching nick is found then all statistics are loaded. Otherwise,
-     * the player is loaded with default values.
-     * 
-     * @param p the Player to find
-     */
-    protected void loadPlayerData(Player p) {
-        Player record = loadPlayerRecord(p.getNick());
-        if (record == null) {
-            p.put("cash", get("cash"));
-            informPlayer(p.getNick(), getMsg("new_player"), getGameNameStr(), get("cash"));
-        } else {
-            if (record.getInteger("cash") <= 0) {
-                p.put("cash", get("cash"));
-            } else {
-                p.put("cash", record.get("cash"));
-            }
-            p.put("bank", record.get("bank"));
-            p.put("bankrupts", record.get("bankrupts"));
-            p.put("bjwinnings", record.get("bjwinnings"));
-            p.put("bjrounds", record.get("bjrounds"));
-            p.put("tpwinnings", record.get("tpwinnings"));
-            p.put("tprounds", record.get("tprounds"));
-            p.put("ttwins", record.get("ttwins"));
-            p.put("ttplayed", record.get("ttplayed"));
-        }
-    }
-    
-    /**
-     * Saves a Player's data into players.txt.
-     * If a matching nick is found, the existing data is overwritten. Otherwise,
-     * a new line is added for the Player.
-     * 
-     * @param p the Player to save
-     */
-    protected void savePlayerData(Player p){
-        boolean found = false;
-        ArrayList<Player> records = loadPlayerFile();
-        
-        if (records != null) {
-            for (Player record : records) {
-                if (p.getNick().equalsIgnoreCase(record.getString("nick"))) {
-                    record.put("cash", p.get("cash"));
-                    record.put("bank", p.get("bank"));
-                    record.put("bankrupts", p.get("bankrupts"));
-                    record.put("bjwinnings", p.get("bjwinnings"));
-                    record.put("bjrounds", p.get("bjrounds"));
-                    record.put("tpwinnings", p.get("tpwinnings"));
-                    record.put("tprounds", p.get("tprounds"));
-                    record.put("ttwins", p.get("ttwins"));
-                    record.put("ttplayed", p.get("ttplayed"));
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                Player record = new Player("");
-                record.put("nick", p.getString("nick"));
-                record.put("cash", p.get("cash"));
-                record.put("bank", p.get("bank"));
-                record.put("bankrupts", p.get("bankrupts"));
-                record.put("bjwinnings", p.get("bjwinnings"));
-                record.put("bjrounds", p.get("bjrounds"));
-                record.put("tpwinnings", p.get("tpwinnings"));
-                record.put("tprounds", p.get("tprounds"));
-                record.put("ttwins", p.get("ttwins"));
-                record.put("ttplayed", p.get("ttplayed"));
-                records.add(record);
-            }
-            
-            savePlayerFile(records);
-        }
     }
     
     /**

@@ -39,7 +39,6 @@ public class RespawnTask extends TimerTask {
         player.put("cash", game.get("cash"));
         player.add("bank", -game.get("cash"));
         player.put("transaction", game.get("cash"));
-        game.savePlayerData(player);
         game.saveDBPlayerData(player);
         game.saveDBPlayerBanking(player);
         game.removeBlacklisted(player);
