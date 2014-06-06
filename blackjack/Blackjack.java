@@ -33,7 +33,6 @@ import irccasino.cardgame.CardDeck;
 import irccasino.cardgame.CardGame;
 import irccasino.cardgame.Hand;
 import irccasino.cardgame.Player;
-import irccasino.cardgame.PlayerRecord;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -332,7 +331,7 @@ public class Blackjack extends CardGame {
         } else if (state.equals(BlackjackState.CONTINUE_ROUND)) {
             informPlayer(nick, getMsg("game_lagging"));
         } else {
-            bet(currentPlayer.get("cash"));
+            bet(currentPlayer.getInteger("cash"));
         }
     }
     
@@ -545,7 +544,7 @@ public class Blackjack extends CardGame {
         } else {
             BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
             if (p.has("split")){
-                showTurn(p, p.get("currentindex") + 1);
+                showTurn(p, p.getInteger("currentindex") + 1);
             } else {
                 showTurn(p, 0);
             }
@@ -782,7 +781,7 @@ public class Blackjack extends CardGame {
         } else if (!state.equals(BlackjackState.BETTING)) {
             informPlayer(nick, getMsg("no_betting"));
         } else {
-            bet(currentPlayer.get("cash"));
+            bet(currentPlayer.getInteger("cash"));
         }
     }
     
@@ -1038,7 +1037,7 @@ public class Blackjack extends CardGame {
     protected void initCustom() {
         name = "blackjack";
         helpFile = "blackjack.help";
-        dealer = new BlackjackPlayer("Dealer", "");
+        dealer = new BlackjackPlayer("Dealer");
         houseStatsList = new ArrayList<>();
         
         initSettings();
@@ -1113,7 +1112,7 @@ public class Blackjack extends CardGame {
                 ps.setString(1, p.getNick());
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.isBeforeFirst()) {
-                        p.set("id", rs.getInt("id"));
+                        p.put("id", rs.getInt("id"));
                     }
                 }
             }
@@ -1125,7 +1124,7 @@ public class Blackjack extends CardGame {
                     ps.setString(1, p.getNick());
                     ps.setLong(2, System.currentTimeMillis() / 1000);
                     ps.executeUpdate();
-                    p.set("id", ps.getGeneratedKeys().getInt(1));
+                    p.put("id", ps.getGeneratedKeys().getInt(1));
                 }
             }
             
@@ -1133,13 +1132,13 @@ public class Blackjack extends CardGame {
             boolean found = false;
             sql = "SELECT cash, bank, bankrupts FROM Purse WHERE player_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setInt(1, p.get("id"));
+                ps.setInt(1, p.getInteger("id"));
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.isBeforeFirst()) {
                         found = true;
-                        p.set("cash", rs.getInt("cash"));
-                        p.set("bank", rs.getInt("bank"));
-                        p.set("bankrupts", rs.getInt("bankrupts"));
+                        p.put("cash", rs.getInt("cash"));
+                        p.put("bank", rs.getInt("bank"));
+                        p.put("bankrupts", rs.getInt("bankrupts"));
                     }
                 }
             }
@@ -1149,10 +1148,10 @@ public class Blackjack extends CardGame {
                 sql = "INSERT INTO Purse (player_id, cash, bank, bankrupts) " +
                       "VALUES(?, ?, ?, ?)";
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                    ps.setInt(1, p.get("id"));
-                    ps.setInt(2, p.get("cash"));
-                    ps.setInt(3, p.get("bank"));
-                    ps.setInt(4, p.get("bankrupts"));
+                    ps.setInt(1, p.getInteger("id"));
+                    ps.setInt(2, p.getInteger("cash"));
+                    ps.setInt(3, p.getInteger("bank"));
+                    ps.setInt(4, p.getInteger("bankrupts"));
                     ps.executeUpdate();
                 }
             }
@@ -1162,12 +1161,12 @@ public class Blackjack extends CardGame {
             sql = "SELECT player_id, rounds, winnings " +
                   "FROM BJPlayerStat WHERE player_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setInt(1, p.get("id"));
+                ps.setInt(1, p.getInteger("id"));
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.isBeforeFirst()) {
                         found = true;
-                        p.set("bjrounds", rs.getInt("rounds"));
-                        p.set("bjwinnings", rs.getInt("winnings"));
+                        p.put("bjrounds", rs.getInt("rounds"));
+                        p.put("bjwinnings", rs.getInt("winnings"));
                     }
                 }
             }
@@ -1177,9 +1176,9 @@ public class Blackjack extends CardGame {
                 sql = "INSERT INTO BJPlayerStat (player_id, rounds, winnings) " +
                       "VALUES(?, ?, ?)";
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                    ps.setInt(1, p.get("id"));
-                    ps.setInt(2, p.get("bjrounds"));
-                    ps.setInt(3, p.get("bjwinnings"));
+                    ps.setInt(1, p.getInteger("id"));
+                    ps.setInt(2, p.getInteger("bjrounds"));
+                    ps.setInt(3, p.getInteger("bjwinnings"));
                     ps.executeUpdate();
                 }
             }
@@ -1197,10 +1196,10 @@ public class Blackjack extends CardGame {
             String sql = "UPDATE Purse SET cash = ?, bank = ?, bankrupts = ? " +
                          "WHERE player_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setInt(1, p.get("cash"));
-                ps.setInt(2, p.get("bank"));
-                ps.setInt(3, p.get("bankrupts"));
-                ps.setInt(4, p.get("id"));
+                ps.setInt(1, p.getInteger("cash"));
+                ps.setInt(2, p.getInteger("bank"));
+                ps.setInt(3, p.getInteger("bankrupts"));
+                ps.setInt(4, p.getInteger("id"));
                 ps.executeUpdate();
             }
             
@@ -1208,9 +1207,9 @@ public class Blackjack extends CardGame {
             sql = "UPDATE BJPlayerStat SET rounds = ?, winnings = ? " +
                   "WHERE player_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setInt(1, p.get("bjrounds"));
-                ps.setInt(2, p.get("bjwinnings"));
-                ps.setInt(3, p.get("id"));
+                ps.setInt(1, p.getInteger("bjrounds"));
+                ps.setInt(2, p.getInteger("bjwinnings"));
+                ps.setInt(3, p.getInteger("id"));
                 ps.executeUpdate();
             }
             
@@ -1364,10 +1363,10 @@ public class Blackjack extends CardGame {
                 sql = "INSERT INTO BJPlayerChange (player_id, round_id, " +
                       "change, cash) VALUES (?, ?, ?, ?)";
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                    ps.setInt(1, p.get("id"));
+                    ps.setInt(1, p.getInteger("id"));
                     ps.setInt(2, roundID);
-                    ps.setInt(3, p.get("change"));
-                    ps.setInt(4, p.get("cash"));
+                    ps.setInt(3, p.getInteger("change"));
+                    ps.setInt(4, p.getInteger("cash"));
                     ps.executeUpdate();
                 }
                 
@@ -1386,7 +1385,7 @@ public class Blackjack extends CardGame {
                           "bet, split, surrender, doubledown, result) " +
                           "VALUES (?, ?, ?, ?, ?, ?, ?)";
                     try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                        ps.setInt(1, p.get("id"));
+                        ps.setInt(1, p.getInteger("id"));
                         ps.setInt(2, handID);
                         ps.setInt(3, h.getBet());
                         ps.setBoolean(4, ((BlackjackPlayer) p).has("split"));
@@ -1401,9 +1400,9 @@ public class Blackjack extends CardGame {
                         sql = "INSERT INTO BJPlayerInsurance (player_id, " +
                               "round_id, bet, result) VALUES (?, ?, ?, ?)";
                         try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                            ps.setInt(1, p.get("id"));
+                            ps.setInt(1, p.getInteger("id"));
                             ps.setInt(2, roundID);
-                            ps.setInt(3, p.get("insurebet"));
+                            ps.setInt(3, p.getInteger("insurebet"));
                             ps.setBoolean(4, dealer.getHand().isBlackjack());
                             ps.executeUpdate();
                         }
@@ -1441,12 +1440,12 @@ public class Blackjack extends CardGame {
     
     @Override
     public void addPlayer(String nick, String host) {
-        addPlayer(new BlackjackPlayer(nick, host));
+        addPlayer(new BlackjackPlayer(nick));
     }
     
     @Override
     public void addWaitlistPlayer(String nick, String host) {
-        Player p = new BlackjackPlayer(nick, host);
+        Player p = new BlackjackPlayer(nick);
         waitlist.add(p);
         informPlayer(p.getNick(), getMsg("join_waitlist"));
     }
@@ -1480,7 +1479,7 @@ public class Blackjack extends CardGame {
                     }
                 } else {
                     if (p.has("initialbet")){
-                        p.set("quit", 1);
+                        p.put("quit", true);
                         informPlayer(p.getNick(), getMsg("remove_end_round"));
                     } else {
                         removeJoined(p);
@@ -1489,14 +1488,14 @@ public class Blackjack extends CardGame {
                 }
                 break;
             case PLAYING:
-                p.set("quit", 1);
+                p.put("quit", true);
                 informPlayer(p.getNick(), getMsg("remove_end_round"));
                 if (p == currentPlayer){
                     stay();
                 }
                 break;
             case CONTINUE_ROUND: case END_ROUND:
-                p.set("quit", 1);
+                p.put("quit", true);
                 informPlayer(p.getNick(), getMsg("remove_end_round"));
                 break;
             default:
@@ -1523,7 +1522,7 @@ public class Blackjack extends CardGame {
         state = BlackjackState.CONTINUE_ROUND;
         BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
         
-        if (p.get("currentindex") < p.getNumberHands() - 1) {
+        if (p.getInteger("currentindex") < p.getNumberHands() - 1) {
             p.getNextHand();
             quickEval();
         } else {
@@ -1573,10 +1572,10 @@ public class Blackjack extends CardGame {
              * 3. Save player stats
              */
             for (Player pp : joined) {
-                pp.increment("bjrounds");
+                pp.add("bjrounds", 1);
                 if (!pp.has("cash") && pp.has("bank")) {
                     // Make a withdrawal if the player has a positive bankroll
-                    int amount = Math.min(pp.get("bank"), get("cash"));
+                    int amount = Math.min(pp.getInteger("bank"), get("cash"));
                     pp.bankTransfer(-amount);
                     saveDBPlayerBanking(pp);
                     informPlayer(pp.getNick(), getMsg("auto_withdraw"), amount);
@@ -1599,7 +1598,7 @@ public class Blackjack extends CardGame {
                 p = (BlackjackPlayer) joined.get(ctr);
                 if (!p.has("cash")) {
                     // Give penalty to players with no cash in their bankroll
-                    p.increment("bankrupts");
+                    p.add("bankrupts", 1);
                     blacklist.add(p);
                     removeJoined(p);
                     showMsg(getMsg("unjoin_bankrupt"), p.getNickStr(), joined.size());
@@ -1749,7 +1748,7 @@ public class Blackjack extends CardGame {
             p = (BlackjackPlayer) joined.get(ctr);
             dealHand(p);
             h = p.getHand();
-            h.setBet(p.get("initialbet"));
+            h.setBet(p.getInteger("initialbet"));
             // Send the player his hand in a hole game
             if (has("hole")) {
                 informPlayer(p.getNick(), getMsg("bj_hand"), p.getHand(), p.getHand().getBet());
@@ -1787,15 +1786,15 @@ public class Blackjack extends CardGame {
         cancelIdleOutTask();    
         BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
         // Check if amount is greater than the player's stack
-        if (amount > p.get("cash")) {
+        if (amount > p.getInteger("cash")) {
             informPlayer(p.getNick(), getMsg("bet_too_high"), p.get("cash"));
             setIdleOutTask();
         // Check if the amount is less than minimum bet
-        } else if (amount < get("minbet") && amount < p.get("cash")) {
+        } else if (amount < get("minbet") && amount < p.getInteger("cash")) {
             informPlayer(p.getNick(), getMsg("bet_too_low"), get("minbet"));
             setIdleOutTask();
         } else {
-            p.set("initialbet", amount);
+            p.put("initialbet", amount);
             p.add("cash", -1 * amount);
             p.add("change", -1 * amount);
             p.add("bjwinnings", -1 * amount);
@@ -1849,7 +1848,7 @@ public class Blackjack extends CardGame {
         if (h.hasHit()) {
             informPlayer(p.getNick(), getMsg("no_dd"));
             setIdleOutTask();
-        } else if (p.get("initialbet") > p.get("cash")) {
+        } else if (p.getInteger("initialbet") > p.getInteger("cash")) {
             informPlayer(p.getNick(), getMsg("insufficient_funds"));
             setIdleOutTask();
         } else {			
@@ -1858,7 +1857,7 @@ public class Blackjack extends CardGame {
             p.add("bjwinnings", -1 * h.getBet());
             house.add("cash", h.getBet());
             h.addBet(h.getBet());
-            p.set("doubledown", 1);
+            p.put("doubledown", true);
             showMsg(getMsg("bj_dd"), p.getNickStr(false), h.getBet(), p.get("cash"));
             dealCard(h);
             showHitResult(p,h);
@@ -1881,11 +1880,11 @@ public class Blackjack extends CardGame {
             informPlayer(p.getNick(), getMsg("no_surr"));
             setIdleOutTask();
         } else {
-            p.add("cash", calcHalf(p.get("initialbet")));
-            p.add("change", calcHalf(p.get("initialbet")));
-            p.add("bjwinnings", calcHalf(p.get("initialbet")));
-            house.add("cash", -1 * calcHalf(p.get("initialbet")));
-            p.set("surrender", 1);
+            p.add("cash", calcHalf(p.getInteger("initialbet")));
+            p.add("change", calcHalf(p.getInteger("initialbet")));
+            p.add("bjwinnings", calcHalf(p.getInteger("initialbet")));
+            house.add("cash", -1 * calcHalf(p.getInteger("initialbet")));
+            p.put("surrender", true);
             showMsg(getMsg("bj_surr"), p.getNickStr(false), p.get("cash"));
             continueRound();
         }
@@ -1908,15 +1907,15 @@ public class Blackjack extends CardGame {
             informPlayer(p.getNick(), getMsg("no_insure_has_hit"));
         } else if (p.has("split")){
             informPlayer(p.getNick(), getMsg("no_insure_has_split"));
-        } else if (amount > p.get("cash")) {
+        } else if (amount > p.getInteger("cash")) {
             informPlayer(p.getNick(), getMsg("insufficient_funds"));
-        } else if (amount > calcHalf(p.get("initialbet"))) {
-            informPlayer(p.getNick(), getMsg("insure_bet_too_high"), calcHalf(p.get("initialbet")));
+        } else if (amount > calcHalf(p.getInteger("initialbet"))) {
+            informPlayer(p.getNick(), getMsg("insure_bet_too_high"), calcHalf(p.getInteger("initialbet")));
         } else if (amount <= 0) {
             informPlayer(p.getNick(), getMsg("insure_bet_too_low"));
         } else {
             insuranceBets = true;
-            p.set("insurebet", amount);
+            p.put("insurebet", amount);
             p.add("cash", -1 * amount);
             p.add("change", -1 * amount);
             p.add("bjwinnings", -1 * amount);
@@ -1937,7 +1936,7 @@ public class Blackjack extends CardGame {
         if (!cHand.isPair()) {
             informPlayer(p.getNick(), getMsg("no_pair"));
             setIdleOutTask();
-        } else if (p.get("cash") < cHand.getBet()) {
+        } else if (p.getInteger("cash") < cHand.getBet()) {
             informPlayer(p.getNick(), getMsg("insufficient_funds"));
             setIdleOutTask();
         } else {
@@ -1947,7 +1946,7 @@ public class Blackjack extends CardGame {
             house.add("cash", cHand.getBet());
             p.splitHand();
             dealCard(cHand);
-            nHand = p.getHand(p.get("currentindex") + 1);
+            nHand = p.getHand(p.getInteger("currentindex") + 1);
             dealCard(nHand);
             nHand.setBet(cHand.getBet());
             showSplitHands(p);
@@ -1968,7 +1967,7 @@ public class Blackjack extends CardGame {
         BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
         
         if (p.has("split")) {
-            showTurn(p, p.get("currentindex") + 1);
+            showTurn(p, p.getInteger("currentindex") + 1);
         } else {
             showTurn(p, 0);
         }
@@ -2013,7 +2012,7 @@ public class Blackjack extends CardGame {
      * @return the payout
      */
     private int calcInsurancePayout(BlackjackPlayer p){
-        return 3 * p.get("insurebet");
+        return 3 * p.getInteger("insurebet");
     }
     
     /**
@@ -2145,10 +2144,10 @@ public class Blackjack extends CardGame {
     @Override
     public int getTotalPlayers(){
         int total = 0;
-        ArrayList<PlayerRecord> records = loadPlayerFile();
+        ArrayList<Player> records = loadPlayerFile();
         
         if (records != null) {
-            for (PlayerRecord record : records){
+            for (Player record : records){
                 if (record.has("bjrounds")){
                     total++;
                 }
@@ -2275,7 +2274,7 @@ public class Blackjack extends CardGame {
      */
     private void showHitResult(BlackjackPlayer p, BlackjackHand h){
         if (p.has("split")) {
-            showPlayerHand(p, h, p.get("currentindex") + 1, false);
+            showPlayerHand(p, h, p.getInteger("currentindex") + 1, false);
         } else {
             showPlayerHand(p, h, 0, false);
         }
@@ -2416,7 +2415,7 @@ public class Blackjack extends CardGame {
             Player p = findJoined(nick);
             showMsg(getMsg("player_winnings"), p.getNick(false), p.get("bjwinnings"), getGameNameStr());
         } else {
-            PlayerRecord record = loadPlayerRecord(nick);
+            Player record = loadPlayerRecord(nick);
             if (record == null) {
                 showMsg(getMsg("no_data"), formatNoPing(nick));
             } else {
@@ -2429,23 +2428,23 @@ public class Blackjack extends CardGame {
     public void showPlayerWinRate(String nick){
         if (isBlacklisted(nick)) {
             Player p = findBlacklisted(nick);
-            if (p.get("bjrounds") == 0) {
+            if (p.getInteger("bjrounds") == 0) {
                 showMsg(getMsg("player_no_rounds"), p.getNick(false), getGameNameStr());
             } else {
                 showMsg(getMsg("player_winrate"), p.getNick(false), (double) p.get("bjwinnings")/(double) p.get("bjrounds"), getGameNameStr());
             }
         } else if (isJoined(nick)) {
             Player p = findJoined(nick);
-            if (p.get("bjrounds") == 0) {
+            if (p.getInteger("bjrounds") == 0) {
                 showMsg(getMsg("player_no_rounds"), p.getNick(false), getGameNameStr());
             } else {
                 showMsg(getMsg("player_winrate"), p.getNick(false), (double) p.get("bjwinnings")/(double) p.get("bjrounds"), getGameNameStr());
             }
         } else {
-            PlayerRecord record = loadPlayerRecord(nick);
+            Player record = loadPlayerRecord(nick);
             if (record == null) {
                 showMsg(getMsg("no_data"), formatNoPing(nick));
-            } else if (record.get("bjrounds") == 0){
+            } else if (record.getInteger("bjrounds") == 0){
                 showMsg(getMsg("player_no_rounds"), record.getNick(false), getGameNameStr());
             } else {
                 showMsg(getMsg("player_winrate"), record.getNick(false), (double) record.get("bjwinnings")/(double) record.get("bjrounds"), getGameNameStr());
@@ -2457,23 +2456,23 @@ public class Blackjack extends CardGame {
     public void showPlayerRounds(String nick){
         if (isBlacklisted(nick)) {
             Player p = findBlacklisted(nick);
-            if (p.get("bjrounds") == 0) {
+            if (p.getInteger("bjrounds") == 0) {
                 showMsg(getMsg("player_no_rounds"), p.getNick(false), getGameNameStr());
             } else {
                 showMsg(getMsg("player_rounds"), p.getNick(false), p.get("bjrounds"), getGameNameStr());
             }
         } else if (isJoined(nick)) {
             Player p = findJoined(nick);
-            if (p.get("bjrounds") == 0) {
+            if (p.getInteger("bjrounds") == 0) {
                 showMsg(getMsg("player_no_rounds"), p.getNick(false), getGameNameStr());
             } else {
                 showMsg(getMsg("player_rounds"), p.getNick(false), p.get("bjrounds"), getGameNameStr());
             }
         } else {
-            PlayerRecord record = loadPlayerRecord(nick);
+            Player record = loadPlayerRecord(nick);
             if (record == null) {
                 showMsg(getMsg("no_data"), formatNoPing(nick));
-            } else if (record.get("bjrounds") == 0){
+            } else if (record.getInteger("bjrounds") == 0){
                 showMsg(getMsg("player_no_rounds"), record.getNick(false), getGameNameStr());
             } else {
                 showMsg(getMsg("player_rounds"), record.getNick(false), record.get("bjrounds"), getGameNameStr());
@@ -2490,7 +2489,7 @@ public class Blackjack extends CardGame {
             Player p = findJoined(nick);
             showMsg(getMsg("player_all_stats"), p.getNick(false), p.get("cash"), p.get("bank"), p.get("netcash"), p.get("bankrupts"), p.get("bjwinnings"), p.get("bjrounds"));
         } else {
-            PlayerRecord record = loadPlayerRecord(nick);
+            Player record = loadPlayerRecord(nick);
             if (record == null) {
                 showMsg(getMsg("no_data"), formatNoPing(nick));
             } else {
@@ -2506,10 +2505,10 @@ public class Blackjack extends CardGame {
             return;
         }
         
-        ArrayList<PlayerRecord> records = loadPlayerFile();
+        ArrayList<Player> records = loadPlayerFile();
         
         if (records != null) {
-            PlayerRecord aRecord;
+            Player aRecord;
             int length = records.size();
             String line = Colors.BLACK + ",08";
             
@@ -2521,7 +2520,7 @@ public class Blackjack extends CardGame {
                 for (int ctr = 0; ctr < length; ctr++) {
                     aRecord = records.get(ctr);
                     nicks.add(aRecord.getNick());
-                    if (aRecord.get("bjrounds") == 0){
+                    if (aRecord.getInteger("bjrounds") == 0){
                         winrates.add(0.);
                     } else {
                         winrates.add((double) aRecord.get("bjwinnings") / (double) aRecord.get("bjrounds"));
@@ -2574,16 +2573,16 @@ public class Blackjack extends CardGame {
                 }
                 
                 // Sort based on stat
-                Collections.sort(records, PlayerRecord.getComparator(statName));
+                Collections.sort(records, Player.getComparator(statName));
                 
                 // Find the rank of the player
                 for (int ctr = 0; ctr < length; ctr++){
                     aRecord = records.get(ctr);
                     if (nick.equalsIgnoreCase(aRecord.getNick())){
                         if (stat.equalsIgnoreCase("rounds") || stat.equalsIgnoreCase("bankrupts")) {
-                            line += "#" + (ctr+1) + " " + Colors.WHITE + ",04 " + formatNoPing(aRecord.getNick()) + " " + formatNumber(aRecord.get(statName)) + " ";
+                            line += "#" + (ctr+1) + " " + Colors.WHITE + ",04 " + formatNoPing(aRecord.getNick()) + " " + formatNumber(aRecord.getInteger(statName)) + " ";
                         } else {
-                            line += "#" + (ctr+1) + " " + Colors.WHITE + ",04 " + formatNoPing(aRecord.getNick()) + " $" + formatNumber(aRecord.get(statName)) + " ";
+                            line += "#" + (ctr+1) + " " + Colors.WHITE + ",04 " + formatNoPing(aRecord.getNick()) + " $" + formatNumber(aRecord.getInteger(statName)) + " ";
                         }
                         break;
                     }
@@ -2601,10 +2600,10 @@ public class Blackjack extends CardGame {
             throw new IllegalArgumentException();
         }
         
-        ArrayList<PlayerRecord> records = loadPlayerFile();
+        ArrayList<Player> records = loadPlayerFile();
         
         if (records != null) {
-            PlayerRecord aRecord;
+            Player aRecord;
             int end = Math.min(n, records.size());
             int start = Math.max(end - 10, 0);
             String title = Colors.BOLD + Colors.BLACK + ",08 Top " + (start+1) + "-" + end;
@@ -2618,7 +2617,7 @@ public class Blackjack extends CardGame {
                 for (int ctr = 0; ctr < records.size(); ctr++) {
                     aRecord = records.get(ctr);
                     nicks.add(aRecord.getNick());
-                    if (aRecord.get("bjrounds") == 0){
+                    if (aRecord.getInteger("bjrounds") == 0){
                         winrates.add(0.);
                     } else {
                         winrates.add((double) aRecord.get("bjwinnings") / (double) aRecord.get("bjrounds"));
@@ -2674,15 +2673,15 @@ public class Blackjack extends CardGame {
                 }
                 
                 // Sort based on stat
-                Collections.sort(records, PlayerRecord.getComparator(statName));
+                Collections.sort(records, Player.getComparator(statName));
 
                 // Add the players in the required range
                 for (int ctr = start; ctr < end; ctr++){
                     aRecord = records.get(ctr);
                     if (stat.equalsIgnoreCase("rounds") || stat.equalsIgnoreCase("bankrupts")) {
-                        list += " #" + (ctr+1) + ": " + Colors.WHITE + ",04 " + formatNoPing(aRecord.getNick()) + " " + formatNumber(aRecord.get(statName)) + " " + Colors.BLACK + ",08";
+                        list += " #" + (ctr+1) + ": " + Colors.WHITE + ",04 " + formatNoPing(aRecord.getNick()) + " " + formatNumber(aRecord.getInteger(statName)) + " " + Colors.BLACK + ",08";
                     } else {
-                        list += " #" + (ctr+1) + ": " + Colors.WHITE + ",04 " + formatNoPing(aRecord.getNick()) + " $" + formatNumber(aRecord.get(statName)) + " " + Colors.BLACK + ",08";
+                        list += " #" + (ctr+1) + ": " + Colors.WHITE + ",04 " + formatNoPing(aRecord.getNick()) + " $" + formatNumber(aRecord.getInteger(statName)) + " " + Colors.BLACK + ",08";
                     }
                 }
             }

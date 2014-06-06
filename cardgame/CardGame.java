@@ -309,7 +309,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             informPlayer(nick, getMsg("no_start"));
         } else {
             Player p = findJoined(nick);
-            p.set("quit", 1);
+            p.put("quit", true);
             informPlayer(p.getNick(), getMsg("remove_end_round"));
         }
     }
@@ -469,7 +469,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             informPlayer(nick, getMsg("wait_round_end"));
         } else {
             Player p = findJoined(nick);
-            transfer(nick, p.get("cash") - 1000);
+            transfer(nick, p.getInteger("cash") - 1000);
         }
     }    
 
@@ -787,7 +787,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             informPlayer(nick, getMsg("no_start"));
         } else {
             Player p = findJoined(params[0]);
-            p.set("quit", 1);
+            p.put("quit", true);
             informPlayer(nick, getMsg("remove_end_round_nick"), params[0]);
         }
     }
@@ -999,10 +999,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         } else if (manager.gamesInProgress()) {
             informPlayer(nick, getMsg("no_trim"));
         } else {
-            ArrayList<PlayerRecord> records = loadPlayerFile();
+            ArrayList<Player> records = loadPlayerFile();
             if (records != null) {
-                ArrayList<PlayerRecord> newRecords = new ArrayList<>();
-                for (PlayerRecord record : records) {
+                ArrayList<Player> newRecords = new ArrayList<>();
+                for (Player record : records) {
                     if (record.has("bjrounds") || record.has("tprounds") || record.has("ttplayed")) {
                         newRecords.add(record);
                     }
@@ -1080,18 +1080,18 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         } else {
             showMsg("Performing migration from players.txt to stats.sqlite3. Please wait...");
             
-            ArrayList<PlayerRecord> records = loadPlayerFile();
+            ArrayList<Player> records = loadPlayerFile();
             int playerID;
             
             try (Connection conn = DriverManager.getConnection(dbURL)) {
                 // Iterate over records
-                for (PlayerRecord record : records) {
+                for (Player record : records) {
                     playerID = -1;
 
                     // Retrieve data from Player table if possible
                     String sql = "SELECT id FROM Player WHERE nick = ? COLLATE NOCASE";
                     try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                        ps.setString(1, record.getNick());
+                        ps.setString(1, record.getString("nick"));
                         try (ResultSet rs = ps.executeQuery()) {
                             if (rs.isBeforeFirst()) {
                                 playerID = rs.getInt("id");
@@ -1103,7 +1103,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     if (playerID == -1) {
                         sql = "INSERT INTO Player (nick, time_created) VALUES(?, ?)";
                         try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                            ps.setString(1, record.getNick());
+                            ps.setString(1, record.getString("nick"));
                             ps.setLong(2, System.currentTimeMillis() / 1000);
                             ps.executeUpdate();
                             playerID = ps.getGeneratedKeys().getInt(1);
@@ -1128,9 +1128,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                               "VALUES(?, ?, ?, ?)";
                         try (PreparedStatement ps = conn.prepareStatement(sql)) {
                             ps.setInt(1, playerID);
-                            ps.setInt(2, record.get("cash"));
-                            ps.setInt(3, record.get("bank"));
-                            ps.setInt(4, record.get("bankrupts"));
+                            ps.setInt(2, record.getInteger("cash"));
+                            ps.setInt(3, record.getInteger("bank"));
+                            ps.setInt(4, record.getInteger("bankrupts"));
                             ps.executeUpdate();
                         }
                     }
@@ -1154,8 +1154,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                               "VALUES(?, ?, ?)";
                         try (PreparedStatement ps = conn.prepareStatement(sql)) {
                             ps.setInt(1, playerID);
-                            ps.setInt(2, record.get("tprounds"));
-                            ps.setInt(3, record.get("tpwinnings"));
+                            ps.setInt(2, record.getInteger("tprounds"));
+                            ps.setInt(3, record.getInteger("tpwinnings"));
                             ps.executeUpdate();
                         }
                     }
@@ -1179,8 +1179,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                               "VALUES(?, ?, ?)";
                         try (PreparedStatement ps = conn.prepareStatement(sql)) {
                             ps.setInt(1, playerID);
-                            ps.setInt(2, record.get("bjrounds"));
-                            ps.setInt(3, record.get("bjwinnings"));
+                            ps.setInt(2, record.getInteger("bjrounds"));
+                            ps.setInt(3, record.getInteger("bjwinnings"));
                             ps.executeUpdate();
                         }
                     }
@@ -1204,8 +1204,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                               "VALUES(?, ?, ?)";
                         try (PreparedStatement ps = conn.prepareStatement(sql)) {
                             ps.setInt(1, playerID);
-                            ps.setInt(2, record.get("ttplayed"));
-                            ps.setInt(3, record.get("ttwins"));
+                            ps.setInt(2, record.getInteger("ttplayed"));
+                            ps.setInt(3, record.getInteger("ttwins"));
                             ps.executeUpdate();
                         }
                     }
@@ -1619,7 +1619,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     protected void setRespawnTask(Player p) {
         // Calculate extra time penalty for players with debt
-        int penalty = Math.max(-1 * p.get("bank") / 1000 * 60, 0);
+        int penalty = Math.max(-1 * p.getInteger("bank") / 1000 * 60, 0);
         informPlayer(p.getNick(), getMsg("bankrupt_info"), (get("respawn") + penalty)/60.);
         RespawnTask task = new RespawnTask(p, this);
         gameTimer.schedule(task, (get("respawn")+penalty)*1000);
@@ -1637,9 +1637,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         gameTimer.purge();
         // Fast-track loans
         for (Player p : blacklist) {
-            p.set("cash", get("cash"));
+            p.put("cash", get("cash"));
             p.add("bank", -get("cash"));
-            p.set("transaction", get("cash"));
+            p.put("transaction", get("cash"));
             savePlayerData(p);
             saveDBPlayerData(p);
             saveDBPlayerBanking(p);
@@ -1895,13 +1895,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         if (amount == 0){
             informPlayer(nick, getMsg("no_transaction"));
         // Disallow withdrawals for bankrolls with insufficient funds
-        } else if (amount < 0 && p.get("bank") < -amount){
+        } else if (amount < 0 && p.getInteger("bank") < -amount){
             informPlayer(nick, getMsg("no_withdrawal"));
         // Disallow deposits of amounts larger than cash
-        } else if (amount > 0 && amount > p.get("cash")){
+        } else if (amount > 0 && amount > p.getInteger("cash")){
             informPlayer(nick, getMsg("no_deposit_cash"));
         // Disallow deposits that leave the player with $0 cash
-        } else if (amount > 0 && amount == p.get("cash")){
+        } else if (amount > 0 && amount == p.getInteger("cash")){
             informPlayer(nick, getMsg("no_deposit_bankrupt"));
         } else {
             p.bankTransfer(amount);
@@ -1964,15 +1964,15 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     protected int getPlayerStat(String nick, String stat){
         if (isBlacklisted(nick)) {
-            return findBlacklisted(nick).get(stat);
+            return (Integer) findBlacklisted(nick).get(stat);
         } else if (isJoined(nick)) {
-            return findJoined(nick).get(stat);
+            return (Integer) findJoined(nick).get(stat);
         } else {
-            PlayerRecord record = loadPlayerRecord(nick);
+            Player record = loadPlayerRecord(nick);
             if (record == null) {
                 return Integer.MIN_VALUE;
             } else {
-                return record.get(stat);
+                return (Integer) record.get(stat);
             }
         }
     }
@@ -1982,11 +1982,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param nick
      * @return 
      */
-    protected PlayerRecord loadPlayerRecord(String nick) {
-        ArrayList<PlayerRecord> records = loadPlayerFile();
+    protected Player loadPlayerRecord(String nick) {
+        ArrayList<Player> records = loadPlayerFile();
         if (records != null) {
-            for (PlayerRecord record : records) {
-                if (nick.equalsIgnoreCase(record.getNick())){
+            for (Player record : records) {
+                if (nick.equalsIgnoreCase(record.getString("nick"))){
                     return record;
                 }
             }
@@ -2002,24 +2002,24 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param p the Player to find
      */
     protected void loadPlayerData(Player p) {
-        PlayerRecord record = loadPlayerRecord(p.getNick());
+        Player record = loadPlayerRecord(p.getNick());
         if (record == null) {
-            p.set("cash", get("cash"));
+            p.put("cash", get("cash"));
             informPlayer(p.getNick(), getMsg("new_player"), getGameNameStr(), get("cash"));
         } else {
-            if (record.get("cash") <= 0) {
-                p.set("cash", get("cash"));
+            if (record.getInteger("cash") <= 0) {
+                p.put("cash", get("cash"));
             } else {
-                p.set("cash", record.get("cash"));
+                p.put("cash", record.get("cash"));
             }
-            p.set("bank", record.get("bank"));
-            p.set("bankrupts", record.get("bankrupts"));
-            p.set("bjwinnings", record.get("bjwinnings"));
-            p.set("bjrounds", record.get("bjrounds"));
-            p.set("tpwinnings", record.get("tpwinnings"));
-            p.set("tprounds", record.get("tprounds"));
-            p.set("ttwins", record.get("ttwins"));
-            p.set("ttplayed", record.get("ttplayed"));
+            p.put("bank", record.get("bank"));
+            p.put("bankrupts", record.get("bankrupts"));
+            p.put("bjwinnings", record.get("bjwinnings"));
+            p.put("bjrounds", record.get("bjrounds"));
+            p.put("tpwinnings", record.get("tpwinnings"));
+            p.put("tprounds", record.get("tprounds"));
+            p.put("ttwins", record.get("ttwins"));
+            p.put("ttplayed", record.get("ttplayed"));
         }
     }
     
@@ -2032,30 +2032,37 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     protected void savePlayerData(Player p){
         boolean found = false;
-        ArrayList<PlayerRecord> records = loadPlayerFile();
+        ArrayList<Player> records = loadPlayerFile();
         
         if (records != null) {
-            for (PlayerRecord record : records) {
-                if (p.getNick().equalsIgnoreCase(record.getNick())) {
-                    record.set("cash", p.get("cash"));
-                    record.set("bank", p.get("bank"));
-                    record.set("bankrupts", p.get("bankrupts"));
-                    record.set("bjwinnings", p.get("bjwinnings"));
-                    record.set("bjrounds", p.get("bjrounds"));
-                    record.set("tpwinnings", p.get("tpwinnings"));
-                    record.set("tprounds", p.get("tprounds"));
-                    record.set("ttwins", p.get("ttwins"));
-                    record.set("ttplayed", p.get("ttplayed"));
+            for (Player record : records) {
+                if (p.getNick().equalsIgnoreCase(record.getString("nick"))) {
+                    record.put("cash", p.get("cash"));
+                    record.put("bank", p.get("bank"));
+                    record.put("bankrupts", p.get("bankrupts"));
+                    record.put("bjwinnings", p.get("bjwinnings"));
+                    record.put("bjrounds", p.get("bjrounds"));
+                    record.put("tpwinnings", p.get("tpwinnings"));
+                    record.put("tprounds", p.get("tprounds"));
+                    record.put("ttwins", p.get("ttwins"));
+                    record.put("ttplayed", p.get("ttplayed"));
                     found = true;
                     break;
                 }
             }
             if (!found) {
-                records.add(new PlayerRecord(p.getNick(), p.get("cash"),
-                                        p.get("bank"), p.get("bankrupts"),
-                                        p.get("bjwinnings"), p.get("bjrounds"),
-                                        p.get("tpwinnings"), p.get("tprounds"),
-                                        p.get("ttwins"), p.get("ttplayed")));
+                Player record = new Player("");
+                record.put("nick", p.getString("nick"));
+                record.put("cash", p.get("cash"));
+                record.put("bank", p.get("bank"));
+                record.put("bankrupts", p.get("bankrupts"));
+                record.put("bjwinnings", p.get("bjwinnings"));
+                record.put("bjrounds", p.get("bjrounds"));
+                record.put("tpwinnings", p.get("tpwinnings"));
+                record.put("tprounds", p.get("tprounds"));
+                record.put("ttwins", p.get("ttwins"));
+                record.put("ttplayed", p.get("ttplayed"));
+                records.add(record);
             }
             
             savePlayerFile(records);
@@ -2086,26 +2093,28 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * 
      * @return 
      */
-    protected ArrayList<PlayerRecord> loadPlayerFile() {
+    protected ArrayList<Player> loadPlayerFile() {
         String nick;
         int cash, bank, bankrupts, bjwinnings, bjrounds, tpwinnings, tprounds, ttwins, ttplayed;
         try (BufferedReader in = new BufferedReader(new FileReader("players.txt"))) {
-            ArrayList<PlayerRecord> records = new ArrayList<>();
+            ArrayList<Player> records = new ArrayList<>();
+            Player record;
             StringTokenizer st;
+            
             while (in.ready()){
                 st = new StringTokenizer(in.readLine());
-                nick = st.nextToken();
-                cash = Integer.parseInt(st.nextToken());
-                bank = Integer.parseInt(st.nextToken());
-                bankrupts = Integer.parseInt(st.nextToken());
-                bjwinnings = Integer.parseInt(st.nextToken());
-                bjrounds = Integer.parseInt(st.nextToken());
-                tpwinnings = Integer.parseInt(st.nextToken());
-                tprounds = Integer.parseInt(st.nextToken());
-                ttwins = Integer.parseInt(st.nextToken());
-                ttplayed = Integer.parseInt(st.nextToken());
-                records.add(new PlayerRecord(nick, cash, bank, bankrupts, bjwinnings,
-                        bjrounds, tpwinnings, tprounds, ttwins, ttplayed));
+                record = new Player("");
+                record.put("nick", st.nextToken());
+                record.put("cash", Integer.valueOf(st.nextToken()));
+                record.put("bank", Integer.valueOf(st.nextToken()));
+                record.put("bankrupts", Integer.valueOf(st.nextToken()));
+                record.put("bjwinnings", Integer.valueOf(st.nextToken()));
+                record.put("bjrounds", Integer.valueOf(st.nextToken()));
+                record.put("tpwinnings", Integer.valueOf(st.nextToken()));
+                record.put("tprounds", Integer.valueOf(st.nextToken()));
+                record.put("ttwins", Integer.valueOf(st.nextToken()));
+                record.put("ttplayed", Integer.valueOf(st.nextToken()));
+                records.add(record);
             }
             return records;
         } catch (IOException e) {
@@ -2120,9 +2129,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * 
      * @param records
      */
-    protected void savePlayerFile(ArrayList<PlayerRecord> records) {
+    protected void savePlayerFile(ArrayList<Player> records) {
         try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("players.txt")))) {
-            for (PlayerRecord record : records) {
+            for (Player record : records) {
                 out.println(record);
             }
         } catch (IOException e) {
@@ -2165,11 +2174,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             String sql = "INSERT INTO Banking (player_id, transaction_time, " +
                          "cash_change, cash, bank) VALUES (?, ?, ?, ?, ?)";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setInt(1, p.get("id"));
+                ps.setInt(1, p.getInteger("id"));
                 ps.setLong(2, System.currentTimeMillis() / 1000);
-                ps.setInt(3, p.get("transaction"));
-                ps.setInt(4, p.get("cash"));
-                ps.setInt(5, p.get("bank"));
+                ps.setInt(3, p.getInteger("transaction"));
+                ps.setInt(4, p.getInteger("cash"));
+                ps.setInt(5, p.getInteger("bank"));
                 ps.executeUpdate();
             }
             
@@ -2334,7 +2343,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             Player p = findJoined(nick);
             showMsg(getMsg("player_cash"), p.getNick(false), p.get("cash"));
         } else {
-            PlayerRecord record = loadPlayerRecord(nick);
+            Player record = loadPlayerRecord(nick);
             if (record == null) {
                 showMsg(getMsg("no_data"), formatNoPing(nick));
             } else {
@@ -2355,7 +2364,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             Player p = findJoined(nick);
             showMsg(getMsg("player_net"), p.getNick(false), p.get("netcash"));
         } else {
-            PlayerRecord record = loadPlayerRecord(nick);
+            Player record = loadPlayerRecord(nick);
             if (record == null) {
                 showMsg(getMsg("no_data"), formatNoPing(nick));
             } else {
@@ -2376,7 +2385,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             Player p = findJoined(nick);
             showMsg(getMsg("player_bank"), p.getNick(false), p.get("bank"));
         } else {
-            PlayerRecord record = loadPlayerRecord(nick);
+            Player record = loadPlayerRecord(nick);
             if (record == null) {
                 showMsg(getMsg("no_data"), formatNoPing(nick));
             } else {
@@ -2398,7 +2407,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             Player p = findJoined(nick);
             showMsg(getMsg("player_bankrupts"), p.getNick(false), p.get("bankrupts"));
         } else {
-            PlayerRecord record = loadPlayerRecord(nick);
+            Player record = loadPlayerRecord(nick);
             if (record == null) {
                 showMsg(getMsg("no_data"), formatNoPing(nick));
             } else {

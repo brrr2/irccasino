@@ -20,7 +20,7 @@
 package irccasino.texaspoker;
 
 import irccasino.cardgame.CardDeck;
-import irccasino.cardgame.PlayerRecord;
+import irccasino.cardgame.Record;
 import irccasino.GameManager;
 import irccasino.cardgame.CardGame;
 import irccasino.cardgame.Hand;
@@ -398,7 +398,7 @@ public class TexasPoker extends CardGame{
         } else if (state.equals(PokerState.CONTINUE_ROUND)) {
             informPlayer(nick, getMsg("game_lagging"));
         } else {
-            bet(currentPlayer.get("cash"));
+            bet(currentPlayer.getInteger("cash"));
         }
     }
     
@@ -446,8 +446,10 @@ public class TexasPoker extends CardGame{
         } else if (currentPlayer == null) {
             informPlayer(nick, getMsg("nobody_turn"));
         } else {
-            showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentBet-currentPlayer.get("bet"), 
-                    currentPlayer.get("bet"), currentBet, getCashInPlay(), currentPlayer.get("cash")-currentPlayer.get("bet"));
+            showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), 
+                    currentBet-currentPlayer.getInteger("bet"), 
+                    currentPlayer.getInteger("bet"), currentBet, getCashInPlay(), 
+                    currentPlayer.getInteger("cash")-currentPlayer.getInteger("bet"));
         }
     }
     
@@ -558,7 +560,7 @@ public class TexasPoker extends CardGame{
         } else if (state.equals(PokerState.CONTINUE_ROUND)) {
             informPlayer(nick, getMsg("game_lagging"));
         } else {
-            bet(currentPlayer.get("cash"));
+            bet(currentPlayer.getInteger("cash"));
         }
     }
     
@@ -717,7 +719,7 @@ public class TexasPoker extends CardGame{
                 }
                 // Generate new players
                 for (int ctr=0; ctr < number; ctr++){
-                    p = new PokerPlayer(ctr+1+"", "");
+                    p = new PokerPlayer(Integer.toString(ctr + 1));
                     peeps.add(p);
                     dealHand(p);                            
                     showMsg("Player "+p.getNickStr()+": "+p.getHand().toString());
@@ -840,7 +842,7 @@ public class TexasPoker extends CardGame{
 
                 // Generate players and deal cards
                 for (int ctr = 0; ctr < number; ctr++) {
-                    p = new PokerPlayer(ctr + "", ctr + "");
+                    p = new PokerPlayer(Integer.toString(ctr));
                     peeps.add(p);
                     dealHand(p);
                     showMsg("Player "+p.getNickStr()+": "+p.getHand().toString());
@@ -896,12 +898,12 @@ public class TexasPoker extends CardGame{
     
     @Override
     public void addPlayer(String nick, String host) {
-        addPlayer(new PokerPlayer(nick, host));
+        addPlayer(new PokerPlayer(nick));
     }
     
     @Override
     public void addWaitlistPlayer(String nick, String host) {
-        Player p = new PokerPlayer(nick, host);
+        Player p = new PokerPlayer(nick);
         waitlist.add(p);
         informPlayer(p.getNick(), getMsg("join_waitlist"));
     }
@@ -1012,8 +1014,10 @@ public class TexasPoker extends CardGame{
         } else {
             state = PokerState.BETTING;
             currentPlayer = nextPlayer;
-            showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), currentBet-currentPlayer.get("bet"), 
-                        currentPlayer.get("bet"), currentBet, getCashInPlay(), currentPlayer.get("cash")-currentPlayer.get("bet"));
+            showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), 
+                    currentBet - currentPlayer.getInteger("bet"), 
+                    currentPlayer.getInteger("bet"), currentBet, getCashInPlay(), 
+                    currentPlayer.getInteger("cash") - currentPlayer.getInteger("bet"));
             setIdleOutTask();
         }
     }
@@ -1048,9 +1052,9 @@ public class TexasPoker extends CardGame{
              * 3. Save player stats
              */
             for (Player pp : joined) {
-                pp.increment("tprounds");
+                pp.add("tprounds", 1);
                 if (!pp.has("cash") && pp.has("bank")) {
-                    int amount = Math.min(pp.get("bank"), get("cash"));
+                    int amount = Math.min(pp.getInteger("bank"), get("cash"));
                     pp.bankTransfer(-amount);
                     saveDBPlayerBanking(pp);
                     informPlayer(pp.getNick(), getMsg("auto_withdraw"), amount);
@@ -1072,7 +1076,7 @@ public class TexasPoker extends CardGame{
                 p = (PokerPlayer) joined.get(ctr);
                 if (!p.has("cash")) {
                     // Give penalty to players with no cash in their bank
-                    p.increment("bankrupts");
+                    p.add("bankrupts", 1);
                     blacklist.add(p);
                     removeJoined(p);
                     showMsg(getMsg("unjoin_bankrupt"), p.getNickStr(), joined.size());
@@ -1165,12 +1169,12 @@ public class TexasPoker extends CardGame{
                 showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
                 break;
             case BETTING:
-                p.set("quit", 1);
+                p.put("quit", true);
                 informPlayer(p.getNick(), getMsg("remove_end_round"));
                 if (p == currentPlayer) {
                     fold();
                 } else if (!p.has("fold")){
-                    p.set("fold", 1);
+                    p.put("fold", true);
                     // Remove this player from any existing pots
                     if (currentPot != null && currentPot.isEligible(p)){
                         currentPot.disqualify(p);
@@ -1189,12 +1193,12 @@ public class TexasPoker extends CardGame{
                 }
                 break;
             case BLINDS: case CONTINUE_ROUND:
-                p.set("quit", 1);
-                p.set("fold", 1);
+                p.put("quit", true);
+                p.put("fold", true);
                 informPlayer(p.getNick(), getMsg("remove_end_round"));
                 break;
             case SHOWDOWN: case END_ROUND:
-                p.set("quit", 1);
+                p.put("quit", true);
                 informPlayer(p.getNick(), getMsg("remove_end_round"));
                 break;
             default:
@@ -1239,19 +1243,19 @@ public class TexasPoker extends CardGame{
      */
     protected void setBlindBets(){
         // Set the small blind
-        if (get("minbet")/2 > smallBlind.get("cash")) {
-            smallBlind.set("allin", 1);
-            smallBlind.set("bet", smallBlind.get("cash"));
+        if (get("minbet")/2 > smallBlind.getInteger("cash")) {
+            smallBlind.put("allin", true);
+            smallBlind.put("bet", smallBlind.getInteger("cash"));
         } else {
-            smallBlind.set("bet", get("minbet")/2);
+            smallBlind.put("bet", get("minbet")/2);
         }
         
         // Set the big blind
-        if (get("minbet") > bigBlind.get("cash")) {
-            bigBlind.set("allin", 1);
-            bigBlind.set("bet", bigBlind.get("cash"));
+        if (get("minbet") > bigBlind.getInteger("cash")) {
+            bigBlind.put("allin", true);
+            bigBlind.put("bet", bigBlind.getInteger("cash"));
         } else {
-            bigBlind.set("bet", get("minbet"));
+            bigBlind.put("bet", get("minbet"));
         }
         
         // Set the current bet to minbet regardless of actual blinds
@@ -1348,7 +1352,7 @@ public class TexasPoker extends CardGame{
                 ps.setString(1, p.getNick());
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.isBeforeFirst()) {
-                        p.set("id", rs.getInt("id"));
+                        p.put("id", rs.getInt("id"));
                     }
                 }
             }
@@ -1360,7 +1364,7 @@ public class TexasPoker extends CardGame{
                     ps.setString(1, p.getNick());
                     ps.setLong(2, System.currentTimeMillis() / 1000);
                     ps.executeUpdate();
-                    p.set("id", ps.getGeneratedKeys().getInt(1));
+                    p.put("id", ps.getGeneratedKeys().getInt(1));
                 }
             }
             
@@ -1368,13 +1372,13 @@ public class TexasPoker extends CardGame{
             boolean found = false;
             sql = "SELECT cash, bank, bankrupts FROM Purse WHERE player_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setInt(1, p.get("id"));
+                ps.setInt(1, p.getInteger("id"));
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.isBeforeFirst()) {
                         found = true;
-                        p.set("cash", rs.getInt("cash"));
-                        p.set("bank", rs.getInt("bank"));
-                        p.set("bankrupts", rs.getInt("bankrupts"));
+                        p.put("cash", rs.getInt("cash"));
+                        p.put("bank", rs.getInt("bank"));
+                        p.put("bankrupts", rs.getInt("bankrupts"));
                     }
                 }
             }
@@ -1384,10 +1388,10 @@ public class TexasPoker extends CardGame{
                 sql = "INSERT INTO Purse (player_id, cash, bank, bankrupts) " +
                       "VALUES(?, ?, ?, ?)";
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                    ps.setInt(1, p.get("id"));
-                    ps.setInt(2, p.get("cash"));
-                    ps.setInt(3, p.get("bank"));
-                    ps.setInt(4, p.get("bankrupts"));
+                    ps.setInt(1, p.getInteger("id"));
+                    ps.setInt(2, p.getInteger("cash"));
+                    ps.setInt(3, p.getInteger("bank"));
+                    ps.setInt(4, p.getInteger("bankrupts"));
                     ps.executeUpdate();
                 }
             }
@@ -1397,12 +1401,12 @@ public class TexasPoker extends CardGame{
             sql = "SELECT player_id, rounds, winnings " +
                   "FROM TPPlayerStat WHERE player_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setInt(1, p.get("id"));
+                ps.setInt(1, p.getInteger("id"));
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.isBeforeFirst()) {
                         found = true;
-                        p.set("tprounds", rs.getInt("rounds"));
-                        p.set("tpwinnings", rs.getInt("winnings"));
+                        p.put("tprounds", rs.getInt("rounds"));
+                        p.put("tpwinnings", rs.getInt("winnings"));
                     }
                 }
             }
@@ -1412,9 +1416,9 @@ public class TexasPoker extends CardGame{
                 sql = "INSERT INTO TPPlayerStat (player_id, rounds, winnings) " +
                       "VALUES(?, ?, ?)";
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                    ps.setInt(1, p.get("id"));
-                    ps.setInt(2, p.get("tprounds"));
-                    ps.setInt(3, p.get("tpwinnings"));
+                    ps.setInt(1, p.getInteger("id"));
+                    ps.setInt(2, p.getInteger("tprounds"));
+                    ps.setInt(3, p.getInteger("tpwinnings"));
                     ps.executeUpdate();
                 }
             }
@@ -1432,10 +1436,10 @@ public class TexasPoker extends CardGame{
             String sql = "UPDATE Purse SET cash = ?, bank = ?, bankrupts = ? " +
                          "WHERE player_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setInt(1, p.get("cash"));
-                ps.setInt(2, p.get("bank"));
-                ps.setInt(3, p.get("bankrupts"));
-                ps.setInt(4, p.get("id"));
+                ps.setInt(1, p.getInteger("cash"));
+                ps.setInt(2, p.getInteger("bank"));
+                ps.setInt(3, p.getInteger("bankrupts"));
+                ps.setInt(4, p.getInteger("id"));
                 ps.executeUpdate();
             }
             
@@ -1443,9 +1447,9 @@ public class TexasPoker extends CardGame{
             sql = "UPDATE TPPlayerStat SET rounds = ?, winnings = ? " +
                   "WHERE player_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setInt(1, p.get("tprounds"));
-                ps.setInt(2, p.get("tpwinnings"));
-                ps.setInt(3, p.get("id"));
+                ps.setInt(1, p.getInteger("tprounds"));
+                ps.setInt(2, p.getInteger("tpwinnings"));
+                ps.setInt(3, p.getInteger("id"));
                 ps.executeUpdate();
             }
             
@@ -1478,11 +1482,11 @@ public class TexasPoker extends CardGame{
                         house.set("biggestpot", biggestpot);
                         players = Integer.parseInt(st.nextToken());
                         for (int ctr = 0; ctr < players; ctr++) {
-                            house.addDonor(new PokerPlayer(st.nextToken(), ""));
+                            house.addDonor(new PokerPlayer(st.nextToken()));
                         }
                         winners = Integer.parseInt(st.nextToken());
                         for (int ctr = 0; ctr < winners; ctr++) {
-                            house.addWinner(new PokerPlayer(st.nextToken(), ""));
+                            house.addWinner(new PokerPlayer(st.nextToken()));
                         }
                     }
                     break;
@@ -1569,10 +1573,10 @@ public class TexasPoker extends CardGame{
                 sql = "INSERT INTO TPPlayerChange (player_id, round_id, " +
                       "change, cash) VALUES (?, ?, ?, ?)";
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                    ps.setInt(1, p.get("id"));
+                    ps.setInt(1, p.getInteger("id"));
                     ps.setInt(2, roundID);
-                    ps.setInt(3, p.get("change"));
-                    ps.setInt(4, p.get("cash"));
+                    ps.setInt(3, p.getInteger("change"));
+                    ps.setInt(4, p.getInteger("cash"));
                     ps.executeUpdate();
                 }
                 
@@ -1580,7 +1584,7 @@ public class TexasPoker extends CardGame{
                 sql = "INSERT INTO TPPlayerHand (player_id, round_id, " +
                       "hand) VALUES (?, ?, ?)";
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                    ps.setInt(1, p.get("id"));
+                    ps.setInt(1, p.getInteger("id"));
                     ps.setInt(2, roundID);
                     ps.setString(3, ((PokerPlayer) p).getHand().toStringDB());
                     ps.executeUpdate();
@@ -1602,7 +1606,7 @@ public class TexasPoker extends CardGame{
                     sql = "INSERT INTO TPPlayerPot (player_id, pot_id, " +
                           "contribution, result) VALUES (?, ?, ?, ?)";
                     try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                        ps.setInt(1, p.get("id"));
+                        ps.setInt(1, p.getInteger("id"));
                         ps.setInt(2, potID);
                         ps.setInt(3, pot.getContribution(p));
                         ps.setBoolean(4, pot.isWinner(p));
@@ -1696,7 +1700,7 @@ public class TexasPoker extends CardGame{
         PokerPlayer p = (PokerPlayer) currentPlayer;
         
         // A bet that's an all-in
-        if (amount == p.get("cash")){
+        if (amount == p.getInteger("cash")){
             if (amount > currentBet || topBettor == null){
                 if (amount - currentBet > minRaise){
                     minRaise = amount - currentBet;
@@ -1704,11 +1708,11 @@ public class TexasPoker extends CardGame{
                 currentBet = amount;
                 topBettor = p;
             }
-            p.set("bet", amount);
-            p.set("allin", 1);
+            p.put("bet", amount);
+            p.put("allin", true);
             continueRound();
         // A bet that's larger than a player's stack
-        } else if (amount > p.get("cash")) {
+        } else if (amount > p.getInteger("cash")) {
             informPlayer(p.getNick(), getMsg("insufficient_funds"));
             setIdleOutTask();
         // A bet that's lower than the current bet
@@ -1720,7 +1724,7 @@ public class TexasPoker extends CardGame{
             if (topBettor == null){
                 topBettor = p;
             }
-            p.set("bet", amount);
+            p.put("bet", amount);
             continueRound();
         // A bet that's lower than the minimum raise
         } else if (amount - currentBet < minRaise){
@@ -1728,7 +1732,7 @@ public class TexasPoker extends CardGame{
             setIdleOutTask();
         // A valid bet that's greater than the currentBet
         } else {
-            p.set("bet", amount);
+            p.put("bet", amount);
             topBettor = p;
             minRaise = amount - currentBet;
             currentBet = amount;
@@ -1745,7 +1749,7 @@ public class TexasPoker extends CardGame{
         cancelIdleOutTask();
         PokerPlayer p = (PokerPlayer) currentPlayer;
         
-        if (currentBet == 0 || p.get("bet") == currentBet){
+        if (currentBet == 0 || p.getInteger("bet") == currentBet){
             if (topBettor == null){
                 topBettor = p;
             }
@@ -1764,19 +1768,19 @@ public class TexasPoker extends CardGame{
     public void call(){
         cancelIdleOutTask();
         PokerPlayer p = (PokerPlayer) currentPlayer;
-        int total = Math.min(p.get("cash"), currentBet);
+        int total = Math.min(p.getInteger("cash"), currentBet);
         
         if (topBettor == null){
             topBettor = p;
         }
         
         // A call that's an all-in to match the currentBet
-        if (total == p.get("cash")){
-            p.set("allin", 1);
-            p.set("bet", total);
+        if (total == p.getInteger("cash")){
+            p.put("allin", true);
+            p.put("bet", total);
         // A call or check
         } else {
-            p.set("bet", total);
+            p.put("bet", total);
         }
         continueRound();
     }
@@ -1788,7 +1792,7 @@ public class TexasPoker extends CardGame{
     public void fold(){
         cancelIdleOutTask();
         PokerPlayer p = (PokerPlayer) currentPlayer;
-        p.set("fold", 1);
+        p.put("fold", true);
 
         //Remove this player from any existing pots
         if (currentPot != null && currentPot.isEligible(p)){
@@ -1863,7 +1867,7 @@ public class TexasPoker extends CardGame{
         
         // Add in the amounts currently being betted
         for (Player p : joined) {
-            total += p.get("bet");
+            total += p.getInteger("bet");
         }
         
         return total;
@@ -1898,8 +1902,8 @@ public class TexasPoker extends CardGame{
 
                 // Determine the lowest non-zero bet
                 for (Player p : joined) {
-                    if (p.get("bet") < lowBet && p.has("bet")){
-                        lowBet = p.get("bet");
+                    if (p.getInteger("bet") < lowBet && p.has("bet")){
+                        lowBet = p.getInteger("bet");
                     }
                 }
                 
@@ -1925,7 +1929,7 @@ public class TexasPoker extends CardGame{
             // be reset.
             } else {
                 for (Player p : joined) {
-                    if (p.get("bet") != 0){
+                    if (p.getInteger("bet") != 0){
                         p.clear("bet");
                         break;
                     }
@@ -1939,10 +1943,10 @@ public class TexasPoker extends CardGame{
     @Override
     public int getTotalPlayers(){
         int total = 0;
-        ArrayList<PlayerRecord> records = loadPlayerFile();
+        ArrayList<Player> records = loadPlayerFile();
         
         if (records != null) {
-            for (PlayerRecord record : records) {
+            for (Player record : records) {
                 if (record.has("tprounds")){
                     total++;
                 }
@@ -2091,11 +2095,11 @@ public class TexasPoker extends CardGame{
                 house.clearWinners();
                 // Store the list of donors
                 for (PokerPlayer donor : currentPot.getDonors()) {
-                    house.addDonor(new PokerPlayer(donor.getNick(), ""));
+                    house.addDonor(new PokerPlayer(donor.getNick()));
                 }
                 // Store the list of winners
                 for (PokerPlayer winner : currentPot.getWinners()) {
-                    house.addWinner(new PokerPlayer(winner.getNick(), ""));
+                    house.addWinner(new PokerPlayer(winner.getNick()));
                 }
                 saveGameStats();
             }
@@ -2111,7 +2115,7 @@ public class TexasPoker extends CardGame{
             Player p = findJoined(nick);
             showMsg(getMsg("player_winnings"), p.getNick(false), p.get("tpwinnings"), getGameNameStr());
         } else {
-            PlayerRecord record = loadPlayerRecord(nick);
+            Player record = loadPlayerRecord(nick);
             if (record == null) {
                 showMsg(getMsg("no_data"), formatNoPing(nick));
             } else {
@@ -2124,23 +2128,23 @@ public class TexasPoker extends CardGame{
     public void showPlayerWinRate(String nick){
         if (isBlacklisted(nick)) {
             Player p = findBlacklisted(nick);
-            if (p.get("tprounds") == 0){
+            if (p.getInteger("tprounds") == 0){
                 showMsg(getMsg("player_no_rounds"), p.getNick(false), getGameNameStr());
             } else {
                 showMsg(getMsg("player_winrate"), p.getNick(false), (double) p.get("tpwinnings")/(double) p.get("tprounds"), getGameNameStr());
             }  
         } else if (isJoined(nick)) {
             Player p = findJoined(nick);
-            if (p.get("tprounds") == 0){
+            if (p.getInteger("tprounds") == 0){
                 showMsg(getMsg("player_no_rounds"), p.getNick(false), getGameNameStr());
             } else {
                 showMsg(getMsg("player_winrate"), p.getNick(false), (double) p.get("tpwinnings")/(double) p.get("tprounds"), getGameNameStr());
             }  
         } else {
-            PlayerRecord record = loadPlayerRecord(nick);
+            Player record = loadPlayerRecord(nick);
             if (record == null) {
                 showMsg(getMsg("no_data"), formatNoPing(nick));
-            } else if (record.get("tprounds") == 0){
+            } else if (record.getInteger("tprounds") == 0){
                 showMsg(getMsg("player_no_rounds"), record.getNick(false), getGameNameStr());
             } else {
                 showMsg(getMsg("player_winrate"), record.getNick(false), (double) record.get("tpwinnings")/(double) record.get("tprounds"), getGameNameStr());
@@ -2152,23 +2156,23 @@ public class TexasPoker extends CardGame{
     public void showPlayerRounds(String nick){
         if (isBlacklisted(nick)) {
             Player p = findBlacklisted(nick);
-            if (p.get("tprounds") == 0){
+            if (p.getInteger("tprounds") == 0){
                 showMsg(getMsg("player_no_rounds"), p.getNick(false), getGameNameStr());
             } else {
                 showMsg(getMsg("player_rounds"), p.getNick(false), p.get("tprounds"), getGameNameStr());
             }
         } else if (isJoined(nick)) {
             Player p = findJoined(nick);
-            if (p.get("tprounds") == 0){
+            if (p.getInteger("tprounds") == 0){
                 showMsg(getMsg("player_no_rounds"), p.getNick(false), getGameNameStr());
             } else {
                 showMsg(getMsg("player_rounds"), p.getNick(false), p.get("tprounds"), getGameNameStr());
             }
         } else {
-            PlayerRecord record = loadPlayerRecord(nick);
+            Player record = loadPlayerRecord(nick);
             if (record == null) {
                 showMsg(getMsg("no_data"), formatNoPing(nick));
-            } else if (record.get("tprounds") == 0) {
+            } else if (record.getInteger("tprounds") == 0) {
                 showMsg(getMsg("player_no_rounds"), record.getNick(false), getGameNameStr());
             } else {
                 showMsg(getMsg("player_rounds"), record.getNick(false), record.get("tprounds"), getGameNameStr());
@@ -2185,7 +2189,7 @@ public class TexasPoker extends CardGame{
             Player p = findJoined(nick);
             showMsg(getMsg("player_all_stats"), p.getNick(false), p.get("cash"), p.get("bank"), p.get("netcash"), p.get("bankrupts"), p.get("tpwinnings"), p.get("tprounds"));
         } else {
-            PlayerRecord record = loadPlayerRecord(nick);
+            Player record = loadPlayerRecord(nick);
             if (record == null) {
                 showMsg(getMsg("no_data"), formatNoPing(nick));
             } else {
@@ -2201,10 +2205,10 @@ public class TexasPoker extends CardGame{
             return;
         }
         
-        ArrayList<PlayerRecord> records = loadPlayerFile();
+        ArrayList<Player> records = loadPlayerFile();
         
         if (records != null) {
-            PlayerRecord aRecord;
+            Player aRecord;
             int length = records.size();
             String line = Colors.BLACK + ",08";
 
@@ -2216,7 +2220,7 @@ public class TexasPoker extends CardGame{
                 for (int ctr = 0; ctr < length; ctr++) {
                     aRecord = records.get(ctr);
                     nicks.add(aRecord.getNick());
-                    if (aRecord.get("tprounds") == 0){
+                    if (aRecord.getInteger("tprounds") == 0){
                         winrates.add(0.);
                     } else {
                         winrates.add((double) aRecord.get("tpwinnings") / (double) aRecord.get("tprounds"));
@@ -2269,16 +2273,16 @@ public class TexasPoker extends CardGame{
                 }
 
                 // Sort based on stat
-                Collections.sort(records, PlayerRecord.getComparator(statName));
+                Collections.sort(records, Player.getComparator(statName));
 
                 // Find the rank of the player
                 for (int ctr = 0; ctr < length; ctr++){
                     aRecord = records.get(ctr);
                     if (nick.equalsIgnoreCase(aRecord.getNick())){
                         if (stat.equalsIgnoreCase("rounds") || stat.equalsIgnoreCase("bankrupts")) {
-                            line += "#" + (ctr+1) + " " + Colors.WHITE + ",04 " + formatNoPing(aRecord.getNick()) + " " + formatNumber(aRecord.get(statName)) + " ";
+                            line += "#" + (ctr+1) + " " + Colors.WHITE + ",04 " + formatNoPing(aRecord.getNick()) + " " + formatNumber(aRecord.getInteger(statName)) + " ";
                         } else {
-                            line += "#" + (ctr+1) + " " + Colors.WHITE + ",04 " + formatNoPing(aRecord.getNick()) + " $" + formatNumber(aRecord.get(statName)) + " ";
+                            line += "#" + (ctr+1) + " " + Colors.WHITE + ",04 " + formatNoPing(aRecord.getNick()) + " $" + formatNumber(aRecord.getInteger(statName)) + " ";
                         }
                         break;
                     }
@@ -2296,9 +2300,9 @@ public class TexasPoker extends CardGame{
             throw new IllegalArgumentException();
         }
         
-        ArrayList<PlayerRecord> records = loadPlayerFile();
+        ArrayList<Player> records = loadPlayerFile();
         if (records != null) {
-            PlayerRecord aRecord;
+            Player aRecord;
 
             int end = Math.min(n, records.size());
             int start = Math.max(end - 10, 0);
@@ -2313,7 +2317,7 @@ public class TexasPoker extends CardGame{
                 for (int ctr = 0; ctr < records.size(); ctr++) {
                     aRecord = records.get(ctr);
                     nicks.add(aRecord.getNick());
-                    if (aRecord.get("tprounds") == 0){
+                    if (aRecord.getInteger("tprounds") == 0){
                         winrates.add(0.);
                     } else {
                         winrates.add((double) aRecord.get("tpwinnings") / (double) aRecord.get("tprounds"));
@@ -2369,15 +2373,15 @@ public class TexasPoker extends CardGame{
                 }
                 
                 // Sort based on stat
-                Collections.sort(records, PlayerRecord.getComparator(statName));
+                Collections.sort(records, Player.getComparator(statName));
 
                 // Add the players in the required range
                 for (int ctr = start; ctr < end; ctr++){
                     aRecord = records.get(ctr);
                     if (stat.equalsIgnoreCase("rounds") || stat.equalsIgnoreCase("bankrupts")) {
-                        list += " #" + (ctr+1) + ": " + Colors.WHITE + ",04 " + formatNoPing(aRecord.getNick()) + " " + formatNumber(aRecord.get(statName)) + " " + Colors.BLACK + ",08";
+                        list += " #" + (ctr+1) + ": " + Colors.WHITE + ",04 " + formatNoPing(aRecord.getNick()) + " " + formatNumber(aRecord.getInteger(statName)) + " " + Colors.BLACK + ",08";
                     } else {
-                        list += " #" + (ctr+1) + ": " + Colors.WHITE + ",04 " + formatNoPing(aRecord.getNick()) + " $" + formatNumber(aRecord.get(statName)) + " " + Colors.BLACK + ",08";
+                        list += " #" + (ctr+1) + ": " + Colors.WHITE + ",04 " + formatNoPing(aRecord.getNick()) + " $" + formatNumber(aRecord.getInteger(statName)) + " " + Colors.BLACK + ",08";
                     }
                 }
             }
@@ -2397,14 +2401,14 @@ public class TexasPoker extends CardGame{
         Collections.sort(list, Player.getComparator("cash"));
         
         for (Player p : list) {
-            msg += p.getNick(false) + " (" + formatBold("$" + formatNumber(p.get("cash")));
+            msg += p.getNick(false) + " (" + formatBold("$" + formatNumber(p.getInteger("cash")));
             // Add player stack change
-            if (p.get("change") > 0) {
-                msg += "[" + Colors.DARK_GREEN + Colors.BOLD + "$" + formatNumber(p.get("change")) + Colors.NORMAL + "]";
-            } else if (p.get("change") < 0) {
-                msg += "[" + Colors.RED + Colors.BOLD + "$" + formatNumber(p.get("change")) + Colors.NORMAL + "]";
+            if (p.getInteger("change") > 0) {
+                msg += "[" + Colors.DARK_GREEN + Colors.BOLD + "$" + formatNumber(p.getInteger("change")) + Colors.NORMAL + "]";
+            } else if (p.getInteger("change") < 0) {
+                msg += "[" + Colors.RED + Colors.BOLD + "$" + formatNumber(p.getInteger("change")) + Colors.NORMAL + "]";
             } else {
-                msg += "[" + Colors.BOLD + "$" + formatNumber(p.get("change")) + Colors.NORMAL + "]";
+                msg += "[" + Colors.BOLD + "$" + formatNumber(p.getInteger("change")) + Colors.NORMAL + "]";
             }
             msg += "), ";
         }

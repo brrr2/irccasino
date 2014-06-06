@@ -19,47 +19,40 @@
 
 package irccasino.cardgame;
 
-import irccasino.Stats;
-import java.util.Comparator;
 import org.pircbotx.Colors;
 
 /**
  * A player class with common methods and members for all types of players.
- * It serves as a template and should not be directly instantiated.
  * @author Yizhe Shen
  */
-abstract public class Player extends Stats {
-    /** Stores the player's nick. */
-    private String nick;
-    /** Stores the player's host. */
-    private String host;
+public class Player extends Record{
 
     /**
      * Creates a new Player.
-     * Not to be instantiated directly. Serves as the template for specific types
-     * of players.
      * 
      * @param nick IRC user nick
-     * @param host IRC user host
      */
-    public Player(String nick, String host){
+    public Player(String nick){
         super();
-        this.nick = nick;
-        this.host = host;
-        set("id", 0);
-        set("cash", 0);
-        set("bank", 0);
-        set("bankrupts", 0);
-        set("bjrounds", 0);
-        set("bjwinnings", 0);
-        set("tprounds", 0);
-        set("tpwinnings", 0);
-        set("ttwins", 0);
-        set("ttplayed", 0);
-        set("transaction", 0);
-        set("quit", 0);
+        put("nick", nick);
+        put("change", 0);
+        put("transaction", 0);
+        put("quit", false);
     }
-
+    
+    @Override
+    public Object get(String key) {
+        if (key.equalsIgnoreCase("exists")) {
+            return 1;
+        } else if (key.equalsIgnoreCase("netcash")) {
+            return (Integer) get("cash") + (Integer) get("bank");
+        } else if (key.equalsIgnoreCase("winrate")) {
+            return ((Integer) get("winnings") * 1.0) / (Integer) get("bank");
+        }
+        
+        return super.get(key);
+    }
+    
     /* Player info methods */
     /**
      * Returns the Player's nick.
@@ -76,13 +69,14 @@ abstract public class Player extends Stats {
      * @return the Player's nick
      */
     public String getNick(boolean ping) {
+        String nick = getString("nick");
         if (ping) {
             return nick;
         } else {
             return nick.substring(0, 1) + "\u200b" + nick.substring(1);
         }
     }
-
+    
     /**
      * Returns the player's nick formatted in IRC bold.
      * 
@@ -103,25 +97,6 @@ abstract public class Player extends Stats {
     }
 
     /**
-     * Returns the Player's host.
-     * 
-     * @return the Player's host
-     */
-    public String getHost() {
-        return host;
-    }
-
-    @Override
-    public int get(String stat){
-        if (stat.equalsIgnoreCase("exists")){
-            return 1;
-        } else if (stat.equalsIgnoreCase("netcash")){
-            return get("cash") + get("bank");
-        }
-        return super.get(stat);
-    }
-
-    /**
      * Transfers the specified amount from cash into bank.
      * 
      * @param amount the amount to transfer
@@ -129,19 +104,9 @@ abstract public class Player extends Stats {
     public void bankTransfer(int amount){
         add("bank", amount);
         add("cash", -1 * amount);
-        set("transaction", -1 * amount);
+        put("transaction", -1 * amount);
     }
-
-    /**
-     * String representation includes the Player's nick and host.
-     * 
-     * @return a String containing the Players nick and host
-     */
-    @Override
-    public String toString(){
-        return nick + " " + host;
-    }
-
+    
     /**
      * Comparison of Player objects based on nick and host.
      * @param o the Object to compare
@@ -151,8 +116,8 @@ abstract public class Player extends Stats {
     public boolean equals(Object o) {
         if (o != null && o instanceof Player) {
             Player p = (Player) o;
-            if (nick.equals(p.nick) && host.equals(p.host) &&
-                hashCode() == p.hashCode()) {
+            if (get("nick").equals(p.get("nick")) && 
+                    hashCode() == p.hashCode()) {
                 return true;
             }
         }
@@ -166,27 +131,7 @@ abstract public class Player extends Stats {
     @Override
     public int hashCode() {
         int hash = 5;
-        hash = 29 * hash + nick.hashCode();
-        hash = 29 * hash + host.hashCode();
+        hash = 29 * hash + get("nick").hashCode();
         return hash;
-    }
-    
-    /**
-     * Returns a comparator that compares the given stat.
-     * @param stat the stat to use for comparison
-     * @return a new comparator
-     */
-    public static Comparator<Player> getComparator(final String stat) {
-        return new Comparator<Player>() {
-            @Override
-            public int compare(Player a, Player b) {
-                if (a.get(stat) < b.get(stat)) {
-                    return 1;
-                } else if (a.get(stat) > b.get(stat)) {
-                    return -1;
-                }
-                return 0;
-            }
-        };
     }
 }

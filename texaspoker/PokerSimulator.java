@@ -55,11 +55,11 @@ public class PokerSimulator {
         // Give simulated players simulated cards matching the real hands.
         for (PokerPlayer p : list) {
             if (!p.has("fold")) {
-                simP = new PokerPlayer(p.getNick(), p.getHost());
+                simP = new PokerPlayer(p.getNick());
                 for (Card aCard : p.getHand()){
                    simP.getHand().add(simDeck.takeCard(aCard));
-                   simP.set("wins", 0);
-                   simP.set("ties", 0);
+                   simP.put("wins", 0);
+                   simP.put("ties", 0);
                 }
                 simList.add(simP);
             }
@@ -156,10 +156,10 @@ public class PokerSimulator {
 
         // Increment win count for winners
         if (winners == 1) {
-            simList.get(0).increment("wins");
+            simList.get(0).add("wins", 1);
         } else {
             for (int ctr = 0; ctr < winners; ctr++){
-                simList.get(ctr).increment("ties");
+                simList.get(ctr).add("ties", 1);
             }
         }
 

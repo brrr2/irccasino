@@ -35,18 +35,16 @@ class BlackjackPlayer extends Player{
      * Creates the new player with the specified parameters.
      * 
      * @param nick IRC user's nick.
-     * @param hostmask IRC user's host.
      */
-    public BlackjackPlayer(String nick, String host){
-        super(nick, host);
+    public BlackjackPlayer(String nick){
+        super(nick);
         hands = new ArrayList<>();
-        set("initialbet", 0);
-        set("change", 0);
-        set("insurebet", 0);
-        set("split", 0);
-        set("surrender", 0);
-        set("doubledown", 0);
-        set("currentindex", 0);
+        put("initialbet", 0);
+        put("insurebet", 0);
+        put("split", false);
+        put("surrender", false);
+        put("doubledown", false);
+        put("currentindex", 0);
     }
 
     /* Blackjack-specific card/hand manipulation methods */
@@ -71,7 +69,7 @@ class BlackjackPlayer extends Player{
      * @return the BlackjackHand at the current index
      */
     protected BlackjackHand getHand(){
-        return hands.get(get("currentindex"));
+        return hands.get(getInteger("currentindex"));
     }
 
     /**
@@ -79,8 +77,8 @@ class BlackjackPlayer extends Player{
      * @return the BlackjackHand at the incremented index
      */
     protected BlackjackHand getNextHand(){
-        increment("currentindex");
-        return getHand(get("currentindex"));
+        add("currentindex", 1);
+        return getHand(getInteger("currentindex"));
     }
 
     /**
@@ -126,7 +124,7 @@ class BlackjackPlayer extends Player{
         tHand.add(cHand.get(1));
         cHand.remove(1);
 
-        hands.add(get("currentindex") + 1, tHand);
-        set("split", 1);
+        hands.add(getInteger("currentindex") + 1, tHand);
+        put("split", true);
     }
 }

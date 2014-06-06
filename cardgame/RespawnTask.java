@@ -36,9 +36,9 @@ public class RespawnTask extends TimerTask {
     
     @Override
     public void run() {
-        player.set("cash", game.get("cash"));
+        player.put("cash", game.get("cash"));
         player.add("bank", -game.get("cash"));
-        player.set("transaction", game.get("cash"));
+        player.put("transaction", game.get("cash"));
         game.savePlayerData(player);
         game.saveDBPlayerData(player);
         game.saveDBPlayerBanking(player);
