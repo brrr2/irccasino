@@ -1178,7 +1178,7 @@ public class TexasTourney extends TexasPoker {
             // Display tournament results
             showTourneyResults();
             
-            tourneyStats.increment("numtourneys");
+            tourneyStats.add("numtourneys", 1);
             if (tourneyStats.getBiggestTourney() < joined.size() + blacklist.size()) {
                 tourneyStats.setWinner(new PokerPlayer(joined.get(0).getNick()));
                 tourneyStats.getPlayers().clear();
@@ -1543,7 +1543,7 @@ public class TexasTourney extends TexasPoker {
                             break;
                         }
                         st = new StringTokenizer(str);
-                        tourneyStats.set("numtourneys", Integer.parseInt(st.nextToken()));
+                        tourneyStats.put("numtourneys", Integer.parseInt(st.nextToken()));
                         tourneyStats.setWinner(new PokerPlayer(st.nextToken()));
                         while (st.hasMoreTokens()) {
                             tourneyStats.addPlayer(new PokerPlayer(st.nextToken()));

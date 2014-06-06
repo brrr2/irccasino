@@ -135,6 +135,15 @@ public class Record {
         }
     }
     
+    /**
+     * Determines whether or not a key exists in the map.
+     * @param key
+     * @return true if statsMap contains the key
+     */
+    public boolean exists(String key){
+        return map.containsKey(key);
+    }
+    
     @Override
     public String toString(){
         String output = "";

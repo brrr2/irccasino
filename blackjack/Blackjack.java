@@ -1309,7 +1309,7 @@ public class Blackjack extends CardGame {
      */
     private HouseStat getHouseStat(int numDecks) {
         for (HouseStat hs : houseStatsList) {
-            if (hs.get("decks") == numDecks) {
+            if (hs.getInteger("decks") == numDecks) {
                 return hs;
             }
         }
@@ -1323,7 +1323,7 @@ public class Blackjack extends CardGame {
     private int getTotalRounds(){
         int total=0;
         for (HouseStat hs : houseStatsList) {
-            total += hs.get("rounds");
+            total += hs.getInteger("rounds");
         }
         return total;
     }
@@ -1335,7 +1335,7 @@ public class Blackjack extends CardGame {
     private int getTotalHouse(){
         int total=0;
         for (HouseStat hs : houseStatsList) {
-            total += hs.get("cash");
+            total += hs.getInteger("cash");
         }
         return total;
     }
@@ -1422,9 +1422,9 @@ public class Blackjack extends CardGame {
             sql = "INSERT OR REPLACE INTO BJHouseStat (shoe_size, rounds, winnings) " +
                   "VALUES (?, ?, ?)";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setInt(1, house.get("decks"));
-                ps.setInt(2, house.get("rounds"));
-                ps.setInt(3, house.get("cash"));
+                ps.setInt(1, house.getInteger("decks"));
+                ps.setInt(2, house.getInteger("rounds"));
+                ps.setInt(3, house.getInteger("cash"));
                 ps.executeUpdate();
             }
             
@@ -1542,7 +1542,7 @@ public class Blackjack extends CardGame {
         BlackjackHand dHand;
 
         if (joined.size() >= 1) {
-            house.increment("rounds");
+            house.add("rounds", 1);
             // Make dealer decisions
             if (needDealerPlay()) {
                 showTurn(dealer, 0);

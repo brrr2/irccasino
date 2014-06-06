@@ -1479,7 +1479,7 @@ public class TexasPoker extends CardGame{
                         }
                         st = new StringTokenizer(str);
                         biggestpot = Integer.parseInt(st.nextToken());
-                        house.set("biggestpot", biggestpot);
+                        house.put("biggestpot", biggestpot);
                         players = Integer.parseInt(st.nextToken());
                         for (int ctr = 0; ctr < players; ctr++) {
                             house.addDonor(new PokerPlayer(st.nextToken()));
@@ -2089,8 +2089,8 @@ public class TexasPoker extends CardGame{
             }
             
             // Check if it's the biggest pot
-            if (house.get("biggestpot") < potTotal){
-                house.set("biggestpot", potTotal);
+            if (house.getInteger("biggestpot") < potTotal){
+                house.put("biggestpot", potTotal);
                 house.clearDonors();
                 house.clearWinners();
                 // Store the list of donors

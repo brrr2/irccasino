@@ -19,23 +19,23 @@
 
 package irccasino.blackjack;
 
-import irccasino.Stats;
 import irccasino.cardgame.CardGame;
+import irccasino.cardgame.Record;
 
 /**
  * Stores house statistics for individual shoe sizes.
  * @author Yizhe Shen
  */
-class HouseStat extends Stats {
+class HouseStat extends Record {
     public HouseStat() {
         this(0, 0, 0);
     }
 
     public HouseStat(int a, int b, int c) {
         super();
-        set("decks", a);
-        set("rounds", b);
-        set("cash", c);
+        put("decks", a);
+        put("rounds", b);
+        put("cash", c);
     }
 
     protected String toFileString() {
@@ -44,8 +44,8 @@ class HouseStat extends Stats {
 
     @Override
     public String toString() {
-        return CardGame.formatNumber(get("rounds")) + " round(s) have been played using " 
-            + CardGame.formatNumber(get("decks")) + " deck shoes. The house has won $"
-            + CardGame.formatNumber(get("cash")) + " during those round(s).";
+        return CardGame.formatNumber(getInteger("rounds")) + " round(s) have been played using " 
+            + CardGame.formatNumber(getInteger("decks")) + " deck shoes. The house has won $"
+            + CardGame.formatNumber(getInteger("cash")) + " during those round(s).";
     }
 }

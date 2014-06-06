@@ -19,15 +19,15 @@
 
 package irccasino.texaspoker;
 
-import irccasino.Stats;
 import irccasino.cardgame.CardGame;
+import irccasino.cardgame.Record;
 import java.util.ArrayList;
 
 /**
  * Stores game statistics for TexasPoker. 
  * @author Yizhe Shen
  */
-public class HouseStat extends Stats {
+public class HouseStat extends Record {
     private ArrayList<PokerPlayer> donors;
     private ArrayList<PokerPlayer> winners;
 
@@ -37,7 +37,7 @@ public class HouseStat extends Stats {
 
     public HouseStat(int pot) {
         super();
-        set("biggestpot", pot);
+        put("biggestpot", pot);
         donors = new ArrayList<>();
         winners = new ArrayList<>();
     }
@@ -108,6 +108,6 @@ public class HouseStat extends Stats {
 
     @Override
     public String toString() {
-        return "Biggest pot: $" + CardGame.formatNumber(get("biggestpot")) + " (" + getToStringList() + ").";
+        return "Biggest pot: $" + CardGame.formatNumber(getInteger("biggestpot")) + " (" + getToStringList() + ").";
     }
 }

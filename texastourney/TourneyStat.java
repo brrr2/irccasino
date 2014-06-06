@@ -19,16 +19,16 @@
 
 package irccasino.texastourney;
 
-import irccasino.Stats;
 import irccasino.cardgame.CardGame;
 import irccasino.cardgame.Player;
+import irccasino.cardgame.Record;
 import java.util.ArrayList;
 
 /**
  * Stores tournament stats.
  * @author Yizhe Shen
  */
-public class TourneyStat extends Stats{
+public class TourneyStat extends Record{
     private ArrayList<Player> players;
     private Player winner;
     
@@ -38,7 +38,7 @@ public class TourneyStat extends Stats{
     
     public TourneyStat(int num) {
         super();
-        set("numtourneys", num);
+        put("numtourneys", num);
         players = new ArrayList<>();
         winner = null;
     }
@@ -87,6 +87,6 @@ public class TourneyStat extends Stats{
     
     @Override
     public String toString() {
-        return "Total Tournaments: " + CardGame.formatNumber(get("numtourneys")) + ". Biggest Tournament: " + getToStringList() + ".";
+        return "Total Tournaments: " + CardGame.formatNumber(getInteger("numtourneys")) + ". Biggest Tournament: " + getToStringList() + ".";
     }
 }
