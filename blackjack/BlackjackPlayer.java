@@ -47,6 +47,16 @@ class BlackjackPlayer extends Player{
         put("currentindex", 0);
     }
 
+    @Override
+    public Object get(String key) {
+        if (key.equalsIgnoreCase("netcash")) {
+            return getInteger("cash") + getInteger("bank");
+        } else if (key.equalsIgnoreCase("winrate")) {
+            return getInteger("winnings") * 1.0 / getInteger("bank");
+        }
+        return super.get(key);
+    }
+    
     /* Blackjack-specific card/hand manipulation methods */
     /**
      * Adds a new hand to the ArrayList of BlackjackHands.

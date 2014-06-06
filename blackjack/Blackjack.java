@@ -2505,7 +2505,7 @@ public class Blackjack extends CardGame {
     
     @Override
     public void showPlayerRank(String nick, String stat) throws IllegalArgumentException {
-        if (getPlayerStat(nick, "exists") != 1){
+        if (getPlayerStat(nick, "exists") == null){
             showMsg(getMsg("no_data"), formatNoPing(nick));
             return;
         }

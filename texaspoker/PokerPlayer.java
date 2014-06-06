@@ -47,6 +47,16 @@ public class PokerPlayer extends Player implements Comparable<PokerPlayer> {
         pHand = new PokerHand();
     }
     
+    @Override
+    public Object get(String key) {
+        if (key.equalsIgnoreCase("netcash")) {
+            return getInteger("cash") + getInteger("bank");
+        } else if (key.equalsIgnoreCase("winrate")) {
+            return getInteger("winnings") * 1.0 / getInteger("bank");
+        }
+        return super.get(key);
+    }
+    
     /**
      * Returns whether the player has cards in his Hand.
      * @return true if player has any cards

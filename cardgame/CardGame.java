@@ -1962,18 +1962,17 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param stat the statistic's name
      * @return the desired statistic
      */
-    protected int getPlayerStat(String nick, String stat){
+    protected Object getPlayerStat(String nick, String stat){
         if (isBlacklisted(nick)) {
-            return (Integer) findBlacklisted(nick).get(stat);
+            return findBlacklisted(nick).get(stat);
         } else if (isJoined(nick)) {
-            return (Integer) findJoined(nick).get(stat);
+            return findJoined(nick).get(stat);
         } else {
             Player record = loadPlayerRecord(nick);
             if (record == null) {
-                return Integer.MIN_VALUE;
-            } else {
-                return (Integer) record.get(stat);
+                return record;
             }
+            return record.get(stat);
         }
     }
     

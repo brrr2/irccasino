@@ -35,4 +35,12 @@ public class TourneyPokerPlayer extends PokerPlayer {
         super(nick);
         put("cancel", false);
     }
+    
+    @Override
+    public Object get(String key) {
+        if (key.equalsIgnoreCase("winrate")) {
+            return getInteger("points") * 1.0 / getInteger("tourneys");
+        }
+        return super.get(key);
+    }
 }

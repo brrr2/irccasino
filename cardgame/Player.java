@@ -43,13 +43,8 @@ public class Player extends Record{
     @Override
     public Object get(String key) {
         if (key.equalsIgnoreCase("exists")) {
-            return 1;
-        } else if (key.equalsIgnoreCase("netcash")) {
-            return (Integer) get("cash") + (Integer) get("bank");
-        } else if (key.equalsIgnoreCase("winrate")) {
-            return ((Integer) get("winnings") * 1.0) / (Integer) get("bank");
-        }
-        
+            return true;
+        }        
         return super.get(key);
     }
     
