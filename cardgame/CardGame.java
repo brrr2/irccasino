@@ -1338,7 +1338,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 // BJPlayerStat table
                 s.execute( "CREATE TABLE IF NOT EXISTS BJPlayerStat (" +
                            "player_id INTEGER, rounds INTEGER, " +
-                           "winnings INTEGER, UNIQUE(player_id), " +
+                           "winnings INTEGER, idle_outs INTEGER, " +
+                           "UNIQUE(player_id), " +
                            "FOREIGN KEY(player_id) REFERENCES Player(id))");
                 
                 // BJRound table
@@ -1377,6 +1378,14 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                            "FOREIGN KEY(player_id) REFERENCES Player(id), " +
                            "FOREIGN KEY(round_id) REFERENCES BJRound(id))");
                 
+                // BJPlayerIdleOut table
+                s.execute( "CREATE TABLE IF NOT EXISTS BJPlayerIdleOut (" +
+                           "player_id INTEGER, round_id INTEGER, " +
+                           "idle_limit INTEGER, idle_warning INTEGER, " +
+                           "UNIQUE(player_id, round_id), " +
+                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
+                           "FOREIGN KEY(round_id) REFERENCES BJRound(id))");
+                
                 // BJHouseStat table
                 s.execute( "CREATE TABLE IF NOT EXISTS BJHouseStat (" +
                            "shoe_size INTEGER, rounds INTEGER, " +
@@ -1385,7 +1394,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 // TPPlayerStat table
                 s.execute( "CREATE TABLE IF NOT EXISTS TPPlayerStat (" +
                            "player_id INTEGER, rounds INTEGER, " +
-                           "winnings INTEGER, UNIQUE(player_id), " +
+                           "winnings INTEGER, idle_outs INTEGER, " +
+                           "UNIQUE(player_id), " +
                            "FOREIGN KEY(player_id) REFERENCES Player(id))");
                 
                 // TPRound table
@@ -1415,17 +1425,33 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                            "FOREIGN KEY(player_id) REFERENCES Player(id), " +
                            "FOREIGN KEY(round_id) REFERENCES TPRound(id))");
                 
+                // TPHand table
+                s.execute( "CREATE TABLE IF NOT EXISTS TPHand (" +
+                           "id INTEGER PRIMARY KEY, " + 
+                           "round_id INTEGER, hand TEXT, " +
+                           "FOREIGN KEY(round_id) REFERENCES TPRound(id))");
+                
                 // TPPlayerHand table
                 s.execute( "CREATE TABLE IF NOT EXISTS TPPlayerHand (" +
+                           "player_id INTEGER, hand_id INTEGER, " +
+                           "fold BOOLEAN, all_in BOOLEAN, " +
+                           "UNIQUE(player_id, hand_id), " +
+                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
+                           "FOREIGN KEY(hand_id) REFERENCES TPHand(id))");
+                
+                // TPPlayerIdleOut table
+                s.execute( "CREATE TABLE IF NOT EXISTS TPPlayerIdleOut (" +
                            "player_id INTEGER, round_id INTEGER, " +
-                           "hand TEXT, UNIQUE(player_id, round_id), " +
+                           "idle_limit INTEGER, idle_warning INTEGER, " +
+                           "UNIQUE(player_id, round_id), " +
                            "FOREIGN KEY(player_id) REFERENCES Player(id), " +
                            "FOREIGN KEY(round_id) REFERENCES TPRound(id))");
                 
                 // TTPlayerStat table
                 s.execute( "CREATE TABLE IF NOT EXISTS TTPlayerStat (" +
                            "player_id INTEGER, tourneys INTEGER, " +
-                           "points INTEGER, UNIQUE(player_id), " +
+                           "points INTEGER, idle_outs INTEGER, " +
+                           "UNIQUE(player_id), " +
                            "FOREIGN KEY(player_id) REFERENCES Player(id))");
                 
                 // TTTourney table
@@ -1437,6 +1463,14 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 s.execute( "CREATE TABLE IF NOT EXISTS TTPlayerTourney (" +
                            "player_id INTEGER, tourney_id INTEGER, " +
                            "result BOOLEAN, UNIQUE(player_id, tourney_id), " +
+                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
+                           "FOREIGN KEY(tourney_id) REFERENCES TTTourney(id))");
+                
+                // TTPlayerIdleOut table
+                s.execute( "CREATE TABLE IF NOT EXISTS TTPlayerIdleOut (" +
+                           "player_id INTEGER, tourney_id INTEGER, " +
+                           "idle_limit INTEGER, idle_warning INTEGER, " +
+                           "UNIQUE(player_id, tourney_id), " +
                            "FOREIGN KEY(player_id) REFERENCES Player(id), " +
                            "FOREIGN KEY(tourney_id) REFERENCES TTTourney(id))");
             }
