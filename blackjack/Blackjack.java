@@ -1113,7 +1113,7 @@ public class Blackjack extends CardGame {
             BlackjackPlayer record = null;
             try (Connection conn = DriverManager.getConnection(dbURL)) {
                 // Retrieve data from Player table if possible
-                String sql = "SELECT id, nick, cash, bank, bankrupts, winnings, rounds " +
+                String sql = "SELECT id, nick, cash, bank, bankrupts, winnings, rounds, idles " +
                              "FROM Player INNER JOIN Purse INNER JOIN BJPlayerStat " +
                              "ON Player.id = Purse.player_id AND Player.id = BJPlayerStat.player_id " +
                              "WHERE nick = ? COLLATE NOCASE";
@@ -1129,6 +1129,7 @@ public class Blackjack extends CardGame {
                             record.put("bankrupts", rs.getInt("bankrupts"));
                             record.put("winnings", rs.getInt("winnings"));
                             record.put("rounds", rs.getInt("rounds"));
+                            record.put("idles", rs.getInt("idles"));
                         }
                     }
                 }
@@ -1143,7 +1144,15 @@ public class Blackjack extends CardGame {
     @Override
     protected void loadDBPlayerData(Player p) {
         try (Connection conn = DriverManager.getConnection(dbURL)) {
+            // Initialize
             p.put("id", 0);
+            p.put("cash", get("cash"));
+            p.put("bank", 0);
+            p.put("bankrupts", 0);
+            p.put("rounds", 0);
+            p.put("winnings", 0);
+            p.put("idles", 0);
+            
             // Retrieve data from Player table if possible
             String sql = "SELECT id FROM Player WHERE nick = ? COLLATE NOCASE";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -1168,9 +1177,6 @@ public class Blackjack extends CardGame {
             
             // Retrieve data from Purse table if possible
             boolean found = false;
-            p.put("cash", get("cash"));
-            p.put("bank", 0);
-            p.put("bankrupts", 0);
             sql = "SELECT cash, bank, bankrupts FROM Purse WHERE player_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setInt(1, p.getInteger("id"));
@@ -1200,9 +1206,7 @@ public class Blackjack extends CardGame {
             
             // Retrieve data from BJPlayerStat table if possible
             found = false;
-            p.put("rounds", 0);
-            p.put("winnings", 0);
-            sql = "SELECT player_id, rounds, winnings " +
+            sql = "SELECT rounds, winnings, idles " +
                   "FROM BJPlayerStat WHERE player_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setInt(1, p.getInteger("id"));
@@ -1211,18 +1215,20 @@ public class Blackjack extends CardGame {
                         found = true;
                         p.put("rounds", rs.getInt("rounds"));
                         p.put("winnings", rs.getInt("winnings"));
+                        p.put("idles", rs.getInt("idles"));
                     }
                 }
             }
             
             // Add new record if not found in BJPlayerStat table
             if (!found) {
-                sql = "INSERT INTO BJPlayerStat (player_id, rounds, winnings) " +
+                sql = "INSERT INTO BJPlayerStat (player_id, rounds, winnings, idles) " +
                       "VALUES(?, ?, ?)";
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setInt(1, p.getInteger("id"));
                     ps.setInt(2, p.getInteger("rounds"));
                     ps.setInt(3, p.getInteger("winnings"));
+                    ps.setInt(4, p.getInteger("idles"));
                     ps.executeUpdate();
                 }
             }
@@ -1248,12 +1254,13 @@ public class Blackjack extends CardGame {
             }
             
             // Update data in BJPlayerStat table
-            sql = "UPDATE BJPlayerStat SET rounds = ?, winnings = ? " +
+            sql = "UPDATE BJPlayerStat SET rounds = ?, winnings = ?, idles = ? " +
                   "WHERE player_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setInt(1, p.getInteger("rounds"));
                 ps.setInt(2, p.getInteger("winnings"));
-                ps.setInt(3, p.getInteger("id"));
+                ps.setInt(3, p.getInteger("idles"));
+                ps.setInt(4, p.getInteger("id"));
                 ps.executeUpdate();
             }
             
@@ -1412,6 +1419,19 @@ public class Blackjack extends CardGame {
                     ps.setInt(3, p.getInteger("change"));
                     ps.setInt(4, p.getInteger("cash"));
                     ps.executeUpdate();
+                }
+                
+                if (p.getBoolean("idled")) {
+                    // Insert data into BJPlayerIdle table
+                    sql = "INSERT INTO BJPlayerIdle (player_id, round_id, " +
+                          "idle_limit, idle_warning) VALUES (?, ?, ?, ?)";
+                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                        ps.setInt(1, p.getInteger("id"));
+                        ps.setInt(2, roundID);
+                        ps.setInt(3, get("idle"));
+                        ps.setInt(4, get("idlewarning"));
+                        ps.executeUpdate();
+                    }
                 }
                 
                 for (BlackjackHand h : ((BlackjackPlayer) p).getAllHands()) {
@@ -1612,11 +1632,15 @@ public class Blackjack extends CardGame {
             
             /* Bookkeeping tasks
              * 1. Increment the number of rounds played for each player
+             * 2. Increment idles if idled out
              * 2. Make auto-withdrawals
              * 3. Save player stats
              */
             for (Player pp : joined) {
                 pp.add("rounds", 1);
+                if (pp.getBoolean("idled")) {
+                    pp.add("idles", 1);
+                }
                 if (!pp.has("cash") && pp.has("bank")) {
                     // Make a withdrawal if the player has a positive bankroll
                     int amount = Math.min(pp.getInteger("bank"), get("cash"));
@@ -1721,6 +1745,7 @@ public class Blackjack extends CardGame {
         p.clear("surrender");
         p.clear("insurebet");
         p.clear("doubledown");
+        p.clear("idled");
     }
     
     /**

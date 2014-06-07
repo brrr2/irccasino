@@ -36,6 +36,7 @@ public class IdleOutTask extends TimerTask {
 
     @Override
     public void run() {
+        player.put("idled", true);
         game.showMsg(game.getMsg("idle_out"), player.getNickStr());
         game.leave(player);
     }

@@ -1338,7 +1338,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 // BJPlayerStat table
                 s.execute( "CREATE TABLE IF NOT EXISTS BJPlayerStat (" +
                            "player_id INTEGER, rounds INTEGER, " +
-                           "winnings INTEGER, idle_outs INTEGER, " +
+                           "winnings INTEGER, idles INTEGER, " +
                            "UNIQUE(player_id), " +
                            "FOREIGN KEY(player_id) REFERENCES Player(id))");
                 
@@ -1378,8 +1378,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                            "FOREIGN KEY(player_id) REFERENCES Player(id), " +
                            "FOREIGN KEY(round_id) REFERENCES BJRound(id))");
                 
-                // BJPlayerIdleOut table
-                s.execute( "CREATE TABLE IF NOT EXISTS BJPlayerIdleOut (" +
+                // BJPlayerIdle table
+                s.execute( "CREATE TABLE IF NOT EXISTS BJPlayerIdle (" +
                            "player_id INTEGER, round_id INTEGER, " +
                            "idle_limit INTEGER, idle_warning INTEGER, " +
                            "UNIQUE(player_id, round_id), " +
@@ -1394,7 +1394,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 // TPPlayerStat table
                 s.execute( "CREATE TABLE IF NOT EXISTS TPPlayerStat (" +
                            "player_id INTEGER, rounds INTEGER, " +
-                           "winnings INTEGER, idle_outs INTEGER, " +
+                           "winnings INTEGER, idles INTEGER, " +
                            "UNIQUE(player_id), " +
                            "FOREIGN KEY(player_id) REFERENCES Player(id))");
                 
@@ -1434,13 +1434,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 // TPPlayerHand table
                 s.execute( "CREATE TABLE IF NOT EXISTS TPPlayerHand (" +
                            "player_id INTEGER, hand_id INTEGER, " +
-                           "fold BOOLEAN, all_in BOOLEAN, " +
+                           "fold BOOLEAN, allin BOOLEAN, " +
                            "UNIQUE(player_id, hand_id), " +
                            "FOREIGN KEY(player_id) REFERENCES Player(id), " +
                            "FOREIGN KEY(hand_id) REFERENCES TPHand(id))");
                 
-                // TPPlayerIdleOut table
-                s.execute( "CREATE TABLE IF NOT EXISTS TPPlayerIdleOut (" +
+                // TPPlayerIdle table
+                s.execute( "CREATE TABLE IF NOT EXISTS TPPlayerIdle (" +
                            "player_id INTEGER, round_id INTEGER, " +
                            "idle_limit INTEGER, idle_warning INTEGER, " +
                            "UNIQUE(player_id, round_id), " +
@@ -1450,7 +1450,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 // TTPlayerStat table
                 s.execute( "CREATE TABLE IF NOT EXISTS TTPlayerStat (" +
                            "player_id INTEGER, tourneys INTEGER, " +
-                           "points INTEGER, idle_outs INTEGER, " +
+                           "points INTEGER, idles INTEGER, " +
                            "UNIQUE(player_id), " +
                            "FOREIGN KEY(player_id) REFERENCES Player(id))");
                 
@@ -1466,8 +1466,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                            "FOREIGN KEY(player_id) REFERENCES Player(id), " +
                            "FOREIGN KEY(tourney_id) REFERENCES TTTourney(id))");
                 
-                // TTPlayerIdleOut table
-                s.execute( "CREATE TABLE IF NOT EXISTS TTPlayerIdleOut (" +
+                // TTPlayerIdle table
+                s.execute( "CREATE TABLE IF NOT EXISTS TTPlayerIdle (" +
                            "player_id INTEGER, tourney_id INTEGER, " +
                            "idle_limit INTEGER, idle_warning INTEGER, " +
                            "UNIQUE(player_id, tourney_id), " +

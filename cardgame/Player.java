@@ -38,6 +38,7 @@ public class Player extends Record{
         put("change", 0);
         put("transaction", 0);
         put("quit", false);
+        put("idled", false);
     }
     
     @Override

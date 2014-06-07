@@ -1170,6 +1170,9 @@ public class TexasTourney extends TexasPoker {
             for (int ctr = 0; ctr < blacklist.size(); ctr++) {
                 p = (PokerPlayer) blacklist.get(ctr);
                 p.add("tourneys", 1);
+                if (p.getBoolean("idled")) {
+                    p.add("idles", 1);
+                }
                 saveDBPlayerData(p);
             }
             
@@ -1403,7 +1406,7 @@ public class TexasTourney extends TexasPoker {
             TourneyPokerPlayer record = null;
             try (Connection conn = DriverManager.getConnection(dbURL)) {
                 // Retrieve data from Player table if possible
-                String sql = "SELECT id, nick, tourneys, points " +
+                String sql = "SELECT id, nick, tourneys, points, idles " +
                              "FROM Player INNER JOIN TTPlayerStat " +
                              "ON Player.id = TTPlayerStat.player_id " +
                              "WHERE nick = ? COLLATE NOCASE";
@@ -1416,6 +1419,7 @@ public class TexasTourney extends TexasPoker {
                             record.put("nick", rs.getString("nick"));
                             record.put("tourneys", rs.getInt("tourneys"));
                             record.put("points", rs.getInt("points"));
+                            record.put("idles", rs.getInt("idles"));
                         }
                     }
                 }
@@ -1430,8 +1434,13 @@ public class TexasTourney extends TexasPoker {
     @Override
     protected void loadDBPlayerData(Player p) {
         try (Connection conn = DriverManager.getConnection(dbURL)) {
+            // Initialize
             p.put("id", 0);
             p.put("cash", get("cash"));
+            p.put("tourneys", 0);
+            p.put("points", 0);
+            p.put("idles", 0);
+            
             // Retrieve data from Player table if possible
             String sql = "SELECT id FROM Player WHERE nick = ? COLLATE NOCASE";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -1456,9 +1465,7 @@ public class TexasTourney extends TexasPoker {
             
             // Retrieve data from TTPlayerStat table if possible
             boolean found = false;
-            p.put("tourneys", 0);
-            p.put("points", 0);
-            sql = "SELECT player_id, tourneys, points " +
+            sql = "SELECT tourneys, points, idles " +
                   "FROM TTPlayerStat WHERE player_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setInt(1, p.getInteger("id"));
@@ -1467,18 +1474,20 @@ public class TexasTourney extends TexasPoker {
                         found = true;
                         p.put("tourneys", rs.getInt("tourneys"));
                         p.put("points", rs.getInt("points"));
+                        p.put("idles", rs.getInt("idles"));
                     }
                 }
             }
             
             // Add new record if not found in TPPlayerStat table
             if (!found) {
-                sql = "INSERT INTO TTPlayerStat (player_id, tourneys, points) " +
+                sql = "INSERT INTO TTPlayerStat (player_id, tourneys, points, idles) " +
                       "VALUES(?, ?, ?)";
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setInt(1, p.getInteger("id"));
                     ps.setInt(2, p.getInteger("tourneys"));
                     ps.setInt(3, p.getInteger("points"));
+                    ps.setInt(4, p.getInteger("idles"));
                     ps.executeUpdate();
                 }
             }
@@ -1493,12 +1502,13 @@ public class TexasTourney extends TexasPoker {
     protected void saveDBPlayerData(Player p) {
         try (Connection conn = DriverManager.getConnection(dbURL)) {
             // Update data in TTPlayerStat table
-            String sql = "UPDATE TTPlayerStat SET tourneys = ?, points = ? " +
+            String sql = "UPDATE TTPlayerStat SET tourneys = ?, points = ?, idles = ? " +
                          "WHERE player_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setInt(1, p.getInteger("tourneys"));
                 ps.setInt(2, p.getInteger("points"));
-                ps.setInt(3, p.getInteger("id"));
+                ps.setInt(3, p.getInteger("idles"));
+                ps.setInt(4, p.getInteger("id"));
                 ps.executeUpdate();
             }
             
@@ -1629,6 +1639,20 @@ public class TexasTourney extends TexasPoker {
                     ps.setInt(2, tourneyID);
                     ps.setBoolean(3, Boolean.FALSE);
                     ps.executeUpdate();
+                }
+                
+                // Only players in the blacklist could have idled out
+                if (p.getBoolean("idled")) {
+                    // Insert data into TTPlayerIdle table
+                    sql = "INSERT INTO TTPlayerIdle (player_id, tourney_id, " +
+                          "idle_limit, idle_warning) VALUES (?, ?, ?, ?)";
+                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                        ps.setInt(1, p.getInteger("id"));
+                        ps.setInt(2, tourneyID);
+                        ps.setInt(3, get("idle"));
+                        ps.setInt(4, get("idlewarning"));
+                        ps.executeUpdate();
+                    }
                 }
             }
             
