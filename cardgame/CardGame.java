@@ -1087,43 +1087,18 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 // Iterate over records
                 for (Player record : records) {
                     playerID = -1;
-
-                    // Retrieve data from Player table if possible
-                    String sql = "SELECT id FROM Player WHERE nick = ? COLLATE NOCASE";
+                    
+                    // Add new record if not found in Player table
+                    String sql = "INSERT INTO Player (nick, time_created) VALUES(?, ?)";
                     try (PreparedStatement ps = conn.prepareStatement(sql)) {
                         ps.setString(1, record.getString("nick"));
-                        try (ResultSet rs = ps.executeQuery()) {
-                            if (rs.isBeforeFirst()) {
-                                playerID = rs.getInt("id");
-                            }
-                        }
+                        ps.setLong(2, System.currentTimeMillis() / 1000);
+                        ps.executeUpdate();
+                        playerID = ps.getGeneratedKeys().getInt(1);
                     }
 
-                    // Add new record if not found in Player table
-                    if (playerID == -1) {
-                        sql = "INSERT INTO Player (nick, time_created) VALUES(?, ?)";
-                        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                            ps.setString(1, record.getString("nick"));
-                            ps.setLong(2, System.currentTimeMillis() / 1000);
-                            ps.executeUpdate();
-                            playerID = ps.getGeneratedKeys().getInt(1);
-                        }
-                    }
-
-                    // Retrieve data from Purse table if possible
-                    boolean found = false;
-                    sql = "SELECT cash, bank, bankrupts FROM Purse WHERE player_id = ?";
-                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                        ps.setInt(1, playerID);
-                        try (ResultSet rs = ps.executeQuery()) {
-                            if (rs.isBeforeFirst()) {
-                                found = true;
-                            }
-                        }
-                    }
-
-                    // Add new record if not found in Purse
-                    if (!found) {
+                    if (playerID != -1) {
+                        // Attempt to add new record in Purse table
                         sql = "INSERT INTO Purse (player_id, cash, bank, bankrupts) " +
                               "VALUES(?, ?, ?, ?)";
                         try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -1133,89 +1108,47 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                             ps.setInt(4, record.getInteger("bankrupts"));
                             ps.executeUpdate();
                         }
-                    }
 
-                    // Retrieve data from TPPlayerStat table if possible
-                    found = false;
-                    sql = "SELECT player_id, rounds, winnings " +
-                          "FROM TPPlayerStat WHERE player_id = ?";
-                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                        ps.setInt(1, playerID);
-                        try (ResultSet rs = ps.executeQuery()) {
-                            if (rs.isBeforeFirst()) {
-                                found = true;
-                            }
-                        }
-                    }
-
-                    // Add new record if not found in TPPlayerStat table
-                    if (!found) {
-                        sql = "INSERT INTO TPPlayerStat (player_id, rounds, winnings) " +
-                              "VALUES(?, ?, ?)";
+                        // Attempt to add new record in TPPlayerStat table
+                        sql = "INSERT INTO TPPlayerStat (player_id, rounds, winnings, idles) " +
+                              "VALUES(?, ?, ?, ?)";
                         try (PreparedStatement ps = conn.prepareStatement(sql)) {
                             ps.setInt(1, playerID);
                             ps.setInt(2, record.getInteger("tprounds"));
                             ps.setInt(3, record.getInteger("tpwinnings"));
+                            ps.setInt(4, 0);
                             ps.executeUpdate();
                         }
-                    }
 
-                    // Retrieve data from BJPlayerStat table if possible
-                    found = false;
-                    sql = "SELECT player_id, rounds, winnings " +
-                          "FROM BJPlayerStat WHERE player_id = ?";
-                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                        ps.setInt(1, playerID);
-                        try (ResultSet rs = ps.executeQuery()) {
-                            if (rs.isBeforeFirst()) {
-                                found = true;
-                            }
-                        }
-                    }
-
-                    // Add new record if not found in BJPlayerStat table
-                    if (!found) {
-                        sql = "INSERT INTO BJPlayerStat (player_id, rounds, winnings) " +
-                              "VALUES(?, ?, ?)";
+                        // Attempt to add new record in BJPlayerStat table
+                        sql = "INSERT INTO BJPlayerStat (player_id, rounds, winnings, idles) " +
+                              "VALUES(?, ?, ?, ?)";
                         try (PreparedStatement ps = conn.prepareStatement(sql)) {
                             ps.setInt(1, playerID);
                             ps.setInt(2, record.getInteger("bjrounds"));
                             ps.setInt(3, record.getInteger("bjwinnings"));
+                            ps.setInt(4, 0);
                             ps.executeUpdate();
                         }
-                    }
 
-                    // Retrieve data from TTPlayerStat table if possible
-                    found = false;
-                    sql = "SELECT player_id, tourneys, points " +
-                          "FROM TTPlayerStat WHERE player_id = ?";
-                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                        ps.setInt(1, playerID);
-                        try (ResultSet rs = ps.executeQuery()) {
-                            if (rs.isBeforeFirst()) {
-                                found = true;
-                            }
-                        }
-                    }
-
-                    // Add new record if not found in TPPlayerStat table
-                    if (!found) {
-                        sql = "INSERT INTO TTPlayerStat (player_id, tourneys, points) " +
-                              "VALUES(?, ?, ?)";
+                        // Attempt to add new record in TPPlayerStat table
+                        sql = "INSERT INTO TTPlayerStat (player_id, tourneys, points, idles) " +
+                              "VALUES(?, ?, ?, ?)";
                         try (PreparedStatement ps = conn.prepareStatement(sql)) {
                             ps.setInt(1, playerID);
                             ps.setInt(2, record.getInteger("ttplayed"));
                             ps.setInt(3, record.getInteger("ttwins"));
+                            ps.setInt(4, 0);
                             ps.executeUpdate();
                         }
                     }
                 }
+                showMsg("Migration complete.");
             } catch (SQLException ex) {
                 manager.log("SQL Error: " + ex.getMessage());
+                showMsg("Migration aborted.");
             }
         }
-        
-        showMsg("Migration complete.");
     }
     
     //////////////////////////
