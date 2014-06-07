@@ -1084,6 +1084,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             int playerID;
             
             try (Connection conn = DriverManager.getConnection(dbURL)) {
+                conn.setAutoCommit(false);
+                
                 // Iterate over records
                 for (Player record : records) {
                     playerID = -1;
@@ -1143,6 +1145,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                         }
                     }
                 }
+                
+                conn.commit();
                 showMsg("Migration complete.");
             } catch (SQLException ex) {
                 manager.log("SQL Error: " + ex.getMessage());
@@ -1247,13 +1251,15 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     protected final void initDB() {
         try (Connection conn = DriverManager.getConnection(dbURL)) {
+            conn.setAutoCommit(false);
+            
             // Create tables if necessary
             try (Statement s = conn.createStatement()) {
                 // Player table
                 s.execute( "CREATE TABLE IF NOT EXISTS Player (" +
                            "id INTEGER PRIMARY KEY, nick TEXT, " +
                            "time_created INTEGER, UNIQUE(nick))");
-                
+
                 // Purse table
                 s.execute( "CREATE TABLE IF NOT EXISTS Purse (" +
                            "player_id INTEGER, cash INTEGER, " +
@@ -1406,6 +1412,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                            "UNIQUE(player_id, tourney_id), " +
                            "FOREIGN KEY(player_id) REFERENCES Player(id), " +
                            "FOREIGN KEY(tourney_id) REFERENCES TTTourney(id))");
+                
+                conn.commit();
             }
             
             logDBWarning(conn.getWarnings());
@@ -1994,10 +2002,20 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     abstract protected void loadDBPlayerData(Player p);
     
     /**
+     * Saves a list of players in one transaction.
+     * @param players 
+     */
+    abstract protected void saveDBPlayerDataBatch(ArrayList<Player> players);
+    
+    /**
      * Saves a player's stats to the database.
      * @param p
      */
-    abstract protected void saveDBPlayerData(Player p);
+    protected void saveDBPlayerData(Player p) {
+        ArrayList<Player> list = new ArrayList<>(1);
+        list.add(p);
+        saveDBPlayerDataBatch(list);
+    }
     
     /**
      * Records a banking transaction into the database.

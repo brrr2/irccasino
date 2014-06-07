@@ -1144,6 +1144,8 @@ public class Blackjack extends CardGame {
     @Override
     protected void loadDBPlayerData(Player p) {
         try (Connection conn = DriverManager.getConnection(dbURL)) {
+            conn.setAutoCommit(false);
+            
             // Initialize
             p.put("id", 0);
             p.put("cash", get("cash"));
@@ -1233,6 +1235,7 @@ public class Blackjack extends CardGame {
                 }
             }
             
+            conn.commit();
             logDBWarning(conn.getWarnings());
         } catch (SQLException ex) {
             manager.log("SQL Error: " + ex.getMessage());
@@ -1240,30 +1243,35 @@ public class Blackjack extends CardGame {
     }
     
     @Override
-    protected void saveDBPlayerData(Player p) {
+    protected void saveDBPlayerDataBatch(ArrayList<Player> players) {
         try (Connection conn = DriverManager.getConnection(dbURL)) {
-            // Update data in Purse table
-            String sql = "UPDATE Purse SET cash = ?, bank = ?, bankrupts = ? " +
-                         "WHERE player_id = ?";
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setInt(1, p.getInteger("cash"));
-                ps.setInt(2, p.getInteger("bank"));
-                ps.setInt(3, p.getInteger("bankrupts"));
-                ps.setInt(4, p.getInteger("id"));
-                ps.executeUpdate();
+            conn.setAutoCommit(false);
+            
+            for (Player p : players) {
+                // Update data in Purse table
+                String sql = "UPDATE Purse SET cash = ?, bank = ?, bankrupts = ? " +
+                             "WHERE player_id = ?";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setInt(1, p.getInteger("cash"));
+                    ps.setInt(2, p.getInteger("bank"));
+                    ps.setInt(3, p.getInteger("bankrupts"));
+                    ps.setInt(4, p.getInteger("id"));
+                    ps.executeUpdate();
+                }
+
+                // Update data in BJPlayerStat table
+                sql = "UPDATE BJPlayerStat SET rounds = ?, winnings = ?, idles = ? " +
+                      "WHERE player_id = ?";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setInt(1, p.getInteger("rounds"));
+                    ps.setInt(2, p.getInteger("winnings"));
+                    ps.setInt(3, p.getInteger("idles"));
+                    ps.setInt(4, p.getInteger("id"));
+                    ps.executeUpdate();
+                }
             }
             
-            // Update data in BJPlayerStat table
-            sql = "UPDATE BJPlayerStat SET rounds = ?, winnings = ?, idles = ? " +
-                  "WHERE player_id = ?";
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setInt(1, p.getInteger("rounds"));
-                ps.setInt(2, p.getInteger("winnings"));
-                ps.setInt(3, p.getInteger("idles"));
-                ps.setInt(4, p.getInteger("id"));
-                ps.executeUpdate();
-            }
-            
+            conn.commit();
             logDBWarning(conn.getWarnings());
         } catch (SQLException ex) {
             manager.log("SQL Error: " + ex.getMessage());
@@ -1400,6 +1408,8 @@ public class Blackjack extends CardGame {
     protected void saveDBGameStats() {
         int roundID, handID;
         try (Connection conn = DriverManager.getConnection(dbURL)) {
+            conn.setAutoCommit(false);
+            
             // Insert data into BJRound table
             String sql = "INSERT INTO BJRound (start_time, end_time) VALUES (?, ?)";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -1492,6 +1502,7 @@ public class Blackjack extends CardGame {
                 ps.executeUpdate();
             }
             
+            conn.commit();
             logDBWarning(conn.getWarnings());
         } catch (SQLException ex) {
             manager.log("SQL Error: " + ex.getMessage());
@@ -1648,12 +1659,12 @@ public class Blackjack extends CardGame {
                     saveDBPlayerBanking(pp);
                     informPlayer(pp.getNick(), getMsg("auto_withdraw"), amount);
                 }
-                saveDBPlayerData(pp);
             }
             
             // Save game stats
             endTime = System.currentTimeMillis() / 1000;
             saveGameStats();
+            saveDBPlayerDataBatch(joined);
             saveDBGameStats();
             
             /* Clean-up tasks

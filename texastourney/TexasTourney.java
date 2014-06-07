@@ -1173,8 +1173,8 @@ public class TexasTourney extends TexasPoker {
                 if (p.getBoolean("idled")) {
                     p.add("idles", 1);
                 }
-                saveDBPlayerData(p);
             }
+            saveDBPlayerDataBatch(blacklist);
             
             // Display tournament results
             showTourneyResults();
@@ -1434,6 +1434,8 @@ public class TexasTourney extends TexasPoker {
     @Override
     protected void loadDBPlayerData(Player p) {
         try (Connection conn = DriverManager.getConnection(dbURL)) {
+            conn.setAutoCommit(false);
+            
             // Initialize
             p.put("id", 0);
             p.put("cash", get("cash"));
@@ -1492,6 +1494,7 @@ public class TexasTourney extends TexasPoker {
                 }
             }
             
+            conn.commit();
             logDBWarning(conn.getWarnings());
         } catch (SQLException ex) {
             manager.log("SQL Error: " + ex.getMessage());
@@ -1499,19 +1502,24 @@ public class TexasTourney extends TexasPoker {
     }
     
     @Override
-    protected void saveDBPlayerData(Player p) {
+    protected void saveDBPlayerDataBatch(ArrayList<Player> players) {
         try (Connection conn = DriverManager.getConnection(dbURL)) {
-            // Update data in TTPlayerStat table
-            String sql = "UPDATE TTPlayerStat SET tourneys = ?, points = ?, idles = ? " +
-                         "WHERE player_id = ?";
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setInt(1, p.getInteger("tourneys"));
-                ps.setInt(2, p.getInteger("points"));
-                ps.setInt(3, p.getInteger("idles"));
-                ps.setInt(4, p.getInteger("id"));
-                ps.executeUpdate();
+            conn.setAutoCommit(false);
+            
+            for (Player p : players) {
+                // Update data in TTPlayerStat table
+                String sql = "UPDATE TTPlayerStat SET tourneys = ?, points = ?, idles = ? " +
+                             "WHERE player_id = ?";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setInt(1, p.getInteger("tourneys"));
+                    ps.setInt(2, p.getInteger("points"));
+                    ps.setInt(3, p.getInteger("idles"));
+                    ps.setInt(4, p.getInteger("id"));
+                    ps.executeUpdate();
+                }
             }
             
+            conn.commit();
             logDBWarning(conn.getWarnings());
         } catch (SQLException ex) {
             manager.log("SQL Error: " + ex.getMessage());
@@ -1609,6 +1617,8 @@ public class TexasTourney extends TexasPoker {
     protected void saveDBGameStats() {
         int tourneyID;
         try (Connection conn = DriverManager.getConnection(dbURL)) {
+            conn.setAutoCommit(false);
+            
             // Insert data into TTTourney table
             String sql = "INSERT INTO TTTourney (start_time, end_time, rounds) " +
                          "VALUES (?, ?, ?)";
@@ -1656,6 +1666,7 @@ public class TexasTourney extends TexasPoker {
                 }
             }
             
+            conn.commit();
             logDBWarning(conn.getWarnings());
         } catch (SQLException ex) {
             manager.log("SQL Error: " + ex.getMessage());
