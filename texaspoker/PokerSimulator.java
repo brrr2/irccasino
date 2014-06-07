@@ -178,7 +178,7 @@ public class PokerSimulator {
     public double getWinPct(PokerPlayer p) {
         for (PokerPlayer simP : simList) {
             if (simP.equals(p)) {
-                return (double) simP.get("wins") / (double) rounds * 100;
+                return simP.getInteger("wins") * 1.0 / rounds * 100;
             }
         }
         return -1.0;
@@ -192,7 +192,7 @@ public class PokerSimulator {
     public double getTiePct(PokerPlayer p) {
         for (PokerPlayer simP : simList) {
             if (simP.equals(p)) {
-                return (double) simP.get("ties") / (double) rounds * 100;
+                return simP.getInteger("ties") * 1.0 / rounds * 100;
             }
         }
         return -1.0;

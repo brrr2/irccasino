@@ -20,7 +20,6 @@
 package irccasino.texaspoker;
 
 import irccasino.cardgame.CardDeck;
-import irccasino.cardgame.Record;
 import irccasino.GameManager;
 import irccasino.cardgame.CardGame;
 import irccasino.cardgame.Hand;
@@ -1343,6 +1342,43 @@ public class TexasPoker extends CardGame{
     /////////////////////////////////////////
     
     @Override
+    protected Player loadDBPlayerRecord(String nick) {
+        if (isBlacklisted(nick)) {
+            return findBlacklisted(nick);
+        } else if (isJoined(nick)) {
+            return findJoined(nick);
+        } else {
+            PokerPlayer record = null;
+            try (Connection conn = DriverManager.getConnection(dbURL)) {
+                // Retrieve data from Player table if possible
+                String sql = "SELECT id, nick, cash, bank, bankrupts, winnings, rounds " +
+                             "FROM Player INNER JOIN Purse INNER JOIN TPPlayerStat " +
+                             "ON Player.id = Purse.player_id AND Player.id = TPPlayerStat.player_id " +
+                             "WHERE nick = ? COLLATE NOCASE";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setString(1, nick);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.isBeforeFirst()) {
+                            record = new PokerPlayer("");
+                            record.put("id", rs.getInt("id"));
+                            record.put("nick", rs.getString("nick"));
+                            record.put("cash", rs.getInt("cash"));
+                            record.put("bank", rs.getInt("bank"));
+                            record.put("bankrupts", rs.getInt("bankrupts"));
+                            record.put("winnings", rs.getInt("winnings"));
+                            record.put("rounds", rs.getInt("rounds"));
+                        }
+                    }
+                }
+                logDBWarning(conn.getWarnings());
+            } catch (SQLException ex) {
+                manager.log("SQL Error: " + ex.getMessage());
+            }
+            return record;
+        }
+    }
+    
+    @Override
     protected void loadDBPlayerData(Player p) {
         try (Connection conn = DriverManager.getConnection(dbURL)) {
             p.put("id", 0);
@@ -2119,99 +2155,51 @@ public class TexasPoker extends CardGame{
     
     @Override
     public void showPlayerWinnings(String nick){
-        if (isBlacklisted(nick)) {
-            Player p = findBlacklisted(nick);
-            showMsg(getMsg("player_winnings"), p.getNick(false), p.get("winnings"), getGameNameStr());
-        } else if (isJoined(nick)) {
-            Player p = findJoined(nick);
-            showMsg(getMsg("player_winnings"), p.getNick(false), p.get("winnings"), getGameNameStr());
+        Player record = loadDBPlayerRecord(nick);
+        if (record == null) {
+            showMsg(getMsg("no_data"), formatNoPing(nick));
         } else {
-            Player record = loadPlayerRecord(nick);
-            if (record == null) {
-                showMsg(getMsg("no_data"), formatNoPing(nick));
-            } else {
-                showMsg(getMsg("player_winnings"), record.getNick(false), record.get("winnings"), getGameNameStr());
-            }
+            showMsg(getMsg("player_winnings"), record.getNick(false), record.get("winnings"), getGameNameStr());
         }
     }
     
     @Override
     public void showPlayerWinRate(String nick){
-        if (isBlacklisted(nick)) {
-            Player p = findBlacklisted(nick);
-            if (p.getInteger("rounds") == 0){
-                showMsg(getMsg("player_no_rounds"), p.getNick(false), getGameNameStr());
-            } else {
-                showMsg(getMsg("player_winrate"), p.getNick(false), (double) p.get("winnings")/(double) p.get("rounds"), getGameNameStr());
-            }  
-        } else if (isJoined(nick)) {
-            Player p = findJoined(nick);
-            if (p.getInteger("rounds") == 0){
-                showMsg(getMsg("player_no_rounds"), p.getNick(false), getGameNameStr());
-            } else {
-                showMsg(getMsg("player_winrate"), p.getNick(false), (double) p.get("winnings")/(double) p.get("rounds"), getGameNameStr());
-            }  
+        Player record = loadDBPlayerRecord(nick);
+        if (record == null) {
+            showMsg(getMsg("no_data"), formatNoPing(nick));
+        } else if (record.getInteger("rounds") == 0){
+            showMsg(getMsg("player_no_rounds"), record.getNick(false), getGameNameStr());
         } else {
-            Player record = loadPlayerRecord(nick);
-            if (record == null) {
-                showMsg(getMsg("no_data"), formatNoPing(nick));
-            } else if (record.getInteger("rounds") == 0){
-                showMsg(getMsg("player_no_rounds"), record.getNick(false), getGameNameStr());
-            } else {
-                showMsg(getMsg("player_winrate"), record.getNick(false), (double) record.get("winnings")/(double) record.get("rounds"), getGameNameStr());
-            }  
+            showMsg(getMsg("player_winrate"), record.getNick(false), record.getInteger("winnings") * 1.0 / record.getInteger("rounds"), getGameNameStr());
         }
     }
     
     @Override
     public void showPlayerRounds(String nick){
-        if (isBlacklisted(nick)) {
-            Player p = findBlacklisted(nick);
-            if (p.getInteger("rounds") == 0){
-                showMsg(getMsg("player_no_rounds"), p.getNick(false), getGameNameStr());
-            } else {
-                showMsg(getMsg("player_rounds"), p.getNick(false), p.get("rounds"), getGameNameStr());
-            }
-        } else if (isJoined(nick)) {
-            Player p = findJoined(nick);
-            if (p.getInteger("rounds") == 0){
-                showMsg(getMsg("player_no_rounds"), p.getNick(false), getGameNameStr());
-            } else {
-                showMsg(getMsg("player_rounds"), p.getNick(false), p.get("rounds"), getGameNameStr());
-            }
+        Player record = loadDBPlayerRecord(nick);
+        if (record == null) {
+            showMsg(getMsg("no_data"), formatNoPing(nick));
+        } else if (record.getInteger("rounds") == 0) {
+            showMsg(getMsg("player_no_rounds"), record.getNick(false), getGameNameStr());
         } else {
-            Player record = loadPlayerRecord(nick);
-            if (record == null) {
-                showMsg(getMsg("no_data"), formatNoPing(nick));
-            } else if (record.getInteger("rounds") == 0) {
-                showMsg(getMsg("player_no_rounds"), record.getNick(false), getGameNameStr());
-            } else {
-                showMsg(getMsg("player_rounds"), record.getNick(false), record.get("rounds"), getGameNameStr());
-            }
+            showMsg(getMsg("player_rounds"), record.getNick(false), record.get("rounds"), getGameNameStr());
         }
     }
     
     @Override
     public void showPlayerAllStats(String nick){
-        if (isBlacklisted(nick)) {
-            Player p = findBlacklisted(nick);
-            showMsg(getMsg("player_all_stats"), p.getNick(false), p.get("cash"), p.get("bank"), p.get("netcash"), p.get("bankrupts"), p.get("winnings"), p.get("rounds"));
-        } else if (isJoined(nick)) {
-            Player p = findJoined(nick);
-            showMsg(getMsg("player_all_stats"), p.getNick(false), p.get("cash"), p.get("bank"), p.get("netcash"), p.get("bankrupts"), p.get("winnings"), p.get("rounds"));
+        Player record = loadDBPlayerRecord(nick);
+        if (record == null) {
+            showMsg(getMsg("no_data"), formatNoPing(nick));
         } else {
-            Player record = loadPlayerRecord(nick);
-            if (record == null) {
-                showMsg(getMsg("no_data"), formatNoPing(nick));
-            } else {
-                showMsg(getMsg("player_all_stats"), record.getNick(false), record.get("cash"), record.get("bank"), record.get("netcash"), record.get("bankrupts"), record.get("winnings"), record.get("rounds"));
-            }
+            showMsg(getMsg("player_all_stats"), record.getNick(false), record.get("cash"), record.get("bank"), record.get("netcash"), record.get("bankrupts"), record.get("winnings"), record.get("rounds"));
         }
     }
 
     @Override
     public void showPlayerRank(String nick, String stat) throws IllegalArgumentException {
-        if (getPlayerStat(nick, "exists") == null){
+        if (loadDBPlayerRecord(nick) == null){
             showMsg(getMsg("no_data"), formatNoPing(nick));
             return;
         }

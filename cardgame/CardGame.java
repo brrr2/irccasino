@@ -1076,7 +1076,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         if (!channel.isOp(user)) {
             informPlayer(nick, getMsg("ops_only"));
         } else if (manager.gamesInProgress()) {
-            informPlayer(nick, getMsg("no_trim"));
+            informPlayer(nick, getMsg("no_migrate"));
         } else {
             showMsg("Performing migration from players.txt to stats.sqlite3. Please wait...");
             
@@ -1305,7 +1305,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         loadStrLib(strFile);
         loadHostList("away.txt", awayList);
         loadHostList("simple.txt", notSimpleList);
-        checkPlayerFile();
         initDB();
         initCustom();
     }
@@ -1950,64 +1949,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     abstract protected int getTotalPlayers();
     
     /**
-     * Returns the specified statistic for a nick.
-     * If a player is already joined or blacklisted, the value is read from the
-     * Player object. Otherwise, a search is done in players.txt.
-     * 
-     * @param nick IRC user's nick
-     * @param stat the statistic's name
-     * @return the desired statistic
-     */
-    protected Object getPlayerStat(String nick, String stat){
-        if (isBlacklisted(nick)) {
-            return findBlacklisted(nick).get(stat);
-        } else if (isJoined(nick)) {
-            return findJoined(nick).get(stat);
-        } else {
-            Player record = loadPlayerRecord(nick);
-            if (record == null) {
-                return record;
-            }
-            return record.get(stat);
-        }
-    }
-    
-    /**
-     * Returns the player record for the specified nick from players.txt.
-     * @param nick
-     * @return 
-     */
-    protected Player loadPlayerRecord(String nick) {
-        ArrayList<Player> records = loadPlayerFile();
-        if (records != null) {
-            for (Player record : records) {
-                if (nick.equalsIgnoreCase(record.getString("nick"))){
-                    return record;
-                }
-            }
-        }
-        return null;
-    }
-    
-    /**
-     * Checks if players.txt exists and creates it if it doesn't exist.
-     */
-    protected final void checkPlayerFile(){
-        try {
-            BufferedReader out = new BufferedReader(new FileReader("players.txt"));
-            out.close();
-        } catch (IOException e){
-            manager.log("players.txt not found! Creating new players.txt...");
-            try {
-                PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("players.txt")));
-                out.close();
-            } catch (IOException f){
-                manager.log("Error creating players.txt.");
-            }
-        }
-    }
-    
-    /**
      * Loads players.txt.
      * Reads the file's contents into an ArrayList of PlayerRecord.
      * 
@@ -2071,6 +2012,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             warning = warning.getNextWarning();
         }
     }
+    
+    /**
+     * Returns the player record for the specified nick for the game.
+     * @param nick
+     * @return 
+     */
+    abstract protected Player loadDBPlayerRecord(String nick);
     
     /**
      * Loads a player's stats from the database.
@@ -2256,19 +2204,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param nick the player's nick
      */
     protected void showPlayerCash(String nick){
-        if (isBlacklisted(nick)) {
-            Player p = findBlacklisted(nick);
-            showMsg(getMsg("player_cash"), p.getNick(false), p.get("cash"));
-        } else if (isJoined(nick)) {
-            Player p = findJoined(nick);
-            showMsg(getMsg("player_cash"), p.getNick(false), p.get("cash"));
+        Player record = loadDBPlayerRecord(nick);
+        if (record == null) {
+            showMsg(getMsg("no_data"), formatNoPing(nick));
         } else {
-            Player record = loadPlayerRecord(nick);
-            if (record == null) {
-                showMsg(getMsg("no_data"), formatNoPing(nick));
-            } else {
-                showMsg(getMsg("player_cash"), record.getNick(false), record.get("cash"));
-            }
+            showMsg(getMsg("player_cash"), record.getNick(false), record.get("cash"));
         }
     }
     
@@ -2277,19 +2217,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param nick the player's nick
      */
     protected void showPlayerNetCash(String nick){
-        if (isBlacklisted(nick)) {
-            Player p = findBlacklisted(nick);
-            showMsg(getMsg("player_net"), p.getNick(false), p.get("netcash"));
-        } else if (isJoined(nick)) {
-            Player p = findJoined(nick);
-            showMsg(getMsg("player_net"), p.getNick(false), p.get("netcash"));
+        Player record = loadDBPlayerRecord(nick);
+        if (record == null) {
+            showMsg(getMsg("no_data"), formatNoPing(nick));
         } else {
-            Player record = loadPlayerRecord(nick);
-            if (record == null) {
-                showMsg(getMsg("no_data"), formatNoPing(nick));
-            } else {
-                showMsg(getMsg("player_net"), record.getNick(false), record.get("netcash"));
-            }
+            showMsg(getMsg("player_net"), record.getNick(false), record.get("netcash"));
         }
     }
     
@@ -2298,19 +2230,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param nick the player's nick
      */
     protected void showPlayerBank(String nick){
-        if (isBlacklisted(nick)) {
-            Player p = findBlacklisted(nick);
-            showMsg(getMsg("player_bank"), p.getNick(false), p.get("bank"));
-        } else if (isJoined(nick)) {
-            Player p = findJoined(nick);
-            showMsg(getMsg("player_bank"), p.getNick(false), p.get("bank"));
+        Player record = loadDBPlayerRecord(nick);
+        if (record == null) {
+            showMsg(getMsg("no_data"), formatNoPing(nick));
         } else {
-            Player record = loadPlayerRecord(nick);
-            if (record == null) {
-                showMsg(getMsg("no_data"), formatNoPing(nick));
-            } else {
-                showMsg(getMsg("player_bank"), record.getNick(false), record.get("bank"));
-            }
+            showMsg(getMsg("player_bank"), record.getNick(false), record.get("bank"));
         }
     }
     
@@ -2320,19 +2244,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param nick the player's nick
      */
     protected void showPlayerBankrupts(String nick){
-        if (isBlacklisted(nick)) {
-            Player p = findBlacklisted(nick);
-            showMsg(getMsg("player_bankrupts"), p.getNick(false), p.get("bankrupts"));
-        } else if (isJoined(nick)) {
-            Player p = findJoined(nick);
-            showMsg(getMsg("player_bankrupts"), p.getNick(false), p.get("bankrupts"));
+        Player record = loadDBPlayerRecord(nick);
+        if (record == null) {
+            showMsg(getMsg("no_data"), formatNoPing(nick));
         } else {
-            Player record = loadPlayerRecord(nick);
-            if (record == null) {
-                showMsg(getMsg("no_data"), formatNoPing(nick));
-            } else {
-                showMsg(getMsg("player_bankrupts"), record.getNick(false), record.get("bankrupts"));
-            }
+            showMsg(getMsg("player_bankrupts"), record.getNick(false), record.get("bankrupts"));
         }
     }
     
