@@ -39,7 +39,7 @@ public class TourneyPokerPlayer extends PokerPlayer {
     @Override
     public Object get(String key) {
         if (key.equalsIgnoreCase("winrate")) {
-            return getInteger("points") * 1.0 / getInteger("tourneys");
+            return getInteger("points") * 100.0 / getInteger("tourneys");
         }
         return super.get(key);
     }

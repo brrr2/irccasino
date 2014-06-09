@@ -1082,6 +1082,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             
             ArrayList<Player> records = loadPlayerFile();
             int playerID;
+            String sql;
             
             try (Connection conn = DriverManager.getConnection(dbURL)) {
                 conn.setAutoCommit(false);
@@ -1091,7 +1092,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     playerID = -1;
                     
                     // Add new record if not found in Player table
-                    String sql = "INSERT INTO Player (nick, time_created) VALUES(?, ?)";
+                    sql = "INSERT INTO Player (nick, time_created) VALUES(?, ?)";
                     try (PreparedStatement ps = conn.prepareStatement(sql)) {
                         ps.setString(1, record.getString("nick"));
                         ps.setLong(2, System.currentTimeMillis() / 1000);
@@ -1144,6 +1145,38 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                             ps.executeUpdate();
                         }
                     }
+                }
+                
+                // Migrate house data for Blackjack
+                try (BufferedReader in = new BufferedReader(new FileReader("housestats.txt"))) {
+                    String str;
+                    int decks, rounds, winnings;
+                    StringTokenizer st;
+                    while (in.ready()) {
+                        str = in.readLine();
+                        if (str.startsWith("#blackjack")) {
+                            while (in.ready()) {
+                                str = in.readLine();
+                                if (str.startsWith("#")) {
+                                    break;
+                                }
+                                st = new StringTokenizer(str);
+                                decks = Integer.parseInt(st.nextToken());
+                                rounds = Integer.parseInt(st.nextToken());
+                                winnings = Integer.parseInt(st.nextToken());
+                                sql = "INSERT INTO BJHouse (shoe_size, rounds, winnings) VALUES(?, ?, ?)";
+                                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                                    ps.setInt(1, decks);
+                                    ps.setInt(2, rounds);
+                                    ps.setInt(3, winnings);
+                                    ps.executeUpdate();
+                                }
+                            }
+                            break;
+                        }
+                    }
+                } catch (IOException e) {
+                    manager.log("housestats.txt not found! No house stats migrated...");
                 }
                 
                 conn.commit();
@@ -1284,7 +1317,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 // BJRound table
                 s.execute( "CREATE TABLE IF NOT EXISTS BJRound (" +
                            "id INTEGER PRIMARY KEY, " +
-                           "start_time INTEGER, end_time INTEGER)");
+                           "start_time INTEGER, end_time INTEGER, " +
+                           "shoe_size INTEGER, num_cards_left INTEGER, " +
+                           "FOREIGN KEY(shoe_size) REFERENCES BJHouse(shoe_size))");
                 
                 // BJHand table
                 s.execute( "CREATE TABLE IF NOT EXISTS BJHand (" +
@@ -1326,7 +1361,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                            "FOREIGN KEY(round_id) REFERENCES BJRound(id))");
                 
                 // BJHouseStat table
-                s.execute( "CREATE TABLE IF NOT EXISTS BJHouseStat (" +
+                s.execute( "CREATE TABLE IF NOT EXISTS BJHouse (" +
                            "shoe_size INTEGER, rounds INTEGER, " +
                            "winnings INTEGER, UNIQUE(shoe_size))");
                 
@@ -1915,15 +1950,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     /////////////////////////////////////////
     
     /**
-     * Returns the total number of players who have played this game.
-     * Counts the number of players who have played more than one round of this
-     * game.
-     * 
-     * @return the total counted from players.txt
-     */
-    abstract protected int getTotalPlayers();
-    
-    /**
      * Loads players.txt.
      * Reads the file's contents into an ArrayList of PlayerRecord.
      * 
@@ -2046,21 +2072,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     ////////////////////////////////////////
     
     /**
-     * Loads the stats for the game from a file.
-     */
-    abstract protected void loadGameStats();
-    
-    /**
-     * Saves the stats for the game to a file.
-     */
-    abstract protected void saveGameStats();
-    
-    /**
-     * Loads game stats from the database.
-     */
-    abstract protected void loadDBGameStats();
-    
-    /**
      * saves game stats to the database.
      */
     abstract protected void saveDBGameStats();
@@ -2118,34 +2129,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     ////////////////////////////////
     //// Message output methods ////
     ////////////////////////////////
-        
-    /**
-     * Outputs a player's winnings for the game to the game channel.
-     * @param nick the player's nick
-     */
-    abstract protected void showPlayerWinnings(String nick);
-    
-    /**
-     * Outputs a player's win rate for the game to the game channel.
-     * @param nick the player's nick
-     */
-    abstract protected void showPlayerWinRate(String nick);
-    
-    /**
-     * Outputs the number of rounds of the game a player has played to
-     * the game channel.
-     * @param nick the player's nick
-     */
-    abstract protected void showPlayerRounds(String nick); 
-    
-    /**
-     * Outputs all of a player's stats relevant to this game.
-     * Sends the list of statistics separated by '|' character to the game
-     * channel.
-     * 
-     * @param nick the player's nick
-     */
-    abstract protected void showPlayerAllStats(String nick);
     
     /**
      * Outputs a player's rank for the given stat to the game channel.
@@ -2234,6 +2217,66 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             showMsg(getMsg("no_data"), formatNoPing(nick));
         } else {
             showMsg(getMsg("player_bankrupts"), record.getNick(false), record.get("bankrupts"));
+        }
+    }
+    
+    /**
+     * Outputs a player's winnings for the game to the game channel.
+     * @param nick the player's nick
+     */
+    public void showPlayerWinnings(String nick){
+        Player record = loadDBPlayerRecord(nick);
+        if (record == null) {
+            showMsg(getMsg("no_data"), formatNoPing(nick));
+        } else {
+            showMsg(getMsg("player_winnings"), record.getNick(false), record.get("winnings"), getGameNameStr());
+        }
+    }
+    
+    /**
+     * Outputs a player's win rate for the game to the game channel.
+     * @param nick the player's nick
+     */
+    public void showPlayerWinRate(String nick){
+        Player record = loadDBPlayerRecord(nick);
+        if (record == null) {
+            showMsg(getMsg("no_data"), formatNoPing(nick));
+        } else if (record.getInteger("rounds") == 0){
+            showMsg(getMsg("player_no_rounds"), record.getNick(false), getGameNameStr());
+        } else {
+            showMsg(getMsg("player_winrate"), record.getNick(false), record.get("winrate"), getGameNameStr());
+        }
+    }
+    
+    /**
+     * Outputs the number of rounds of the game a player has played to
+     * the game channel.
+     * @param nick the player's nick
+     */
+    public void showPlayerRounds(String nick){
+        Player record = loadDBPlayerRecord(nick);
+        if (record == null) {
+            showMsg(getMsg("no_data"), formatNoPing(nick));
+        } else if (record.getInteger("rounds") == 0) {
+            showMsg(getMsg("player_no_rounds"), record.getNick(false), getGameNameStr());
+        } else {
+            showMsg(getMsg("player_rounds"), record.getNick(false), record.get("rounds"), getGameNameStr());
+        }
+    }
+    
+    /**
+     * Outputs all of a player's stats relevant to this game.
+     * Sends the list of statistics separated by '|' character to the game
+     * channel.
+     * 
+     * @param nick the player's nick
+     */
+    public void showPlayerAllStats(String nick){
+        Player record = loadDBPlayerRecord(nick);
+        if (record == null) {
+            showMsg(getMsg("no_data"), formatNoPing(nick));
+        } else {
+            showMsg(getMsg("player_all_stats"), record.getNick(false), record.get("cash"), record.get("bank"), record.get("netcash"), record.get("bankrupts"), record.get("winnings"), record.get("rounds"));
         }
     }
     

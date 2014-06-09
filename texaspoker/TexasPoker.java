@@ -24,9 +24,8 @@ import irccasino.GameManager;
 import irccasino.cardgame.CardGame;
 import irccasino.cardgame.Hand;
 import irccasino.cardgame.Player;
-import java.io.BufferedReader;
+import irccasino.cardgame.Record;
 import java.io.BufferedWriter;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -60,7 +59,6 @@ public class TexasPoker extends CardGame{
     protected PokerPlayer bigBlind;
     protected PokerPlayer topBettor;
     protected Hand community;
-    protected HouseStat house;
     // In-game properties
     protected PokerState state;
     protected PokerBet betState;
@@ -1132,7 +1130,6 @@ public class TexasPoker extends CardGame{
         smallBlind = null;
         bigBlind = null;
         topBettor = null;
-        house = null;
         devoiceAll();
         showMsg(getMsg("game_end"), getGameNameStr());
         joined.clear();
@@ -1300,11 +1297,9 @@ public class TexasPoker extends CardGame{
         deck.shuffleCards();
         pots = new ArrayList<>();
         community = new Hand();
-        house = new HouseStat();
         
         initSettings();
         loadHelp(helpFile);
-        loadGameStats();
         loadIni();
         state = PokerState.NONE;
         betState = PokerBet.NONE;
@@ -1356,7 +1351,7 @@ public class TexasPoker extends CardGame{
             PokerPlayer record = null;
             try (Connection conn = DriverManager.getConnection(dbURL)) {
                 // Retrieve data from Player table if possible
-                String sql = "SELECT id, nick, cash, bank, bankrupts, winnings, rounds, idles " +
+                String sql = "SELECT id, nick, cash, bank, bankrupts, rounds, winnings, idles " +
                              "FROM Player INNER JOIN Purse INNER JOIN TPPlayerStat " +
                              "ON Player.id = Purse.player_id AND Player.id = TPPlayerStat.player_id " +
                              "WHERE nick = ? COLLATE NOCASE";
@@ -1370,8 +1365,8 @@ public class TexasPoker extends CardGame{
                             record.put("cash", rs.getInt("cash"));
                             record.put("bank", rs.getInt("bank"));
                             record.put("bankrupts", rs.getInt("bankrupts"));
-                            record.put("winnings", rs.getInt("winnings"));
                             record.put("rounds", rs.getInt("rounds"));
+                            record.put("winnings", rs.getInt("winnings"));
                             record.put("idles", rs.getInt("idles"));
                         }
                     }
@@ -1521,97 +1516,41 @@ public class TexasPoker extends CardGame{
         }
     }
     
-    ////////////////////////////////
-    //// House stats management ////
-    ////////////////////////////////
+    ///////////////////////////////
+    //// Game stats management ////
+    ///////////////////////////////
     
-    @Override
-    public void loadGameStats() {
-        try (BufferedReader in = new BufferedReader(new FileReader("housestats.txt"))) {
-            String str;
-            int biggestpot, players, winners;
-            StringTokenizer st;
-            while (in.ready()) {
-                str = in.readLine();
-                if (str.startsWith("#texaspoker")) {
-                    while (in.ready()) {
-                        str = in.readLine();
-                        if (str.startsWith("#")) {
-                            break;
-                        }
-                        st = new StringTokenizer(str);
-                        biggestpot = Integer.parseInt(st.nextToken());
-                        house.put("biggestpot", biggestpot);
-                        players = Integer.parseInt(st.nextToken());
-                        for (int ctr = 0; ctr < players; ctr++) {
-                            house.addDonor(new PokerPlayer(st.nextToken()));
-                        }
-                        winners = Integer.parseInt(st.nextToken());
-                        for (int ctr = 0; ctr < winners; ctr++) {
-                            house.addWinner(new PokerPlayer(st.nextToken()));
-                        }
-                    }
-                    break;
-                }
-            }
-        } catch (IOException e) {
-            manager.log("housestats.txt not found! Creating new housestats.txt...");
-            try {
-                PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("housestats.txt")));
-                out.close();
-            } catch (IOException f) {
-                manager.log("Error creating housestats.txt!");
-            }
-        }
-    }
-    
-    @Override
-    public void saveGameStats() {
-        boolean found = false;
-        int index = 0;
-        ArrayList<String> lines = new ArrayList<>();
-        try (BufferedReader in = new BufferedReader(new FileReader("housestats.txt"))) {
-            String str;
-            while (in.ready()) {
-                //Add all lines until we find texaspoker lines
-                str = in.readLine();
-                lines.add(str);
-                if (str.startsWith("#texaspoker")) {
-                    found = true;
-                    /* Store the index where texaspoker stats go so they can be
-                    * overwritten. */
-                    index = lines.size();
-                    //Skip existing texaspoker lines but add all the rest
-                    while (in.ready()) {
-                        str = in.readLine();
-                        if (str.startsWith("#")) {
-                            lines.add(str);
-                            break;
-                        }
-                    }
-                }
-            }
-        } catch (IOException e) {
-            /* housestats.txt is not found */
-            manager.log("Error reading housestats.txt!");
-        }
-        if (!found) {
-            lines.add("#texaspoker");
-            index = lines.size();
-        }
-        lines.add(index, house.get("biggestpot") + " " + house.getNumDonors() + " " + house.getDonorsString() + " " + house.getNumWinners() + " " + house.getWinnersString());
-        try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("housestats.txt")))) {
-            for (int ctr = 0; ctr < lines.size(); ctr++) {
-                out.println(lines.get(ctr));
-            }
-        } catch (IOException e) {
-            manager.log("Error writing to housestats.txt!");
-        }
-    }
-    
-    @Override
-    protected void loadDBGameStats() {
+    /**
+     * Returns the total stats for the game.
+     * @return a record containing queried stats
+     */
+    private Record loadDBGameTotals() {
+        Record record = new Record();
+        record.put("total_players", 0);
+        record.put("pot_size", 0);
+        record.put("pot_winners", "");
+        record.put("pot_contributors", "");
         
+        try (Connection conn = DriverManager.getConnection(dbURL)) {
+            conn.setAutoCommit(false);
+            
+            // Retreive total players
+            String sql = "SELECT COUNT(*) as total_players FROM TPPlayerStat WHERE rounds > 0";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.isBeforeFirst()) {
+                        record = new Record();
+                        record.put("total_players", rs.getInt("total_players"));
+                    }
+                }
+            }
+            
+            conn.commit();
+            logDBWarning(conn.getWarnings());
+        } catch (SQLException ex) {
+            manager.log("SQL Error: " + ex.getMessage());
+        }
+        return record;
     }
     
     @Override
@@ -2028,26 +1967,6 @@ public class TexasPoker extends CardGame{
         }
     }
     
-    @Override
-    public int getTotalPlayers(){
-        int total = 0;
-        try (Connection conn = DriverManager.getConnection(dbURL)) {
-            // Retrieve record count from TPPlayerStat table where rounds > 0
-            String sql = "SELECT count(*) FROM TPPlayerStat WHERE rounds > 0";
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.isBeforeFirst()) {
-                        total = rs.getInt(1);
-                    }
-                }
-            }
-            logDBWarning(conn.getWarnings());
-        } catch (SQLException ex) {
-            manager.log("SQL Error: " + ex.getMessage());
-        }
-        return total;
-    }    
-    
     ////////////////////////////////////////////////////////
     //// Message output methods for Texas Hold'em Poker ////
     ////////////////////////////////////////////////////////
@@ -2100,7 +2019,7 @@ public class TexasPoker extends CardGame{
     public void showCommunityCards(boolean noTitle){
         String msg = "";
         
-        // Append community cards to StringBuilder
+        // Append community cards to String
         if (noTitle && betState.equals(PokerBet.RIVER)) {
             msg += formatHeader(" Community: ") + " " + community.toString() + " ";
         } else if (betState.equals(PokerBet.FLOP)) {
@@ -2114,7 +2033,7 @@ public class TexasPoker extends CardGame{
             return;
         }
         
-        // Append existing pots to StringBuilder
+        // Append existing pots to String
         for (int ctr = 0; ctr < pots.size(); ctr++){
             msg += Colors.YELLOW+",01 Pot #"+(ctr+1)+": "+Colors.GREEN+",01$"+formatNumber(pots.get(ctr).getTotal())+" "+Colors.NORMAL+" ";
         }
@@ -2180,162 +2099,84 @@ public class TexasPoker extends CardGame{
                         formatNumber(potTotal/winners) + ". (" + 
                         getPlayerListString(players) + ")");
             }
-            
-            // Check if it's the biggest pot
-            if (house.getInteger("biggestpot") < potTotal){
-                house.put("biggestpot", potTotal);
-                house.clearDonors();
-                house.clearWinners();
-                // Store the list of donors
-                for (PokerPlayer donor : currentPot.getDonors()) {
-                    house.addDonor(new PokerPlayer(donor.getNick()));
-                }
-                // Store the list of winners
-                for (PokerPlayer winner : currentPot.getWinners()) {
-                    house.addWinner(new PokerPlayer(winner.getNick()));
-                }
-                saveGameStats();
-            }
-        }
-    }
-    
-    @Override
-    public void showPlayerWinnings(String nick){
-        Player record = loadDBPlayerRecord(nick);
-        if (record == null) {
-            showMsg(getMsg("no_data"), formatNoPing(nick));
-        } else {
-            showMsg(getMsg("player_winnings"), record.getNick(false), record.get("winnings"), getGameNameStr());
-        }
-    }
-    
-    @Override
-    public void showPlayerWinRate(String nick){
-        Player record = loadDBPlayerRecord(nick);
-        if (record == null) {
-            showMsg(getMsg("no_data"), formatNoPing(nick));
-        } else if (record.getInteger("rounds") == 0){
-            showMsg(getMsg("player_no_rounds"), record.getNick(false), getGameNameStr());
-        } else {
-            showMsg(getMsg("player_winrate"), record.getNick(false), record.getInteger("winnings") * 1.0 / record.getInteger("rounds"), getGameNameStr());
-        }
-    }
-    
-    @Override
-    public void showPlayerRounds(String nick){
-        Player record = loadDBPlayerRecord(nick);
-        if (record == null) {
-            showMsg(getMsg("no_data"), formatNoPing(nick));
-        } else if (record.getInteger("rounds") == 0) {
-            showMsg(getMsg("player_no_rounds"), record.getNick(false), getGameNameStr());
-        } else {
-            showMsg(getMsg("player_rounds"), record.getNick(false), record.get("rounds"), getGameNameStr());
-        }
-    }
-    
-    @Override
-    public void showPlayerAllStats(String nick){
-        Player record = loadDBPlayerRecord(nick);
-        if (record == null) {
-            showMsg(getMsg("no_data"), formatNoPing(nick));
-        } else {
-            showMsg(getMsg("player_all_stats"), record.getNick(false), record.get("cash"), record.get("bank"), record.get("netcash"), record.get("bankrupts"), record.get("winnings"), record.get("rounds"));
         }
     }
 
     @Override
     public void showPlayerRank(String nick, String stat) throws IllegalArgumentException {
-        if (loadDBPlayerRecord(nick) == null){
-            showMsg(getMsg("no_data"), formatNoPing(nick));
-            return;
+        String statName = "";
+        String line = Colors.BLACK + ",08";
+        String sql;
+        
+        // Build SQL query
+        if (stat.equalsIgnoreCase("winrate")) {
+            statName = "winrate";
+            sql = "SELECT nick, rounds, winnings*1.0/rounds AS winrate, " +
+                      "(SELECT COUNT(*) FROM TPPlayerStat WHERE rounds>50 AND winnings*1.0/rounds>t1.winnings*1.0/t1.rounds)+1 AS rank " +
+                  "FROM (Player INNER JOIN TPPlayerStat ON Player.id = TPPlayerStat.player_id) AS t1 " +
+                  "WHERE nick = ? COLLATE NOCASE";
+            line += "Texas Hold'em Win Rate: ";
+        } else if (stat.equalsIgnoreCase("net") || stat.equals("netcash")) {
+            statName = "netcash";
+            sql = "SELECT nick, cash+bank AS netcash, " +
+                      "(SELECT COUNT(*) FROM Purse WHERE cash+bank > t1.cash+t1.bank)+1 AS rank " +
+                  "FROM (Player INNER JOIN Purse ON Player.id = Purse.player_id) AS t1 " +
+                  "WHERE nick = ? COLLATE NOCASE";
+            line += "Net Cash: ";
+        } else {
+            sql = "SELECT nick, %s, " +
+                      "(SELECT COUNT(*) FROM Purse INNER JOIN TPPlayerStat ON Purse.player_id = TPPlayerStat.player_id WHERE %s > t1.%s)+1 AS rank " +
+                  "FROM (Player INNER JOIN Purse INNER JOIN TPPlayerStat ON Player.id = Purse.player_id AND Player.id = TPPlayerStat.player_id) AS t1 " +
+                  "WHERE nick = ? COLLATE NOCASE";
+            if (stat.equalsIgnoreCase("cash")) {
+                statName = "cash";
+                line += "Cash: ";
+            } else if (stat.equalsIgnoreCase("bank")) {
+                statName = "bank";
+                line += "Bank: ";
+            } else if (stat.equalsIgnoreCase("bankrupts")) {
+                statName = "bankrupts";
+                line += "Bankrupts: ";
+            } else if (stat.equalsIgnoreCase("winnings")) {
+                statName = "winnings";
+                line += "Texas Hold'em Winnings: ";
+            } else if (stat.equalsIgnoreCase("rounds")) {
+                statName = "rounds";
+                line += "Texas Hold'em Rounds: ";
+            } else {
+                throw new IllegalArgumentException();
+            }
+            sql = String.format(sql, statName, statName, statName);
         }
         
-        ArrayList<Player> records = loadPlayerFile();
-        
-        if (records != null) {
-            Player aRecord;
-            int length = records.size();
-            String line = Colors.BLACK + ",08";
-
-            if (stat.equalsIgnoreCase("winrate")) {
-                int highIndex, rank = 0;
-                ArrayList<String> nicks = new ArrayList<>();
-                ArrayList<Double> winrates = new ArrayList<>();
-
-                for (int ctr = 0; ctr < length; ctr++) {
-                    aRecord = records.get(ctr);
-                    nicks.add(aRecord.getNick());
-                    if (aRecord.getInteger("rounds") == 0){
-                        winrates.add(0.);
-                    } else {
-                        winrates.add((double) aRecord.get("winnings") / (double) aRecord.get("rounds"));
-                    }
-                }
-
-                line += "Texas Hold'em Win Rate: ";
-
-                // Find the player with the highest value and check if it is 
-                // the requested player. Repeat until found or end.
-                for (int ctr = 0; ctr < length; ctr++){
-                    highIndex = 0;
-                    rank++;
-                    for (int ctr2 = 0; ctr2 < nicks.size(); ctr2++) {
-                        if (winrates.get(ctr2) > winrates.get(highIndex)) {
-                            highIndex = ctr2;
-                        }
-                    }
-
-                    if (nick.equalsIgnoreCase(nicks.get(highIndex))){
-                        line += "#" + rank + " " + Colors.WHITE + ",04 " + formatNoPing(nicks.get(highIndex)) + " $" + formatDecimal(winrates.get(highIndex)) + " ";
-                        break;
-                    } else {
-                        nicks.remove(highIndex);
-                        winrates.remove(highIndex);
-                    }
-                }
-            } else {
-                String statName = "";
-                if (stat.equalsIgnoreCase("cash")) {
-                    statName = "cash";
-                    line += "Cash: ";
-                } else if (stat.equalsIgnoreCase("bank")) {
-                    statName = "bank";
-                    line += "Bank: ";
-                } else if (stat.equalsIgnoreCase("bankrupts")) {
-                    statName = "bankrupts";
-                    line += "Bankrupts: ";
-                } else if (stat.equalsIgnoreCase("net") || stat.equals("netcash")) {
-                    statName = "netcash";
-                    line += "Net Cash: ";
-                } else if (stat.equalsIgnoreCase("winnings")){
-                    statName = "winnings";
-                    line += "Texas Hold'em Winnings: ";
-                } else if (stat.equalsIgnoreCase("rounds")) {
-                    statName = "rounds";
-                    line += "Texas Hold'em Rounds: ";
-                } else {
-                    throw new IllegalArgumentException();
-                }
-
-                // Sort based on stat
-                Collections.sort(records, Player.getComparator(statName));
-
-                // Find the rank of the player
-                for (int ctr = 0; ctr < length; ctr++){
-                    aRecord = records.get(ctr);
-                    if (nick.equalsIgnoreCase(aRecord.getNick())){
-                        if (stat.equalsIgnoreCase("rounds") || stat.equalsIgnoreCase("bankrupts")) {
-                            line += "#" + (ctr+1) + " " + Colors.WHITE + ",04 " + formatNoPing(aRecord.getNick()) + " " + formatNumber(aRecord.getInteger(statName)) + " ";
+        try (Connection conn = DriverManager.getConnection(dbURL)) {
+            // Retrieve data from DB if possible
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, nick);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.isBeforeFirst()) {
+                        line += "#" + rs.getInt("rank") + " " + Colors.WHITE + ",04 " + formatNoPing(rs.getString("nick"));
+                        if (statName.equals("rounds") || statName.equals("bankrupts")) {
+                            line += " " + formatNumber(rs.getInt(statName));
+                        } else if (statName.equals("winrate")){
+                            if (rs.getInt("rounds") < 50) {
+                                line = String.format("%s (%d) has not played enough rounds of %s. A minimum of 50 rounds must be played to qualify for a win rate ranking.", formatNoPing(rs.getString("nick")), rs.getInt("rounds"), getGameNameStr());
+                            } else {
+                                line += " $" + formatDecimal(rs.getDouble(statName));
+                            }
                         } else {
-                            line += "#" + (ctr+1) + " " + Colors.WHITE + ",04 " + formatNoPing(aRecord.getNick()) + " $" + formatNumber(aRecord.getInteger(statName)) + " ";
+                            line += " $" + formatNumber(rs.getInt(statName));
                         }
-                        break;
+                        // Show rank
+                        showMsg(line);
+                    } else {
+                        showMsg(getMsg("no_data"), formatNoPing(nick));
                     }
                 }
             }
-
-            // Show rank
-            showMsg(line);
+            logDBWarning(conn.getWarnings());
+        } catch (SQLException ex) {
+            manager.log("SQL Error: " + ex.getMessage());
         }
     }
     
@@ -2477,6 +2318,7 @@ public class TexasPoker extends CardGame{
     
     @Override
     public String getGameStatsStr() {
-        return String.format(getMsg("tp_stats"), getTotalPlayers(), getGameNameStr(), house);
+        Record record = loadDBGameTotals();
+        return String.format(getMsg("tp_stats"), record.get("total_players"), getGameNameStr(), "POT DATA NOT IMPLEMENTED");
     }
 }

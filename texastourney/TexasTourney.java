@@ -24,13 +24,12 @@ import irccasino.GameManager;
 import irccasino.cardgame.CardGame;
 import irccasino.cardgame.Hand;
 import irccasino.cardgame.Player;
+import irccasino.cardgame.Record;
 import irccasino.texaspoker.PokerPot;
 import irccasino.texaspoker.PokerPlayer;
 import irccasino.texaspoker.PokerSimulator;
 import irccasino.texaspoker.TexasPoker;
-import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -49,7 +48,6 @@ import org.pircbotx.*;
 public class TexasTourney extends TexasPoker {
     
     ArrayList<Player> newOutList;
-    TourneyStat tourneyStats;
     int tourneyRounds;
     int numOuts;
     boolean newPlayerOut;
@@ -1109,7 +1107,6 @@ public class TexasTourney extends TexasPoker {
         smallBlind = null;
         bigBlind = null;
         topBettor = null;
-        tourneyStats = null;
         devoiceAll();
         showMsg(getMsg("game_end"), getGameNameStr());
         joined.clear();
@@ -1162,11 +1159,14 @@ public class TexasTourney extends TexasPoker {
             resetTourney();
         // Declare a winner if only one player is left
         } else if (joined.size() == 1) {
+            // Update and save winner
             p = (PokerPlayer) joined.get(0);
             p.add("points", 1);
             p.add("tourneys", 1);
             saveDBPlayerData(p);
             showMsg(getMsg("tt_winner"), p.getNickStr(), p.get("points"));
+            
+            // Update and save non-winners
             for (int ctr = 0; ctr < blacklist.size(); ctr++) {
                 p = (PokerPlayer) blacklist.get(ctr);
                 p.add("tourneys", 1);
@@ -1179,19 +1179,8 @@ public class TexasTourney extends TexasPoker {
             // Display tournament results
             showTourneyResults();
             
-            tourneyStats.add("numtourneys", 1);
-            if (tourneyStats.getBiggestTourney() < joined.size() + blacklist.size()) {
-                tourneyStats.setWinner(new PokerPlayer(joined.get(0).getNick()));
-                tourneyStats.getPlayers().clear();
-                tourneyStats.addPlayer(new PokerPlayer(joined.get(0).getNick()));
-                for (Player pp : blacklist) {
-                    tourneyStats.addPlayer(new PokerPlayer(pp.getNick()));
-                }
-            }
-            
             // Save game stats
             endTime = System.currentTimeMillis() / 1000;
-            saveGameStats();
             saveDBGameStats();
             
             // Reset tournament
@@ -1324,7 +1313,6 @@ public class TexasTourney extends TexasPoker {
         name = "texastourney";
         helpFile = "texastourney.help";
         newOutList = new ArrayList<>();
-        tourneyStats = new TourneyStat();
         deck = new CardDeck();
         deck.shuffleCards();
         pots = new ArrayList<>();
@@ -1332,7 +1320,6 @@ public class TexasTourney extends TexasPoker {
         
         initSettings();
         loadHelp(helpFile);
-        loadGameStats();
         loadIni();
         state = PokerState.NONE;
         betState = PokerBet.NONE;
@@ -1375,26 +1362,6 @@ public class TexasTourney extends TexasPoker {
     /////////////////////////////////////////
     //// Player stats management methods ////
     /////////////////////////////////////////
-    
-    @Override
-    public int getTotalPlayers(){
-        int total = 0;
-        try (Connection conn = DriverManager.getConnection(dbURL)) {
-            // Retrieve record count for TTPlayerStat table where tourneys > 0
-            String sql = "SELECT count(*) FROM TTPlayerStat WHERE tourneys > 0";
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.isBeforeFirst()) {
-                        total = rs.getInt(1);
-                    }
-                }
-            }
-            logDBWarning(conn.getWarnings());
-        } catch (SQLException ex) {
-            manager.log("SQL Error: " + ex.getMessage());
-        }
-        return total;
-    }  
     
     @Override
     protected Player loadDBPlayerRecord(String nick) {
@@ -1530,87 +1497,37 @@ public class TexasTourney extends TexasPoker {
     //// Game stats management methods ////
     ///////////////////////////////////////
     
-    @Override
-    public void loadGameStats() {
-        try (BufferedReader in = new BufferedReader(new FileReader("housestats.txt"))) {
-            String str;
-            StringTokenizer st;
-            while (in.ready()) {
-                str = in.readLine();
-                if (str.startsWith("#texastourney")) {
-                    while (in.ready()) {
-                        str = in.readLine();
-                        if (str.startsWith("#")) {
-                            break;
-                        }
-                        st = new StringTokenizer(str);
-                        tourneyStats.put("numtourneys", Integer.parseInt(st.nextToken()));
-                        tourneyStats.setWinner(new PokerPlayer(st.nextToken()));
-                        while (st.hasMoreTokens()) {
-                            tourneyStats.addPlayer(new PokerPlayer(st.nextToken()));
-                        }
-                    }
-                    break;
-                }
-            }
-        } catch (IOException e) {
-            manager.log("housestats.txt not found! Creating new housestats.txt...");
-            try {
-                PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("housestats.txt")));
-                out.close();
-            } catch (IOException f) {
-                manager.log("Error creating housestats.txt!");
-            }
-        }
-    }
-    
-    @Override
-    public void saveGameStats() {
-        boolean found = false;
-        int index = 0;
-        ArrayList<String> lines = new ArrayList<>();
-        try (BufferedReader in = new BufferedReader(new FileReader("housestats.txt"))) {
-            String str;
-            while (in.ready()) {
-                //Add all lines until we find texaspoker lines
-                str = in.readLine();
-                lines.add(str);
-                if (str.startsWith("#texastourney")) {
-                    found = true;
-                    /* Store the index where texastourney stats go so they can be
-                    * overwritten. */
-                    index = lines.size();
-                    //Skip existing texastourney lines but add all the rest
-                    while (in.ready()) {
-                        str = in.readLine();
-                        if (str.startsWith("#")) {
-                            lines.add(str);
-                            break;
-                        }
-                    }
-                }
-            }
-        } catch (IOException e) {
-            /* housestats.txt is not found */
-            manager.log("Error reading housestats.txt!");
-        }
-        if (!found) {
-            lines.add("#texastourney");
-            index = lines.size();
-        }
-        lines.add(index, tourneyStats.get("numtourneys") + " " + tourneyStats.getWinner().getNick() + " " + tourneyStats.getPlayersString());
-        try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("housestats.txt")))) {
-            for (int ctr = 0; ctr < lines.size(); ctr++) {
-                out.println(lines.get(ctr));
-            }
-        } catch (IOException e) {
-            manager.log("Error writing to housestats.txt!");
-        }
-    }  
-    
-    @Override
-    protected void loadDBGameStats() {
+    /**
+     * Returns the total stats for the game.
+     * @return a record containing queried stats
+     */
+    private Record loadDBGameTotals() {
+        Record record = new Record();
+        record.put("total_players", 0);
+        record.put("tourney_size", 0);
+        record.put("tourney_winner", "");
+        record.put("tourney_players", "");
         
+        try (Connection conn = DriverManager.getConnection(dbURL)) {
+            conn.setAutoCommit(false);
+            
+            // Retreive total players
+            String sql = "SELECT COUNT(*) as total_players FROM TTPlayerStat WHERE tourneys > 0";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.isBeforeFirst()) {
+                        record = new Record();
+                        record.put("total_players", rs.getInt("total_players"));
+                    }
+                }
+            }
+            
+            conn.commit();
+            logDBWarning(conn.getWarnings());
+        } catch (SQLException ex) {
+            manager.log("SQL Error: " + ex.getMessage());
+        }
+        return record;
     }
     
     @Override
@@ -1778,7 +1695,7 @@ public class TexasTourney extends TexasPoker {
         }  else if (record.getInteger("tourneys") == 0) {
             showMsg(getMsg("tt_player_no_tourneys"), record.getNick(false));
         } else {
-            showMsg(getMsg("tt_player_winrate"), record.getNick(false), Math.round(record.getInteger("points") * 1.0 / record.getInteger("tourneys") * 100));
+            showMsg(getMsg("tt_player_winrate"), record.getNick(false), record.get("winrate"));
         }
     }
     
@@ -1794,81 +1711,61 @@ public class TexasTourney extends TexasPoker {
 
     @Override
     public void showPlayerRank(String nick, String stat) throws IllegalArgumentException {
-        if (loadDBPlayerRecord(nick) == null){
-            showMsg(getMsg("no_data"), formatNoPing(nick));
-            return;
+        String statName = "";
+        String line = Colors.BLACK + ",08";
+        String sql;
+        
+        // Build SQL query
+        if (stat.equalsIgnoreCase("winrate")) {
+            statName = "winrate";
+            sql = "SELECT nick, tourneys, points*100.0/tourneys AS winrate, " +
+                      "(SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys>5 AND points*100.0/tourneys>t1.points*100.0/t1.tourneys)+1 AS rank " +
+                  "FROM (Player INNER JOIN TTPlayerStat ON Player.id = TTPlayerStat.player_id) AS t1 " +
+                  "WHERE nick = ? COLLATE NOCASE";
+            line += "Texas Hold'em Tournament Win Rate: ";
+        } else {
+            sql = "SELECT nick, %s, " +
+                      "(SELECT COUNT(*) FROM TTPlayerStat WHERE %s > t1.%s)+1 AS rank " +
+                  "FROM (Player INNER JOIN TTPlayerStat ON Player.id = TTPlayerStat.player_id) AS t1 " +
+                  "WHERE nick = ? COLLATE NOCASE";
+            if (stat.equalsIgnoreCase("wins")) {
+                statName = "points";
+                line += "Texas Hold'em Tournament Wins: ";
+            } else if (stat.equalsIgnoreCase("tourneys")) {
+                statName = "tourneys";
+                line += "Texas Hold'em Tournaments Played: ";
+            } else {
+                throw new IllegalArgumentException();
+            }
+            sql = String.format(sql, statName, statName, statName);
         }
         
-        ArrayList<Player> records = loadPlayerFile();
-        
-        if (records != null) {
-            Player aRecord;
-            int length = records.size();
-            String line = Colors.BLACK + ",08";
-            
-            if (stat.equalsIgnoreCase("winrate")) {
-                int highIndex, rank = 0;
-                ArrayList<String> nicks = new ArrayList<>();
-                ArrayList<Integer> winrates = new ArrayList<>();
-                
-                for (int ctr = 0; ctr < length; ctr++) {
-                    aRecord = records.get(ctr);
-                    nicks.add(aRecord.getNick());
-                    if (aRecord.getInteger("tourneys") == 0){
-                        winrates.add(0);
-                    } else {
-                        winrates.add((int) Math.round((double) aRecord.get("points") / (double) aRecord.get("tourneys") * 100));
-                    }
-                }
-                
-                line += "Texas Hold'em Tournament Win Rate: ";
-                
-                // Find the player with the highest value and check if it is 
-                // the requested player. Repeat until found or end.
-                for (int ctr = 0; ctr < length; ctr++){
-                    highIndex = 0;
-                    rank++;
-                    for (int ctr2 = 0; ctr2 < nicks.size(); ctr2++) {
-                        if (winrates.get(ctr2) > winrates.get(highIndex)) {
-                            highIndex = ctr2;
+        try (Connection conn = DriverManager.getConnection(dbURL)) {
+            // Retrieve data from DB if possible
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, nick);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.isBeforeFirst()) {
+                        line += "#" + rs.getInt("rank") + " " + Colors.WHITE + ",04 " + formatNoPing(rs.getString("nick"));
+                        if (statName.equals("winrate")){
+                            if (rs.getInt("tourneys") < 5) {
+                                line = String.format("%s (%d) has not played in enough tournaments. A minimum of 5 tournaments must be played to qualify for a win rate ranking.", formatNoPing(rs.getString("nick")), rs.getInt("tourneys"));
+                            } else {
+                                line += " " + formatNoDecimal(rs.getDouble(statName)) + "%%";
+                            }
+                        } else {
+                            line += " " + formatNumber(rs.getInt(statName));
                         }
-                    }
-                    
-                    if (nick.equalsIgnoreCase(nicks.get(highIndex))){
-                        line += "#" + rank + " " + Colors.WHITE + ",04 " + formatNoPing(nicks.get(highIndex)) + " " + formatNumber(winrates.get(highIndex)) + "%% ";
-                        break;
+                        // Show rank
+                        showMsg(line);
                     } else {
-                        nicks.remove(highIndex);
-                        winrates.remove(highIndex);
-                    }
-                }
-            } else {
-                String statName = "";
-                if (stat.equals("wins")){
-                    statName = "points";
-                    line += "Texas Hold'em Tournament Wins: ";
-                } else if (stat.equals("tourneys")) {
-                    statName = "tourneys";
-                    line += "Texas Hold'em Tournaments Played: ";
-                } else {
-                    throw new IllegalArgumentException();
-                }
-
-                // Sort based on stat
-                Collections.sort(records, Player.getComparator(statName));
-
-                // Find the player in the records and output rank
-                for (int ctr = 0; ctr < length; ctr++){
-                    aRecord = records.get(ctr);
-                    if (nick.equalsIgnoreCase(aRecord.getNick())){
-                        line += "#" + (ctr+1) + " " + Colors.WHITE + ",04 " + formatNoPing(aRecord.getNick()) + " " + formatNumber(aRecord.getInteger(statName)) + " ";
-                        break;
+                        showMsg(getMsg("no_data"), formatNoPing(nick));
                     }
                 }
             }
-
-            // Show rank
-            showMsg(line);
+            logDBWarning(conn.getWarnings());
+        } catch (SQLException ex) {
+            manager.log("SQL Error: " + ex.getMessage());
         }
     }
     
@@ -2006,6 +1903,7 @@ public class TexasTourney extends TexasPoker {
     
     @Override
     public String getGameStatsStr() {
-        return String.format(getMsg("tt_stats"), getTotalPlayers(), getGameNameStr(), tourneyStats);
+        Record record = loadDBGameTotals();
+        return String.format(getMsg("tt_stats"), record.get("total_players"), getGameNameStr(), "TOURNEY DATA NOT IMPLEMENTED");
     }
 }

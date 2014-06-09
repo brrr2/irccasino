@@ -52,7 +52,7 @@ class BlackjackPlayer extends Player{
         if (key.equalsIgnoreCase("netcash")) {
             return getInteger("cash") + getInteger("bank");
         } else if (key.equalsIgnoreCase("winrate")) {
-            return getInteger("winnings") * 1.0 / getInteger("bank");
+            return getInteger("winnings") * 1.0 / getInteger("rounds");
         }
         return super.get(key);
     }
