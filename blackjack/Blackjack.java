@@ -2442,44 +2442,57 @@ public class Blackjack extends CardGame {
         String sql;
         
         // Build SQL query
-        if (stat.equalsIgnoreCase("winrate")) {
-            statName = "winrate";
-            sql = "SELECT nick, rounds, winnings*1.0/rounds AS winrate, " +
-                      "(SELECT COUNT(*) FROM BJPlayerStat WHERE rounds>50 AND winnings*1.0/rounds>t1.winnings*1.0/t1.rounds)+1 AS rank " +
-                  "FROM (Player INNER JOIN BJPlayerStat ON Player.id = BJPlayerStat.player_id) AS t1 " +
+        if (stat.equals("cash")) {
+            sql = "SELECT nick, cash, " +
+                      "(SELECT COUNT(*) FROM Purse WHERE cash > t1.cash)+1 AS rank " +
+                  "FROM (Player INNER JOIN Purse ON Player.id = Purse.player_id) AS t1 " +
                   "WHERE nick = ? COLLATE NOCASE";
-            line += "Blackjack Win Rate: ";
+            statName = "cash";
+            line += "Cash: ";
+        } else if (stat.equalsIgnoreCase("bank")) {
+            sql = "SELECT nick, bank, " +
+                      "(SELECT COUNT(*) FROM Purse WHERE bank > t1.bank)+1 AS rank " +
+                  "FROM (Player INNER JOIN Purse ON Player.id = Purse.player_id) AS t1 " +
+                  "WHERE nick = ? COLLATE NOCASE";
+            statName = "bank";
+            line += "Bank: ";
+        } else if (stat.equalsIgnoreCase("bankrupts")) {
+            sql = "SELECT nick, bankrupts, " +
+                      "(SELECT COUNT(*) FROM Purse WHERE bankrupts > t1.bankrupts)+1 AS rank " +
+                  "FROM (Player INNER JOIN Purse ON Player.id = Purse.player_id) AS t1 " +
+                  "WHERE nick = ? COLLATE NOCASE";
+            statName = "bankrupts";
+            line += "Bankrupts: ";
         } else if (stat.equalsIgnoreCase("net") || stat.equals("netcash")) {
-            statName = "netcash";
             sql = "SELECT nick, cash+bank AS netcash, " +
                       "(SELECT COUNT(*) FROM Purse WHERE cash+bank > t1.cash+t1.bank)+1 AS rank " +
                   "FROM (Player INNER JOIN Purse ON Player.id = Purse.player_id) AS t1 " +
                   "WHERE nick = ? COLLATE NOCASE";
+            statName = "netcash";
             line += "Net Cash: ";
-        } else {
-            sql = "SELECT nick, %s, " +
-                      "(SELECT COUNT(*) FROM Purse INNER JOIN BJPlayerStat ON Purse.player_id = BJPlayerStat.player_id WHERE %s > t1.%s)+1 AS rank " +
-                  "FROM (Player INNER JOIN Purse INNER JOIN BJPlayerStat ON Player.id = Purse.player_id AND Player.id = BJPlayerStat.player_id) AS t1 " +
+        } else if (stat.equalsIgnoreCase("rounds")) {
+            sql = "SELECT nick, rounds, " +
+                      "(SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 0 AND rounds > t1.rounds)+1 AS rank " +
+                  "FROM (Player INNER JOIN BJPlayerStat ON Player.id = BJPlayerStat.player_id) AS t1 " +
                   "WHERE nick = ? COLLATE NOCASE";
-            if (stat.equalsIgnoreCase("cash")) {
-                statName = "cash";
-                line += "Cash: ";
-            } else if (stat.equalsIgnoreCase("bank")) {
-                statName = "bank";
-                line += "Bank: ";
-            } else if (stat.equalsIgnoreCase("bankrupts")) {
-                statName = "bankrupts";
-                line += "Bankrupts: ";
-            } else if (stat.equalsIgnoreCase("winnings")) {
-                statName = "winnings";
-                line += "Blackjack Winnings: ";
-            } else if (stat.equalsIgnoreCase("rounds")) {
-                statName = "rounds";
-                line += "Blackjack Rounds: ";
-            } else {
-                throw new IllegalArgumentException();
-            }
-            sql = String.format(sql, statName, statName, statName);
+            statName = "rounds";
+            line += "Blackjack Rounds (min. 1 round): ";
+        } else if (stat.equalsIgnoreCase("winnings")) {
+            sql = "SELECT nick, rounds, winnings, " +
+                      "(SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 0 AND winnings > t1.winnings)+1 AS rank " +
+                  "FROM (Player INNER JOIN BJPlayerStat ON Player.id = BJPlayerStat.player_id) AS t1 " +
+                  "WHERE nick = ? COLLATE NOCASE";
+            statName = "winnings";
+            line += "Blackjack Winnings (min. 1 round): ";
+        } else if (stat.equalsIgnoreCase("winrate")) {
+            sql = "SELECT nick, rounds, winnings*1.0/rounds AS winrate, " +
+                      "(SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 50 AND winnings*1.0/rounds > t1.winnings*1.0/t1.rounds)+1 AS rank " +
+                  "FROM (Player INNER JOIN BJPlayerStat ON Player.id = BJPlayerStat.player_id) AS t1 " +
+                  "WHERE nick = ? COLLATE NOCASE";
+            statName = "winrate";
+            line += "Blackjack Win Rate (min. 50 rounds): ";
+        } else {
+            throw new IllegalArgumentException();
         }
         
         try (Connection conn = DriverManager.getConnection(dbURL)) {
@@ -2489,17 +2502,30 @@ public class Blackjack extends CardGame {
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.isBeforeFirst()) {
                         line += "#" + rs.getInt("rank") + " " + Colors.WHITE + ",04 " + formatNoPing(rs.getString("nick"));
-                        if (statName.equals("rounds") || statName.equals("bankrupts")) {
-                            line += " " + formatNumber(rs.getInt(statName));
-                        } else if (statName.equals("winrate")){
+                        if (statName.equals("winrate")){
                             if (rs.getInt("rounds") < 50) {
                                 line = String.format("%s (%d) has not played enough rounds of %s. A minimum of 50 rounds must be played to qualify for a win rate ranking.", formatNoPing(rs.getString("nick")), rs.getInt("rounds"), getGameNameStr());
                             } else {
                                 line += " $" + formatDecimal(rs.getDouble(statName));
                             }
+                        } else if (statName.equals("rounds")) {
+                            if (rs.getInt("rounds") == 0) {
+                                line = String.format(getMsg("player_no_rounds"), formatNoPing(rs.getString("nick")), getGameNameStr());
+                            } else {
+                                line += " " + formatNumber(rs.getInt(statName));
+                            }
+                        } else if (statName.equals("winnings")) {
+                            if (rs.getInt("rounds") == 0) {
+                                line = String.format(getMsg("player_no_rounds"), formatNoPing(rs.getString("nick")), getGameNameStr());
+                            } else {
+                                line += " $" + formatNumber(rs.getInt(statName));
+                            }
+                        } else if (statName.equals("bankrupts")) {
+                            line += " " + formatNumber(rs.getInt(statName));
                         } else {
                             line += " $" + formatNumber(rs.getInt(statName));
                         }
+                        
                         // Show rank
                         showMsg(line);
                     } else {
@@ -2519,95 +2545,126 @@ public class Blackjack extends CardGame {
             throw new IllegalArgumentException();
         }
         
-        ArrayList<Player> records = loadPlayerFile();
+        String title = Colors.BOLD + Colors.BLACK + ",08 Top %,d-%,d";
+        String list = Colors.BLACK + ",08";
+        String statName = "";
+        String sql = "";
+        String sqlBounds = "";
         
-        if (records != null) {
-            Player aRecord;
-            int end = Math.min(n, records.size());
-            int start = Math.max(end - 10, 0);
-            String title = Colors.BOLD + Colors.BLACK + ",08 Top " + (start+1) + "-" + end;
-            String list = Colors.BLACK + ",08";
+        if (stat.equalsIgnoreCase("cash")) {
+            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM Purse), ?)-10) AS top_offset";
+            sql = "SELECT nick, cash " +
+                  "FROM Player INNER JOIN Purse ON id = player_id " +
+                  "ORDER BY cash DESC " +
+                  "LIMIT ? OFFSET ?";
+            statName = "cash";
+            title += " Cash ";
+        } else if (stat.equalsIgnoreCase("bank")) {
+            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM Purse), ?)-10) AS top_offset";
+            sql = "SELECT nick, bank " +
+                  "FROM Player INNER JOIN Purse ON id = player_id " +
+                  "ORDER BY bank DESC " +
+                  "LIMIT ? OFFSET ?";
+            statName = "bank";
+            title += " Bank ";
+        } else if (stat.equalsIgnoreCase("bankrupts")) {
+            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM Purse), ?)-10) AS top_offset";
+            sql = "SELECT nick, bankrupts " +
+                  "FROM Player INNER JOIN Purse ON id = player_id " +
+                  "ORDER BY bankrupts DESC " +
+                  "LIMIT ? OFFSET ?";
+            statName = "bankrupts";
+            title += " Bankrupts ";
+        } else if (stat.equalsIgnoreCase("net") || stat.equalsIgnoreCase("netcash")) {
+            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM Purse), ?)-10) AS top_offset";
+            sql = "SELECT nick, cash+bank AS netcash " +
+                  "FROM Player INNER JOIN Purse ON id = player_id " +
+                  "ORDER BY netcash DESC " +
+                  "LIMIT ? OFFSET ?";
+            statName = "netcash";
+            title += " Net Cash ";
+        } else if (stat.equalsIgnoreCase("winnings")){
+            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 0), ?)-10) AS top_offset";
+            sql = "SELECT nick, winnings " +
+                  "FROM Player INNER JOIN BJPlayerStat ON id = player_id " +
+                  "WHERE rounds > 0 " +
+                  "ORDER BY winnings DESC " +
+                  "LIMIT ? OFFSET ?";
+            statName = "winnings";
+            title += " Blackjack Winnings (min. 1 round)";
+        } else if (stat.equalsIgnoreCase("rounds")) {
+            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 0), ?)-10) AS top_offset";
+            sql = "SELECT nick, rounds " +
+                  "FROM Player INNER JOIN BJPlayerStat ON id = player_id " +
+                  "WHERE rounds > 0 " +
+                  "ORDER BY rounds DESC " +
+                  "LIMIT ? OFFSET ?";
+            statName = "rounds";
+            title += " Blackjack Rounds (min. 1 round)";
+        } else if (stat.equalsIgnoreCase("winrate")) {
+            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 50), ?)-10) AS top_offset";
+            sql = "SELECT nick, winnings*1.0/rounds AS winrate " +
+                  "FROM Player INNER JOIN BJPlayerStat ON id = player_id " +
+                  "WHERE rounds > 50 " +
+                  "ORDER BY winrate DESC " +
+                  "LIMIT ? OFFSET ?";
+            statName = "winrate";
+            title += " Blackjack Win Rate (min. 50 rounds) ";
+        } else {
+            throw new IllegalArgumentException();
+        }
+        
+        try (Connection conn = DriverManager.getConnection(dbURL)) {
+            conn.setAutoCommit(false);
+            int limit = 10;
+            int offset = 0;
             
-            if (stat.equalsIgnoreCase("winrate")) {
-                int highIndex;
-                ArrayList<String> nicks = new ArrayList<>();
-                ArrayList<Double> winrates = new ArrayList<>();
-                
-                for (int ctr = 0; ctr < records.size(); ctr++) {
-                    aRecord = records.get(ctr);
-                    nicks.add(aRecord.getNick());
-                    if (aRecord.getInteger("rounds") == 0){
-                        winrates.add(0.);
-                    } else {
-                        winrates.add((double) aRecord.get("winnings") / (double) aRecord.get("rounds"));
-                    }
-                }
-                
-                title += " Blackjack Win Rate ";
-                
-                // Find the player with the highest value, add to output string and remove.
-                for (int ctr = 0; ctr < records.size(); ctr++){
-                    highIndex = 0;
-                    for (int ctr2 = 0; ctr2 < nicks.size(); ctr2++) {
-                        if (winrates.get(ctr2) > winrates.get(highIndex)) {
-                            highIndex = ctr2;
-                        }
-                    }
-                    
-                    // Only add those in the required range.
-                    if (ctr >= start) {
-                        list += " #" + (ctr+1) + ": " + Colors.WHITE + ",04 " + formatNoPing(nicks.get(highIndex)) + " $" + formatDecimal(winrates.get(highIndex)) + " " + Colors.BLACK + ",08";
-                    }
-                    
-                    nicks.remove(highIndex);
-                    winrates.remove(highIndex);
-                    
-                    // Break when we've reached the end of required range
-                    if (ctr + 1 == end) {
-                        break;
-                    }
-                }
-            } else {
-                String statName = "";
-                if (stat.equalsIgnoreCase("cash")) {
-                    statName = "cash";
-                    title += " Cash ";
-                } else if (stat.equalsIgnoreCase("bank")) {
-                    statName = "bank";
-                    title += " Bank ";
-                } else if (stat.equalsIgnoreCase("bankrupts")) {
-                    statName = "bankrupts";
-                    title += " Bankrupts ";
-                } else if (stat.equalsIgnoreCase("net") || stat.equalsIgnoreCase("netcash")) {
-                    statName = "netcash";
-                    title += " Net Cash ";
-                } else if (stat.equalsIgnoreCase("winnings")){
-                    statName = "winnings";
-                    title += " Blackjack Winnings ";
-                } else if (stat.equalsIgnoreCase("rounds")) {
-                    statName = "rounds";
-                    title += " Blackjack Rounds ";
-                } else {
-                    throw new IllegalArgumentException();
-                }
-                
-                // Sort based on stat
-                Collections.sort(records, Player.getComparator(statName));
-
-                // Add the players in the required range
-                for (int ctr = start; ctr < end; ctr++){
-                    aRecord = records.get(ctr);
-                    if (stat.equalsIgnoreCase("rounds") || stat.equalsIgnoreCase("bankrupts")) {
-                        list += " #" + (ctr+1) + ": " + Colors.WHITE + ",04 " + formatNoPing(aRecord.getNick()) + " " + formatNumber(aRecord.getInteger(statName)) + " " + Colors.BLACK + ",08";
-                    } else {
-                        list += " #" + (ctr+1) + ": " + Colors.WHITE + ",04 " + formatNoPing(aRecord.getNick()) + " $" + formatNumber(aRecord.getInteger(statName)) + " " + Colors.BLACK + ",08";
+            // Retrieve offset
+            try (PreparedStatement ps = conn.prepareStatement(sqlBounds)) {
+                ps.setInt(1, n);
+                ps.setInt(2, n);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.isBeforeFirst()) {
+                        limit = rs.getInt("top_limit");
+                        offset = rs.getInt("top_offset");
                     }
                 }
             }
             
-            // Output title and the list
-            showMsg(title);
-            showMsg(list);
+            title = String.format(title, offset+1, offset+limit);
+            
+            // Retrieve data from DB if possible
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, limit);
+                ps.setInt(2, offset);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.isBeforeFirst()) {
+                        int ctr = offset + 1;
+                        // Add the players in the required range
+                        while (rs.next()) {
+                            list += " #" + ctr++ + ": " + Colors.WHITE + ",04 ";
+                            if (statName.equals("winrate")) {
+                                list += formatNoPing(rs.getString("nick")) + " $" + formatDecimal(rs.getDouble(statName));
+                            } else if (statName.equals("rounds") || statName.equals("bankrupts")) {
+                                list += formatNoPing(rs.getString("nick")) + " " + formatNumber(rs.getInt(statName));
+                            } else {
+                                list += formatNoPing(rs.getString("nick")) + " $" + formatNumber(rs.getInt(statName));
+                            }
+                            list += " " + Colors.BLACK + ",08";
+                        }
+                        
+                        // Output title and the list
+                        showMsg(title);
+                        showMsg(list);
+                    } else {
+                        showMsg("No %s data for %s.", statName, getGameNameStr());
+                    }
+                }
+            }
+            conn.commit();
+            logDBWarning(conn.getWarnings());
+        } catch (SQLException ex) {
+            manager.log("SQL Error: " + ex.getMessage());
         }
     }
     

@@ -1719,25 +1719,26 @@ public class TexasTourney extends TexasPoker {
         if (stat.equalsIgnoreCase("winrate")) {
             statName = "winrate";
             sql = "SELECT nick, tourneys, points*100.0/tourneys AS winrate, " +
-                      "(SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys>5 AND points*100.0/tourneys>t1.points*100.0/t1.tourneys)+1 AS rank " +
+                      "(SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 5 AND points*100.0/tourneys > t1.points*100.0/t1.tourneys)+1 AS rank " +
                   "FROM (Player INNER JOIN TTPlayerStat ON Player.id = TTPlayerStat.player_id) AS t1 " +
                   "WHERE nick = ? COLLATE NOCASE";
             line += "Texas Hold'em Tournament Win Rate: ";
-        } else {
-            sql = "SELECT nick, %s, " +
-                      "(SELECT COUNT(*) FROM TTPlayerStat WHERE %s > t1.%s)+1 AS rank " +
+        } else if (stat.equalsIgnoreCase("wins")) {
+            sql = "SELECT nick, tourneys, points, " +
+                      "(SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 0 AND points > t1.points)+1 AS rank " +
                   "FROM (Player INNER JOIN TTPlayerStat ON Player.id = TTPlayerStat.player_id) AS t1 " +
                   "WHERE nick = ? COLLATE NOCASE";
-            if (stat.equalsIgnoreCase("wins")) {
-                statName = "points";
-                line += "Texas Hold'em Tournament Wins: ";
-            } else if (stat.equalsIgnoreCase("tourneys")) {
-                statName = "tourneys";
-                line += "Texas Hold'em Tournaments Played: ";
-            } else {
-                throw new IllegalArgumentException();
-            }
-            sql = String.format(sql, statName, statName, statName);
+            statName = "points";
+            line += "Texas Hold'em Tournament Wins (min. 1 tournament): ";
+        } else if (stat.equalsIgnoreCase("tourneys")) {
+            sql = "SELECT nick, tourneys, " +
+                      "(SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 0 AND tourneys > t1.tourneys)+1 AS rank " +
+                  "FROM (Player INNER JOIN TTPlayerStat ON Player.id = TTPlayerStat.player_id) AS t1 " +
+                  "WHERE nick = ? COLLATE NOCASE";
+            statName = "tourneys";
+            line += "Texas Hold'em Tournaments Played (min. 1 tournament): ";
+        } else {
+            throw new IllegalArgumentException();
         }
         
         try (Connection conn = DriverManager.getConnection(dbURL)) {
@@ -1753,8 +1754,18 @@ public class TexasTourney extends TexasPoker {
                             } else {
                                 line += " " + formatNoDecimal(rs.getDouble(statName)) + "%%";
                             }
-                        } else {
-                            line += " " + formatNumber(rs.getInt(statName));
+                        } else if (statName.equals("points")) {
+                            if (rs.getInt("tourneys") == 0) {
+                                line = String.format(getMsg("tt_player_no_tourneys"), formatNoPing(rs.getString("nick")));
+                            } else {
+                                line += " " + formatNumber(rs.getInt(statName));
+                            }
+                        } else if (statName.equals("tourneys")) {
+                            if (rs.getInt("tourneys") == 0) {
+                                line = String.format(getMsg("tt_player_no_tourneys"), formatNoPing(rs.getString("nick")));
+                            } else {
+                                line += " " + formatNumber(rs.getInt(statName));
+                            }
                         }
                         // Show rank
                         showMsg(line);
@@ -1775,80 +1786,92 @@ public class TexasTourney extends TexasPoker {
             throw new IllegalArgumentException();
         }
         
-        ArrayList<Player> records = loadPlayerFile();
+        String title = Colors.BOLD + Colors.BLACK + ",08 Top %,d-%,d";
+        String list = Colors.BLACK + ",08";
+        String statName = "";
+        String sql = "";
+        String sqlBounds = "";
         
-        if (records != null) {
-            Player aRecord;
-            int end = Math.min(n, records.size());
-            int start = Math.max(end - 10, 0);
-            String title = Colors.BOLD + Colors.BLACK + ",08 Top " + (start+1) + "-" + end;
-            String list = Colors.BLACK + ",08";
+        if (stat.equalsIgnoreCase("wins")){
+            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 0), ?)-10) AS top_offset";
+            sql = "SELECT nick, points " +
+                  "FROM Player INNER JOIN TTPlayerStat ON id = player_id " +
+                  "WHERE tourneys > 0 " +
+                  "ORDER BY points DESC " +
+                  "LIMIT ? OFFSET ?";
+            statName = "points";
+            title += " Texas Hold'em Tournament Wins (min. 1 tournament)";
+        } else if (stat.equalsIgnoreCase("tourneys")) {
+            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 0), ?)-10) AS top_offset";
+            sql = "SELECT nick, tourneys " +
+                  "FROM Player INNER JOIN TTPlayerStat ON id = player_id " +
+                  "WHERE tourneys > 0 " +
+                  "ORDER BY tourneys DESC " +
+                  "LIMIT ? OFFSET ?";
+            statName = "tourneys";
+            title += " Texas Hold'em Tournaments Played (min. 1 tournament)";
+        } else if (stat.equalsIgnoreCase("winrate")) {
+            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 5), ?)-10) AS top_offset";
+            sql = "SELECT nick, points*100.0/tourneys AS winrate " +
+                  "FROM Player INNER JOIN TTPlayerStat ON id = player_id " +
+                  "WHERE tourneys > 5 " +
+                  "ORDER BY winrate DESC " +
+                  "LIMIT ? OFFSET ?";
+            statName = "winrate";
+            title += " Texas Hold'em Tournament Win Rate (min. 5 tournaments) ";
+        } else {
+            throw new IllegalArgumentException();
+        }
+        
+        try (Connection conn = DriverManager.getConnection(dbURL)) {
+            conn.setAutoCommit(false);
+            int limit = 10;
+            int offset = 0;
             
-            if (stat.equalsIgnoreCase("winrate")) {
-                int highIndex;
-                ArrayList<String> nicks = new ArrayList<>();
-                ArrayList<Integer> winrates = new ArrayList<>();
-                
-                for (int ctr = 0; ctr < records.size(); ctr++) {
-                    aRecord = records.get(ctr);
-                    nicks.add(aRecord.getNick());
-                    if (aRecord.getInteger("tourneys") == 0){
-                        winrates.add(0);
-                    } else {
-                        winrates.add((int) Math.round((double) aRecord.get("points") / (double) aRecord.get("tourneys") * 100));
+            // Retrieve offset
+            try (PreparedStatement ps = conn.prepareStatement(sqlBounds)) {
+                ps.setInt(1, n);
+                ps.setInt(2, n);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.isBeforeFirst()) {
+                        limit = rs.getInt("top_limit");
+                        offset = rs.getInt("top_offset");
                     }
-                }
-                
-                title += " Texas Hold'em Tournament Win Rate ";
-                
-                // Find the player with the highest value and check if it is 
-                // the requested player. Repeat until found or end.
-                for (int ctr = 0; ctr < records.size(); ctr++){
-                    highIndex = 0;
-                    for (int ctr2 = 0; ctr2 < nicks.size(); ctr2++) {
-                        if (winrates.get(ctr2) > winrates.get(highIndex)) {
-                            highIndex = ctr2;
-                        }
-                    }
-                    
-                    // Only add those in the required range.
-                    if (ctr >= start) {
-                        list += " #" + (ctr+1) + ": " + Colors.WHITE + ",04 " + formatNoPing(nicks.get(highIndex)) + " " + formatNumber(winrates.get(highIndex)) + "%% " + Colors.BLACK + ",08";
-                    }
-                    
-                    nicks.remove(highIndex);
-                    winrates.remove(highIndex);
-                    
-                    // Break when we've reached the end of required range
-                    if (ctr + 1 == end) {
-                        break;
-                    }
-                }
-            } else {
-                String statName = "";
-                if (stat.equals("wins")){
-                    statName = "points";
-                    title += " Texas Hold'em Tournament Wins ";
-                } else if (stat.equals("tourneys")) {
-                    statName = "tourneys";
-                    title += " Texas Hold'em Tournaments Played ";
-                } else {
-                    throw new IllegalArgumentException();
-                }
-
-                // Sort based on stat
-                Collections.sort(records, Player.getComparator(statName));
-
-                // Add the players in the required range
-                for (int ctr = start; ctr < end; ctr++){
-                    aRecord = records.get(ctr);
-                    list += " #" + (ctr+1) + ": " + Colors.WHITE + ",04 " + formatNoPing(aRecord.getNick()) + " " + formatNumber(aRecord.getInteger(statName)) + " " + Colors.BLACK + ",08";
                 }
             }
             
-            // Output the title and list
-            showMsg(title);
-            showMsg(list);
+            title = String.format(title, offset+1, offset+limit);
+            
+            // Retrieve data from DB if possible
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, limit);
+                ps.setInt(2, offset);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.isBeforeFirst()) {
+                        int ctr = offset + 1;
+                        // Add the players in the required range
+                        while (rs.next()) {
+                            list += " #" + ctr++ + ": " + Colors.WHITE + ",04 " + formatNoPing(rs.getString("nick")) + " ";
+                            if (statName.equals("winrate")) {
+                                list += formatNoDecimal(rs.getDouble(statName)) + "%%";
+                            } else {
+                                list += formatNumber(rs.getInt(statName));
+                            }
+                            list += " " + Colors.BLACK + ",08";
+                        }
+                        
+                        // Output title and the list
+                        showMsg(title);
+                        showMsg(list);
+                    } else {
+                        showMsg("No %s data for %s.", statName, getGameNameStr());
+                    }
+                }
+            }
+            conn.commit();
+            logDBWarning(conn.getWarnings());
+        } catch (SQLException ex) {
+            manager.log("SQL Error: " + ex.getMessage());
         }
     }
     
