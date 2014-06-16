@@ -1358,7 +1358,6 @@ public class Blackjack extends CardGame {
     @Override
     protected void saveDBGameStats() {
         int roundID, handID;
-        int rounds, winnings;
         
         try (Connection conn = DriverManager.getConnection(dbURL)) {
             conn.setAutoCommit(false);
@@ -1447,25 +1446,11 @@ public class Blackjack extends CardGame {
                 }
             }
             
-            // Attempt to retrieve previous stats for current shoe size
-            rounds = 0;
-            winnings = 0;
-            sql = "SELECT rounds, winnings FROM BJHouse WHERE shoe_size = ?";
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setInt(1, get("decks"));
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.isBeforeFirst()) {
-                        rounds = rs.getInt("rounds");
-                        winnings = rs.getInt("winnings");
-                    }
-                }
-            }
-            
             // Update BJHouseStat table
-            sql = "UPDATE BJHouse SET rounds = ?, winnings = ? WHERE shoe_size = ?";
+            sql = "UPDATE BJHouse SET rounds=rounds+?, winnings=winnings+? WHERE shoe_size = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setInt(1, rounds + 1);
-                ps.setInt(2, winnings + houseWinnings);
+                ps.setInt(1, 1);
+                ps.setInt(2, houseWinnings);
                 ps.setInt(3, get("decks"));
                 ps.executeUpdate();
             }

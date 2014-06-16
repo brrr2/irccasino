@@ -72,6 +72,15 @@ public class Record {
     }
     
     /**
+     * Long wrapper for get.
+     * @param key
+     * @return 
+     */
+    public Long getLong(String key) {
+        return (Long) get(key);
+    }
+    
+    /**
      * Double wrapper for get.
      * @param key
      * @return 

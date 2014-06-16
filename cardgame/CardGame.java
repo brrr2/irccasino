@@ -268,7 +268,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             informPlayer(nick, getMsg("max_players"));
         } else if (isJoined(nick)) {
             informPlayer(nick, getMsg("is_joined"));
-        } else if (isBlacklisted(nick) || manager.isBlacklisted(nick)) {
+        } else if (isBlacklisted(nick)) {
+            Player p = findBlacklisted(nick);
+            long timeLeft = p.getLong("respawn") - System.currentTimeMillis()/1000;
+            informPlayer(nick, getMsg("on_blacklist_time"), timeLeft/60, timeLeft % 60);
+        } else if (manager.isBlacklisted(nick)) {
             informPlayer(nick, getMsg("on_blacklist"));
         } else if (game != null) {
             informPlayer(nick, getMsg("is_joined_other"), game.getGameNameStr(), game.getChannel().getName());
@@ -1628,10 +1632,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     protected void setRespawnTask(Player p) {
         // Calculate extra time penalty for players with debt
-        int penalty = Math.max(-1 * p.getInteger("bank") / 1000 * 60, 0);
-        informPlayer(p.getNick(), getMsg("bankrupt_info"), (get("respawn") + penalty)/60.);
+        int penalty = get("respawn") + Math.max(-1 * p.getInteger("bank")/1000 * 60, 0);
+        informPlayer(p.getNick(), getMsg("bankrupt_info"), penalty/60, penalty%60);
+        p.put("respawn", System.currentTimeMillis()/1000 + penalty);
+        
+        // TimerTasks are scheduled in milliseconds
         RespawnTask task = new RespawnTask(p, this);
-        gameTimer.schedule(task, (get("respawn")+penalty)*1000);
+        gameTimer.schedule(task, penalty*1000);
         respawnTasks.add(task);
     }
     
