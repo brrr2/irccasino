@@ -37,6 +37,7 @@ public class Player extends Record{
         put("nick", nick);
         put("change", 0);
         put("transaction", 0);
+        put("last", false);
         put("quit", false);
         put("idled", false);
     }

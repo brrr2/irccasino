@@ -313,7 +313,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             informPlayer(nick, getMsg("no_start"));
         } else {
             Player p = findJoined(nick);
-            p.put("quit", true);
+            p.put("last", true);
             informPlayer(p.getNick(), getMsg("remove_end_round"));
         }
     }

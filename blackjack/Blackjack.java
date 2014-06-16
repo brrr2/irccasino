@@ -1620,7 +1620,7 @@ public class Blackjack extends CardGame {
             
             /* Clean-up tasks
              * 1. Remove players who have gone bankrupt and set respawn timers
-             * 2. Remove players who have quit mid-round
+             * 2. Remove players who have quit or used the 'last' command
              * 3. Reset the players
              */
             for (int ctr = 0; ctr < joined.size(); ctr++) {
@@ -1633,7 +1633,7 @@ public class Blackjack extends CardGame {
                     showMsg(getMsg("unjoin_bankrupt"), p.getNickStr(), joined.size());
                     setRespawnTask(p);
                     ctr--;
-                } else if (p.has("quit")) {
+                } else if (p.has("quit") || p.has("last")) {
                     removeJoined(p.getNick());
                     showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
                     ctr--;
@@ -1701,6 +1701,7 @@ public class Blackjack extends CardGame {
         p.clear("currentindex");
         p.clear("initialbet");
         p.clear("change");
+        p.clear("last");
         p.clear("quit");
         p.clear("split");
         p.clear("surrender");
@@ -1995,15 +1996,14 @@ public class Blackjack extends CardGame {
         state = BlackjackState.PLAYING;
         BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
         
-        if (p.has("split")) {
-            showTurn(p, p.getInteger("currentindex") + 1);
-        } else {
-            showTurn(p, 0);
-        }
-        
         if (p.has("quit")){
             stay();
         } else {
+            if (p.has("split")) {
+                showTurn(p, p.getInteger("currentindex") + 1);
+            } else {
+                showTurn(p, 0);
+            }
             setIdleOutTask();
         }
     }

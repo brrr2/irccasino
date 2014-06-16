@@ -1069,7 +1069,7 @@ public class TexasPoker extends CardGame{
             
             /* Clean-up tasks
              * 1. Remove players who are bankrupt and set respawn timers
-             * 2. Remove players who have quit mid-round
+             * 2. Remove players who have quit or used the 'last' command
              * 3. Reset the players
              */
             for (int ctr = 0; ctr < joined.size(); ctr++) {
@@ -1082,7 +1082,7 @@ public class TexasPoker extends CardGame{
                     showMsg(getMsg("unjoin_bankrupt"), p.getNickStr(), joined.size());
                     setRespawnTask(p);
                     ctr--;
-                } else if (p.has("quit")) {
+                } else if (p.has("quit") || p.has("last")) {
                     removeJoined(p);
                     showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
                     ctr--;
@@ -1218,6 +1218,7 @@ public class TexasPoker extends CardGame{
     protected void resetPlayer(Player p) {
         discardPlayerHand((PokerPlayer) p);
         p.clear("fold");
+        p.clear("last");
         p.clear("quit");
         p.clear("allin");
         p.clear("change");
