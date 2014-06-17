@@ -1451,7 +1451,7 @@ public class TexasTourney extends TexasPoker {
             // Add new record if not found in TPPlayerStat table
             if (!found) {
                 sql = "INSERT INTO TTPlayerStat (player_id, tourneys, points, idles) " +
-                      "VALUES(?, ?, ?)";
+                      "VALUES(?, ?, ?, ?)";
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setInt(1, p.getInteger("id"));
                     ps.setInt(2, p.getInteger("tourneys"));

@@ -7,7 +7,7 @@ quit||q,leave,l|Leaves the current game if joined, or the waiting list if on the
 bet|amount|b|Bets a portion of your stack on a hand.
 allin||a|Bets all your cash.
 hit||h|Tells the dealer to deal you a card.
-stand||sit,stay|Stand firm with the current hand.
+stand||sit,stay,s|Stand firm with the current hand.
 doubledown||dd|Doubles the bet on the current hand and you're dealt only 1 more card. May only be done with sufficient funds and if no hit has been made.
 surrender||surr|Receive half your bet back and forfeit your hand. May only be done before hit or double down.
 insure|amount||Insure up to half the initial bet if the dealer's upcard is an Ace.

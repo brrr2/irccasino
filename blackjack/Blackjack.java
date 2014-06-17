@@ -48,8 +48,8 @@ public class Blackjack extends CardGame {
         NONE, PRE_START, BETTING, PLAYING, CONTINUE_ROUND, END_ROUND
     }
     
-    protected BlackjackPlayer dealer;
-    protected IdleShuffleTask idleShuffleTask;
+    BlackjackPlayer dealer;
+    IdleShuffleTask idleShuffleTask;
     // In-game properties
     protected BlackjackState state;
     protected boolean insuranceBets;
@@ -105,7 +105,7 @@ public class Blackjack extends CardGame {
             allin(nick, params);
         } else if (command.equalsIgnoreCase("hit") || command.equalsIgnoreCase("h")) {
             hit(nick, params);
-        } else if (command.equalsIgnoreCase("stand") || command.equalsIgnoreCase("stay") || command.equalsIgnoreCase("sit")) {
+        } else if (command.equalsIgnoreCase("stand") || command.equalsIgnoreCase("stay") || command.equalsIgnoreCase("sit") || command.equalsIgnoreCase("s")) {
             stand(nick, params);
         } else if (command.equalsIgnoreCase("doubledown") || command.equalsIgnoreCase("dd")) {
             doubledown(nick, params);
@@ -1214,7 +1214,7 @@ public class Blackjack extends CardGame {
             // Add new record if not found in BJPlayerStat table
             if (!found) {
                 sql = "INSERT INTO BJPlayerStat (player_id, rounds, winnings, idles) " +
-                      "VALUES(?, ?, ?)";
+                      "VALUES(?, ?, ?, ?)";
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setInt(1, p.getInteger("id"));
                     ps.setInt(2, p.getInteger("rounds"));
