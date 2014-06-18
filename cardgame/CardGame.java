@@ -685,8 +685,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     protected void ping(String nick, String[] params) {
         // Check for rate-limit
-        if (lastPing != 0 && System.currentTimeMillis() - lastPing < get("ping") * 1000) {
-            informPlayer(nick, "This command is rate-limited. Please wait to use it again.");
+        long timeLeft = (get("ping") - (System.currentTimeMillis() / 1000 - lastPing));
+        if (lastPing != 0 && timeLeft > 0) {
+            informPlayer(nick, "This command is rate-limited. Please wait %02d:%02d to use it again.", timeLeft / 60, timeLeft % 60);
         } else if (isInProgress()) {
             informPlayer(nick, "This command cannot be used at this time.");
         } else {
@@ -701,8 +702,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 }
             }
             showMsg(outStr.substring(0, outStr.length() - 2));
-
-            lastPing = System.currentTimeMillis();
+            lastPing = System.currentTimeMillis() / 1000;
         }
     }
     
