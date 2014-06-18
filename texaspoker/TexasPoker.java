@@ -707,7 +707,6 @@ public class TexasPoker extends CardGame{
         } else {
             try {
                 ArrayList<PokerPlayer> peeps = new ArrayList<>();
-                PokerPlayer p;
                 PokerHand ph;
                 int winners = 1;
                 int number = Integer.parseInt(params[0]);
@@ -715,21 +714,20 @@ public class TexasPoker extends CardGame{
                     throw new NumberFormatException();
                 }
                 // Generate new players
-                for (int ctr=0; ctr < number; ctr++){
-                    p = new PokerPlayer(Integer.toString(ctr + 1));
+                for (int ctr = 0; ctr < number; ctr++){
+                    PokerPlayer p = new PokerPlayer(Integer.toString(ctr + 1));
                     peeps.add(p);
                     dealHand(p);                            
-                    showMsg("Player "+p.getNickStr()+": "+p.getHand().toString());
+                    showMsg("Player " + p.getNickStr() + ": " + p.getHand().toString());
                 }
                 // Generate community cards
                 Hand comm = new Hand();
-                for (int ctr=0; ctr<5; ctr++){
+                for (int ctr = 0; ctr < 5; ctr++){
                     dealCard(comm);
                 }
                 showMsg(formatHeader(" Community: ") + " " + comm.toString());
                 // Propagate poker hands
-                for (int ctr=0; ctr < number; ctr++){
-                    p = peeps.get(ctr);
+                for (PokerPlayer p : peeps){
                     ph = p.getPokerHand();
                     ph.addAll(p.getHand());
                     ph.addAll(comm);
@@ -741,7 +739,7 @@ public class TexasPoker extends CardGame{
                 Collections.sort(peeps);
                 Collections.reverse(peeps);
                 // Determine number of winners
-                for (int ctr=1; ctr < peeps.size(); ctr++){
+                for (int ctr = 1; ctr < peeps.size(); ctr++){
                     if (peeps.get(0).compareTo(peeps.get(ctr)) == 0){
                         winners++;
                     } else {
@@ -750,13 +748,13 @@ public class TexasPoker extends CardGame{
                 }
                 // Output poker hands with winners listed
                 for (int ctr=0; ctr < winners; ctr++){
-                    p = peeps.get(ctr);
+                    PokerPlayer p = peeps.get(ctr);
                     ph = p.getPokerHand();
                     showMsg("Player "+p.getNickStr()+
                             " ("+p.getHand()+"), "+ph.getName()+": " + ph+" (WINNER)");
                 }
                 for (int ctr=winners; ctr < peeps.size(); ctr++){
-                    p = peeps.get(ctr);
+                    PokerPlayer p = peeps.get(ctr);
                     ph = p.getPokerHand();
                     showMsg("Player "+p.getNickStr()+
                             " ("+p.getHand()+"), "+ph.getName()+": " + ph);
@@ -833,55 +831,43 @@ public class TexasPoker extends CardGame{
                     throw new NumberFormatException();
                 }
                 ArrayList<PokerPlayer> peeps = new ArrayList<>();
-                PokerPlayer p;
-                Hand comm = new Hand();
-                PokerSimulator sim;
-
+                PokerSimulator sim = new PokerSimulator();
+                
                 // Generate players and deal cards
                 for (int ctr = 0; ctr < number; ctr++) {
-                    p = new PokerPlayer(Integer.toString(ctr));
+                    PokerPlayer p = new PokerPlayer(Integer.toString(ctr));
                     peeps.add(p);
                     dealHand(p);
-                    showMsg("Player "+p.getNickStr()+": "+p.getHand().toString());
+                    showMsg("Player " + p.getNickStr() + ": " + p.getHand().toString());
                 }
-
-                // Calculate percentages
-                sim = new PokerSimulator(peeps, comm);
-                showMsg(sim.toString());
-
-                // Deal flop
-                for (int ctr = 0; ctr < 3; ctr++){
-                    dealCard(comm);
+                sim.addPlayers(peeps);
+                betState = PokerBet.PRE_FLOP;
+                
+                // Run simulations
+                while (true) {
+                    sim.addCommunity(community);
+                    sim.run();
+                    showMsg(sim.toString());
+                    
+                    // Don't deal any more cards after the river
+                    if (betState == PokerBet.RIVER) {
+                        break;
+                    }
+                    
+                    // Deal community
+                    dealCommunity();
+                    showMsg(formatHeader(" Community: ") + " " + community.toString());
+                    sim.reset();
+                    betState = betState.next();
                 }
-                showMsg(formatHeader(" Community: ") + " " + comm.toString());
-
-                // Recalculate percentages
-                sim = new PokerSimulator(peeps, comm);
-                showMsg(sim.toString());
-
-                // Deal turn
-                dealCard(comm);
-                showMsg(formatHeader(" Community: ") + " " + comm.toString());
-
-                // Recalculate percentages
-                sim = new PokerSimulator(peeps, comm);
-                showMsg(sim.toString());
-
-                // Deal river
-                dealCard(comm);
-                showMsg(formatHeader(" Community: ") + " " + comm.toString());
-
-                // Recalculate percentages
-                sim = new PokerSimulator(peeps, comm);
-                showMsg(sim.toString());
-
+                
                 // Discard and shuffle
-                for (int ctr=0; ctr < number; ctr++){
-                    resetPlayer(peeps.get(ctr));
+                for (PokerPlayer p : peeps){
+                    resetPlayer(p);
                 }
-                deck.addToDiscard(comm);
-                comm.clear();
+                discardCommunity();
                 deck.refillDeck();
+                betState = PokerBet.NONE;
                 showMsg(getMsg("separator"));
             } catch (NumberFormatException e) {
                 informPlayer(nick, getMsg("bad_parameter"));
@@ -951,17 +937,17 @@ public class TexasPoker extends CardGame{
             currentPlayer = null;
             topBettor = null;
             
-            // Deal some community cards
+            // Deal the rest of the community cards
             while (!betState.equals(PokerBet.RIVER)) {
                 burnCard();
                 dealCommunity();
                 betState = betState.next();
-                // Show final community if required
-                if (settings.get("revealcommunity") == 1 && betState.equals(PokerBet.RIVER)){
-                    showCommunityCards(true);
-                }
             }
             
+            // Show final community if required
+            if (settings.get("revealcommunity") == 1){
+                showCommunityCards(true);
+            }
             endRound();
         } else if (nextPlayer == topBettor || nextPlayer == currentPlayer) {
             // If we reach the firstPlayer or topBettor, then we have reached 
@@ -974,22 +960,21 @@ public class TexasPoker extends CardGame{
             if (betState.equals(PokerBet.RIVER)){
                 // If all community cards have been dealt, move to end of round.
                 endRound();
-            } else if (getNumberCanBet() < 2 && getNumberNotFolded() > 1) {
+            } else if (getNumberCanBet() < 2) {
                 // If showdown, show player hands and their win/tie 
                 // probabilities immediately and each time additional community
                 // cards are revealed. Adds a dramatic delay between each reveal.
                 state = PokerState.SHOWDOWN;
-                PokerSimulator sim;
-                ArrayList<PokerPlayer> players = pots.get(0).getEligibles();
-
+                PokerSimulator sim = new PokerSimulator();
+                ArrayList<PokerPlayer> list = pots.get(0).getEligibles();
+                sim.addPlayers(list);
+                
                 while (!betState.equals(PokerBet.RIVER)) {
-                    sim = new PokerSimulator(players, community);
-                    String showdownStr = formatHeader(" Showdown: ") + " ";
-                    for (PokerPlayer p : players) {
-                        showdownStr += p.getNickStr() + " (" + p.getHand() + "||" + formatBold(Math.round(sim.getWinPct(p)) + "/" + Math.round(sim.getTiePct(p)) + "%%") + "), ";
-                    }
-                    showMsg(showdownStr.substring(0, showdownStr.length()-2));
-
+                    sim.addCommunity(community);
+                    sim.run();
+                    showShowdown(list, sim);
+                    sim.reset();
+                    
                     // Add a delay for dramatic effect
                     try { Thread.sleep(get("showdown") * 1000); } catch (InterruptedException e){}
 
@@ -1022,13 +1007,12 @@ public class TexasPoker extends CardGame{
     @Override
     public void endRound() {
         state = PokerState.END_ROUND;
-        PokerPlayer p;
 
         // Check if anybody left during post-start waiting period
         if (joined.size() > 1 && pots.size() > 0) {
             // Give all non-folded players the community cards
             for (int ctr = 0; ctr < joined.size(); ctr++){
-                p = (PokerPlayer) joined.get(ctr);
+                PokerPlayer p = (PokerPlayer) joined.get(ctr);
                 if (!p.has("fold")){
                     p.getPokerHand().addAll(p.getHand());
                     p.getPokerHand().addAll(community);
@@ -1049,16 +1033,16 @@ public class TexasPoker extends CardGame{
              * 2. Make auto-withdrawals
              * 3. Save player stats
              */
-            for (Player pp : joined) {
-                pp.add("rounds", 1);
-                if (pp.getBoolean("idled")) {
-                    pp.add("idles", 1);
+            for (Player p : joined) {
+                p.add("rounds", 1);
+                if (p.getBoolean("idled")) {
+                    p.add("idles", 1);
                 }
-                if (!pp.has("cash") && pp.has("bank")) {
-                    int amount = Math.min(pp.getInteger("bank"), get("cash"));
-                    pp.bankTransfer(-amount);
-                    saveDBPlayerBanking(pp);
-                    informPlayer(pp.getNick(), getMsg("auto_withdraw"), amount);
+                if (!p.has("cash") && p.has("bank")) {
+                    int amount = Math.min(p.getInteger("bank"), get("cash"));
+                    p.bankTransfer(-amount);
+                    saveDBPlayerBanking(p);
+                    informPlayer(p.getNick(), getMsg("auto_withdraw"), amount);
                 }
             }
             
@@ -1072,8 +1056,8 @@ public class TexasPoker extends CardGame{
              * 2. Remove players who have quit or used the 'last' command
              * 3. Reset the players
              */
-            for (int ctr = 0; ctr < joined.size(); ctr++) {
-                p = (PokerPlayer) joined.get(ctr);
+            for (int ctr = joined.size()-1; ctr >= 0 ; ctr--) {
+                PokerPlayer p = (PokerPlayer) joined.get(ctr);
                 if (!p.has("cash")) {
                     // Give penalty to players with no cash in their bank
                     p.add("bankrupts", 1);
@@ -1081,11 +1065,9 @@ public class TexasPoker extends CardGame{
                     removeJoined(p);
                     showMsg(getMsg("unjoin_bankrupt"), p.getNickStr(), joined.size());
                     setRespawnTask(p);
-                    ctr--;
                 } else if (p.has("quit") || p.has("last")) {
                     removeJoined(p);
                     showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
-                    ctr--;
                 }
                 resetPlayer(p);
             }
@@ -1859,7 +1841,8 @@ public class TexasPoker extends CardGame{
     protected int getNumberCanBet(){
         int numberCanBet = 0;
         for (Player p : joined) {
-            if (!p.has("fold") && !p.has("allin")){
+            if (!p.has("fold") && !p.has("allin") && 
+                p.getInteger("cash") - p.getInteger("bet") > 0){
                 numberCanBet++;
             }
         }
@@ -1979,10 +1962,9 @@ public class TexasPoker extends CardGame{
      */
     public void showTablePlayers(){
         String msg = formatBold(joined.size()) + " players: ";
-        String nickColor;
         for (Player p : joined) {
             // Give bold to remaining non-folded players
-            nickColor = "";
+            String nickColor = "";
             if (!p.has("fold")){
                 nickColor = Colors.BOLD;
             }
@@ -2015,13 +1997,13 @@ public class TexasPoker extends CardGame{
     
     /**
      * Displays the community cards along with existing pots.
-     * @param noTitle
+     * @param plainTitle
      */
-    public void showCommunityCards(boolean noTitle){
+    public void showCommunityCards(boolean plainTitle){
         String msg = "";
         
         // Append community cards to String
-        if (noTitle && betState.equals(PokerBet.RIVER)) {
+        if (plainTitle && betState.equals(PokerBet.RIVER)) {
             msg += formatHeader(" Community: ") + " " + community.toString() + " ";
         } else if (betState.equals(PokerBet.FLOP)) {
             msg += formatHeader(" Flop: ") + " " + community.toString() + " ";
@@ -2052,6 +2034,19 @@ public class TexasPoker extends CardGame{
         showMsg(msg);
     }
 
+    /**
+     * Displays a list of players in a showdown.
+     * @param list
+     * @param sim 
+     */
+    public void showShowdown(ArrayList<PokerPlayer> list, PokerSimulator sim) {
+        String showdownStr = formatHeader(" Showdown: ") + " ";
+        for (PokerPlayer p : list) {
+            showdownStr += p.getNickStr() + " (" + p.getHand() + "||" + formatBold(Math.round(sim.getWinPct(p)) + "/" + Math.round(sim.getTiePct(p)) + "%%") + "), ";
+        }
+        showMsg(showdownStr.substring(0, showdownStr.length()-2));
+    }
+    
     /**
      * Displays the results of a round.
      */

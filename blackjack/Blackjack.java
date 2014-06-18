@@ -1623,7 +1623,7 @@ public class Blackjack extends CardGame {
              * 2. Remove players who have quit or used the 'last' command
              * 3. Reset the players
              */
-            for (int ctr = 0; ctr < joined.size(); ctr++) {
+            for (int ctr = joined.size()-1; ctr >= 0; ctr--) {
                 p = (BlackjackPlayer) joined.get(ctr);
                 if (!p.has("cash")) {
                     // Give penalty to players with no cash in their bankroll
@@ -1632,11 +1632,9 @@ public class Blackjack extends CardGame {
                     removeJoined(p);
                     showMsg(getMsg("unjoin_bankrupt"), p.getNickStr(), joined.size());
                     setRespawnTask(p);
-                    ctr--;
                 } else if (p.has("quit") || p.has("last")) {
                     removeJoined(p.getNick());
                     showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
-                    ctr--;
                 }
                 resetPlayer(p);
             }

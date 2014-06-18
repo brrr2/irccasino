@@ -996,16 +996,15 @@ public class TexasTourney extends TexasPoker {
                  * cards are revealed. Adds a dramatic delay between each reveal.
                  */
                 state = PokerState.SHOWDOWN;
-                PokerSimulator sim;
-                ArrayList<PokerPlayer> players = pots.get(0).getEligibles();
+                PokerSimulator sim = new PokerSimulator();
+                ArrayList<PokerPlayer> list = pots.get(0).getEligibles();
+                sim.addPlayers(list);
                 
                 while (!betState.equals(PokerBet.RIVER)) {
-                    sim = new PokerSimulator(players, community);
-                    String showdownStr = formatHeader(" Showdown: ") + " ";
-                    for (PokerPlayer p : players) {
-                        showdownStr += p.getNickStr() + " (" + p.getHand() + "||" + formatBold(Math.round(sim.getWinPct(p)) + "/" + Math.round(sim.getTiePct(p)) + "%%") + "), ";
-                    }
-                    showMsg(showdownStr);
+                    sim.addCommunity(community);
+                    sim.run();
+                    showShowdown(list, sim);
+                    sim.reset();
 
                    // Add a delay for dramatic effect
                    try { Thread.sleep(get("showdown") * 1000); } catch (InterruptedException e){}
@@ -1064,7 +1063,7 @@ public class TexasTourney extends TexasPoker {
              * 1. Remove players who have quit mid-round or have gone bankrupt
              * 2. Reset all players
              */
-            for (int ctr = 0; ctr < joined.size(); ctr++){
+            for (int ctr = joined.size()-1; ctr >= 0 ; ctr--){
                 p = (PokerPlayer) joined.get(ctr);
                 
                 // Bankrupts
@@ -1074,7 +1073,6 @@ public class TexasTourney extends TexasPoker {
                     blacklist.add(0, p);
                     removeJoined(p);
                     showMsg(getMsg("tt_unjoin"), p.getNickStr());
-                    ctr--;
                     newPlayerOut = true;
                     newOutList.add(p);
                 // Quitters
@@ -1082,7 +1080,6 @@ public class TexasTourney extends TexasPoker {
                     blacklist.add(0, p);
                     removeJoined(p);
                     showMsg(getMsg("tt_unjoin"), p.getNickStr());
-                    ctr--;
                 }
                 
                 resetPlayer(p);
