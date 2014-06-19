@@ -949,7 +949,8 @@ public class TexasPoker extends CardGame{
                 showCommunityCards(true);
             }
             endRound();
-        } else if (nextPlayer == topBettor || nextPlayer == currentPlayer) {
+        } else if (nextPlayer == topBettor || nextPlayer == currentPlayer || 
+                   (betState == PokerBet.PRE_FLOP && getNumberCanBet() == 0)) {
             // If we reach the firstPlayer or topBettor, then we have reached 
             // the end of a round of betting and we should deal community cards.
             minRaise = get("minbet");
@@ -2051,16 +2052,14 @@ public class TexasPoker extends CardGame{
      * Displays the results of a round.
      */
     public void showResults(){
-        ArrayList<PokerPlayer> players;
-        
-        // Show introduction to end results and sort players by hand
+        // Show introduction to end results
         showMsg(formatHeader(" Results: "));
-        players = pots.get(0).getEligibles();
-        Collections.sort(players);
-        Collections.reverse(players);
         
         // Show each remaining player's hand if more than one player unfolded
-        if (players.size() > 1){
+        if (getNumberNotFolded() > 1){
+            ArrayList<PokerPlayer> players = pots.get(0).getEligibles();
+            Collections.sort(players);
+            Collections.reverse(players);
             for (PokerPlayer p : players) {
                 showMsg(getMsg("tp_player_result"), p.getNickStr(false), p.getHand(), p.getPokerHand().getName(), p.getPokerHand());
             }
@@ -2069,7 +2068,7 @@ public class TexasPoker extends CardGame{
         // Find the winner(s) from each pot
         for (int ctr = 0; ctr < pots.size(); ctr++){
             currentPot = pots.get(ctr);
-            players = currentPot.getEligibles();
+            ArrayList<PokerPlayer> players = currentPot.getEligibles();
             Collections.sort(players);
             Collections.reverse(players);
             

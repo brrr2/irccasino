@@ -969,14 +969,15 @@ public class TexasTourney extends TexasPoker {
                 burnCard();
                 dealCommunity();
                 betState = betState.next();
-                // Show final community if required
-                if (settings.get("revealcommunity") == 1 && betState.equals(PokerBet.RIVER)){
-                    showCommunityCards(true);
-                }
             }
             
+            // Show final community if required
+            if (settings.get("revealcommunity") == 1 && betState.equals(PokerBet.RIVER)){
+                showCommunityCards(true);
+            }
             endRound();
-        } else if (nextPlayer == topBettor || nextPlayer == currentPlayer) {
+        } else if (nextPlayer == topBettor || nextPlayer == currentPlayer || 
+                   (betState == PokerBet.PRE_FLOP && getNumberCanBet() == 0)) {
             // If we reach the firstPlayer or topBettor, then we have reached 
             // the end of a round of betting and we should deal community cards.
             // Reset minimum raise (override)
@@ -989,7 +990,7 @@ public class TexasTourney extends TexasPoker {
             // Otherwise, deal more community cards
             if (betState.equals(PokerBet.RIVER)){
                 endRound();
-            } else if (getNumberCanBet() < 2 && getNumberNotFolded() > 1) {
+            } else if (getNumberCanBet() < 2) {
                 /* 
                  * Check for showdown. Show player hands and their win/tie 
                  * probabilities immediately and each time additional community
@@ -1038,13 +1039,12 @@ public class TexasTourney extends TexasPoker {
     @Override
     public void endRound() {
         state = PokerState.END_ROUND;
-        PokerPlayer p;
 
         // Check if anybody left during post-start waiting period
         if (joined.size() > 1 && pots.size() > 0) {
             // Give all non-folded players the community cards
             for (int ctr = 0; ctr < joined.size(); ctr++){
-                p = (PokerPlayer) joined.get(ctr);
+                PokerPlayer p = (PokerPlayer) joined.get(ctr);
                 if (!p.has("fold")){
                     p.getPokerHand().addAll(p.getHand());
                     p.getPokerHand().addAll(community);
@@ -1064,7 +1064,7 @@ public class TexasTourney extends TexasPoker {
              * 2. Reset all players
              */
             for (int ctr = joined.size()-1; ctr >= 0 ; ctr--){
-                p = (PokerPlayer) joined.get(ctr);
+                PokerPlayer p = (PokerPlayer) joined.get(ctr);
                 
                 // Bankrupts
                 if (!p.has("cash")) {
@@ -1148,8 +1148,6 @@ public class TexasTourney extends TexasPoker {
      * Checks to see if a tournament can continue.
      */
     public void checkTourneyStatus() {
-        PokerPlayer p;
-        
         // Nobody wins if everybody leaves
         if (joined.isEmpty()) {
             showMsg(getMsg("tt_no_winner"));
@@ -1157,7 +1155,7 @@ public class TexasTourney extends TexasPoker {
         // Declare a winner if only one player is left
         } else if (joined.size() == 1) {
             // Update and save winner
-            p = (PokerPlayer) joined.get(0);
+            PokerPlayer p = (PokerPlayer) joined.get(0);
             p.add("points", 1);
             p.add("tourneys", 1);
             saveDBPlayerData(p);
@@ -1529,10 +1527,9 @@ public class TexasTourney extends TexasPoker {
     
     @Override
     protected void saveDBGameStats() {
-        int tourneyID;
         try (Connection conn = DriverManager.getConnection(dbURL)) {
             conn.setAutoCommit(false);
-            
+            int tourneyID;
             // Insert data into TTTourney table
             String sql = "INSERT INTO TTTourney (start_time, end_time, rounds) " +
                          "VALUES (?, ?, ?)";
@@ -1592,17 +1589,15 @@ public class TexasTourney extends TexasPoker {
     /////////////////////////////////////////////////////////////
     
     @Override
-    public void showResults(){
-        ArrayList<PokerPlayer> players;
-        
-        // Show introduction to end results and sort players by hand
+    public void showResults(){        
+        // Show introduction to end results
         showMsg(formatHeader(" Results: "));
-        players = pots.get(0).getEligibles();
-        Collections.sort(players);
-        Collections.reverse(players);
         
         // Show each remaining player's hand if more than one player unfolded
-        if (players.size() > 1){
+        if (getNumberNotFolded() > 1){
+            ArrayList<PokerPlayer> players = pots.get(0).getEligibles();
+            Collections.sort(players);
+            Collections.reverse(players);
             for (PokerPlayer p : players) {
                 showMsg(getMsg("tp_player_result"), p.getNickStr(false), p.getHand(), p.getPokerHand().getName(), p.getPokerHand());
             }
@@ -1611,7 +1606,7 @@ public class TexasTourney extends TexasPoker {
         // Find the winner(s) from each pot
         for (int ctr = 0; ctr < pots.size(); ctr++){
             currentPot = pots.get(ctr);
-            players = currentPot.getEligibles();
+            ArrayList<PokerPlayer> players = currentPot.getEligibles();
             Collections.sort(players);
             Collections.reverse(players);
             
@@ -1629,7 +1624,6 @@ public class TexasTourney extends TexasPoker {
             for (int ctr2 = 0; ctr2 < winners; ctr2++){
                 PokerPlayer p = players.get(ctr2);
                 p.add("cash", potTotal/winners);
-                p.add("tpwinnings", potTotal/winners);
                 p.add("change", potTotal/winners);
                 showMsg(Colors.YELLOW+",01 Pot #" + (ctr+1) + ": " + Colors.NORMAL + " " + 
                     p.getNickStr() + " wins $" + formatNumber(potTotal/winners) + 
@@ -1642,10 +1636,8 @@ public class TexasTourney extends TexasPoker {
      * Displays the final results of a tournament.
      */
     public void showTourneyResults() {
-        String msg = "";
-        
         // Append title and the players in the order in which they placed
-        msg += formatHeader(" Final Standings: ") + " ";
+        String msg = formatHeader(" Final Standings: ") + " ";
         msg += " " + formatBold("#1:") + " " + joined.get(0).getNickStr() + " ";
         for (int ctr = 0; ctr < blacklist.size(); ctr++) {
             msg += " " + formatBold("#" + (ctr + 2) + ":") + " " + blacklist.get(ctr).getNickStr() + " ";

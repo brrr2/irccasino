@@ -1566,14 +1566,12 @@ public class Blackjack extends CardGame {
     @Override
     public void endRound() {
         state = BlackjackState.END_ROUND;
-        BlackjackPlayer p;
-        BlackjackHand dHand;
 
         if (joined.size() >= 1) {
             // Make dealer decisions
             if (needDealerPlay()) {
                 showTurn(dealer, 0);
-                dHand = dealer.getHand();
+                BlackjackHand dHand = dealer.getHand();
                 showPlayerHand(dealer, dHand, 0, true);
                 while (dHand.calcSum() < 17 || (dHand.isSoft17() && has("soft17hit"))) {
                     // Add a 1 second delay for dramatic effect
@@ -1599,17 +1597,17 @@ public class Blackjack extends CardGame {
              * 2. Make auto-withdrawals
              * 3. Save player stats
              */
-            for (Player pp : joined) {
-                pp.add("rounds", 1);
-                if (pp.getBoolean("idled")) {
-                    pp.add("idles", 1);
+            for (Player p : joined) {
+                p.add("rounds", 1);
+                if (p.getBoolean("idled")) {
+                    p.add("idles", 1);
                 }
-                if (!pp.has("cash") && pp.has("bank")) {
+                if (!p.has("cash") && p.has("bank")) {
                     // Make a withdrawal if the player has a positive bankroll
-                    int amount = Math.min(pp.getInteger("bank"), get("cash"));
-                    pp.bankTransfer(-amount);
-                    saveDBPlayerBanking(pp);
-                    informPlayer(pp.getNick(), getMsg("auto_withdraw"), amount);
+                    int amount = Math.min(p.getInteger("bank"), get("cash"));
+                    p.bankTransfer(-amount);
+                    saveDBPlayerBanking(p);
+                    informPlayer(p.getNick(), getMsg("auto_withdraw"), amount);
                 }
             }
             
@@ -1624,7 +1622,7 @@ public class Blackjack extends CardGame {
              * 3. Reset the players
              */
             for (int ctr = joined.size()-1; ctr >= 0; ctr--) {
-                p = (BlackjackPlayer) joined.get(ctr);
+                BlackjackPlayer p = (BlackjackPlayer) joined.get(ctr);
                 if (!p.has("cash")) {
                     // Give penalty to players with no cash in their bankroll
                     p.add("bankrupts", 1);
