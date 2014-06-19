@@ -1531,12 +1531,13 @@ public class TexasTourney extends TexasPoker {
             conn.setAutoCommit(false);
             int tourneyID;
             // Insert data into TTTourney table
-            String sql = "INSERT INTO TTTourney (start_time, end_time, rounds) " +
-                         "VALUES (?, ?, ?)";
+            String sql = "INSERT INTO TTTourney (start_time, end_time, channel, " +
+                         "rounds) VALUES (?, ?, ?, ?)";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setLong(1, startTime);
                 ps.setLong(2, endTime);
-                ps.setInt(3, tourneyRounds);
+                ps.setString(3, channel.getName());
+                ps.setInt(4, tourneyRounds);
                 ps.executeUpdate();
                 tourneyID = ps.getGeneratedKeys().getInt(1);
             }

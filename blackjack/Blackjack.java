@@ -1363,13 +1363,14 @@ public class Blackjack extends CardGame {
             conn.setAutoCommit(false);
             
             // Insert data into BJRound table
-            String sql = "INSERT INTO BJRound (start_time, end_time, shoe_size, num_cards_left) " +
-                         "VALUES (?, ?, ?, ?)";
+            String sql = "INSERT INTO BJRound (start_time, end_time, channel, " +
+                         "shoe_size, num_cards_left) VALUES (?, ?, ?, ?, ?)";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setLong(1, startTime);
                 ps.setLong(2, endTime);
-                ps.setInt(3, get("decks"));
-                ps.setInt(4, deck.getNumberCards());
+                ps.setString(3, channel.getName());
+                ps.setInt(4, get("decks"));
+                ps.setInt(5, deck.getNumberCards());
                 ps.executeUpdate();
                 roundID = ps.getGeneratedKeys().getInt(1);
             }

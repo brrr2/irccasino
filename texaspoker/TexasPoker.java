@@ -1544,12 +1544,13 @@ public class TexasPoker extends CardGame{
             conn.setAutoCommit(false);
             
             // Insert data into TPRound table
-            String sql = "INSERT INTO TPRound (start_time, end_time, " +
-                         "community) VALUES (?, ?, ?)";
+            String sql = "INSERT INTO TPRound (start_time, end_time, channel, " +
+                         "community) VALUES (?, ?, ?, ?)";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setLong(1, startTime);
                 ps.setLong(2, endTime);
-                ps.setString(3, community.toStringDB());
+                ps.setString(3, channel.getName());
+                ps.setString(4, community.toStringDB());
                 ps.executeUpdate();
                 roundID = ps.getGeneratedKeys().getInt(1);
             }

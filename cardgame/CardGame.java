@@ -1322,7 +1322,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 s.execute( "CREATE TABLE IF NOT EXISTS BJRound (" +
                            "id INTEGER PRIMARY KEY, " +
                            "start_time INTEGER, end_time INTEGER, " +
-                           "shoe_size INTEGER, num_cards_left INTEGER, " +
+                           "channel TEXT, shoe_size INTEGER, " +
+                           "num_cards_left INTEGER, " +
                            "FOREIGN KEY(shoe_size) REFERENCES BJHouse(shoe_size))");
                 
                 // BJHand table
@@ -1379,7 +1380,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 // TPRound table
                 s.execute( "CREATE TABLE IF NOT EXISTS TPRound (" +
                            "id INTEGER PRIMARY KEY, start_time INTEGER, " +
-                           "end_time INTEGER, community TEXT)");
+                           "end_time INTEGER, channel TEXT, community TEXT)");
                 
                 // TPPot table
                 s.execute( "CREATE TABLE IF NOT EXISTS TPPot (" +
@@ -1435,7 +1436,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 // TTTourney table
                 s.execute( "CREATE TABLE IF NOT EXISTS TTTourney (" +
                            "id INTEGER PRIMARY KEY, start_time INTEGER, " +
-                           "end_time INTEGER, rounds INTEGER)");
+                           "end_time INTEGER, channel TEXT, rounds INTEGER)");
                 
                 // TTPlayerTourney table
                 s.execute( "CREATE TABLE IF NOT EXISTS TTPlayerTourney (" +
