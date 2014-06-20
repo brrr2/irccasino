@@ -2,7 +2,7 @@ irccasino
 =========
 ### What is irccasino? ###
 irccasino is a Java package that implements casino games for IRC using the 
-[PircBotX IRC library][1] and [SQLite JDBC Driver][9]. A standalone bot is 
+[PircBotX IRC library][1] and [Xerial SQLite JDBC Driver][9]. A standalone bot is 
 included, but the package can also be added to any existing PircBotX-based 
 project. For more information, visit the [project wiki][4] on GitHub or join 
 us on [Freenode][5] in `##casino` and `##holdem`.
@@ -15,7 +15,7 @@ us on [Freenode][5] in `##casino` and `##holdem`.
 ### Requirements ###
 1. [Java][2] 7 or higher
 2. [PircBotX 1.9][3]
-3. [SQLite JDBC Driver][10]
+3. [Xerial SQLite JDBC Driver][10]
 
 Standalone Setup
 ================
@@ -44,6 +44,10 @@ Standalone Setup
 2. Give the bot Op status in the channels that will run the games.
 3. While as channel Op in those channels, type the command `.texaspoker`, `.texastourney` or `.blackjack` to start that game in the channel.
 4. Other useful Op commands are `.botquit`, `.reboot`, `.endgame`, and `.games`.
+
+### Upgrading ###
+1. For versions 0.3.4 and lower, ensure that you use the latest library files (*.help* and *strlib.txt*).
+2. For versions 0.3.9 and higher, use the `.migrate` command from within any game to properly migrate game data from the previous version. Also ensure that you use the latest library files.
 
 Contributors
 ============

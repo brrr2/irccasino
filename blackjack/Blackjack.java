@@ -191,6 +191,8 @@ public class Blackjack extends CardGame {
             gcommands(user, nick, params);
         } else if (command.equalsIgnoreCase("game")) {
             game(nick, params);
+        } else if (command.equalsIgnoreCase("gversion")) {
+            gversion(nick, params);
         /* Op commands */
         } else if (command.equalsIgnoreCase("fj") || command.equalsIgnoreCase("fjoin")){
             fjoin(user, nick, params);
@@ -1333,7 +1335,6 @@ public class Blackjack extends CardGame {
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.isBeforeFirst()) {
-                        record = new Record();
                         record.put("total_players", rs.getInt("total_players"));
                         record.put("total_rounds", rs.getInt("total_rounds"));
                         record.put("total_winnings", rs.getInt("total_winnings"));

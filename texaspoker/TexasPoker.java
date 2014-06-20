@@ -180,6 +180,8 @@ public class TexasPoker extends CardGame{
             gcommands(user, nick, params);
         } else if (command.equalsIgnoreCase("game")) {
             game(nick, params);
+        } else if (command.equalsIgnoreCase("gversion")) {
+            gversion(nick, params);
         /* Op commands */
         } else if (command.equalsIgnoreCase("fj") || command.equalsIgnoreCase("fjoin")){
             fjoin(user, nick, params);
@@ -1227,7 +1229,7 @@ public class TexasPoker extends CardGame{
      */
     protected void setBlindBets(){
         // Set the small blind
-        if (get("minbet")/2 > smallBlind.getInteger("cash")) {
+        if (get("minbet")/2 >= smallBlind.getInteger("cash")) {
             smallBlind.put("allin", true);
             smallBlind.put("bet", smallBlind.getInteger("cash"));
         } else {
@@ -1235,7 +1237,7 @@ public class TexasPoker extends CardGame{
         }
         
         // Set the big blind
-        if (get("minbet") > bigBlind.getInteger("cash")) {
+        if (get("minbet") >= bigBlind.getInteger("cash")) {
             bigBlind.put("allin", true);
             bigBlind.put("bet", bigBlind.getInteger("cash"));
         } else {
@@ -1511,20 +1513,27 @@ public class TexasPoker extends CardGame{
     private Record loadDBGameTotals() {
         Record record = new Record();
         record.put("total_players", 0);
-        record.put("pot_size", 0);
-        record.put("pot_winners", "");
-        record.put("pot_contributors", "");
+        record.put("total_rounds", 0);
         
         try (Connection conn = DriverManager.getConnection(dbURL)) {
             conn.setAutoCommit(false);
             
-            // Retreive total players
+            // Retrieve total players
             String sql = "SELECT COUNT(*) as total_players FROM TPPlayerStat WHERE rounds > 0";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.isBeforeFirst()) {
-                        record = new Record();
                         record.put("total_players", rs.getInt("total_players"));
+                    }
+                }
+            }
+            
+            // Retrieve total rounds
+            sql = "SELECT COUNT(*) as total_rounds FROM TPRound";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.isBeforeFirst()) {
+                        record.put("total_rounds", rs.getInt("total_rounds"));
                     }
                 }
             }
@@ -1843,8 +1852,7 @@ public class TexasPoker extends CardGame{
     protected int getNumberCanBet(){
         int numberCanBet = 0;
         for (Player p : joined) {
-            if (!p.has("fold") && !p.has("allin") && 
-                p.getInteger("cash") - p.getInteger("bet") > 0){
+            if (!p.has("fold") && !p.has("allin")){
                 numberCanBet++;
             }
         }
@@ -2372,6 +2380,6 @@ public class TexasPoker extends CardGame{
     @Override
     public String getGameStatsStr() {
         Record record = loadDBGameTotals();
-        return String.format(getMsg("tp_stats"), record.get("total_players"), getGameNameStr(), "POT DATA NOT IMPLEMENTED");
+        return String.format(getMsg("tp_stats"), record.get("total_players"), record.get("total_rounds"), getGameNameStr());
     }
 }

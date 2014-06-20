@@ -35,6 +35,7 @@ stats|||Shows the current overall statistics for the game.
 rank|statistic,nick||Shows the rank of the player in the specified statistic. Shows your own rank if no nick is specified.
 top|number,statistic||Shows the specified number of top players ranked in descending order based on the specified statistic.
 game|||Shows the name of the game currently being played.
+gversion|||Shows the version of the irccasino package.
 ghelp|command||Tells you the help commands or help for the specified command.
 grules|||Tells you the house rules for this game.
 gcommands|||Tells you the list of commands supported by this game.

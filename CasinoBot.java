@@ -545,7 +545,7 @@ public class CasinoBot extends PircBotX implements GameManager {
                 if (outputThread != null) outputThread.join();
                 
                 // Set delay up to 600 seconds or 10 minutes
-                int delay = Math.min(attempt * timeInt, timeInt * 15);
+                int delay = Math.min(attempt * timeInt, timeInt * 20);
                 log("Attempt to reconnect in " + (delay/1000) + " seconds...");
                 Thread.sleep(delay);
                 

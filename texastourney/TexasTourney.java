@@ -152,6 +152,8 @@ public class TexasTourney extends TexasPoker {
             gcommands(user, nick, params);
         } else if (command.equalsIgnoreCase("game")) {
             game(nick, params);
+        } else if (command.equalsIgnoreCase("gversion")) {
+            gversion(nick, params);
         /* Op commands */
         } else if (command.equalsIgnoreCase("fj") || command.equalsIgnoreCase("fjoin")){
             fjoin(user, nick, params);
@@ -1227,7 +1229,7 @@ public class TexasTourney extends TexasPoker {
         int newBlind = (int) (get("minbet")*(Math.pow(2, tourneyRounds/get("doubleblinds") + numOuts)));
         
         // Set the small blind
-        if (newBlind/2 > smallBlind.getInteger("cash")) {
+        if (newBlind/2 >= smallBlind.getInteger("cash")) {
             smallBlind.put("allin", true);
             smallBlind.put("bet", smallBlind.get("cash"));
         } else {
@@ -1235,7 +1237,7 @@ public class TexasTourney extends TexasPoker {
         }
         
         // Set the big blind
-        if (newBlind > bigBlind.getInteger("cash")) {
+        if (newBlind >= bigBlind.getInteger("cash")) {
             bigBlind.put("allin", true);
             bigBlind.put("bet", bigBlind.get("cash"));
         } else {
@@ -1499,20 +1501,27 @@ public class TexasTourney extends TexasPoker {
     private Record loadDBGameTotals() {
         Record record = new Record();
         record.put("total_players", 0);
-        record.put("tourney_size", 0);
-        record.put("tourney_winner", "");
-        record.put("tourney_players", "");
+        record.put("total_tourneys", 0);
         
         try (Connection conn = DriverManager.getConnection(dbURL)) {
             conn.setAutoCommit(false);
             
-            // Retreive total players
+            // Retrieve total players
             String sql = "SELECT COUNT(*) as total_players FROM TTPlayerStat WHERE tourneys > 0";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.isBeforeFirst()) {
-                        record = new Record();
                         record.put("total_players", rs.getInt("total_players"));
+                    }
+                }
+            }
+            
+            // Retrieve total tournaments
+            sql = "SELECT COUNT(*) as total_tourneys FROM TTTourney";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.isBeforeFirst()) {
+                        record.put("total_tourneys", rs.getInt("total_tourneys"));
                     }
                 }
             }
@@ -1917,6 +1926,6 @@ public class TexasTourney extends TexasPoker {
     @Override
     public String getGameStatsStr() {
         Record record = loadDBGameTotals();
-        return String.format(getMsg("tt_stats"), record.get("total_players"), getGameNameStr(), "TOURNEY DATA NOT IMPLEMENTED");
+        return String.format(getMsg("tt_stats"), record.get("total_players"), record.get("total_tourneys"), getGameNameStr());
     }
 }

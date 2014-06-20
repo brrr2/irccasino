@@ -678,6 +678,15 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     
     /**
+     * Displays the version of the package.
+     * @param nick
+     * @param params 
+     */
+    protected void gversion(String nick, String[] params) {
+        showMsg(getMsg("version"));
+    }
+    
+    /**
      * Displays a list of users in the game channel, excluding users who are 
      * in the awayList.
      * @param nick
