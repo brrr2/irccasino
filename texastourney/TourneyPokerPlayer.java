@@ -30,10 +30,17 @@ public class TourneyPokerPlayer extends PokerPlayer {
     /**
      * Creates a new TourneyPokerPlayer.
      * @param nick IRC user's nick
-     * @param host IRC user's host
      */
-    public TourneyPokerPlayer (String nick, String host) {
-        super(nick, host);
-        set("cancel", 0);
+    public TourneyPokerPlayer (String nick) {
+        super(nick);
+        put("cancel", false);
+    }
+    
+    @Override
+    public Object get(String key) {
+        if (key.equalsIgnoreCase("winrate")) {
+            return getInteger("points") * 100.0 / getInteger("tourneys");
+        }
+        return super.get(key);
     }
 }

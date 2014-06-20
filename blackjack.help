@@ -7,7 +7,7 @@ quit||q,leave,l|Leaves the current game if joined, or the waiting list if on the
 bet|amount|b|Bets a portion of your stack on a hand.
 allin||a|Bets all your cash.
 hit||h|Tells the dealer to deal you a card.
-stand||sit,stay|Stand firm with the current hand.
+stand||sit,stay,s|Stand firm with the current hand.
 doubledown||dd|Doubles the bet on the current hand and you're dealt only 1 more card. May only be done with sufficient funds and if no hit has been made.
 surrender||surr|Receive half your bet back and forfeit your hand. May only be done before hit or double down.
 insure|amount||Insure up to half the initial bet if the dealer's upcard is an Ace.
@@ -26,13 +26,14 @@ rounds|nick||Shows the number of rounds of this game the specified player has pl
 player|nick|p|Shows all the statistics for the specified player. Shows your own statistics if no nick is specified.
 deposit|amount||Deposit cash to your bankroll. A positive amount corresponds to a deposit. A negative amount corresponds to a withdrawal.
 withdraw|amount||Withdraw cash from your bankroll. A positive amount corresponds to a withdrawal. A negative amount corresponds to a deposit.
+rathole|||Deposit all cash over $1000 to your bankroll. If cash is under $1000, withdraw difference from bankroll.
 numdecks||ndecks|Shows the number of decks used for this shoe.
 numcards||ncards|Shows the number of cards remaining in the shoe.
 numdiscards||ndiscards|Shows the number of cards that have been played.
 hilo||hc|Shows the current Hi-lo count.
 zen||zc|Shows the current Zen count.
 red7||rc|Shows the current Red7 count.
-count|||Shows all of the current counts and the number of cards remaining in the shoe.
+count||c|Shows all of the current counts and the number of cards remaining in the shoe.
 simple|||Toggles whether player receives hand information via message or notice.
 away|||Removes yourself from the PING list.
 back|||Adds yourself back to the PING list.
@@ -45,6 +46,7 @@ house|decks||Shows the current statistics for games played with the specified nu
 rank|statistic,nick||Shows the rank of the player in the specified statistic. Shows your own rank if no nick is specified.
 top|number,statistic||Shows the specified number of top players ranked in descending order based on the specified statistic.
 game|||Shows the name of the game currently being played.
+gversion|||Shows the version of the irccasino package.
 ghelp|command||Tells you the help commands or help for the specified command.
 grules|||Tells you the house rules for this game.
 gcommands|||Tells you the list of commands supported by this game.
@@ -74,4 +76,5 @@ settings|||Op command that lists the settings available for Blackjack.
 resetsimple|||Op command that clears the simple list.
 resetaway|||Op command that clears the away list.
 trim|||Op command that removes players who have not played any rounds of any game from players.txt.
+query|SQL statement|sql|Op command that queries the stats database and outputs the results to the game channel.
 test1|||Op command that provides a simple test to test the dealer's AI and card calculations.

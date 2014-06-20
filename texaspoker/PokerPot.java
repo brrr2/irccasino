@@ -20,62 +20,151 @@
 package irccasino.texaspoker;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 
 /**
  * A pot class to handle bets and payouts in Texas Hold'em Poker.
  * @author Yizhe Shen
  */
 public class PokerPot {
-    private ArrayList<PokerPlayer> players;
-    private ArrayList<PokerPlayer> donors;
-    private int total;
+    private HashMap<PokerPlayer,Boolean> eligibles;
+    private HashMap<PokerPlayer,Integer> donations;
+    private HashMap<PokerPlayer,Boolean> winners;
 
+    /**
+     * Initializes eligibles and donations ArrayLists.
+     */
     public PokerPot(){
-        total = 0;
-        players = new ArrayList<PokerPlayer>();
-        donors = new ArrayList<PokerPlayer>();
+        eligibles = new HashMap<>();
+        donations = new HashMap<>();
+        winners = new HashMap<>();
     }
 
+    /**
+     * Adds a player's bet to the pot.
+     * @param p
+     * @param amount 
+     */
+    public void contribute(PokerPlayer p, int amount) {
+        if (eligibles.containsKey(p)) {
+            donations.put(p, donations.get(p) + amount);
+        } else {
+            eligibles.put(p, Boolean.TRUE);
+            donations.put(p, amount);
+            winners.put(p, false);
+        }
+    }
+    
+    /**
+     * Removes a player's eligibility to win the pot.
+     * @param p 
+     */
+    public void disqualify(PokerPlayer p) {
+        eligibles.put(p, Boolean.FALSE);
+    }
+    
+    /**
+     * Sets the player to be a winner of this pot.
+     * @param p 
+     */
+    public void setWinner(PokerPlayer p) {
+        winners.put(p, Boolean.TRUE);
+    }
+    
+    /**
+     * Returns the total contribution to this pot made by the specified player.
+     * @param p
+     * @return 
+     */
+    public int getContribution(PokerPlayer p) {
+        return donations.get(p);
+    }
+    
+    /**
+     * Determines if a player is eligible to win the pot.
+     * @param p
+     * @return 
+     */
+    public boolean isEligible(PokerPlayer p) {
+        return eligibles.containsKey(p) && eligibles.get(p);
+    }
+    
+    /**
+     * Determines if a player is a winner of this pot.
+     * @param p
+     * @return 
+     */
+    public boolean isWinner(PokerPlayer p) {
+        return winners.get(p);
+    }
+    
+    /**
+     * Determines the total amount contributed to the pot.
+     * @return 
+     */
     public int getTotal(){
+        int total = 0;
+        for (Integer amount : donations.values()) {
+            total += amount;
+        }
         return total;
     }
-    public void add(int amount){
-        total += amount;
+    
+    /**
+     * Returns an ArrayList of all players eligible to win this pot.
+     * @return 
+     */
+    public ArrayList<PokerPlayer> getEligibles(){
+        ArrayList<PokerPlayer> list = new ArrayList<>();
+        for (PokerPlayer p : eligibles.keySet()) {
+            if (eligibles.get(p)) {
+                list.add(p);
+            }
+        }
+        return list;
     }
-    public void addPlayer(PokerPlayer p){
-        players.add(p);
-    }
-    public void removePlayer(PokerPlayer p){
-        players.remove(p);
-    }
-    public void addDonor(PokerPlayer p) {
-        donors.add(p);
-    }
-    public void removeDonor(PokerPlayer p) {
-        donors.remove(p);
-    }
-    public PokerPlayer getPlayer(int c){
-        return players.get(c);
-    }
-    public ArrayList<PokerPlayer> getPlayers(){
-        return players;
-    }
-    public PokerPlayer getDonor(int c) {
-        return donors.get(c);
-    }
+    
+    /**
+     * Returns an ArrayList of all players who have contributed to this pot.
+     * @return 
+     */
     public ArrayList<PokerPlayer> getDonors() {
-        return donors;
+        return new ArrayList<>(donations.keySet());
     }
-    public boolean hasPlayer(PokerPlayer p){
-        return players.contains(p);
+    
+    /**
+     * Returns an ArrayList of all winners of this pot.
+     * @return 
+     */
+    public ArrayList<PokerPlayer> getWinners() {
+       ArrayList<PokerPlayer> list = new ArrayList<>();
+       for (PokerPlayer p : winners.keySet()) {
+            if (winners.get(p)) {
+                list.add(p);
+            }
+        }
+        return list;
     }
-    public boolean hasDonor(PokerPlayer p) {
-        return donors.contains(p);
+    
+    /**
+     * Determines the number of players eligible to win this pot.
+     * @return 
+     */
+    public int getNumEligible(){
+        int total = 0;
+        for (Boolean b : eligibles.values()) {
+            if (b) {
+                total++;
+            }
+        }
+        return total;
     }
-    public int getNumPlayers(){
-        return players.size();
-    }
+    
+    /**
+     * Determines the number of contributors to this pot.
+     * @return 
+     */
     public int getNumDonors() {
-        return donors.size();
+        return donations.size();
     }
 }

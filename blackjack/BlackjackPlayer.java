@@ -35,17 +35,28 @@ class BlackjackPlayer extends Player{
      * Creates the new player with the specified parameters.
      * 
      * @param nick IRC user's nick.
-     * @param hostmask IRC user's host.
      */
-    public BlackjackPlayer(String nick, String host){
-        super(nick, host);
-        hands = new ArrayList<BlackjackHand>();
-        set("initialbet", 0);
-        set("insurebet", 0);
-        set("surrender", 0);
-        set("currentindex", 0);
+    public BlackjackPlayer(String nick){
+        super(nick);
+        hands = new ArrayList<>();
+        put("initialbet", 0);
+        put("insurebet", 0);
+        put("split", false);
+        put("surrender", false);
+        put("doubledown", false);
+        put("currentindex", 0);
     }
 
+    @Override
+    public Object get(String key) {
+        if (key.equalsIgnoreCase("netcash")) {
+            return getInteger("cash") + getInteger("bank");
+        } else if (key.equalsIgnoreCase("winrate")) {
+            return getInteger("winnings") * 1.0 / getInteger("rounds");
+        }
+        return super.get(key);
+    }
+    
     /* Blackjack-specific card/hand manipulation methods */
     /**
      * Adds a new hand to the ArrayList of BlackjackHands.
@@ -68,7 +79,7 @@ class BlackjackPlayer extends Player{
      * @return the BlackjackHand at the current index
      */
     protected BlackjackHand getHand(){
-        return hands.get(get("currentindex"));
+        return hands.get(getInteger("currentindex"));
     }
 
     /**
@@ -76,10 +87,18 @@ class BlackjackPlayer extends Player{
      * @return the BlackjackHand at the incremented index
      */
     protected BlackjackHand getNextHand(){
-        increment("currentindex");
-        return getHand(get("currentindex"));
+        add("currentindex", 1);
+        return getHand(getInteger("currentindex"));
     }
 
+    /**
+     * Returns the ArrayList hands.
+     * @return 
+     */
+    protected ArrayList<BlackjackHand> getAllHands() {
+        return hands;
+    }
+    
     /**
      * Returns the number BlackjackHands the player has.
      * @return the number of BlackjackHands
@@ -104,23 +123,6 @@ class BlackjackPlayer extends Player{
     }
 
     /**
-     * Whether or not the player has surrendered.
-     * @return true if the player has surrendered.
-     */
-    protected boolean hasSurrendered(){
-        return get("surrender") == 1;
-    }
-
-    /* Methods related to splitting hands */
-    /**
-     * Whether or not the player has split his initial hand.
-     * @return true if hands contains more than one BlackjackHand
-     */
-    protected boolean hasSplit(){
-        return hands.size() > 1;
-    }
-
-    /**
      * Splits a BlackjackHand into two BlackjackHands.
      * Creates a new BlackjackHand and gives it the second card of the original.
      * The card is then removed from the original BlackjackHand. The new
@@ -132,6 +134,7 @@ class BlackjackPlayer extends Player{
         tHand.add(cHand.get(1));
         cHand.remove(1);
 
-        hands.add(get("currentindex") + 1, tHand);
+        hands.add(getInteger("currentindex") + 1, tHand);
+        put("split", true);
     }
 }

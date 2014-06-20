@@ -36,9 +36,11 @@ public class RespawnTask extends TimerTask {
     
     @Override
     public void run() {
-        player.set("cash", game.get("cash"));
+        player.put("cash", game.get("cash"));
         player.add("bank", -game.get("cash"));
-        game.savePlayerData(player);
+        player.put("transaction", game.get("cash"));
+        game.saveDBPlayerData(player);
+        game.saveDBPlayerBanking(player);
         game.removeBlacklisted(player);
         game.getRespawnTasks().remove(this);
         game.showMsg(game.getMsg("respawn"), player.getNickStr(), game.get("cash"));

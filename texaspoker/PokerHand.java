@@ -88,7 +88,7 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
                 // Full House: check triplet, then pair
                 case 6:	
                     if (comps[0] == 0){
-                            return comps[3];
+                        return comps[3];
                     }
                     return comps[0];
                 // Flush: check highest non-common card

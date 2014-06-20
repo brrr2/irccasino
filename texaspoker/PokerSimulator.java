@@ -38,41 +38,56 @@ public class PokerSimulator {
     private int rounds;
     private Random randGen;
 
-    public PokerSimulator(ArrayList<PokerPlayer> list, Hand comm) {
+    public PokerSimulator() {
         simDeck = new CardDeck(1);
-        simList = new ArrayList<PokerPlayer>();
+        simList = new ArrayList<>();
         simComm = new Hand();
         randGen = new Random();
         rounds = 0;
-
-        PokerPlayer simP;
-
-        // Give simulated community cards matching the real community.
+    }
+    
+    /**
+     * Adds matching cards to the simulated community. Only adds cards that
+     * aren't already in the simulated community.
+     * @param comm 
+     */
+    public void addCommunity(Hand comm) {
         for (Card aCard : comm) {
-            simComm.add(simDeck.takeCard(aCard));
+            if (!simComm.contains(aCard)) {
+                simComm.add(simDeck.takeCard(aCard));
+            }
         }
-
-        // Give simulated players simulated cards matching the real hands.
+    }
+    
+    /**
+     * Creates simulated players matching real players.
+     * @param list 
+     */
+    public void addPlayers(ArrayList<PokerPlayer> list) {
         for (PokerPlayer p : list) {
             if (!p.has("fold")) {
-                simP = new PokerPlayer(p.getNick(), p.getHost());
+                PokerPlayer simP = new PokerPlayer(p.getNick());
                 for (Card aCard : p.getHand()){
                    simP.getHand().add(simDeck.takeCard(aCard));
-                   simP.set("wins", 0);
-                   simP.set("ties", 0);
                 }
+                simP.put("wins", 0);
+                simP.put("ties", 0);
                 simList.add(simP);
             }
         }
-
-        // Run simulation
-        if (simComm.size() == 0) {
-            monteSim();
-        } else {
-            bruteSim(0);
+    }
+    
+    /**
+     * Resets the simulation results and prepares for additional runs.
+     */
+    public void reset() {
+        for (PokerPlayer p : simList) {
+            p.clear("wins");
+            p.clear("ties");
+            rounds = 0;
         }
     }
-
+    
     /**
      * Simulates games by sequentially adding cards to simComm until full
      * and determining winners and ties. Uses a recursive algorithm.
@@ -83,11 +98,10 @@ public class PokerSimulator {
      *              to simComm
      */
     private void bruteSim(int index) {
-        Card c;
         // Add another card if the simulated community isn't full
         if (simComm.size() < 5) {
             for (int ctr = index; ctr < simDeck.getNumberCards(); ctr++) {
-                c = simDeck.peekCard(ctr);
+                Card c = simDeck.peekCard(ctr);
                 simComm.add(c);
                 bruteSim(ctr + 1);
                 simComm.remove(c);
@@ -103,15 +117,14 @@ public class PokerSimulator {
      * of accuracy (+/-1%) while running reasonably fast. 
      */
     private void monteSim() {
-        ArrayList<Integer> indices = new ArrayList<Integer>();
+        ArrayList<Integer> indices = new ArrayList<>();
         int origSize = simComm.size();
-        int newIndex;
         
         for (int trial = 0; trial < 100000; trial++) {
             // Pick random cards to complete the simulated community
             for (int ctr = origSize; ctr < 5; ctr++) {
-                newIndex = randGen.nextInt(simDeck.getNumberCards());
-                while(indices.contains(newIndex)) {
+                int newIndex = randGen.nextInt(simDeck.getNumberCards());
+                while (indices.contains(newIndex)) {
                     newIndex = randGen.nextInt(simDeck.getNumberCards());
                 }
                 indices.add(newIndex);
@@ -125,6 +138,18 @@ public class PokerSimulator {
             for (int ctr = 4; ctr >= origSize; ctr--) {
                 simComm.remove(ctr);
             }
+        }
+    }
+    
+    /**
+     * Runs the simulation based on the number of cards in the community.
+     */
+    public void run() {
+        // Run simulation
+        if (simComm.size() == 0) {
+            monteSim();
+        } else {
+            bruteSim(0);
         }
     }
     
@@ -156,10 +181,10 @@ public class PokerSimulator {
 
         // Increment win count for winners
         if (winners == 1) {
-            simList.get(0).increment("wins");
+            simList.get(0).add("wins", 1);
         } else {
             for (int ctr = 0; ctr < winners; ctr++){
-                simList.get(ctr).increment("ties");
+                simList.get(ctr).add("ties", 1);
             }
         }
 
@@ -178,7 +203,7 @@ public class PokerSimulator {
     public double getWinPct(PokerPlayer p) {
         for (PokerPlayer simP : simList) {
             if (simP.equals(p)) {
-                return (double) simP.get("wins") / (double) rounds * 100;
+                return simP.getInteger("wins") * 1.0 / rounds * 100;
             }
         }
         return -1.0;
@@ -192,7 +217,7 @@ public class PokerSimulator {
     public double getTiePct(PokerPlayer p) {
         for (PokerPlayer simP : simList) {
             if (simP.equals(p)) {
-                return (double) simP.get("ties") / (double) rounds * 100;
+                return simP.getInteger("ties") * 1.0 / rounds * 100;
             }
         }
         return -1.0;

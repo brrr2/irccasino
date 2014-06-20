@@ -37,18 +37,26 @@ public class PokerPlayer extends Player implements Comparable<PokerPlayer> {
      * Creates the new player with the specified parameters.
      * 
      * @param nick IRC user's nick.
-     * @param host IRC user's host.
      */
-    public PokerPlayer(String nick, String host){
-        super(nick, host);
-        set("bet", 0);
-        set("change", 0);
-        set("fold", 0);
-        set("allin", 0);
+    public PokerPlayer(String nick){
+        super(nick);
+        put("bet", 0);
+        put("fold", false);
+        put("allin", false);
         hand = new Hand();
         pHand = new PokerHand();
     }
-
+    
+    @Override
+    public Object get(String key) {
+        if (key.equalsIgnoreCase("netcash")) {
+            return getInteger("cash") + getInteger("bank");
+        } else if (key.equalsIgnoreCase("winrate")) {
+            return getInteger("winnings") * 1.0 / getInteger("rounds");
+        }
+        return super.get(key);
+    }
+    
     /**
      * Returns whether the player has cards in his Hand.
      * @return true if player has any cards

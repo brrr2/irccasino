@@ -19,9 +19,7 @@
 
 package irccasino.blackjack;
 
-import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -33,7 +31,12 @@ import irccasino.cardgame.CardDeck;
 import irccasino.cardgame.CardGame;
 import irccasino.cardgame.Hand;
 import irccasino.cardgame.Player;
-import irccasino.cardgame.PlayerRecord;
+import irccasino.cardgame.Record;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
 /**
  * Class for IRC Blackjack.
@@ -45,13 +48,12 @@ public class Blackjack extends CardGame {
         NONE, PRE_START, BETTING, PLAYING, CONTINUE_ROUND, END_ROUND
     }
     
-    protected BlackjackPlayer dealer;
-    protected ArrayList<HouseStat> houseStatsList;
-    protected IdleShuffleTask idleShuffleTask;
-    protected HouseStat house;
+    BlackjackPlayer dealer;
+    IdleShuffleTask idleShuffleTask;
     // In-game properties
     protected BlackjackState state;
     protected boolean insuranceBets;
+    protected int houseWinnings;
 
     public Blackjack() {
         super();
@@ -103,7 +105,7 @@ public class Blackjack extends CardGame {
             allin(nick, params);
         } else if (command.equalsIgnoreCase("hit") || command.equalsIgnoreCase("h")) {
             hit(nick, params);
-        } else if (command.equalsIgnoreCase("stand") || command.equalsIgnoreCase("stay") || command.equalsIgnoreCase("sit")) {
+        } else if (command.equalsIgnoreCase("stand") || command.equalsIgnoreCase("stay") || command.equalsIgnoreCase("sit") || command.equalsIgnoreCase("s")) {
             stand(nick, params);
         } else if (command.equalsIgnoreCase("doubledown") || command.equalsIgnoreCase("dd")) {
             doubledown(nick, params);
@@ -159,6 +161,8 @@ public class Blackjack extends CardGame {
             player(nick, params);
         } else if (command.equalsIgnoreCase("deposit")) {
             deposit(nick, params);
+        } else if (command.equalsIgnoreCase("rathole")) {
+            rathole(nick, params);
         } else if (command.equalsIgnoreCase("withdraw")) {
             withdraw(nick, params);
         } else if (command.equalsIgnoreCase("waitlist")) {
@@ -187,8 +191,10 @@ public class Blackjack extends CardGame {
             gcommands(user, nick, params);
         } else if (command.equalsIgnoreCase("game")) {
             game(nick, params);
+        } else if (command.equalsIgnoreCase("gversion")) {
+            gversion(nick, params);
         /* Op commands */
-            } else if (command.equalsIgnoreCase("fj") || command.equalsIgnoreCase("fjoin")){
+        } else if (command.equalsIgnoreCase("fj") || command.equalsIgnoreCase("fjoin")){
             fjoin(user, nick, params);
         } else if (command.equalsIgnoreCase("fl") || command.equalsIgnoreCase("fq") || command.equalsIgnoreCase("fquit") || command.equalsIgnoreCase("fleave")){
             fleave(user, nick, params);
@@ -238,6 +244,10 @@ public class Blackjack extends CardGame {
             resetsimple(user, nick, params);
         } else if (command.equalsIgnoreCase("trim")) {
             trim(user, nick, params);
+        } else if (command.equalsIgnoreCase("query") || command.equalsIgnoreCase("sql")) {
+            query(user, nick, params);
+        } else if (command.equalsIgnoreCase("migrate")) {
+            migrate(user, nick, params);
         } else if (command.equalsIgnoreCase("test1")){
             test1(user, nick, params);
         }
@@ -271,6 +281,7 @@ public class Blackjack extends CardGame {
             }
             cancelIdleShuffleTask();
             state = BlackjackState.PRE_START;
+            startTime = System.currentTimeMillis() / 1000;
             showStartRound();
             setStartRoundTask();
         }
@@ -320,7 +331,7 @@ public class Blackjack extends CardGame {
         } else if (state.equals(BlackjackState.CONTINUE_ROUND)) {
             informPlayer(nick, getMsg("game_lagging"));
         } else {
-            bet(currentPlayer.get("cash"));
+            bet(currentPlayer.getInteger("cash"));
         }
     }
     
@@ -532,8 +543,8 @@ public class Blackjack extends CardGame {
             informPlayer(nick, getMsg("nobody_turn"));
         } else {
             BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
-            if (p.hasSplit()){
-                showTurn(p, p.get("currentindex") + 1);
+            if (p.has("split")){
+                showTurn(p, p.getInteger("currentindex") + 1);
             } else {
                 showTurn(p, 0);
             }
@@ -770,7 +781,7 @@ public class Blackjack extends CardGame {
         } else if (!state.equals(BlackjackState.BETTING)) {
             informPlayer(nick, getMsg("no_betting"));
         } else {
-            bet(currentPlayer.get("cash"));
+            bet(currentPlayer.getInteger("cash"));
         }
     }
     
@@ -982,9 +993,9 @@ public class Blackjack extends CardGame {
         }
     }
     
-    //////////////////////////////////
-    //// Game settings management ////
-    //////////////////////////////////
+    ////////////////////////////////////////
+    //// Game initialization management ////
+    ////////////////////////////////////////
     
     @Override
     protected void set(String setting, int value) {
@@ -993,11 +1004,7 @@ public class Blackjack extends CardGame {
             cancelIdleShuffleTask();
             deck = new CardDeck(get("decks"));
             deck.shuffleCards();
-            house = getHouseStat(get("decks"));
-            if (house == null) {
-                house = new HouseStat(get("decks"), 0, 0);
-                houseStatsList.add(house);
-            }
+            loadDBGameStats();
         }
     }
     
@@ -1026,12 +1033,10 @@ public class Blackjack extends CardGame {
     protected void initCustom() {
         name = "blackjack";
         helpFile = "blackjack.help";
-        dealer = new BlackjackPlayer("Dealer", "");
-        houseStatsList = new ArrayList<HouseStat>();
+        dealer = new BlackjackPlayer("Dealer");
         
         initSettings();
         loadHelp(helpFile);
-        loadGameStats();
         loadIni();
         state = BlackjackState.NONE;
         showMsg(getMsg("game_start"), getGameNameStr());
@@ -1043,16 +1048,12 @@ public class Blackjack extends CardGame {
         cancelIdleShuffleTask();
         deck = new CardDeck(get("decks"));
         deck.shuffleCards();
-        house = getHouseStat(get("decks"));
-        if (house == null) {
-            house = new HouseStat(get("decks"), 0, 0);
-            houseStatsList.add(house);
-        }
+        loadDBGameStats();
     }
+    
     @Override
     protected void saveIniFile() {
-        try {
-            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(iniFile)));
+        try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(iniFile)))) {
             out.println("#Settings");
             out.println("#Number of decks in the dealer's shoe");
             out.println("decks=" + get("decks"));
@@ -1084,138 +1085,383 @@ public class Blackjack extends CardGame {
             out.println("startwait=" + get("startwait"));
             out.println("#The rate-limit of the ping command");
             out.println("ping=" + get("ping"));
-            out.close();
         } catch (IOException e) {
             manager.log("Error creating " + iniFile + "!");
         }
     }
 
+    /////////////////////////////////////////
+    //// Player stats management methods ////
+    /////////////////////////////////////////
+    
+    @Override
+    protected Player loadDBPlayerRecord(String nick) {
+        if (isBlacklisted(nick)) {
+            return findBlacklisted(nick);
+        } else if (isJoined(nick)) {
+            return findJoined(nick);
+        } else {
+            BlackjackPlayer record = null;
+            try (Connection conn = DriverManager.getConnection(dbURL)) {
+                // Retrieve data from Player table if possible
+                String sql = "SELECT id, nick, cash, bank, bankrupts, winnings, rounds, idles " +
+                             "FROM Player INNER JOIN Purse INNER JOIN BJPlayerStat " +
+                             "ON Player.id = Purse.player_id AND Player.id = BJPlayerStat.player_id " +
+                             "WHERE nick = ? COLLATE NOCASE";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setString(1, nick);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.isBeforeFirst()) {
+                            record = new BlackjackPlayer("");
+                            record.put("id", rs.getInt("id"));
+                            record.put("nick", rs.getString("nick"));
+                            record.put("cash", rs.getInt("cash"));
+                            record.put("bank", rs.getInt("bank"));
+                            record.put("bankrupts", rs.getInt("bankrupts"));
+                            record.put("winnings", rs.getInt("winnings"));
+                            record.put("rounds", rs.getInt("rounds"));
+                            record.put("idles", rs.getInt("idles"));
+                        }
+                    }
+                }
+                logDBWarning(conn.getWarnings());
+            } catch (SQLException ex) {
+                manager.log("SQL Error: " + ex.getMessage());
+            }
+            return record;
+        }
+    }
+    
+    @Override
+    protected void loadDBPlayerData(Player p) {
+        try (Connection conn = DriverManager.getConnection(dbURL)) {
+            conn.setAutoCommit(false);
+            
+            // Initialize
+            p.put("id", 0);
+            p.put("cash", get("cash"));
+            p.put("bank", 0);
+            p.put("bankrupts", 0);
+            p.put("rounds", 0);
+            p.put("winnings", 0);
+            p.put("idles", 0);
+            
+            // Retrieve data from Player table if possible
+            String sql = "SELECT id FROM Player WHERE nick = ? COLLATE NOCASE";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, p.getNick());
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.isBeforeFirst()) {
+                        p.put("id", rs.getInt("id"));
+                    }
+                }
+            }
+            
+            // Add new record if not found in Player table
+            if (!p.has("id")) {
+                sql = "INSERT INTO Player (nick, time_created) VALUES(?, ?)";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setString(1, p.getNick());
+                    ps.setLong(2, System.currentTimeMillis() / 1000);
+                    ps.executeUpdate();
+                    p.put("id", ps.getGeneratedKeys().getInt(1));
+                }
+            }
+            
+            // Retrieve data from Purse table if possible
+            boolean found = false;
+            sql = "SELECT cash, bank, bankrupts FROM Purse WHERE player_id = ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, p.getInteger("id"));
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.isBeforeFirst()) {
+                        found = true;
+                        p.put("cash", rs.getInt("cash"));
+                        p.put("bank", rs.getInt("bank"));
+                        p.put("bankrupts", rs.getInt("bankrupts"));
+                    }
+                }
+            }
+            
+            // Add new record if not found in Purse
+            if (!found) {
+                informPlayer(p.getNick(), getMsg("new_player"), getGameNameStr(), get("cash"));
+                sql = "INSERT INTO Purse (player_id, cash, bank, bankrupts) " +
+                      "VALUES(?, ?, ?, ?)";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setInt(1, p.getInteger("id"));
+                    ps.setInt(2, p.getInteger("cash"));
+                    ps.setInt(3, p.getInteger("bank"));
+                    ps.setInt(4, p.getInteger("bankrupts"));
+                    ps.executeUpdate();
+                }
+            }
+            
+            // Retrieve data from BJPlayerStat table if possible
+            found = false;
+            sql = "SELECT rounds, winnings, idles " +
+                  "FROM BJPlayerStat WHERE player_id = ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, p.getInteger("id"));
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.isBeforeFirst()) {
+                        found = true;
+                        p.put("rounds", rs.getInt("rounds"));
+                        p.put("winnings", rs.getInt("winnings"));
+                        p.put("idles", rs.getInt("idles"));
+                    }
+                }
+            }
+            
+            // Add new record if not found in BJPlayerStat table
+            if (!found) {
+                sql = "INSERT INTO BJPlayerStat (player_id, rounds, winnings, idles) " +
+                      "VALUES(?, ?, ?, ?)";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setInt(1, p.getInteger("id"));
+                    ps.setInt(2, p.getInteger("rounds"));
+                    ps.setInt(3, p.getInteger("winnings"));
+                    ps.setInt(4, p.getInteger("idles"));
+                    ps.executeUpdate();
+                }
+            }
+            
+            conn.commit();
+            logDBWarning(conn.getWarnings());
+        } catch (SQLException ex) {
+            manager.log("SQL Error: " + ex.getMessage());
+        }
+    }
+    
+    @Override
+    protected void saveDBPlayerDataBatch(ArrayList<Player> players) {
+        try (Connection conn = DriverManager.getConnection(dbURL)) {
+            conn.setAutoCommit(false);
+            
+            for (Player p : players) {
+                // Update data in Purse table
+                String sql = "UPDATE Purse SET cash = ?, bank = ?, bankrupts = ? " +
+                             "WHERE player_id = ?";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setInt(1, p.getInteger("cash"));
+                    ps.setInt(2, p.getInteger("bank"));
+                    ps.setInt(3, p.getInteger("bankrupts"));
+                    ps.setInt(4, p.getInteger("id"));
+                    ps.executeUpdate();
+                }
+
+                // Update data in BJPlayerStat table
+                sql = "UPDATE BJPlayerStat SET rounds = ?, winnings = ?, idles = ? " +
+                      "WHERE player_id = ?";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setInt(1, p.getInteger("rounds"));
+                    ps.setInt(2, p.getInteger("winnings"));
+                    ps.setInt(3, p.getInteger("idles"));
+                    ps.setInt(4, p.getInteger("id"));
+                    ps.executeUpdate();
+                }
+            }
+            
+            conn.commit();
+            logDBWarning(conn.getWarnings());
+        } catch (SQLException ex) {
+            manager.log("SQL Error: " + ex.getMessage());
+        }
+    }
+    
     /////////////////////////////////////////////
     //// Game stats management for Blackjack ////
     /////////////////////////////////////////////
-    
-    @Override
-    public final void loadGameStats() {
-        try {
-            BufferedReader in = new BufferedReader(new FileReader("housestats.txt"));
-            String str;
-            int ndecks, nrounds, cash;
-            StringTokenizer st;
-            while (in.ready()) {
-                str = in.readLine();
-                if (str.startsWith("#blackjack")) {
-                    while (in.ready()) {
-                        str = in.readLine();
-                        if (str.startsWith("#")) {
-                            break;
-                        }
-                        st = new StringTokenizer(str);
-                        ndecks = Integer.parseInt(st.nextToken());
-                        nrounds = Integer.parseInt(st.nextToken());
-                        cash = Integer.parseInt(st.nextToken());
-                        houseStatsList.add(new HouseStat(ndecks, nrounds, cash));
-                    }
-                    break;
-                }
-            }
-            in.close();
-        } catch (IOException e) {
-            manager.log("housestats.txt not found! Creating new housestats.txt...");
-            try {
-                PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("housestats.txt")));
-                out.close();
-            } catch (IOException f) {
-                manager.log("Error creating housestats.txt!");
-            }
-        }
-    }
-    
-    @Override
-    public void saveGameStats() {
-        boolean found = false;
-        int index = 0;
-        ArrayList<String> lines = new ArrayList<String>();
-        try {
-            BufferedReader in = new BufferedReader(new FileReader("housestats.txt"));
-            String str;
-            while (in.ready()) {
-                //Add all lines until we find blackjack lines
-                str = in.readLine();
-                lines.add(str);
-                if (str.startsWith("#blackjack")) {
-                    found = true;
-                    /* Store the index where blackjack stats go so they can be 
-                     * overwritten. */
-                    index = lines.size();
-                    //Skip existing blackjack lines but add all the rest
-                    while (in.ready()) {
-                        str = in.readLine();
-                        if (str.startsWith("#")) {
-                                lines.add(str);
-                                break;
-                        }
-                    }
-                }
-            }
-            in.close();
-        } catch (IOException e) {
-            /* housestats.txt is not found */
-            manager.log("Error reading housestats.txt!");
-        }
-        if (!found) {
-            lines.add("#blackjack");
-            index = lines.size();
-        }
-        for (int ctr = 0; ctr < houseStatsList.size(); ctr++) {
-            lines.add(index, houseStatsList.get(ctr).toFileString());
-        }
-        try {
-            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("housestats.txt")));
-            for (int ctr = 0; ctr < lines.size(); ctr++) {
-                out.println(lines.get(ctr));
-            }
-            out.close();
-        } catch (IOException e) {
-            manager.log("Error writing to housestats.txt!");
-        }
-    }
     
     /**
      * Returns the house statistics for a given shoe size.
      * @param numDecks shoe size in number of decks
      * @return the house stats
      */
-    private HouseStat getHouseStat(int numDecks) {
-        for (HouseStat hs : houseStatsList) {
-            if (hs.get("decks") == numDecks) {
-                return hs;
+    private Record loadDBHouse(int numDecks) {
+        Record record = new Record();
+        record.put("shoe_size", numDecks);
+        record.put("rounds", 0);
+        record.put("winnings", 0);
+        
+        try (Connection conn = DriverManager.getConnection(dbURL)) {
+            conn.setAutoCommit(false);
+            
+            String sql = "SELECT rounds, winnings FROM BJHouse WHERE shoe_size = ?";
+            boolean found = false;
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, numDecks);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.isBeforeFirst()) {
+                        found = true;
+                        record.put("rounds", rs.getInt("rounds"));
+                        record.put("winnings", rs.getInt("winnings"));
+                    }
+                }
             }
+            
+            if (!found) {
+                sql = "INSERT INTO BJHouse (shoe_size, rounds, winnings) VALUES (?, ?, ?)";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setInt(1, numDecks);
+                    ps.setInt(2, 0);
+                    ps.setInt(3, 0);
+                    ps.executeUpdate();
+                }
+            }
+            
+            conn.commit();
+            logDBWarning(conn.getWarnings());
+        } catch (SQLException ex) {
+            manager.log("SQL Error: " + ex.getMessage());
         }
-        return null;
+        return record;
     }
     
     /**
-     * Calculates the total number of rounds played by all players.
-     * @return the total number of rounds
+     * Returns the total stats for the game.
+     * @return a record containing queried stats
      */
-    private int getTotalRounds(){
-        int total=0;
-        for (HouseStat hs : houseStatsList) {
-            total += hs.get("rounds");
+    private Record loadDBGameTotals() {
+        Record record = new Record();
+        record.put("total_players", 0);
+        record.put("total_rounds", 0);
+        record.put("total_winnings", 0);
+        
+        try (Connection conn = DriverManager.getConnection(dbURL)) {
+            String sql = "SELECT (SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 0) as total_players, " +
+                             "(SELECT SUM(rounds) FROM BJHouse) AS total_rounds, " +
+                             "(SELECT SUM(winnings) FROM BJHouse) AS total_winnings";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.isBeforeFirst()) {
+                        record.put("total_players", rs.getInt("total_players"));
+                        record.put("total_rounds", rs.getInt("total_rounds"));
+                        record.put("total_winnings", rs.getInt("total_winnings"));
+                    }
+                }
+            }
+            
+            logDBWarning(conn.getWarnings());
+        } catch (SQLException ex) {
+            manager.log("SQL Error: " + ex.getMessage());
         }
-        return total;
+        return record;
     }
     
     /**
-     * Calculates the total amount won by the house.
-     * @return the total amount won by the house
+     * Initializes house stats for the current shoe size.
      */
-    private int getTotalHouse(){
-        int total=0;
-        for (HouseStat hs : houseStatsList) {
-            total += hs.get("cash");
+    protected void loadDBGameStats() {
+        loadDBHouse(get("decks"));
+    }
+    
+    @Override
+    protected void saveDBGameStats() {
+        int roundID, handID;
+        
+        try (Connection conn = DriverManager.getConnection(dbURL)) {
+            conn.setAutoCommit(false);
+            
+            // Insert data into BJRound table
+            String sql = "INSERT INTO BJRound (start_time, end_time, channel, " +
+                         "shoe_size, num_cards_left) VALUES (?, ?, ?, ?, ?)";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setLong(1, startTime);
+                ps.setLong(2, endTime);
+                ps.setString(3, channel.getName());
+                ps.setInt(4, get("decks"));
+                ps.setInt(5, deck.getNumberCards());
+                ps.executeUpdate();
+                roundID = ps.getGeneratedKeys().getInt(1);
+            }
+            
+            for (Player p : joined) {
+                // Insert data into BJPlayerChange table
+                sql = "INSERT INTO BJPlayerChange (player_id, round_id, change, cash) " +
+                      "VALUES (?, ?, ?, ?)";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setInt(1, p.getInteger("id"));
+                    ps.setInt(2, roundID);
+                    ps.setInt(3, p.getInteger("change"));
+                    ps.setInt(4, p.getInteger("cash"));
+                    ps.executeUpdate();
+                }
+                
+                if (p.getBoolean("idled")) {
+                    // Insert data into BJPlayerIdle table
+                    sql = "INSERT INTO BJPlayerIdle (player_id, round_id, idle_limit, idle_warning) " +
+                          "VALUES (?, ?, ?, ?)";
+                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                        ps.setInt(1, p.getInteger("id"));
+                        ps.setInt(2, roundID);
+                        ps.setInt(3, get("idle"));
+                        ps.setInt(4, get("idlewarning"));
+                        ps.executeUpdate();
+                    }
+                }
+                
+                for (BlackjackHand h : ((BlackjackPlayer) p).getAllHands()) {
+                    // Insert data into BJHand table
+                    sql = "INSERT INTO BJHand (round_id, hand) VALUES (?, ?)";
+                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                        ps.setInt(1, roundID);
+                        ps.setString(2, h.toStringDB());
+                        ps.executeUpdate();
+                        handID = ps.getGeneratedKeys().getInt(1);
+                    }
+                    
+                    // Insert data into BJPlayerHand table
+                    sql = "INSERT INTO BJPlayerHand (player_id, hand_id, bet, split, surrender, doubledown, result) " +
+                          "VALUES (?, ?, ?, ?, ?, ?, ?)";
+                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                        ps.setInt(1, p.getInteger("id"));
+                        ps.setInt(2, handID);
+                        ps.setInt(3, h.getBet());
+                        ps.setBoolean(4, ((BlackjackPlayer) p).has("split"));
+                        ps.setBoolean(5, p.has("surrender"));
+                        ps.setBoolean(6, p.has("doubledown"));
+                        ps.setInt(7, h.compareTo(dealer.getHand()));
+                        ps.executeUpdate();
+                    }
+                    
+                    if (p.has("insurebet")) {
+                        // Insert data into BJPlayerInsurance table
+                        sql = "INSERT INTO BJPlayerInsurance (player_id, round_id, bet, result) " +
+                              "VALUES (?, ?, ?, ?)";
+                        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                            ps.setInt(1, p.getInteger("id"));
+                            ps.setInt(2, roundID);
+                            ps.setInt(3, p.getInteger("insurebet"));
+                            ps.setBoolean(4, dealer.getHand().isBlackjack());
+                            ps.executeUpdate();
+                        }
+                    }
+                }
+                
+                // Insert Dealer's hand into BJHand table
+                sql = "INSERT INTO BJHand (round_id, hand) VALUES (?, ?)";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setInt(1, roundID);
+                    ps.setString(2, dealer.getHand().toStringDB());
+                    ps.executeUpdate();
+                }
+            }
+            
+            // Update BJHouseStat table
+            sql = "UPDATE BJHouse SET rounds=rounds+?, winnings=winnings+? WHERE shoe_size = ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, 1);
+                ps.setInt(2, houseWinnings);
+                ps.setInt(3, get("decks"));
+                ps.executeUpdate();
+            }
+            
+            conn.commit();
+            logDBWarning(conn.getWarnings());
+        } catch (SQLException ex) {
+            manager.log("SQL Error: " + ex.getMessage());
         }
-        return total;
     }
     
     ///////////////////////////////////////////////
@@ -1224,12 +1470,12 @@ public class Blackjack extends CardGame {
     
     @Override
     public void addPlayer(String nick, String host) {
-        addPlayer(new BlackjackPlayer(nick, host));
+        addPlayer(new BlackjackPlayer(nick));
     }
     
     @Override
     public void addWaitlistPlayer(String nick, String host) {
-        Player p = new BlackjackPlayer(nick, host);
+        Player p = new BlackjackPlayer(nick);
         waitlist.add(p);
         informPlayer(p.getNick(), getMsg("join_waitlist"));
     }
@@ -1263,7 +1509,7 @@ public class Blackjack extends CardGame {
                     }
                 } else {
                     if (p.has("initialbet")){
-                        p.set("quit", 1);
+                        p.put("quit", true);
                         informPlayer(p.getNick(), getMsg("remove_end_round"));
                     } else {
                         removeJoined(p);
@@ -1272,14 +1518,14 @@ public class Blackjack extends CardGame {
                 }
                 break;
             case PLAYING:
-                p.set("quit", 1);
+                p.put("quit", true);
                 informPlayer(p.getNick(), getMsg("remove_end_round"));
                 if (p == currentPlayer){
                     stay();
                 }
                 break;
             case CONTINUE_ROUND: case END_ROUND:
-                p.set("quit", 1);
+                p.put("quit", true);
                 informPlayer(p.getNick(), getMsg("remove_end_round"));
                 break;
             default:
@@ -1306,7 +1552,7 @@ public class Blackjack extends CardGame {
         state = BlackjackState.CONTINUE_ROUND;
         BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
         
-        if (p.get("currentindex") < p.getNumberHands() - 1) {
+        if (p.getInteger("currentindex") < p.getNumberHands() - 1) {
             p.getNextHand();
             quickEval();
         } else {
@@ -1322,15 +1568,12 @@ public class Blackjack extends CardGame {
     @Override
     public void endRound() {
         state = BlackjackState.END_ROUND;
-        BlackjackPlayer p;
-        BlackjackHand dHand;
 
         if (joined.size() >= 1) {
-            house.increment("rounds");
             // Make dealer decisions
             if (needDealerPlay()) {
                 showTurn(dealer, 0);
-                dHand = dealer.getHand();
+                BlackjackHand dHand = dealer.getHand();
                 showPlayerHand(dealer, dHand, 0, true);
                 while (dHand.calcSum() < 17 || (dHand.isSoft17() && has("soft17hit"))) {
                     // Add a 1 second delay for dramatic effect
@@ -1349,52 +1592,52 @@ public class Blackjack extends CardGame {
             if (insuranceBets) {
                 showInsuranceResults();
             }
-            /* Clean-up tasks
-             * 1. Increment the number of rounds played for player
-             * 2. Remove players who have gone bankrupt and set respawn timers
-             * 3. Remove players who have quit mid-round
-             * 4. Save player data
-             * 5. Reset the player
+            
+            /* Bookkeeping tasks
+             * 1. Increment the number of rounds played for each player
+             * 2. Increment idles if idled out
+             * 2. Make auto-withdrawals
+             * 3. Save player stats
              */
-            for (int ctr = 0; ctr < joined.size(); ctr++) {
-                p = (BlackjackPlayer) joined.get(ctr);
-                p.increment("bjrounds");
-
-                if (p.has("cash")) {
-                    if (p.has("quit")) {
-                        removeJoined(p.getNick());
-                        showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
-                        ctr--;
-                    } else {
-                        savePlayerData(p);
-                    }
-                } else {
-                    if (p.has("bank")){
-                        // Make a withdrawal if the player has a positive bankroll
-                        int amount = Math.min(p.get("bank"), get("cash"));
-                        p.bankTransfer(-amount);
-                        savePlayerData(p);
-                        informPlayer(p.getNick(), getMsg("auto_withdraw"), amount);
-                        // Check if the player has quit
-                        if (p.has("quit")){
-                            removeJoined(p);
-                            showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
-                            ctr--;
-                        }
-                    } else {
-                        // Give penalty to players with no cash in their bankroll
-                        p.increment("bankrupts");
-                        blacklist.add(p);
-                        removeJoined(p);
-                        showMsg(getMsg("unjoin_bankrupt"), p.getNickStr(), joined.size());
-                        setRespawnTask(p);
-                        ctr--;
-                    }
+            for (Player p : joined) {
+                p.add("rounds", 1);
+                if (p.getBoolean("idled")) {
+                    p.add("idles", 1);
                 }
-                
+                if (!p.has("cash") && p.has("bank")) {
+                    // Make a withdrawal if the player has a positive bankroll
+                    int amount = Math.min(p.getInteger("bank"), get("cash"));
+                    p.bankTransfer(-amount);
+                    saveDBPlayerBanking(p);
+                    informPlayer(p.getNick(), getMsg("auto_withdraw"), amount);
+                }
+            }
+            
+            // Save game stats
+            endTime = System.currentTimeMillis() / 1000;
+            saveDBPlayerDataBatch(joined);
+            saveDBGameStats();
+            
+            /* Clean-up tasks
+             * 1. Remove players who have gone bankrupt and set respawn timers
+             * 2. Remove players who have quit or used the 'last' command
+             * 3. Reset the players
+             */
+            for (int ctr = joined.size()-1; ctr >= 0; ctr--) {
+                BlackjackPlayer p = (BlackjackPlayer) joined.get(ctr);
+                if (!p.has("cash")) {
+                    // Give penalty to players with no cash in their bankroll
+                    p.add("bankrupts", 1);
+                    blacklist.add(p);
+                    removeJoined(p);
+                    showMsg(getMsg("unjoin_bankrupt"), p.getNickStr(), joined.size());
+                    setRespawnTask(p);
+                } else if (p.has("quit") || p.has("last")) {
+                    removeJoined(p.getNick());
+                    showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
+                }
                 resetPlayer(p);
             }
-            saveGameStats();
         } else {
             showMsg(getMsg("no_players"));
         }
@@ -1428,8 +1671,6 @@ public class Blackjack extends CardGame {
         deck = null;
         dealer = null;
         currentPlayer = null;
-        houseStatsList.clear();
-        house = null;
         devoiceAll();
         showMsg(getMsg("game_end"), getGameNameStr());
         awayList.clear();
@@ -1446,6 +1687,7 @@ public class Blackjack extends CardGame {
     
     @Override
     public void resetGame() {
+        houseWinnings = 0;
         insuranceBets = false;
         discardPlayerHand(dealer);
         currentPlayer = null;
@@ -1456,9 +1698,14 @@ public class Blackjack extends CardGame {
         discardPlayerHand((BlackjackPlayer) p);
         p.clear("currentindex");
         p.clear("initialbet");
+        p.clear("change");
+        p.clear("last");
         p.clear("quit");
+        p.clear("split");
         p.clear("surrender");
         p.clear("insurebet");
+        p.clear("doubledown");
+        p.clear("idled");
     }
     
     /**
@@ -1529,7 +1776,7 @@ public class Blackjack extends CardGame {
             p = (BlackjackPlayer) joined.get(ctr);
             dealHand(p);
             h = p.getHand();
-            h.setBet(p.get("initialbet"));
+            h.setBet(p.getInteger("initialbet"));
             // Send the player his hand in a hole game
             if (has("hole")) {
                 informPlayer(p.getNick(), getMsg("bj_hand"), p.getHand(), p.getHand().getBet());
@@ -1567,18 +1814,19 @@ public class Blackjack extends CardGame {
         cancelIdleOutTask();    
         BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
         // Check if amount is greater than the player's stack
-        if (amount > p.get("cash")) {
+        if (amount > p.getInteger("cash")) {
             informPlayer(p.getNick(), getMsg("bet_too_high"), p.get("cash"));
             setIdleOutTask();
         // Check if the amount is less than minimum bet
-        } else if (amount < get("minbet") && amount < p.get("cash")) {
+        } else if (amount < get("minbet") && amount < p.getInteger("cash")) {
             informPlayer(p.getNick(), getMsg("bet_too_low"), get("minbet"));
             setIdleOutTask();
         } else {
-            p.set("initialbet", amount);
+            p.put("initialbet", amount);
             p.add("cash", -1 * amount);
-            p.add("bjwinnings", -1 * amount);
-            house.add("cash", amount);
+            p.add("change", -1 * amount);
+            p.add("winnings", -1 * amount);
+            houseWinnings += amount;
             currentPlayer = getNextPlayer();
             if (currentPlayer == null) {
                 dealTable();
@@ -1628,14 +1876,16 @@ public class Blackjack extends CardGame {
         if (h.hasHit()) {
             informPlayer(p.getNick(), getMsg("no_dd"));
             setIdleOutTask();
-        } else if (p.get("initialbet") > p.get("cash")) {
+        } else if (p.getInteger("initialbet") > p.getInteger("cash")) {
             informPlayer(p.getNick(), getMsg("insufficient_funds"));
             setIdleOutTask();
         } else {			
             p.add("cash", -1 * h.getBet());
-            p.add("bjwinnings", -1 * h.getBet());
-            house.add("cash", h.getBet());
+            p.add("change", -1 * h.getBet());
+            p.add("winnings", -1 * h.getBet());
+            houseWinnings += h.getBet();
             h.addBet(h.getBet());
+            p.put("doubledown", true);
             showMsg(getMsg("bj_dd"), p.getNickStr(false), h.getBet(), p.get("cash"));
             dealCard(h);
             showHitResult(p,h);
@@ -1651,17 +1901,18 @@ public class Blackjack extends CardGame {
         cancelIdleOutTask();
         BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
         BlackjackHand h = p.getHand();
-        if (p.hasSplit()){
+        if (p.has("split")){
             informPlayer(p.getNick(), getMsg("no_surr_split"));
             setIdleOutTask();
         } else if (h.hasHit()) {
             informPlayer(p.getNick(), getMsg("no_surr"));
             setIdleOutTask();
         } else {
-            p.add("cash", calcHalf(p.get("initialbet")));
-            p.add("bjwinnings", calcHalf(p.get("initialbet")));
-            house.add("cash", -1 * calcHalf(p.get("initialbet")));
-            p.set("surrender", 1);
+            p.add("cash", calcHalf(p.getInteger("initialbet")));
+            p.add("change", calcHalf(p.getInteger("initialbet")));
+            p.add("winnings", calcHalf(p.getInteger("initialbet")));
+            houseWinnings -= calcHalf(p.getInteger("initialbet"));
+            p.put("surrender", true);
             showMsg(getMsg("bj_surr"), p.getNickStr(false), p.get("cash"));
             continueRound();
         }
@@ -1682,20 +1933,21 @@ public class Blackjack extends CardGame {
             informPlayer(p.getNick(), getMsg("no_insure_no_ace"));
         } else if (h.hasHit()) {
             informPlayer(p.getNick(), getMsg("no_insure_has_hit"));
-        } else if (p.hasSplit()){
+        } else if (p.has("split")){
             informPlayer(p.getNick(), getMsg("no_insure_has_split"));
-        } else if (amount > p.get("cash")) {
+        } else if (amount > p.getInteger("cash")) {
             informPlayer(p.getNick(), getMsg("insufficient_funds"));
-        } else if (amount > calcHalf(p.get("initialbet"))) {
-            informPlayer(p.getNick(), getMsg("insure_bet_too_high"), calcHalf(p.get("initialbet")));
+        } else if (amount > calcHalf(p.getInteger("initialbet"))) {
+            informPlayer(p.getNick(), getMsg("insure_bet_too_high"), calcHalf(p.getInteger("initialbet")));
         } else if (amount <= 0) {
             informPlayer(p.getNick(), getMsg("insure_bet_too_low"));
         } else {
             insuranceBets = true;
-            p.set("insurebet", amount);
+            p.put("insurebet", amount);
             p.add("cash", -1 * amount);
-            p.add("bjwinnings", -1 * amount);
-            house.add("cash", amount);
+            p.add("change", -1 * amount);
+            p.add("winnings", -1 * amount);
+            houseWinnings += amount;
             showMsg(getMsg("bj_insure"), p.getNickStr(false), p.get("insurebet"), p.get("cash"));
         }
         setIdleOutTask();
@@ -1712,16 +1964,17 @@ public class Blackjack extends CardGame {
         if (!cHand.isPair()) {
             informPlayer(p.getNick(), getMsg("no_pair"));
             setIdleOutTask();
-        } else if (p.get("cash") < cHand.getBet()) {
+        } else if (p.getInteger("cash") < cHand.getBet()) {
             informPlayer(p.getNick(), getMsg("insufficient_funds"));
             setIdleOutTask();
         } else {
             p.add("cash", -1 * cHand.getBet());
-            p.add("bjwinnings", -1 * cHand.getBet());
-            house.add("cash", cHand.getBet());
+            p.add("change", -1 * cHand.getBet());
+            p.add("winnings", -1 * cHand.getBet());
+            houseWinnings += cHand.getBet();
             p.splitHand();
             dealCard(cHand);
-            nHand = p.getHand(p.get("currentindex") + 1);
+            nHand = p.getHand(p.getInteger("currentindex") + 1);
             dealCard(nHand);
             nHand.setBet(cHand.getBet());
             showSplitHands(p);
@@ -1741,15 +1994,14 @@ public class Blackjack extends CardGame {
         state = BlackjackState.PLAYING;
         BlackjackPlayer p = (BlackjackPlayer) currentPlayer;
         
-        if (p.hasSplit()) {
-            showTurn(p, p.get("currentindex") + 1);
-        } else {
-            showTurn(p, 0);
-        }
-        
         if (p.has("quit")){
             stay();
         } else {
+            if (p.has("split")) {
+                showTurn(p, p.getInteger("currentindex") + 1);
+            } else {
+                showTurn(p, 0);
+            }
             setIdleOutTask();
         }
     }
@@ -1787,7 +2039,7 @@ public class Blackjack extends CardGame {
      * @return the payout
      */
     private int calcInsurancePayout(BlackjackPlayer p){
-        return 3 * p.get("insurebet");
+        return 3 * p.getInteger("insurebet");
     }
     
     /**
@@ -1809,7 +2061,7 @@ public class Blackjack extends CardGame {
             BlackjackPlayer p = (BlackjackPlayer) joined.get(ctr);
             for (int ctr2 = 0; ctr2 < p.getNumberHands(); ctr2++) {
                 BlackjackHand h = p.getHand(ctr2);
-                if (!h.isBust() && !p.hasSurrendered() && !h.isBlackjack()) {
+                if (!h.isBust() && !p.has("surrender") && !h.isBlackjack()) {
                     return true;
                 }
             }
@@ -1832,8 +2084,9 @@ public class Blackjack extends CardGame {
             default:
         }
         p.add("cash", payout);
-        p.add("bjwinnings", payout);
-        house.add("cash", -1 * payout);
+        p.add("change", payout);
+        p.add("winnings", payout);
+        houseWinnings -= payout;
     }
     
     /**
@@ -1843,8 +2096,9 @@ public class Blackjack extends CardGame {
     private void payPlayerInsurance(BlackjackPlayer p){
         if (dealer.getHand().isBlackjack()) {
             p.add("cash", calcInsurancePayout(p));
-            p.add("bjwinnings", calcInsurancePayout(p));
-            house.add("cash", -1 * calcInsurancePayout(p));
+            p.add("change", calcInsurancePayout(p));
+            p.add("winnings", calcInsurancePayout(p));
+            houseWinnings -= calcInsurancePayout(p);
         }
     }
 
@@ -1914,25 +2168,6 @@ public class Blackjack extends CardGame {
         return red7;
     }
     
-    @Override
-    public int getTotalPlayers(){
-        try {
-            ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
-            loadPlayerFile(records);
-            int total = 0, numLines = records.size();
-            
-            for (PlayerRecord record : records){
-                if (record.has("bjrounds")){
-                    total++;
-                }
-            }
-            return total;
-        } catch (IOException e){
-            manager.log("Error reading players.txt!");
-            return 0;
-        }
-    }
-    
     //////////////////////////////////////////////
     //// Message output methods for Blackjack ////
     //////////////////////////////////////////////
@@ -1942,9 +2177,9 @@ public class Blackjack extends CardGame {
      * @param n the number of decks in the shoe
      */
     public void showHouseStat(int n) {
-        HouseStat hs = getHouseStat(n);
-        if (hs != null) {
-            showMsg(hs.toString());
+        Record record = loadDBHouse(n);
+        if (record != null) {
+            showMsg(getMsg("bj_house_str"), record.get("rounds"), record.get("shoe_size"), record.get("winnings"));
         } else {
             showMsg(getMsg("bj_no_stats"), n);
         }
@@ -2050,8 +2285,8 @@ public class Blackjack extends CardGame {
      * @param h the player's hand
      */
     private void showHitResult(BlackjackPlayer p, BlackjackHand h){
-        if (p.hasSplit()) {
-            showPlayerHand(p, h, p.get("currentindex") + 1, false);
+        if (p.has("split")) {
+            showPlayerHand(p, h, p.getInteger("currentindex") + 1, false);
         } else {
             showPlayerHand(p, h, 0, false);
         }
@@ -2071,7 +2306,7 @@ public class Blackjack extends CardGame {
         for (int ctr = 0; ctr < joined.size(); ctr++) {
             p = (BlackjackPlayer) joined.get(ctr);
             for (int ctr2 = 0; ctr2 < p.getNumberHands(); ctr2++){
-                if (p.hasSplit()) {
+                if (p.has("split")) {
                     showPlayerHand(p, p.getHand(ctr2), ctr2+1, false);
                 } else {
                     showPlayerHand(p, p.getHand(ctr2), 0, false);
@@ -2093,10 +2328,10 @@ public class Blackjack extends CardGame {
             p = (BlackjackPlayer) joined.get(ctr);
             for (int ctr2 = 0; ctr2 < p.getNumberHands(); ctr2++) {
                 h = p.getHand(ctr2);
-                if (!p.hasSurrendered()){
+                if (!p.has("surrender")){
                     payPlayer(p,h);
                 }
-                if (p.hasSplit()) {
+                if (p.has("split")) {
                     showPlayerResult(p, h, ctr2+1);
                 } else {
                     showPlayerResult(p, h, 0);
@@ -2152,7 +2387,7 @@ public class Blackjack extends CardGame {
             nickStr = p.getNickStr();
         }
         int result = h.compareTo(dealer.getHand());
-        if (p.hasSurrendered()) {
+        if (p.has("surrender")) {
             showMsg(getMsg("bj_result_surr"), getSurrStr(), nickStr, h.calcSum(), h, p.get("cash"));
         } else {
             switch (result) {
@@ -2184,292 +2419,235 @@ public class Blackjack extends CardGame {
     }
     
     @Override
-    public void showPlayerWinnings(String nick){
-        if (isBlacklisted(nick)) {
-            Player p = findBlacklisted(nick);
-            showMsg(getMsg("player_winnings"), p.getNick(false), p.get("bjwinnings"), getGameNameStr());
-        } else if (isJoined(nick)) {
-            Player p = findJoined(nick);
-            showMsg(getMsg("player_winnings"), p.getNick(false), p.get("bjwinnings"), getGameNameStr());
+    public void showPlayerRank(String nick, String stat) throws IllegalArgumentException {
+        String statName = "";
+        String line = Colors.BLACK + ",08";
+        String sql;
+        
+        // Build SQL query
+        if (stat.equals("cash")) {
+            sql = "SELECT nick, cash, " +
+                      "(SELECT COUNT(*) FROM Purse WHERE cash > t1.cash)+1 AS rank " +
+                  "FROM (Player INNER JOIN Purse ON Player.id = Purse.player_id) AS t1 " +
+                  "WHERE nick = ? COLLATE NOCASE";
+            statName = "cash";
+            line += "Cash: ";
+        } else if (stat.equalsIgnoreCase("bank")) {
+            sql = "SELECT nick, bank, " +
+                      "(SELECT COUNT(*) FROM Purse WHERE bank > t1.bank)+1 AS rank " +
+                  "FROM (Player INNER JOIN Purse ON Player.id = Purse.player_id) AS t1 " +
+                  "WHERE nick = ? COLLATE NOCASE";
+            statName = "bank";
+            line += "Bank: ";
+        } else if (stat.equalsIgnoreCase("bankrupts")) {
+            sql = "SELECT nick, bankrupts, " +
+                      "(SELECT COUNT(*) FROM Purse WHERE bankrupts > t1.bankrupts)+1 AS rank " +
+                  "FROM (Player INNER JOIN Purse ON Player.id = Purse.player_id) AS t1 " +
+                  "WHERE nick = ? COLLATE NOCASE";
+            statName = "bankrupts";
+            line += "Bankrupts: ";
+        } else if (stat.equalsIgnoreCase("net") || stat.equals("netcash")) {
+            sql = "SELECT nick, cash+bank AS netcash, " +
+                      "(SELECT COUNT(*) FROM Purse WHERE cash+bank > t1.cash+t1.bank)+1 AS rank " +
+                  "FROM (Player INNER JOIN Purse ON Player.id = Purse.player_id) AS t1 " +
+                  "WHERE nick = ? COLLATE NOCASE";
+            statName = "netcash";
+            line += "Net Cash: ";
+        } else if (stat.equalsIgnoreCase("rounds")) {
+            sql = "SELECT nick, rounds, " +
+                      "(SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 0 AND rounds > t1.rounds)+1 AS rank " +
+                  "FROM (Player INNER JOIN BJPlayerStat ON Player.id = BJPlayerStat.player_id) AS t1 " +
+                  "WHERE nick = ? COLLATE NOCASE";
+            statName = "rounds";
+            line += "Blackjack Rounds (min. 1 round): ";
+        } else if (stat.equalsIgnoreCase("winnings")) {
+            sql = "SELECT nick, rounds, winnings, " +
+                      "(SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 0 AND winnings > t1.winnings)+1 AS rank " +
+                  "FROM (Player INNER JOIN BJPlayerStat ON Player.id = BJPlayerStat.player_id) AS t1 " +
+                  "WHERE nick = ? COLLATE NOCASE";
+            statName = "winnings";
+            line += "Blackjack Winnings (min. 1 round): ";
+        } else if (stat.equalsIgnoreCase("winrate")) {
+            sql = "SELECT nick, rounds, winnings*1.0/rounds AS winrate, " +
+                      "(SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 50 AND winnings*1.0/rounds > t1.winnings*1.0/t1.rounds)+1 AS rank " +
+                  "FROM (Player INNER JOIN BJPlayerStat ON Player.id = BJPlayerStat.player_id) AS t1 " +
+                  "WHERE nick = ? COLLATE NOCASE";
+            statName = "winrate";
+            line += "Blackjack Win Rate (min. 50 rounds): ";
         } else {
-            PlayerRecord record = loadPlayerRecord(nick);
-            if (record == null) {
-                showMsg(getMsg("no_data"), formatNoPing(nick));
-            } else {
-                showMsg(getMsg("player_winnings"), record.getNick(false), record.get("bjwinnings"), getGameNameStr());
-            }
-        }
-    }
-    
-    @Override
-    public void showPlayerWinRate(String nick){
-        if (isBlacklisted(nick)) {
-            Player p = findBlacklisted(nick);
-            if (p.get("bjrounds") == 0) {
-                showMsg(getMsg("player_no_rounds"), p.getNick(false), getGameNameStr());
-            } else {
-                showMsg(getMsg("player_winrate"), p.getNick(false), (double) p.get("bjwinnings")/(double) p.get("bjrounds"), getGameNameStr());
-            }
-        } else if (isJoined(nick)) {
-            Player p = findJoined(nick);
-            if (p.get("bjrounds") == 0) {
-                showMsg(getMsg("player_no_rounds"), p.getNick(false), getGameNameStr());
-            } else {
-                showMsg(getMsg("player_winrate"), p.getNick(false), (double) p.get("bjwinnings")/(double) p.get("bjrounds"), getGameNameStr());
-            }
-        } else {
-            PlayerRecord record = loadPlayerRecord(nick);
-            if (record == null) {
-                showMsg(getMsg("no_data"), formatNoPing(nick));
-            } else if (record.get("bjrounds") == 0){
-                showMsg(getMsg("player_no_rounds"), record.getNick(false), getGameNameStr());
-            } else {
-                showMsg(getMsg("player_winrate"), record.getNick(false), (double) record.get("bjwinnings")/(double) record.get("bjrounds"), getGameNameStr());
-            }  
-        }
-    }
-    
-    @Override
-    public void showPlayerRounds(String nick){
-        if (isBlacklisted(nick)) {
-            Player p = findBlacklisted(nick);
-            if (p.get("bjrounds") == 0) {
-                showMsg(getMsg("player_no_rounds"), p.getNick(false), getGameNameStr());
-            } else {
-                showMsg(getMsg("player_rounds"), p.getNick(false), p.get("bjrounds"), getGameNameStr());
-            }
-        } else if (isJoined(nick)) {
-            Player p = findJoined(nick);
-            if (p.get("bjrounds") == 0) {
-                showMsg(getMsg("player_no_rounds"), p.getNick(false), getGameNameStr());
-            } else {
-                showMsg(getMsg("player_rounds"), p.getNick(false), p.get("bjrounds"), getGameNameStr());
-            }
-        } else {
-            PlayerRecord record = loadPlayerRecord(nick);
-            if (record == null) {
-                showMsg(getMsg("no_data"), formatNoPing(nick));
-            } else if (record.get("bjrounds") == 0){
-                showMsg(getMsg("player_no_rounds"), record.getNick(false), getGameNameStr());
-            } else {
-                showMsg(getMsg("player_rounds"), record.getNick(false), record.get("bjrounds"), getGameNameStr());
-            }  
-        }
-    } 
-    
-    @Override
-    public void showPlayerAllStats(String nick){
-        if (isBlacklisted(nick)) {
-            Player p = findBlacklisted(nick);
-            showMsg(getMsg("player_all_stats"), p.getNick(false), p.get("cash"), p.get("bank"), p.get("netcash"), p.get("bankrupts"), p.get("bjwinnings"), p.get("bjrounds"));
-        } else if (isJoined(nick)) {
-            Player p = findJoined(nick);
-            showMsg(getMsg("player_all_stats"), p.getNick(false), p.get("cash"), p.get("bank"), p.get("netcash"), p.get("bankrupts"), p.get("bjwinnings"), p.get("bjrounds"));
-        } else {
-            PlayerRecord record = loadPlayerRecord(nick);
-            if (record == null) {
-                showMsg(getMsg("no_data"), formatNoPing(nick));
-            } else {
-                showMsg(getMsg("player_all_stats"), record.getNick(false), record.get("cash"), record.get("bank"), record.get("netcash"), record.get("bankrupts"), record.get("bjwinnings"), record.get("bjrounds"));
-            }
-        }
-    }
-    
-    @Override
-    public void showPlayerRank(String nick, String stat){
-        if (getPlayerStat(nick, "exists") != 1){
-            showMsg(getMsg("no_data"), formatNoPing(nick));
-            return;
+            throw new IllegalArgumentException();
         }
         
-        try {
-            PlayerRecord aRecord;
-            ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
-            loadPlayerFile(records);
-            int length = records.size();
-            String line = Colors.BLACK + ",08";
-            
-            if (stat.equalsIgnoreCase("winrate")) {
-                int highIndex, rank = 0;
-                ArrayList<String> nicks = new ArrayList<String>();
-                ArrayList<Double> winrates = new ArrayList<Double>();
-  
-                for (int ctr = 0; ctr < length; ctr++) {
-                    aRecord = records.get(ctr);
-                    nicks.add(aRecord.getNick());
-                    if (aRecord.get("bjrounds") == 0){
-                        winrates.add(0.);
-                    } else {
-                        winrates.add((double) aRecord.get("bjwinnings") / (double) aRecord.get("bjrounds"));
-                    }
-                }
-                
-                line += "Blackjack Win Rate: ";
-                
-                // Find the player with the highest value and check if it is 
-                // the requested player. Repeat until found or end.
-                for (int ctr = 0; ctr < length; ctr++){
-                    highIndex = 0;
-                    rank++;
-                    for (int ctr2 = 0; ctr2 < nicks.size(); ctr2++) {
-                        if (winrates.get(ctr2) > winrates.get(highIndex)) {
-                            highIndex = ctr2;
-                        }
-                    }
-                    
-                    if (nick.equalsIgnoreCase(nicks.get(highIndex))){
-                        line += "#" + rank + " " + Colors.WHITE + ",04 " + formatNoPing(nicks.get(highIndex)) + " $" + formatDecimal(winrates.get(highIndex)) + " ";
-                        break;
-                    } else {
-                        nicks.remove(highIndex);
-                        winrates.remove(highIndex);
-                    }
-                }
-            } else {
-                String statName = "";
-                if (stat.equalsIgnoreCase("cash")) {
-                    statName = "cash";
-                    line += "Cash: ";
-                } else if (stat.equalsIgnoreCase("bank")) {
-                    statName = "bank";
-                    line += "Bank: ";
-                } else if (stat.equalsIgnoreCase("bankrupts")) {
-                    statName = "bankrupts";
-                    line += "Bankrupts: ";
-                } else if (stat.equalsIgnoreCase("net") || stat.equals("netcash")) {
-                    statName = "netcash";
-                    line += "Net Cash: ";
-                } else if (stat.equalsIgnoreCase("winnings")){
-                    statName = "bjwinnings";
-                    line += "Blackjack Winnings: ";
-                } else if (stat.equalsIgnoreCase("rounds")) {
-                    statName = "bjrounds";
-                    line += "Blackjack Rounds: ";
-                } else {
-                    throw new IllegalArgumentException();
-                }
-                
-                // Sort based on stat
-                Collections.sort(records, PlayerRecord.getComparator(statName));
-                
-                // Find the rank of the player
-                for (int ctr = 0; ctr < length; ctr++){
-                    aRecord = records.get(ctr);
-                    if (nick.equalsIgnoreCase(aRecord.getNick())){
-                        if (stat.equalsIgnoreCase("rounds") || stat.equalsIgnoreCase("bankrupts")) {
-                            line += "#" + (ctr+1) + " " + Colors.WHITE + ",04 " + formatNoPing(aRecord.getNick()) + " " + formatNumber(aRecord.get(statName)) + " ";
+        try (Connection conn = DriverManager.getConnection(dbURL)) {
+            // Retrieve data from DB if possible
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, nick);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.isBeforeFirst()) {
+                        line += "#" + rs.getInt("rank") + " " + Colors.WHITE + ",04 " + formatNoPing(rs.getString("nick"));
+                        if (statName.equals("winrate")){
+                            if (rs.getInt("rounds") < 50) {
+                                line = String.format("%s (%d) has not played enough rounds of %s. A minimum of 50 rounds must be played to qualify for a win rate ranking.", formatNoPing(rs.getString("nick")), rs.getInt("rounds"), getGameNameStr());
+                            } else {
+                                line += " $" + formatDecimal(rs.getDouble(statName));
+                            }
+                        } else if (statName.equals("rounds")) {
+                            if (rs.getInt("rounds") == 0) {
+                                line = String.format(getMsg("player_no_rounds"), formatNoPing(rs.getString("nick")), getGameNameStr());
+                            } else {
+                                line += " " + formatNumber(rs.getInt(statName));
+                            }
+                        } else if (statName.equals("winnings")) {
+                            if (rs.getInt("rounds") == 0) {
+                                line = String.format(getMsg("player_no_rounds"), formatNoPing(rs.getString("nick")), getGameNameStr());
+                            } else {
+                                line += " $" + formatNumber(rs.getInt(statName));
+                            }
+                        } else if (statName.equals("bankrupts")) {
+                            line += " " + formatNumber(rs.getInt(statName));
                         } else {
-                            line += "#" + (ctr+1) + " " + Colors.WHITE + ",04 " + formatNoPing(aRecord.getNick()) + " $" + formatNumber(aRecord.get(statName)) + " ";
+                            line += " $" + formatNumber(rs.getInt(statName));
                         }
-                        break;
+                        
+                        // Show rank
+                        showMsg(line);
+                    } else {
+                        showMsg(getMsg("no_data"), formatNoPing(nick));
                     }
                 }
             }
-            
-            // Show rank
-            showMsg(line);
-        } catch (IOException e) {
-            manager.log("Error reading players.txt!");
+            logDBWarning(conn.getWarnings());
+        } catch (SQLException ex) {
+            manager.log("SQL Error: " + ex.getMessage());
         }
     }
-        
+    
     @Override
-    public void showTopPlayers(String stat, int n) {
+    public void showTopPlayers(String stat, int n) throws IllegalArgumentException {
         if (n < 1){
             throw new IllegalArgumentException();
         }
         
-        try {
-            PlayerRecord aRecord;
-            ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
-            loadPlayerFile(records);
-            int end = Math.min(n, records.size());
-            int start = Math.max(end - 10, 0);
-            String title = Colors.BOLD + Colors.BLACK + ",08 Top " + (start+1) + "-" + end;
-            String list = Colors.BLACK + ",08";
+        String title = Colors.BOLD + Colors.BLACK + ",08 Top %,d-%,d";
+        String list = Colors.BLACK + ",08";
+        String statName = "";
+        String sql = "";
+        String sqlBounds = "";
+        
+        if (stat.equalsIgnoreCase("cash")) {
+            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM Purse), ?)-10) AS top_offset";
+            sql = "SELECT nick, cash " +
+                  "FROM Player INNER JOIN Purse ON id = player_id " +
+                  "ORDER BY cash DESC " +
+                  "LIMIT ? OFFSET ?";
+            statName = "cash";
+            title += " Cash ";
+        } else if (stat.equalsIgnoreCase("bank")) {
+            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM Purse), ?)-10) AS top_offset";
+            sql = "SELECT nick, bank " +
+                  "FROM Player INNER JOIN Purse ON id = player_id " +
+                  "ORDER BY bank DESC " +
+                  "LIMIT ? OFFSET ?";
+            statName = "bank";
+            title += " Bank ";
+        } else if (stat.equalsIgnoreCase("bankrupts")) {
+            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM Purse), ?)-10) AS top_offset";
+            sql = "SELECT nick, bankrupts " +
+                  "FROM Player INNER JOIN Purse ON id = player_id " +
+                  "ORDER BY bankrupts DESC " +
+                  "LIMIT ? OFFSET ?";
+            statName = "bankrupts";
+            title += " Bankrupts ";
+        } else if (stat.equalsIgnoreCase("net") || stat.equalsIgnoreCase("netcash")) {
+            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM Purse), ?)-10) AS top_offset";
+            sql = "SELECT nick, cash+bank AS netcash " +
+                  "FROM Player INNER JOIN Purse ON id = player_id " +
+                  "ORDER BY netcash DESC " +
+                  "LIMIT ? OFFSET ?";
+            statName = "netcash";
+            title += " Net Cash ";
+        } else if (stat.equalsIgnoreCase("winnings")){
+            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 0), ?)-10) AS top_offset";
+            sql = "SELECT nick, winnings " +
+                  "FROM Player INNER JOIN BJPlayerStat ON id = player_id " +
+                  "WHERE rounds > 0 " +
+                  "ORDER BY winnings DESC " +
+                  "LIMIT ? OFFSET ?";
+            statName = "winnings";
+            title += " Blackjack Winnings (min. 1 round)";
+        } else if (stat.equalsIgnoreCase("rounds")) {
+            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 0), ?)-10) AS top_offset";
+            sql = "SELECT nick, rounds " +
+                  "FROM Player INNER JOIN BJPlayerStat ON id = player_id " +
+                  "WHERE rounds > 0 " +
+                  "ORDER BY rounds DESC " +
+                  "LIMIT ? OFFSET ?";
+            statName = "rounds";
+            title += " Blackjack Rounds (min. 1 round)";
+        } else if (stat.equalsIgnoreCase("winrate")) {
+            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 50), ?)-10) AS top_offset";
+            sql = "SELECT nick, winnings*1.0/rounds AS winrate " +
+                  "FROM Player INNER JOIN BJPlayerStat ON id = player_id " +
+                  "WHERE rounds > 50 " +
+                  "ORDER BY winrate DESC " +
+                  "LIMIT ? OFFSET ?";
+            statName = "winrate";
+            title += " Blackjack Win Rate (min. 50 rounds) ";
+        } else {
+            throw new IllegalArgumentException();
+        }
+        
+        try (Connection conn = DriverManager.getConnection(dbURL)) {
+            conn.setAutoCommit(false);
+            int limit = 10;
+            int offset = 0;
             
-            if (stat.equalsIgnoreCase("winrate")) {
-                int highIndex;
-                ArrayList<String> nicks = new ArrayList<String>();
-                ArrayList<Double> winrates = new ArrayList<Double>();
-                
-                for (int ctr = 0; ctr < records.size(); ctr++) {
-                    aRecord = records.get(ctr);
-                    nicks.add(aRecord.getNick());
-                    if (aRecord.get("bjrounds") == 0){
-                        winrates.add(0.);
-                    } else {
-                        winrates.add((double) aRecord.get("bjwinnings") / (double) aRecord.get("bjrounds"));
-                    }
-                }
-                
-                title += " Blackjack Win Rate ";
-                
-                // Find the player with the highest value, add to output string and remove.
-                for (int ctr = 0; ctr < records.size(); ctr++){
-                    highIndex = 0;
-                    for (int ctr2 = 0; ctr2 < nicks.size(); ctr2++) {
-                        if (winrates.get(ctr2) > winrates.get(highIndex)) {
-                            highIndex = ctr2;
-                        }
-                    }
-                    
-                    // Only add those in the required range.
-                    if (ctr >= start) {
-                        list += " #" + (ctr+1) + ": " + Colors.WHITE + ",04 " + formatNoPing(nicks.get(highIndex)) + " $" + formatDecimal(winrates.get(highIndex)) + " " + Colors.BLACK + ",08";
-                    }
-                    
-                    nicks.remove(highIndex);
-                    winrates.remove(highIndex);
-                    
-                    // Break when we've reached the end of required range
-                    if (ctr + 1 == end) {
-                        break;
-                    }
-                }
-            } else {
-                String statName = "";
-                if (stat.equalsIgnoreCase("cash")) {
-                    statName = "cash";
-                    title += " Cash ";
-                } else if (stat.equalsIgnoreCase("bank")) {
-                    statName = "bank";
-                    title += " Bank ";
-                } else if (stat.equalsIgnoreCase("bankrupts")) {
-                    statName = "bankrupts";
-                    title += " Bankrupts ";
-                } else if (stat.equalsIgnoreCase("net") || stat.equalsIgnoreCase("netcash")) {
-                    statName = "netcash";
-                    title += " Net Cash ";
-                } else if (stat.equalsIgnoreCase("winnings")){
-                    statName = "bjwinnings";
-                    title += " Blackjack Winnings ";
-                } else if (stat.equalsIgnoreCase("rounds")) {
-                    statName = "bjrounds";
-                    title += " Blackjack Rounds ";
-                } else {
-                    throw new IllegalArgumentException();
-                }
-                
-                // Sort based on stat
-                Collections.sort(records, PlayerRecord.getComparator(statName));
-
-                // Add the players in the required range
-                for (int ctr = start; ctr < end; ctr++){
-                    aRecord = records.get(ctr);
-                    if (stat.equalsIgnoreCase("rounds") || stat.equalsIgnoreCase("bankrupts")) {
-                        list += " #" + (ctr+1) + ": " + Colors.WHITE + ",04 " + formatNoPing(aRecord.getNick()) + " " + formatNumber(aRecord.get(statName)) + " " + Colors.BLACK + ",08";
-                    } else {
-                        list += " #" + (ctr+1) + ": " + Colors.WHITE + ",04 " + formatNoPing(aRecord.getNick()) + " $" + formatNumber(aRecord.get(statName)) + " " + Colors.BLACK + ",08";
+            // Retrieve offset
+            try (PreparedStatement ps = conn.prepareStatement(sqlBounds)) {
+                ps.setInt(1, n);
+                ps.setInt(2, n);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.isBeforeFirst()) {
+                        limit = rs.getInt("top_limit");
+                        offset = rs.getInt("top_offset");
                     }
                 }
             }
             
-            // Output title and the list
-            showMsg(title);
-            showMsg(list);
-        } catch (IOException e) {
-            manager.log("Error reading players.txt!");
+            title = String.format(title, offset+1, offset+limit);
+            
+            // Retrieve data from DB if possible
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, limit);
+                ps.setInt(2, offset);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.isBeforeFirst()) {
+                        int ctr = offset + 1;
+                        // Add the players in the required range
+                        while (rs.next()) {
+                            list += " #" + ctr++ + ": " + Colors.WHITE + ",04 ";
+                            if (statName.equals("winrate")) {
+                                list += formatNoPing(rs.getString("nick")) + " $" + formatDecimal(rs.getDouble(statName));
+                            } else if (statName.equals("rounds") || statName.equals("bankrupts")) {
+                                list += formatNoPing(rs.getString("nick")) + " " + formatNumber(rs.getInt(statName));
+                            } else {
+                                list += formatNoPing(rs.getString("nick")) + " $" + formatNumber(rs.getInt(statName));
+                            }
+                            list += " " + Colors.BLACK + ",08";
+                        }
+                        
+                        // Output title and the list
+                        showMsg(title);
+                        showMsg(list);
+                    } else {
+                        showMsg("No %s data for %s.", statName, getGameNameStr());
+                    }
+                }
+            }
+            conn.commit();
+            logDBWarning(conn.getWarnings());
+        } catch (SQLException ex) {
+            manager.log("SQL Error: " + ex.getMessage());
         }
     }
     
@@ -2493,7 +2671,8 @@ public class Blackjack extends CardGame {
     
     @Override
     public final String getGameStatsStr(){
-        return String.format(getMsg("bj_stats"), getTotalPlayers(), getGameNameStr(), getTotalRounds(), getTotalHouse());
+        Record record = loadDBGameTotals();
+        return String.format(getMsg("bj_stats"), record.get("total_players"), getGameNameStr(), record.get("total_rounds"), record.get("total_winnings"));
     }
     
     private static String getWinStr(){

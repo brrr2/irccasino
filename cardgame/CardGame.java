@@ -25,6 +25,14 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.sql.SQLWarning;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -63,10 +71,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     // Game properties
     protected int startCount;
     protected long lastPing;
+    protected long startTime;
+    protected long endTime;
     protected String name;
     protected String iniFile;
     protected String helpFile;
     protected String strFile;
+    protected String dbURL;
     protected HashMap<String,String> cmdMap;
     protected HashMap<String,String> opCmdMap;
     protected HashMap<String,String> aliasMap;
@@ -257,7 +268,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             informPlayer(nick, getMsg("max_players"));
         } else if (isJoined(nick)) {
             informPlayer(nick, getMsg("is_joined"));
-        } else if (isBlacklisted(nick) || manager.isBlacklisted(nick)) {
+        } else if (isBlacklisted(nick)) {
+            Player p = findBlacklisted(nick);
+            long timeLeft = p.getLong("respawn") - System.currentTimeMillis()/1000;
+            informPlayer(nick, getMsg("on_blacklist_time"), timeLeft/60, timeLeft % 60);
+        } else if (manager.isBlacklisted(nick)) {
             informPlayer(nick, getMsg("on_blacklist"));
         } else if (game != null) {
             informPlayer(nick, getMsg("is_joined_other"), game.getGameNameStr(), game.getChannel().getName());
@@ -298,7 +313,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             informPlayer(nick, getMsg("no_start"));
         } else {
             Player p = findJoined(nick);
-            p.set("quit", 1);
+            p.put("last", true);
             informPlayer(p.getNick(), getMsg("remove_end_round"));
         }
     }
@@ -446,6 +461,22 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         }
     }
     
+    /**
+     * Deposits/withdraws the amount over/under 1000 to/from the player's bank.
+     * @param nick
+     * @param params
+     */
+    protected void rathole(String nick, String[] params) {
+        if (!isJoined(nick)) {
+            informPlayer(nick, getMsg("no_join"));
+        } else if (isInProgress()) {
+            informPlayer(nick, getMsg("wait_round_end"));
+        } else {
+            Player p = findJoined(nick);
+            transfer(nick, p.getInteger("cash") - 1000);
+        }
+    }    
+
     /**
      * Withdraws the specified amount from the player's bank.
      * @param nick
@@ -647,6 +678,15 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     
     /**
+     * Displays the version of the package.
+     * @param nick
+     * @param params 
+     */
+    protected void gversion(String nick, String[] params) {
+        showMsg(getMsg("version"));
+    }
+    
+    /**
      * Displays a list of users in the game channel, excluding users who are 
      * in the awayList.
      * @param nick
@@ -654,8 +694,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     protected void ping(String nick, String[] params) {
         // Check for rate-limit
-        if (lastPing != 0 && System.currentTimeMillis() - lastPing < get("ping") * 1000) {
-            informPlayer(nick, "This command is rate-limited. Please wait to use it again.");
+        long timeLeft = (get("ping") - (System.currentTimeMillis() / 1000 - lastPing));
+        if (lastPing != 0 && timeLeft > 0) {
+            informPlayer(nick, "This command is rate-limited. Please wait %02d:%02d to use it again.", timeLeft / 60, timeLeft % 60);
         } else if (isInProgress()) {
             informPlayer(nick, "This command cannot be used at this time.");
         } else {
@@ -670,8 +711,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 }
             }
             showMsg(outStr.substring(0, outStr.length() - 2));
-
-            lastPing = System.currentTimeMillis();
+            lastPing = System.currentTimeMillis() / 1000;
         }
     }
     
@@ -760,7 +800,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             informPlayer(nick, getMsg("no_start"));
         } else {
             Player p = findJoined(params[0]);
-            p.set("quit", 1);
+            p.put("quit", true);
             informPlayer(nick, getMsg("remove_end_round_nick"), params[0]);
         }
     }
@@ -972,20 +1012,191 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         } else if (manager.gamesInProgress()) {
             informPlayer(nick, getMsg("no_trim"));
         } else {
-            try {
-                ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
-                ArrayList<PlayerRecord> newRecords = new ArrayList<PlayerRecord>();
-                loadPlayerFile(records);
-                for (PlayerRecord record : records) {
+            ArrayList<Player> records = loadPlayerFile();
+            if (records != null) {
+                ArrayList<Player> newRecords = new ArrayList<>();
+                for (Player record : records) {
                     if (record.has("bjrounds") || record.has("tprounds") || record.has("ttplayed")) {
                         newRecords.add(record);
                     }
                 }
                 savePlayerFile(newRecords);
                 showMsg("Player data has been trimmed.");
-            } catch (IOException e) {
-                manager.log("Error reading players.txt!");
-                informPlayer(nick, "Error reading players.txt!");
+            }
+        }
+    }
+    
+    /**
+     * Performs an SQL query to the stats DB and outputs a result string.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    public void query(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else {
+            try (Connection conn = DriverManager.getConnection(dbURL)) {
+                // Rebuild query
+                String sql = "";
+                for (String s : params) {
+                    sql += s + " ";
+                }
+                
+                // Attempt query and output results to channel
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ResultSet rs = ps.executeQuery();
+                    if (rs.isBeforeFirst()) {
+                        ResultSetMetaData rsmd = rs.getMetaData();
+                        String output = "";
+                        int numCol = rsmd.getColumnCount();
+                        
+                        // Append field names
+                        output += "Fields {";
+                        for (int ctr = 1; ctr <= numCol; ctr++) {
+                            output += rsmd.getColumnName(ctr) + ":";
+                        }
+                        output = output.substring(0, output.length() - 1) + "}, ";
+                        
+                        // Append records
+                        int row = 1;
+                        while(rs.next()) {
+                            output += "R" + row++ + " {";
+                            for (int ctr = 1; ctr <= numCol; ctr++) {
+                                output += rs.getObject(ctr) + ":";
+                            }
+                            output = output.substring(0, output.length() - 1) + "}, ";
+                        }
+                        showMsg(output.substring(0, Math.min(300, output.length() - 2)));
+                    } else {
+                        showMsg("SQL query produced no results.");
+                    }
+                }
+            } catch (SQLException ex) {
+                showMsg("SQL Error: " + ex.getMessage());
+                manager.log("SQL Error: " + ex.getMessage());
+            }
+        }
+    }
+    
+    /**
+     * Migrates players.txt entries into stats.sqlite3.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    public void migrate(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (manager.gamesInProgress()) {
+            informPlayer(nick, getMsg("no_migrate"));
+        } else {
+            showMsg("Performing migration from players.txt to stats.sqlite3. Please wait...");
+            
+            ArrayList<Player> records = loadPlayerFile();
+            int playerID;
+            String sql;
+            
+            try (Connection conn = DriverManager.getConnection(dbURL)) {
+                conn.setAutoCommit(false);
+                
+                // Iterate over records
+                for (Player record : records) {
+                    playerID = -1;
+                    
+                    // Add new record if not found in Player table
+                    sql = "INSERT INTO Player (nick, time_created) VALUES(?, ?)";
+                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                        ps.setString(1, record.getString("nick"));
+                        ps.setLong(2, System.currentTimeMillis() / 1000);
+                        ps.executeUpdate();
+                        playerID = ps.getGeneratedKeys().getInt(1);
+                    }
+
+                    if (playerID != -1) {
+                        // Attempt to add new record in Purse table
+                        sql = "INSERT INTO Purse (player_id, cash, bank, bankrupts) " +
+                              "VALUES(?, ?, ?, ?)";
+                        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                            ps.setInt(1, playerID);
+                            ps.setInt(2, record.getInteger("cash"));
+                            ps.setInt(3, record.getInteger("bank"));
+                            ps.setInt(4, record.getInteger("bankrupts"));
+                            ps.executeUpdate();
+                        }
+
+                        // Attempt to add new record in TPPlayerStat table
+                        sql = "INSERT INTO TPPlayerStat (player_id, rounds, winnings, idles) " +
+                              "VALUES(?, ?, ?, ?)";
+                        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                            ps.setInt(1, playerID);
+                            ps.setInt(2, record.getInteger("tprounds"));
+                            ps.setInt(3, record.getInteger("tpwinnings"));
+                            ps.setInt(4, 0);
+                            ps.executeUpdate();
+                        }
+
+                        // Attempt to add new record in BJPlayerStat table
+                        sql = "INSERT INTO BJPlayerStat (player_id, rounds, winnings, idles) " +
+                              "VALUES(?, ?, ?, ?)";
+                        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                            ps.setInt(1, playerID);
+                            ps.setInt(2, record.getInteger("bjrounds"));
+                            ps.setInt(3, record.getInteger("bjwinnings"));
+                            ps.setInt(4, 0);
+                            ps.executeUpdate();
+                        }
+
+                        // Attempt to add new record in TPPlayerStat table
+                        sql = "INSERT INTO TTPlayerStat (player_id, tourneys, points, idles) " +
+                              "VALUES(?, ?, ?, ?)";
+                        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                            ps.setInt(1, playerID);
+                            ps.setInt(2, record.getInteger("ttplayed"));
+                            ps.setInt(3, record.getInteger("ttwins"));
+                            ps.setInt(4, 0);
+                            ps.executeUpdate();
+                        }
+                    }
+                }
+                
+                // Migrate house data for Blackjack
+                try (BufferedReader in = new BufferedReader(new FileReader("housestats.txt"))) {
+                    String str;
+                    int decks, rounds, winnings;
+                    StringTokenizer st;
+                    while (in.ready()) {
+                        str = in.readLine();
+                        if (str.startsWith("#blackjack")) {
+                            while (in.ready()) {
+                                str = in.readLine();
+                                if (str.startsWith("#")) {
+                                    break;
+                                }
+                                st = new StringTokenizer(str);
+                                decks = Integer.parseInt(st.nextToken());
+                                rounds = Integer.parseInt(st.nextToken());
+                                winnings = Integer.parseInt(st.nextToken());
+                                sql = "INSERT INTO BJHouse (shoe_size, rounds, winnings) VALUES(?, ?, ?)";
+                                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                                    ps.setInt(1, decks);
+                                    ps.setInt(2, rounds);
+                                    ps.setInt(3, winnings);
+                                    ps.executeUpdate();
+                                }
+                            }
+                            break;
+                        }
+                    }
+                } catch (IOException e) {
+                    manager.log("housestats.txt not found! No house stats migrated...");
+                }
+                
+                conn.commit();
+                showMsg("Migration complete.");
+            } catch (SQLException ex) {
+                manager.log("SQL Error: " + ex.getMessage());
+                showMsg("Migration aborted.");
             }
         }
     }
@@ -1054,25 +1265,210 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * Initializes the game.
      */
     protected final void initGame() {
-        joined = new ArrayList<Player>();
-        blacklist = new ArrayList<Player>();
-        waitlist = new ArrayList<Player>();
+        joined = new ArrayList<>();
+        blacklist = new ArrayList<>();
+        waitlist = new ArrayList<>();
         gameTimer = new Timer("Game Timer");
-        settings = new HashMap<String,Integer>();
-        cmdMap = new HashMap<String,String>();
-        opCmdMap = new HashMap<String,String>();
-        aliasMap = new HashMap<String,String>();
-        msgMap = new HashMap<String,String>();
-        awayList = new ArrayList<String>();
-        notSimpleList = new ArrayList<String>();
-        respawnTasks = new ArrayList<RespawnTask>();
+        settings = new HashMap<>();
+        cmdMap = new HashMap<>();
+        opCmdMap = new HashMap<>();
+        aliasMap = new HashMap<>();
+        msgMap = new HashMap<>();
+        awayList = new ArrayList<>();
+        notSimpleList = new ArrayList<>();
+        respawnTasks = new ArrayList<>();
         strFile = "strlib.txt";
+        dbURL = "jdbc:sqlite:stats.sqlite3";
+        
+        // Load SQLite JDBC driver
+        try {
+            Class.forName("org.sqlite.JDBC");
+        } catch (ClassNotFoundException ex) {}
         
         loadStrLib(strFile);
         loadHostList("away.txt", awayList);
         loadHostList("simple.txt", notSimpleList);
-        checkPlayerFile();
+        initDB();
         initCustom();
+    }
+    
+    /**
+     * Loads the database and creates any necessary tables.
+     */
+    protected final void initDB() {
+        try (Connection conn = DriverManager.getConnection(dbURL)) {
+            conn.setAutoCommit(false);
+            
+            // Create tables if necessary
+            try (Statement s = conn.createStatement()) {
+                // Player table
+                s.execute( "CREATE TABLE IF NOT EXISTS Player (" +
+                           "id INTEGER PRIMARY KEY, nick TEXT, " +
+                           "time_created INTEGER, UNIQUE(nick))");
+
+                // Purse table
+                s.execute( "CREATE TABLE IF NOT EXISTS Purse (" +
+                           "player_id INTEGER, cash INTEGER, " +
+                           "bank INTEGER, bankrupts INTEGER, " +
+                           "UNIQUE(player_id), " +
+                           "FOREIGN KEY(player_id) REFERENCES Player(id))");
+                
+                // Banking table
+                s.execute( "CREATE TABLE IF NOT EXISTS Banking (" +
+                           "id INTEGER PRIMARY KEY, player_id INTEGER, " + 
+                           "transaction_time INTEGER, cash_change INTEGER, " +
+                           "cash INTEGER, bank INTEGER, " +
+                           "FOREIGN KEY(player_id) REFERENCES Player(id))");
+                
+                // BJPlayerStat table
+                s.execute( "CREATE TABLE IF NOT EXISTS BJPlayerStat (" +
+                           "player_id INTEGER, rounds INTEGER, " +
+                           "winnings INTEGER, idles INTEGER, " +
+                           "UNIQUE(player_id), " +
+                           "FOREIGN KEY(player_id) REFERENCES Player(id))");
+                
+                // BJRound table
+                s.execute( "CREATE TABLE IF NOT EXISTS BJRound (" +
+                           "id INTEGER PRIMARY KEY, " +
+                           "start_time INTEGER, end_time INTEGER, " +
+                           "channel TEXT, shoe_size INTEGER, " +
+                           "num_cards_left INTEGER, " +
+                           "FOREIGN KEY(shoe_size) REFERENCES BJHouse(shoe_size))");
+                
+                // BJHand table
+                s.execute( "CREATE TABLE IF NOT EXISTS BJHand (" +
+                           "id INTEGER PRIMARY KEY, " +
+                           "round_id INTEGER, hand TEXT, " +
+                           "FOREIGN KEY(round_id) REFERENCES BJRound(id))");
+                
+                // BJPlayerHand table
+                s.execute( "CREATE TABLE IF NOT EXISTS BJPlayerHand (" +
+                           "player_id INTEGER, hand_id INTEGER, " +
+                           "bet INTEGER, split BOOLEAN, surrender BOOLEAN, " +
+                           "doubledown BOOLEAN, result INTEGER, " +
+                           "UNIQUE(player_id, hand_id), " +
+                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
+                           "FOREIGN KEY(hand_id) REFERENCES BJHand(id))");
+                
+                // BJPlayerInsurance table
+                s.execute( "CREATE TABLE IF NOT EXISTS BJPlayerInsurance (" +
+                           "player_id INTEGER, round_id INTEGER, " +
+                           "bet INTEGER, result BOOLEAN, " +
+                           "UNIQUE(player_id, round_id), " +
+                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
+                           "FOREIGN KEY(round_id) REFERENCES BJRound(id))");
+                
+                // BJPlayerChange table
+                s.execute( "CREATE TABLE IF NOT EXISTS BJPlayerChange (" +
+                           "player_id INTEGER, round_id INTEGER, " +
+                           "change INTEGER, cash INTEGER, " +
+                           "UNIQUE(player_id, round_id), " +
+                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
+                           "FOREIGN KEY(round_id) REFERENCES BJRound(id))");
+                
+                // BJPlayerIdle table
+                s.execute( "CREATE TABLE IF NOT EXISTS BJPlayerIdle (" +
+                           "player_id INTEGER, round_id INTEGER, " +
+                           "idle_limit INTEGER, idle_warning INTEGER, " +
+                           "UNIQUE(player_id, round_id), " +
+                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
+                           "FOREIGN KEY(round_id) REFERENCES BJRound(id))");
+                
+                // BJHouseStat table
+                s.execute( "CREATE TABLE IF NOT EXISTS BJHouse (" +
+                           "shoe_size INTEGER, rounds INTEGER, " +
+                           "winnings INTEGER, UNIQUE(shoe_size))");
+                
+                // TPPlayerStat table
+                s.execute( "CREATE TABLE IF NOT EXISTS TPPlayerStat (" +
+                           "player_id INTEGER, rounds INTEGER, " +
+                           "winnings INTEGER, idles INTEGER, " +
+                           "UNIQUE(player_id), " +
+                           "FOREIGN KEY(player_id) REFERENCES Player(id))");
+                
+                // TPRound table
+                s.execute( "CREATE TABLE IF NOT EXISTS TPRound (" +
+                           "id INTEGER PRIMARY KEY, start_time INTEGER, " +
+                           "end_time INTEGER, channel TEXT, community TEXT)");
+                
+                // TPPot table
+                s.execute( "CREATE TABLE IF NOT EXISTS TPPot (" +
+                           "pot_id INTEGER PRIMARY KEY, " +
+                           "round_id INTEGER, amount INTEGER, " +
+                           "FOREIGN KEY(round_id) REFERENCES TPRound(id))");
+                
+                // TPPlayerPot table
+                s.execute( "CREATE TABLE IF NOT EXISTS TPPlayerPot (" +
+                           "player_id INTEGER, pot_id INTEGER, " +
+                           "contribution INTEGER, result BOOLEAN, " +
+                           "UNIQUE(player_id, pot_ID), " + 
+                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
+                           "FOREIGN KEY(pot_id) REFERENCES TPPot(id))");
+                
+                // TPPlayerChange table
+                s.execute( "CREATE TABLE IF NOT EXISTS TPPlayerChange (" +
+                           "player_id INTEGER, round_id INTEGER, " +
+                           "change INTEGER, cash INTEGER, " + 
+                           "UNIQUE(player_id, round_id), " +
+                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
+                           "FOREIGN KEY(round_id) REFERENCES TPRound(id))");
+                
+                // TPHand table
+                s.execute( "CREATE TABLE IF NOT EXISTS TPHand (" +
+                           "id INTEGER PRIMARY KEY, " + 
+                           "round_id INTEGER, hand TEXT, " +
+                           "FOREIGN KEY(round_id) REFERENCES TPRound(id))");
+                
+                // TPPlayerHand table
+                s.execute( "CREATE TABLE IF NOT EXISTS TPPlayerHand (" +
+                           "player_id INTEGER, hand_id INTEGER, " +
+                           "fold BOOLEAN, allin BOOLEAN, " +
+                           "UNIQUE(player_id, hand_id), " +
+                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
+                           "FOREIGN KEY(hand_id) REFERENCES TPHand(id))");
+                
+                // TPPlayerIdle table
+                s.execute( "CREATE TABLE IF NOT EXISTS TPPlayerIdle (" +
+                           "player_id INTEGER, round_id INTEGER, " +
+                           "idle_limit INTEGER, idle_warning INTEGER, " +
+                           "UNIQUE(player_id, round_id), " +
+                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
+                           "FOREIGN KEY(round_id) REFERENCES TPRound(id))");
+                
+                // TTPlayerStat table
+                s.execute( "CREATE TABLE IF NOT EXISTS TTPlayerStat (" +
+                           "player_id INTEGER, tourneys INTEGER, " +
+                           "points INTEGER, idles INTEGER, " +
+                           "UNIQUE(player_id), " +
+                           "FOREIGN KEY(player_id) REFERENCES Player(id))");
+                
+                // TTTourney table
+                s.execute( "CREATE TABLE IF NOT EXISTS TTTourney (" +
+                           "id INTEGER PRIMARY KEY, start_time INTEGER, " +
+                           "end_time INTEGER, channel TEXT, rounds INTEGER)");
+                
+                // TTPlayerTourney table
+                s.execute( "CREATE TABLE IF NOT EXISTS TTPlayerTourney (" +
+                           "player_id INTEGER, tourney_id INTEGER, " +
+                           "result BOOLEAN, UNIQUE(player_id, tourney_id), " +
+                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
+                           "FOREIGN KEY(tourney_id) REFERENCES TTTourney(id))");
+                
+                // TTPlayerIdle table
+                s.execute( "CREATE TABLE IF NOT EXISTS TTPlayerIdle (" +
+                           "player_id INTEGER, tourney_id INTEGER, " +
+                           "idle_limit INTEGER, idle_warning INTEGER, " +
+                           "UNIQUE(player_id, tourney_id), " +
+                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
+                           "FOREIGN KEY(tourney_id) REFERENCES TTTourney(id))");
+                
+                conn.commit();
+            }
+            
+            logDBWarning(conn.getWarnings());
+        } catch (SQLException ex) {
+            manager.log("SQL Error: " + ex.getMessage());
+        }
     }
     
     /**
@@ -1118,8 +1514,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * Loads the settings from the INI file.
      */
     protected void loadIni() {
-        try {
-            BufferedReader in = new BufferedReader(new FileReader(iniFile));
+        try (BufferedReader in = new BufferedReader(new FileReader(iniFile))) {
             String str;
             StringTokenizer st;
             while (in.ready()) {
@@ -1129,7 +1524,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     set(st.nextToken(), Integer.parseInt(st.nextToken()));
                 }
             }
-            in.close();
         } catch (IOException e) {
             /* load defaults if INI file is not found */
             manager.log(iniFile + " not found! Creating new " + iniFile + "...");
@@ -1142,8 +1536,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param file file path
      */
     protected final void loadStrLib(String file) {
-        try {
-            BufferedReader in = new BufferedReader(new FileReader(file));
+        try (BufferedReader in = new BufferedReader(new FileReader(file))) {
             StringTokenizer st;
             String str;
             while (in.ready()){
@@ -1155,7 +1548,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     msgMap.put(st.nextToken(), st.nextToken());
                 }
             }
-            in.close();
         } catch (IOException e) {
             manager.log("Error reading from " + file + "!");
         }
@@ -1166,8 +1558,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param file file path
      */
     protected final void loadHelp(String file) {
-        try {
-            BufferedReader in = new BufferedReader(new FileReader(file));
+        try (BufferedReader in = new BufferedReader(new FileReader(file))) {
             String[] st, st2;
             String str, cmd, params, alias, def, line;
             while (in.ready()){
@@ -1216,7 +1607,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     }
                 }
             }
-            in.close();
         } catch (IOException e) {
             manager.log("Error reading from " + file + "!");
         }
@@ -1252,10 +1642,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     protected void setRespawnTask(Player p) {
         // Calculate extra time penalty for players with debt
-        int penalty = Math.max(-1 * p.get("bank") / 1000 * 60, 0);
-        informPlayer(p.getNick(), getMsg("bankrupt_info"), (get("respawn") + penalty)/60.);
+        int penalty = get("respawn") + Math.max(-1 * p.getInteger("bank")/1000 * 60, 0);
+        informPlayer(p.getNick(), getMsg("bankrupt_info"), penalty/60, penalty%60);
+        p.put("respawn", System.currentTimeMillis()/1000 + penalty);
+        
+        // TimerTasks are scheduled in milliseconds
         RespawnTask task = new RespawnTask(p, this);
-        gameTimer.schedule(task, (get("respawn")+penalty)*1000);
+        gameTimer.schedule(task, penalty*1000);
         respawnTasks.add(task);
     }
     
@@ -1270,9 +1663,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         gameTimer.purge();
         // Fast-track loans
         for (Player p : blacklist) {
-            p.set("cash", get("cash"));
+            p.put("cash", get("cash"));
             p.add("bank", -get("cash"));
-            savePlayerData(p);
+            p.put("transaction", get("cash"));
+            saveDBPlayerData(p);
+            saveDBPlayerBanking(p);
         }
     }
     
@@ -1352,7 +1747,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected void addPlayer(Player p){
         User user = findUser(p.getNick());
         joined.add(p);
-        loadPlayerData(p);
+        loadDBPlayerData(p);
         if (user != null){
             manager.voice(channel, user);
         }
@@ -1402,7 +1797,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected void removeJoined(Player p){
         User user = findUser(p.getNick());
         joined.remove(p);
-        savePlayerData(p);
+        saveDBPlayerData(p);
         if (user != null){
             manager.deVoice(channel, user);
         }
@@ -1523,17 +1918,17 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         if (amount == 0){
             informPlayer(nick, getMsg("no_transaction"));
         // Disallow withdrawals for bankrolls with insufficient funds
-        } else if (amount < 0 && p.get("bank") < -amount){
+        } else if (amount < 0 && p.getInteger("bank") < -amount){
             informPlayer(nick, getMsg("no_withdrawal"));
         // Disallow deposits of amounts larger than cash
-        } else if (amount > 0 && amount > p.get("cash")){
+        } else if (amount > 0 && amount > p.getInteger("cash")){
             informPlayer(nick, getMsg("no_deposit_cash"));
         // Disallow deposits that leave the player with $0 cash
-        } else if (amount > 0 && amount == p.get("cash")){
+        } else if (amount > 0 && amount == p.getInteger("cash")){
             informPlayer(nick, getMsg("no_deposit_bankrupt"));
         } else {
             p.bankTransfer(amount);
-            savePlayerData(p);
+            saveDBPlayerBanking(p);
             if (amount > 0){
                 showMsg(getMsg("deposit"), p.getNickStr(), amount, p.get("cash"), p.get("bank"));
             } else {
@@ -1541,7 +1936,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             }
         }
     }
-    
+
     /**
      * Devoices all players joined in a game and saves their data.
      * This method only needs to be called when a game is shutdown.
@@ -1551,7 +1946,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         String nickStr = "";
         int count = 0;
         for (Player p : joined) {
-            savePlayerData(p);
+            saveDBPlayerData(p);
             modeSet += "v";
             nickStr += " " + p.getNick();
             count++;
@@ -1572,181 +1967,39 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     /////////////////////////////////////////
     
     /**
-     * Returns the total number of players who have played this game.
-     * Counts the number of players who have played more than one round of this
-     * game.
-     * 
-     * @return the total counted from players.txt
-     */
-    abstract protected int getTotalPlayers();
-    
-    /**
-     * Returns the specified statistic for a nick.
-     * If a player is already joined or blacklisted, the value is read from the
-     * Player object. Otherwise, a search is done in players.txt.
-     * 
-     * @param nick IRC user's nick
-     * @param stat the statistic's name
-     * @return the desired statistic
-     */
-    protected int getPlayerStat(String nick, String stat){
-        if (isBlacklisted(nick)) {
-            return findBlacklisted(nick).get(stat);
-        } else if (isJoined(nick)) {
-            return findJoined(nick).get(stat);
-        } else {
-            PlayerRecord record = loadPlayerRecord(nick);
-            if (record == null) {
-                return Integer.MIN_VALUE;
-            } else {
-                return record.get(stat);
-            }
-        }
-    }
-    
-    /**
-     * Returns the player record for the specified nick from players.txt.
-     * @param nick
-     * @return 
-     */
-    protected PlayerRecord loadPlayerRecord(String nick) {
-        try {
-            ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
-            loadPlayerFile(records);
-            for (PlayerRecord record : records) {
-                if (nick.equalsIgnoreCase(record.getNick())){
-                    return record;
-                }
-            }
-            return null;
-        } catch (IOException e){
-            manager.log("Error reading players.txt!");
-            return null;
-        }
-    }
-    
-    /**
-     * Loads a Player's data from players.txt.
-     * If a matching nick is found then all statistics are loaded. Otherwise,
-     * the player is loaded with default values.
-     * 
-     * @param p the Player to find
-     */
-    protected void loadPlayerData(Player p) {
-        PlayerRecord record = loadPlayerRecord(p.getNick());
-        if (record == null) {
-            p.set("cash", get("cash"));
-            informPlayer(p.getNick(), getMsg("new_player"), getGameNameStr(), get("cash"));
-        } else {
-            if (record.get("cash") <= 0) {
-                p.set("cash", get("cash"));
-            } else {
-                p.set("cash", record.get("cash"));
-            }
-            p.set("bank", record.get("bank"));
-            p.set("bankrupts", record.get("bankrupts"));
-            p.set("bjwinnings", record.get("bjwinnings"));
-            p.set("bjrounds", record.get("bjrounds"));
-            p.set("tpwinnings", record.get("tpwinnings"));
-            p.set("tprounds", record.get("tprounds"));
-            p.set("ttwins", record.get("ttwins"));
-            p.set("ttplayed", record.get("ttplayed"));
-        }
-    }
-    
-    /**
-     * Saves a Player's data into players.txt.
-     * If a matching nick is found, the existing data is overwritten. Otherwise,
-     * a new line is added for the Player.
-     * 
-     * @param p the Player to save
-     */
-    protected void savePlayerData(Player p){
-        boolean found = false;
-        ArrayList<PlayerRecord> records = new ArrayList<PlayerRecord>();
-        
-        try {
-            loadPlayerFile(records);
-            for (PlayerRecord record : records) {
-                if (p.getNick().equalsIgnoreCase(record.getNick())) {
-                    record.set("cash", p.get("cash"));
-                    record.set("bank", p.get("bank"));
-                    record.set("bankrupts", p.get("bankrupts"));
-                    record.set("bjwinnings", p.get("bjwinnings"));
-                    record.set("bjrounds", p.get("bjrounds"));
-                    record.set("tpwinnings", p.get("tpwinnings"));
-                    record.set("tprounds", p.get("tprounds"));
-                    record.set("ttwins", p.get("ttwins"));
-                    record.set("ttplayed", p.get("ttplayed"));
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                records.add(new PlayerRecord(p.getNick(), p.get("cash"),
-                                        p.get("bank"), p.get("bankrupts"),
-                                        p.get("bjwinnings"), p.get("bjrounds"),
-                                        p.get("tpwinnings"), p.get("tprounds"),
-                                        p.get("ttwins"), p.get("ttplayed")));
-            }
-        } catch (IOException e) {
-            manager.log("Error reading players.txt!");
-        }
-
-        try {
-            savePlayerFile(records);
-        } catch (IOException e) {
-            manager.log("Error writing to players.txt!");
-        }
-    }
-    
-    /**
-     * Checks if players.txt exists and creates it if it doesn't exist.
-     */
-    protected final void checkPlayerFile(){
-        try {
-            BufferedReader out = new BufferedReader(new FileReader("players.txt"));
-            out.close();
-        } catch (IOException e){
-            manager.log("players.txt not found! Creating new players.txt...");
-            try {
-                PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("players.txt")));
-                out.close();
-            } catch (IOException f){
-                manager.log("Error creating players.txt.");
-            }
-        }
-    }
-    
-    /**
      * Loads players.txt.
      * Reads the file's contents into an ArrayList of PlayerRecord.
      * 
-     * @param records stores the records read from file
-     * @throws IOException
+     * @return 
      */
-    protected void loadPlayerFile(ArrayList<PlayerRecord> records) throws IOException {
+    protected ArrayList<Player> loadPlayerFile() {
         String nick;
         int cash, bank, bankrupts, bjwinnings, bjrounds, tpwinnings, tprounds, ttwins, ttplayed;
-        
-        BufferedReader in = new BufferedReader(new FileReader("players.txt"));
-        StringTokenizer st;
-        while (in.ready()){
-            st = new StringTokenizer(in.readLine());
-            nick = st.nextToken();
-            cash = Integer.parseInt(st.nextToken());
-            bank = Integer.parseInt(st.nextToken());
-            bankrupts = Integer.parseInt(st.nextToken());
-            bjwinnings = Integer.parseInt(st.nextToken());
-            bjrounds = Integer.parseInt(st.nextToken());
-            tpwinnings = Integer.parseInt(st.nextToken());
-            tprounds = Integer.parseInt(st.nextToken());
-            ttwins = Integer.parseInt(st.nextToken());
-            ttplayed = Integer.parseInt(st.nextToken());
-            records.add(new PlayerRecord(nick, cash, bank, bankrupts, bjwinnings, 
-                                        bjrounds, tpwinnings, tprounds, ttwins, ttplayed));
+        try (BufferedReader in = new BufferedReader(new FileReader("players.txt"))) {
+            ArrayList<Player> records = new ArrayList<>();
+            Player record;
+            StringTokenizer st;
+            
+            while (in.ready()){
+                st = new StringTokenizer(in.readLine());
+                record = new Player("");
+                record.put("nick", st.nextToken());
+                record.put("cash", Integer.valueOf(st.nextToken()));
+                record.put("bank", Integer.valueOf(st.nextToken()));
+                record.put("bankrupts", Integer.valueOf(st.nextToken()));
+                record.put("bjwinnings", Integer.valueOf(st.nextToken()));
+                record.put("bjrounds", Integer.valueOf(st.nextToken()));
+                record.put("tpwinnings", Integer.valueOf(st.nextToken()));
+                record.put("tprounds", Integer.valueOf(st.nextToken()));
+                record.put("ttwins", Integer.valueOf(st.nextToken()));
+                record.put("ttplayed", Integer.valueOf(st.nextToken()));
+                records.add(record);
+            }
+            return records;
+        } catch (IOException e) {
+            manager.log("Error reading players.txt!");
+            return null;
         }
-        in.close();
     }
     
     /**
@@ -1754,15 +2007,81 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * Saves an ArrayList of StatFileLine to the file.
      * 
      * @param records
-     * @throws IOException
      */
-    protected void savePlayerFile(ArrayList<PlayerRecord> records) throws IOException {
-        PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("players.txt")));
-        
-        for (PlayerRecord record : records) {
-            out.println(record);
+    protected void savePlayerFile(ArrayList<Player> records) {
+        try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("players.txt")))) {
+            for (Player record : records) {
+                out.println(record);
+            }
+        } catch (IOException e) {
+            manager.log("Error writing to players.txt!");
         }
-        out.close();
+    }
+    
+    /**
+     * Uses the GameManager interface to log DB warnings.
+     * @param warning 
+     */
+    protected void logDBWarning(SQLWarning warning) {
+        while (warning != null) {
+            manager.log("Message: " + warning.getMessage());
+            manager.log("SQLState: " + warning.getSQLState());
+            manager.log("Vendor error code: " + warning.getErrorCode());
+            warning = warning.getNextWarning();
+        }
+    }
+    
+    /**
+     * Returns the player record for the specified nick for the game.
+     * @param nick
+     * @return 
+     */
+    abstract protected Player loadDBPlayerRecord(String nick);
+    
+    /**
+     * Loads a player's stats from the database.
+     * @param p
+     */
+    abstract protected void loadDBPlayerData(Player p);
+    
+    /**
+     * Saves a list of players in one transaction.
+     * @param players 
+     */
+    abstract protected void saveDBPlayerDataBatch(ArrayList<Player> players);
+    
+    /**
+     * Saves a player's stats to the database.
+     * @param p
+     */
+    protected void saveDBPlayerData(Player p) {
+        ArrayList<Player> list = new ArrayList<>(1);
+        list.add(p);
+        saveDBPlayerDataBatch(list);
+    }
+    
+    /**
+     * Records a banking transaction into the database.
+     * @param p 
+     */
+    protected void saveDBPlayerBanking(Player p) {
+        try (Connection conn = DriverManager.getConnection(dbURL)) {
+            // Insert banking transaction into Banking table
+            String sql = "INSERT INTO Banking (player_id, transaction_time, " +
+                         "cash_change, cash, bank) VALUES (?, ?, ?, ?, ?)";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, p.getInteger("id"));
+                ps.setLong(2, System.currentTimeMillis() / 1000);
+                ps.setInt(3, p.getInteger("transaction"));
+                ps.setInt(4, p.getInteger("cash"));
+                ps.setInt(5, p.getInteger("bank"));
+                ps.executeUpdate();
+            }
+            
+            logDBWarning(conn.getWarnings());
+        } catch (SQLException ex) {
+            manager.log("SQL Error: " + ex.getMessage());
+        }
     }
     
     ////////////////////////////////////////
@@ -1770,14 +2089,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     ////////////////////////////////////////
     
     /**
-     * Loads the stats for the game from a file.
+     * saves game stats to the database.
      */
-    abstract protected void loadGameStats();
-    
-    /**
-     * Saves the stats for the game to a file.
-     */
-    abstract protected void saveGameStats();
+    abstract protected void saveDBGameStats();
     
     /**
      * Saves a list of hosts to the specified file.
@@ -1785,12 +2099,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param hostList ArrayList of hosts
      */
     protected final void saveHostList(String file, ArrayList<String> hostList){
-        try {
-            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(file)));
+        try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(file)))) {
             for (String host : hostList){
                 out.println(host);
             }
-            out.close();
         } catch (IOException e){
             manager.log("Error writing to " + file + "!");
         }      
@@ -1802,12 +2114,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param hostList
      */
     protected final void loadHostList(String file, ArrayList<String> hostList){
-        try {
-            BufferedReader in = new BufferedReader(new FileReader(file));
+        try (BufferedReader in = new BufferedReader(new FileReader(file))) {
             while (in.ready()) {
                 hostList.add(in.readLine());
             }
-            in.close();
         } catch (IOException e){
             manager.log("Creating " + file + "...");
             saveHostList(file, hostList);
@@ -1836,34 +2146,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     ////////////////////////////////
     //// Message output methods ////
     ////////////////////////////////
-        
-    /**
-     * Outputs a player's winnings for the game to the game channel.
-     * @param nick the player's nick
-     */
-    abstract protected void showPlayerWinnings(String nick);
-    
-    /**
-     * Outputs a player's win rate for the game to the game channel.
-     * @param nick the player's nick
-     */
-    abstract protected void showPlayerWinRate(String nick);
-    
-    /**
-     * Outputs the number of rounds of the game a player has played to
-     * the game channel.
-     * @param nick the player's nick
-     */
-    abstract protected void showPlayerRounds(String nick); 
-    
-    /**
-     * Outputs all of a player's stats relevant to this game.
-     * Sends the list of statistics separated by '|' character to the game
-     * channel.
-     * 
-     * @param nick the player's nick
-     */
-    abstract protected void showPlayerAllStats(String nick);
     
     /**
      * Outputs a player's rank for the given stat to the game channel.
@@ -1871,7 +2153,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param nick the player's nick
      * @param stat the stat name
      */
-    abstract protected void showPlayerRank(String nick, String stat);
+    abstract protected void showPlayerRank(String nick, String stat) throws IllegalArgumentException;
     
     /**
      * Outputs the top N players for a given statistic.
@@ -1880,7 +2162,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param stat the statistic used for ranking
      * @param n the length of the list up to n players
      */
-    abstract protected void showTopPlayers(String stat, int n);
+    abstract protected void showTopPlayers(String stat, int n) throws IllegalArgumentException;
     
     /**
      * Sends a message to the game channel.
@@ -1907,19 +2189,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param nick the player's nick
      */
     protected void showPlayerCash(String nick){
-        if (isBlacklisted(nick)) {
-            Player p = findBlacklisted(nick);
-            showMsg(getMsg("player_cash"), p.getNick(false), p.get("cash"));
-        } else if (isJoined(nick)) {
-            Player p = findJoined(nick);
-            showMsg(getMsg("player_cash"), p.getNick(false), p.get("cash"));
+        Player record = loadDBPlayerRecord(nick);
+        if (record == null) {
+            showMsg(getMsg("no_data"), formatNoPing(nick));
         } else {
-            PlayerRecord record = loadPlayerRecord(nick);
-            if (record == null) {
-                showMsg(getMsg("no_data"), formatNoPing(nick));
-            } else {
-                showMsg(getMsg("player_cash"), record.getNick(false), record.get("cash"));
-            }
+            showMsg(getMsg("player_cash"), record.getNick(false), record.get("cash"));
         }
     }
     
@@ -1928,19 +2202,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param nick the player's nick
      */
     protected void showPlayerNetCash(String nick){
-        if (isBlacklisted(nick)) {
-            Player p = findBlacklisted(nick);
-            showMsg(getMsg("player_net"), p.getNick(false), p.get("netcash"));
-        } else if (isJoined(nick)) {
-            Player p = findJoined(nick);
-            showMsg(getMsg("player_net"), p.getNick(false), p.get("netcash"));
+        Player record = loadDBPlayerRecord(nick);
+        if (record == null) {
+            showMsg(getMsg("no_data"), formatNoPing(nick));
         } else {
-            PlayerRecord record = loadPlayerRecord(nick);
-            if (record == null) {
-                showMsg(getMsg("no_data"), formatNoPing(nick));
-            } else {
-                showMsg(getMsg("player_net"), record.getNick(false), record.get("netcash"));
-            }
+            showMsg(getMsg("player_net"), record.getNick(false), record.get("netcash"));
         }
     }
     
@@ -1949,19 +2215,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param nick the player's nick
      */
     protected void showPlayerBank(String nick){
-        if (isBlacklisted(nick)) {
-            Player p = findBlacklisted(nick);
-            showMsg(getMsg("player_bank"), p.getNick(false), p.get("bank"));
-        } else if (isJoined(nick)) {
-            Player p = findJoined(nick);
-            showMsg(getMsg("player_bank"), p.getNick(false), p.get("bank"));
+        Player record = loadDBPlayerRecord(nick);
+        if (record == null) {
+            showMsg(getMsg("no_data"), formatNoPing(nick));
         } else {
-            PlayerRecord record = loadPlayerRecord(nick);
-            if (record == null) {
-                showMsg(getMsg("no_data"), formatNoPing(nick));
-            } else {
-                showMsg(getMsg("player_bank"), record.getNick(false), record.get("bank"));
-            }
+            showMsg(getMsg("player_bank"), record.getNick(false), record.get("bank"));
         }
     }
     
@@ -1971,19 +2229,71 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param nick the player's nick
      */
     protected void showPlayerBankrupts(String nick){
-        if (isBlacklisted(nick)) {
-            Player p = findBlacklisted(nick);
-            showMsg(getMsg("player_bankrupts"), p.getNick(false), p.get("bankrupts"));
-        } else if (isJoined(nick)) {
-            Player p = findJoined(nick);
-            showMsg(getMsg("player_bankrupts"), p.getNick(false), p.get("bankrupts"));
+        Player record = loadDBPlayerRecord(nick);
+        if (record == null) {
+            showMsg(getMsg("no_data"), formatNoPing(nick));
         } else {
-            PlayerRecord record = loadPlayerRecord(nick);
-            if (record == null) {
-                showMsg(getMsg("no_data"), formatNoPing(nick));
-            } else {
-                showMsg(getMsg("player_bankrupts"), record.getNick(false), record.get("bankrupts"));
-            }
+            showMsg(getMsg("player_bankrupts"), record.getNick(false), record.get("bankrupts"));
+        }
+    }
+    
+    /**
+     * Outputs a player's winnings for the game to the game channel.
+     * @param nick the player's nick
+     */
+    public void showPlayerWinnings(String nick){
+        Player record = loadDBPlayerRecord(nick);
+        if (record == null) {
+            showMsg(getMsg("no_data"), formatNoPing(nick));
+        } else {
+            showMsg(getMsg("player_winnings"), record.getNick(false), record.get("winnings"), getGameNameStr());
+        }
+    }
+    
+    /**
+     * Outputs a player's win rate for the game to the game channel.
+     * @param nick the player's nick
+     */
+    public void showPlayerWinRate(String nick){
+        Player record = loadDBPlayerRecord(nick);
+        if (record == null) {
+            showMsg(getMsg("no_data"), formatNoPing(nick));
+        } else if (record.getInteger("rounds") == 0){
+            showMsg(getMsg("player_no_rounds"), record.getNick(false), getGameNameStr());
+        } else {
+            showMsg(getMsg("player_winrate"), record.getNick(false), record.get("winrate"), getGameNameStr());
+        }
+    }
+    
+    /**
+     * Outputs the number of rounds of the game a player has played to
+     * the game channel.
+     * @param nick the player's nick
+     */
+    public void showPlayerRounds(String nick){
+        Player record = loadDBPlayerRecord(nick);
+        if (record == null) {
+            showMsg(getMsg("no_data"), formatNoPing(nick));
+        } else if (record.getInteger("rounds") == 0) {
+            showMsg(getMsg("player_no_rounds"), record.getNick(false), getGameNameStr());
+        } else {
+            showMsg(getMsg("player_rounds"), record.getNick(false), record.get("rounds"), getGameNameStr());
+        }
+    }
+    
+    /**
+     * Outputs all of a player's stats relevant to this game.
+     * Sends the list of statistics separated by '|' character to the game
+     * channel.
+     * 
+     * @param nick the player's nick
+     */
+    public void showPlayerAllStats(String nick){
+        Player record = loadDBPlayerRecord(nick);
+        if (record == null) {
+            showMsg(getMsg("no_data"), formatNoPing(nick));
+        } else {
+            showMsg(getMsg("player_all_stats"), record.getNick(false), record.get("cash"), record.get("bank"), record.get("netcash"), record.get("bankrupts"), record.get("winnings"), record.get("rounds"));
         }
     }
     
@@ -2015,7 +2325,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param type undealt cards or discards
      * @param num the number of cards to reveal
      */
-    protected void infoDeckCards(String nick, char type, int num){
+    protected void infoDeckCards(String nick, char type, int num) throws IllegalArgumentException{
         if (num < 1){
             throw new IllegalArgumentException();
         }

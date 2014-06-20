@@ -54,8 +54,8 @@ public class CardDeck {
      */
     public CardDeck(int n){
         numDecks = n;
-        cards = new ArrayList<Card>();
-        discards = new ArrayList<Card>();
+        cards = new ArrayList<>();
+        discards = new ArrayList<>();
         makeCards();
         randGen = new Random();
     }
@@ -183,7 +183,7 @@ public class CardDeck {
      * order they are drawn. 
      */
     public void shuffleCards(){
-        ArrayList<Card> tCards = new ArrayList<Card>(cards);
+        ArrayList<Card> tCards = new ArrayList<>(cards);
         int index;
         cards.clear();
         while(!tCards.isEmpty()){
