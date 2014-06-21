@@ -971,12 +971,13 @@ public class TexasTourney extends TexasPoker {
                 burnCard();
                 dealCommunity();
                 betState = betState.next();
+                
+                // Show final community if required
+                if (settings.get("revealcommunity") == 1 && betState.equals(PokerBet.RIVER)){
+                    showCommunityCards(true);
+                }
             }
-            
-            // Show final community if required
-            if (settings.get("revealcommunity") == 1 && betState.equals(PokerBet.RIVER)){
-                showCommunityCards(true);
-            }
+
             endRound();
         } else if (nextPlayer == topBettor || nextPlayer == currentPlayer || 
                    (betState == PokerBet.PRE_FLOP && getNumberCanBet() == 0)) {
@@ -1799,7 +1800,7 @@ public class TexasTourney extends TexasPoker {
                   "ORDER BY points DESC " +
                   "LIMIT ? OFFSET ?";
             statName = "points";
-            title += " Texas Hold'em Tournament Wins (min. 1 tournament)";
+            title += " Texas Hold'em Tournament Wins (min. 1 tournament) ";
         } else if (stat.equalsIgnoreCase("tourneys")) {
             sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 0), ?)-10) AS top_offset";
             sql = "SELECT nick, tourneys " +
@@ -1808,7 +1809,7 @@ public class TexasTourney extends TexasPoker {
                   "ORDER BY tourneys DESC " +
                   "LIMIT ? OFFSET ?";
             statName = "tourneys";
-            title += " Texas Hold'em Tournaments Played (min. 1 tournament)";
+            title += " Texas Hold'em Tournaments Played (min. 1 tournament) ";
         } else if (stat.equalsIgnoreCase("winrate")) {
             sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 5), ?)-10) AS top_offset";
             sql = "SELECT nick, points*100.0/tourneys AS winrate " +
