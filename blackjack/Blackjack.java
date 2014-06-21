@@ -2574,7 +2574,7 @@ public class Blackjack extends CardGame {
                   "ORDER BY winnings DESC " +
                   "LIMIT ? OFFSET ?";
             statName = "winnings";
-            title += " Blackjack Winnings (min. 1 round)";
+            title += " Blackjack Winnings (min. 1 round) ";
         } else if (stat.equalsIgnoreCase("rounds")) {
             sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 0), ?)-10) AS top_offset";
             sql = "SELECT nick, rounds " +
@@ -2583,7 +2583,7 @@ public class Blackjack extends CardGame {
                   "ORDER BY rounds DESC " +
                   "LIMIT ? OFFSET ?";
             statName = "rounds";
-            title += " Blackjack Rounds (min. 1 round)";
+            title += " Blackjack Rounds (min. 1 round) ";
         } else if (stat.equalsIgnoreCase("winrate")) {
             sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 50), ?)-10) AS top_offset";
             sql = "SELECT nick, winnings*1.0/rounds AS winrate " +

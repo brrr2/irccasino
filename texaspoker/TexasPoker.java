@@ -944,12 +944,13 @@ public class TexasPoker extends CardGame{
                 burnCard();
                 dealCommunity();
                 betState = betState.next();
+                
+                // Show final community if required
+                if (settings.get("revealcommunity") == 1 && betState.equals(PokerBet.RIVER)){
+                    showCommunityCards(true);
+                }
             }
-            
-            // Show final community if required
-            if (settings.get("revealcommunity") == 1){
-                showCommunityCards(true);
-            }
+
             endRound();
         } else if (nextPlayer == topBettor || nextPlayer == currentPlayer || 
                    (betState == PokerBet.PRE_FLOP && getNumberCanBet() == 0)) {
@@ -2262,7 +2263,7 @@ public class TexasPoker extends CardGame{
                   "ORDER BY winnings DESC " +
                   "LIMIT ? OFFSET ?";
             statName = "winnings";
-            title += " Texas Hold'em Winnings (min. 1 round)";
+            title += " Texas Hold'em Winnings (min. 1 round) ";
         } else if (stat.equalsIgnoreCase("rounds")) {
             sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM TPPlayerStat WHERE rounds > 0), ?)-10) AS top_offset";
             sql = "SELECT nick, rounds " +
@@ -2271,7 +2272,7 @@ public class TexasPoker extends CardGame{
                   "ORDER BY rounds DESC " +
                   "LIMIT ? OFFSET ?";
             statName = "rounds";
-            title += " Texas Hold'em Rounds (min. 1 round)";
+            title += " Texas Hold'em Rounds (min. 1 round) ";
         } else if (stat.equalsIgnoreCase("winrate")) {
             sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM TPPlayerStat WHERE rounds > 50), ?)-10) AS top_offset";
             sql = "SELECT nick, winnings*1.0/rounds AS winrate " +

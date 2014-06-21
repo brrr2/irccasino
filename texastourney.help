@@ -1,7 +1,7 @@
 ##### Player commands #####
 start||go|Starts a new round of Texas Hold'em Poker if there are sufficient players. An optional parameter can be added to specify the number of auto-starts.
 stop||cancel|Requests that the current tournament to be canceled. If requested by all players still in the tournament, then the tournament is canceled.
-join|||Joins the game. If a round is in progress, you will be added to a waiting list and automatically added to the next round.
+join||j|Joins the game. If a round is in progress, you will be added to a waiting list and automatically added to the next round.
 quit||q,leave,l|Leaves the current game if joined, or the waiting list if on the waiting list.
 bet|value|b|Commits the specified amount to the pot.
 raise|value|r|Raises the current bet by the specified amount.
