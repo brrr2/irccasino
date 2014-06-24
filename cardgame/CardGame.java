@@ -77,10 +77,12 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected String iniFile;
     protected String helpFile;
     protected String strFile;
+    protected String sqlFile;
     protected String dbURL;
     protected HashMap<String,String> cmdMap;
     protected HashMap<String,String> opCmdMap;
     protected HashMap<String,String> aliasMap;
+    protected HashMap<String,String> sqlMap;
     protected HashMap<String,String> msgMap;
     protected ArrayList<String> awayList;
     protected ArrayList<String> notSimpleList;
@@ -683,7 +685,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param params 
      */
     protected void gversion(String nick, String[] params) {
-        showMsg("irccasino version: "+ getMsg("version"));
+        showMsg("irccasino version: " + getMsg("version"));
     }
     
     /**
@@ -1273,11 +1275,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         cmdMap = new HashMap<>();
         opCmdMap = new HashMap<>();
         aliasMap = new HashMap<>();
+        sqlMap = new HashMap<>();
         msgMap = new HashMap<>();
         awayList = new ArrayList<>();
         notSimpleList = new ArrayList<>();
         respawnTasks = new ArrayList<>();
         strFile = "strlib.txt";
+        sqlFile = "sqllib.txt";
         dbURL = "jdbc:sqlite:stats.sqlite3";
         
         // Load SQLite JDBC driver
@@ -1285,7 +1289,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             Class.forName("org.sqlite.JDBC");
         } catch (ClassNotFoundException ex) {}
         
-        loadStrLib(strFile);
+        loadStrLib();
+        loadSQLLib();
         loadHostList("away.txt", awayList);
         loadHostList("simple.txt", notSimpleList);
         initDB();
@@ -1520,12 +1525,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     protected void loadIni() {
         try (BufferedReader in = new BufferedReader(new FileReader(iniFile))) {
-            String str;
-            StringTokenizer st;
             while (in.ready()) {
-                str = in.readLine();
+                String str = in.readLine();
                 if (!str.startsWith("#") && str.contains("=")) {
-                    st = new StringTokenizer(str, "=");
+                    StringTokenizer st = new StringTokenizer(str, "=");
                     set(st.nextToken(), Integer.parseInt(st.nextToken()));
                 }
             }
@@ -1538,32 +1541,45 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     
     /**
      * Loads data from strlib file.
-     * @param file file path
      */
-    protected final void loadStrLib(String file) {
-        try (BufferedReader in = new BufferedReader(new FileReader(file))) {
-            StringTokenizer st;
-            String str;
+    protected final void loadStrLib() {
+        try (BufferedReader in = new BufferedReader(new FileReader(strFile))) {
             while (in.ready()){
                 // Replace all unicode
-                str = in.readLine().replaceAll("u0002", Colors.BOLD);
+                String str = in.readLine().replaceAll("u0002", Colors.BOLD);
                 // Skips all lines that begin with #
                 if (!str.startsWith("#") && str.contains("=")) {
-                    st = new StringTokenizer(str, "=");
+                    StringTokenizer st = new StringTokenizer(str, "=");
                     msgMap.put(st.nextToken(), st.nextToken());
                 }
             }
         } catch (IOException e) {
-            manager.log("Error reading from " + file + "!");
+            manager.log("Error reading from " + strFile + "!");
+        }
+    }
+    
+    /**
+     * Loads data from sqllib file.
+     */
+    protected final void loadSQLLib() {
+        try (BufferedReader in = new BufferedReader(new FileReader(sqlFile))) {
+            while (in.ready()){
+                String str = in.readLine();
+                if (!str.startsWith("#") && str.contains("=")) {
+                    StringTokenizer st = new StringTokenizer(str, "=");
+                    sqlMap.put(st.nextToken(), st.nextToken());
+                }
+            }
+        } catch (IOException e) {
+            manager.log("Error reading from " + sqlFile + "!");
         }
     }
     
     /**
      * Loads data from help file.
-     * @param file file path
      */
-    protected final void loadHelp(String file) {
-        try (BufferedReader in = new BufferedReader(new FileReader(file))) {
+    protected final void loadHelp() {
+        try (BufferedReader in = new BufferedReader(new FileReader(helpFile))) {
             String[] st, st2;
             String str, cmd, params, alias, def, line;
             while (in.ready()){
@@ -1613,7 +1629,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 }
             }
         } catch (IOException e) {
-            manager.log("Error reading from " + file + "!");
+            manager.log("Error reading from " + helpFile + "!");
         }
     }
     
@@ -2498,6 +2514,19 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             return msgMap.get(msgKey);
         } else {
             return "Error: Message for \'" + msgKey + "\' not found!";
+        }
+    }
+
+    /**
+     * Returns the SQL statement based on the specified key.
+     * @param sqlKey
+     * @return 
+     */
+    protected String getSQL(String sqlKey) {
+        if (sqlMap.containsKey(sqlKey)){
+            return sqlMap.get(sqlKey);
+        } else {
+            return "Error: SQL statement for \'" + sqlKey + "\' not found!";
         }
     }
     

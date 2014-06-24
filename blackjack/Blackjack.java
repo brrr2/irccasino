@@ -950,8 +950,9 @@ public class Blackjack extends CardGame {
             loadIni();
             loadHostList("away.txt", awayList);
             loadHostList("simple.txt", notSimpleList);
-            loadStrLib(strFile);
-            loadHelp(helpFile);
+            loadStrLib();
+            loadSQLLib();
+            loadHelp();
             showMsg(getMsg("reload"));
         }
     }
@@ -1036,7 +1037,7 @@ public class Blackjack extends CardGame {
         dealer = new BlackjackPlayer("Dealer");
         
         initSettings();
-        loadHelp(helpFile);
+        loadHelp();
         loadIni();
         state = BlackjackState.NONE;
         showMsg(getMsg("game_start"), getGameNameStr());

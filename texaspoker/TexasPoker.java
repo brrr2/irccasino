@@ -686,8 +686,9 @@ public class TexasPoker extends CardGame{
             loadIni();
             loadHostList("away.txt", awayList);
             loadHostList("simple.txt", notSimpleList);
-            loadStrLib(strFile);
-            loadHelp(helpFile);
+            loadStrLib();
+            loadSQLLib();
+            loadHelp();
             showMsg(getMsg("reload"));
         }
     }
@@ -1286,7 +1287,7 @@ public class TexasPoker extends CardGame{
         community = new Hand();
         
         initSettings();
-        loadHelp(helpFile);
+        loadHelp();
         loadIni();
         state = PokerState.NONE;
         betState = PokerBet.NONE;
