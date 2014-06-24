@@ -190,7 +190,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     abstract protected void processCommand(User user, String command, String[] params);
     
     /**
-     * Process a user part event in the game channel.
+     * Processes a user part event in the game channel.
      * @param user 
      */
     protected void processPart(User user) {
@@ -683,7 +683,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param params 
      */
     protected void gversion(String nick, String[] params) {
-        showMsg(getMsg("version"));
+        showMsg("irccasino version: "+ getMsg("version"));
     }
     
     /**
@@ -1096,7 +1096,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             ArrayList<Player> records = loadPlayerFile();
             int playerID;
             String sql;
-            
+                
             try (Connection conn = DriverManager.getConnection(dbURL)) {
                 conn.setAutoCommit(false);
                 
@@ -1196,7 +1196,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 showMsg("Migration complete.");
             } catch (SQLException ex) {
                 manager.log("SQL Error: " + ex.getMessage());
-                showMsg("Migration aborted.");
+                showMsg("SQL Error: Migration aborted. " + ex.getMessage());
             }
         }
     }
@@ -1461,6 +1461,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                            "UNIQUE(player_id, tourney_id), " +
                            "FOREIGN KEY(player_id) REFERENCES Player(id), " +
                            "FOREIGN KEY(tourney_id) REFERENCES TTTourney(id))");
+                
+                // DBVersion table
+                s.execute( "CREATE TABLE IF NOT EXISTS DBVersion (" +
+                           "id INTEGER PRIMARY KEY, time INTEGER, " +
+                           "version INTEGER, UNIQUE(version))");
                 
                 conn.commit();
             }
