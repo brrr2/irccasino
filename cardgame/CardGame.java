@@ -1303,178 +1303,39 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected final void initDB() {
         try (Connection conn = DriverManager.getConnection(dbURL)) {
             conn.setAutoCommit(false);
-            
-            // Create tables if necessary
             try (Statement s = conn.createStatement()) {
-                // Player table
-                s.execute( "CREATE TABLE IF NOT EXISTS Player (" +
-                           "id INTEGER PRIMARY KEY, nick TEXT, " +
-                           "time_created INTEGER, UNIQUE(nick))");
-
-                // Purse table
-                s.execute( "CREATE TABLE IF NOT EXISTS Purse (" +
-                           "player_id INTEGER, cash INTEGER, " +
-                           "bank INTEGER, bankrupts INTEGER, " +
-                           "UNIQUE(player_id), " +
-                           "FOREIGN KEY(player_id) REFERENCES Player(id))");
-                
-                // Banking table
-                s.execute( "CREATE TABLE IF NOT EXISTS Banking (" +
-                           "id INTEGER PRIMARY KEY, player_id INTEGER, " + 
-                           "transaction_time INTEGER, cash_change INTEGER, " +
-                           "cash INTEGER, bank INTEGER, " +
-                           "FOREIGN KEY(player_id) REFERENCES Player(id))");
-                
-                // BJPlayerStat table
-                s.execute( "CREATE TABLE IF NOT EXISTS BJPlayerStat (" +
-                           "player_id INTEGER, rounds INTEGER, " +
-                           "winnings INTEGER, idles INTEGER, " +
-                           "UNIQUE(player_id), " +
-                           "FOREIGN KEY(player_id) REFERENCES Player(id))");
-                
-                // BJRound table
-                s.execute( "CREATE TABLE IF NOT EXISTS BJRound (" +
-                           "id INTEGER PRIMARY KEY, " +
-                           "start_time INTEGER, end_time INTEGER, " +
-                           "channel TEXT, shoe_size INTEGER, " +
-                           "num_cards_left INTEGER, " +
-                           "FOREIGN KEY(shoe_size) REFERENCES BJHouse(shoe_size))");
-                
-                // BJHand table
-                s.execute( "CREATE TABLE IF NOT EXISTS BJHand (" +
-                           "id INTEGER PRIMARY KEY, " +
-                           "round_id INTEGER, hand TEXT, " +
-                           "FOREIGN KEY(round_id) REFERENCES BJRound(id))");
-                
-                // BJPlayerHand table
-                s.execute( "CREATE TABLE IF NOT EXISTS BJPlayerHand (" +
-                           "player_id INTEGER, hand_id INTEGER, " +
-                           "bet INTEGER, split BOOLEAN, surrender BOOLEAN, " +
-                           "doubledown BOOLEAN, result INTEGER, " +
-                           "UNIQUE(player_id, hand_id), " +
-                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
-                           "FOREIGN KEY(hand_id) REFERENCES BJHand(id))");
-                
-                // BJPlayerInsurance table
-                s.execute( "CREATE TABLE IF NOT EXISTS BJPlayerInsurance (" +
-                           "player_id INTEGER, round_id INTEGER, " +
-                           "bet INTEGER, result BOOLEAN, " +
-                           "UNIQUE(player_id, round_id), " +
-                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
-                           "FOREIGN KEY(round_id) REFERENCES BJRound(id))");
-                
-                // BJPlayerChange table
-                s.execute( "CREATE TABLE IF NOT EXISTS BJPlayerChange (" +
-                           "player_id INTEGER, round_id INTEGER, " +
-                           "change INTEGER, cash INTEGER, " +
-                           "UNIQUE(player_id, round_id), " +
-                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
-                           "FOREIGN KEY(round_id) REFERENCES BJRound(id))");
-                
-                // BJPlayerIdle table
-                s.execute( "CREATE TABLE IF NOT EXISTS BJPlayerIdle (" +
-                           "player_id INTEGER, round_id INTEGER, " +
-                           "idle_limit INTEGER, idle_warning INTEGER, " +
-                           "UNIQUE(player_id, round_id), " +
-                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
-                           "FOREIGN KEY(round_id) REFERENCES BJRound(id))");
-                
-                // BJHouseStat table
-                s.execute( "CREATE TABLE IF NOT EXISTS BJHouse (" +
-                           "shoe_size INTEGER, rounds INTEGER, " +
-                           "winnings INTEGER, UNIQUE(shoe_size))");
-                
-                // TPPlayerStat table
-                s.execute( "CREATE TABLE IF NOT EXISTS TPPlayerStat (" +
-                           "player_id INTEGER, rounds INTEGER, " +
-                           "winnings INTEGER, idles INTEGER, " +
-                           "UNIQUE(player_id), " +
-                           "FOREIGN KEY(player_id) REFERENCES Player(id))");
-                
-                // TPRound table
-                s.execute( "CREATE TABLE IF NOT EXISTS TPRound (" +
-                           "id INTEGER PRIMARY KEY, start_time INTEGER, " +
-                           "end_time INTEGER, channel TEXT, community TEXT)");
-                
-                // TPPot table
-                s.execute( "CREATE TABLE IF NOT EXISTS TPPot (" +
-                           "pot_id INTEGER PRIMARY KEY, " +
-                           "round_id INTEGER, amount INTEGER, " +
-                           "FOREIGN KEY(round_id) REFERENCES TPRound(id))");
-                
-                // TPPlayerPot table
-                s.execute( "CREATE TABLE IF NOT EXISTS TPPlayerPot (" +
-                           "player_id INTEGER, pot_id INTEGER, " +
-                           "contribution INTEGER, result BOOLEAN, " +
-                           "UNIQUE(player_id, pot_ID), " + 
-                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
-                           "FOREIGN KEY(pot_id) REFERENCES TPPot(id))");
-                
-                // TPPlayerChange table
-                s.execute( "CREATE TABLE IF NOT EXISTS TPPlayerChange (" +
-                           "player_id INTEGER, round_id INTEGER, " +
-                           "change INTEGER, cash INTEGER, " + 
-                           "UNIQUE(player_id, round_id), " +
-                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
-                           "FOREIGN KEY(round_id) REFERENCES TPRound(id))");
-                
-                // TPHand table
-                s.execute( "CREATE TABLE IF NOT EXISTS TPHand (" +
-                           "id INTEGER PRIMARY KEY, " + 
-                           "round_id INTEGER, hand TEXT, " +
-                           "FOREIGN KEY(round_id) REFERENCES TPRound(id))");
-                
-                // TPPlayerHand table
-                s.execute( "CREATE TABLE IF NOT EXISTS TPPlayerHand (" +
-                           "player_id INTEGER, hand_id INTEGER, " +
-                           "fold BOOLEAN, allin BOOLEAN, " +
-                           "UNIQUE(player_id, hand_id), " +
-                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
-                           "FOREIGN KEY(hand_id) REFERENCES TPHand(id))");
-                
-                // TPPlayerIdle table
-                s.execute( "CREATE TABLE IF NOT EXISTS TPPlayerIdle (" +
-                           "player_id INTEGER, round_id INTEGER, " +
-                           "idle_limit INTEGER, idle_warning INTEGER, " +
-                           "UNIQUE(player_id, round_id), " +
-                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
-                           "FOREIGN KEY(round_id) REFERENCES TPRound(id))");
-                
-                // TTPlayerStat table
-                s.execute( "CREATE TABLE IF NOT EXISTS TTPlayerStat (" +
-                           "player_id INTEGER, tourneys INTEGER, " +
-                           "points INTEGER, idles INTEGER, " +
-                           "UNIQUE(player_id), " +
-                           "FOREIGN KEY(player_id) REFERENCES Player(id))");
-                
-                // TTTourney table
-                s.execute( "CREATE TABLE IF NOT EXISTS TTTourney (" +
-                           "id INTEGER PRIMARY KEY, start_time INTEGER, " +
-                           "end_time INTEGER, channel TEXT, rounds INTEGER)");
-                
-                // TTPlayerTourney table
-                s.execute( "CREATE TABLE IF NOT EXISTS TTPlayerTourney (" +
-                           "player_id INTEGER, tourney_id INTEGER, " +
-                           "result BOOLEAN, UNIQUE(player_id, tourney_id), " +
-                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
-                           "FOREIGN KEY(tourney_id) REFERENCES TTTourney(id))");
-                
-                // TTPlayerIdle table
-                s.execute( "CREATE TABLE IF NOT EXISTS TTPlayerIdle (" +
-                           "player_id INTEGER, tourney_id INTEGER, " +
-                           "idle_limit INTEGER, idle_warning INTEGER, " +
-                           "UNIQUE(player_id, tourney_id), " +
-                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
-                           "FOREIGN KEY(tourney_id) REFERENCES TTTourney(id))");
-                
-                // DBVersion table
-                s.execute( "CREATE TABLE IF NOT EXISTS DBVersion (" +
-                           "id INTEGER PRIMARY KEY, time INTEGER, " +
-                           "version INTEGER, UNIQUE(version))");
-                
-                conn.commit();
+                // Create tables
+                s.execute(getSQL("CREATE_TABLE_DBVERSION"));
+                s.execute(getSQL("CREATE_TABLE_PLAYER"));
+                s.execute(getSQL("CREATE_TABLE_PURSE"));
+                s.execute(getSQL("CREATE_TABLE_BANKING"));
+                s.execute(getSQL("CREATE_TABLE_BJPLAYERSTAT"));
+                s.execute(getSQL("CREATE_TABLE_BJROUND"));
+                s.execute(getSQL("CREATE_TABLE_BJHAND"));
+                s.execute(getSQL("CREATE_TABLE_BJPLAYERHAND"));
+                s.execute(getSQL("CREATE_TABLE_BJPLAYERINSURANCE"));
+                s.execute(getSQL("CREATE_TABLE_BJPLAYERCHANGE"));
+                s.execute(getSQL("CREATE_TABLE_BJPLAYERIDLE"));
+                s.execute(getSQL("CREATE_TABLE_BJHOUSESTAT"));
+                s.execute(getSQL("CREATE_TABLE_TPPLAYERSTAT"));
+                s.execute(getSQL("CREATE_TABLE_TPROUND"));
+                s.execute(getSQL("CREATE_TABLE_TPPOT"));
+                s.execute(getSQL("CREATE_TABLE_TPPLAYERPOT"));
+                s.execute(getSQL("CREATE_TABLE_TPPLAYERCHANGE"));
+                s.execute(getSQL("CREATE_TABLE_TPHAND"));
+                s.execute(getSQL("CREATE_TABLE_TPPLAYERHAND"));
+                s.execute(getSQL("CREATE_TABLE_TPPLAYERIDLE"));
+                s.execute(getSQL("CREATE_TABLE_TTPLAYERSTAT"));
+                s.execute(getSQL("CREATE_TABLE_TTTOURNEY"));
+                s.execute(getSQL("CREATE_TABLE_TTPLAYERTOURNEY"));
+                s.execute(getSQL("CREATE_TABLE_TTPLAYERIDLE"));
+                // Create views
+                s.execute(getSQL("CREATE_VIEW_BJPLAYERSORTABLE"));
+                s.execute(getSQL("CREATE_VIEW_TPPLAYERSORTABLE"));
+                s.execute(getSQL("CREATE_VIEW_TTPLAYERSORTABLE"));
             }
             
+            conn.commit();
             logDBWarning(conn.getWarnings());
         } catch (SQLException ex) {
             manager.log("SQL Error: " + ex.getMessage());

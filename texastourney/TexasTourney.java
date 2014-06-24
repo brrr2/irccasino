@@ -1371,11 +1371,9 @@ public class TexasTourney extends TexasPoker {
         } else {
             TourneyPokerPlayer record = null;
             try (Connection conn = DriverManager.getConnection(dbURL)) {
+                conn.setAutoCommit(false);
                 // Retrieve data from Player table if possible
-                String sql = "SELECT id, nick, tourneys, points, idles " +
-                             "FROM Player INNER JOIN TTPlayerStat " +
-                             "ON Player.id = TTPlayerStat.player_id " +
-                             "WHERE nick = ? COLLATE NOCASE";
+                String sql = "SELECT * FROM TTPlayerView WHERE nick = ? COLLATE NOCASE";
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setString(1, nick);
                     try (ResultSet rs = ps.executeQuery()) {
@@ -1389,6 +1387,7 @@ public class TexasTourney extends TexasPoker {
                         }
                     }
                 }
+                conn.commit();
                 logDBWarning(conn.getWarnings());
             } catch (SQLException ex) {
                 manager.log("SQL Error: " + ex.getMessage());
