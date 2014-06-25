@@ -1093,32 +1093,80 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         } else if (manager.gamesInProgress()) {
             informPlayer(nick, getMsg("no_migrate"));
         } else {
-            showMsg("Performing migration from players.txt to stats.sqlite3. Please wait...");
-            
-            ArrayList<Player> records = loadPlayerFile();
-            int playerID;
-            String sql;
-                
             try (Connection conn = DriverManager.getConnection(dbURL)) {
                 conn.setAutoCommit(false);
+                String sql;
                 
+                showMsg("Modifying TPPot table...");
+                boolean modTPPot = false;
+                sql = "SELECT * FROM sqlite_master WHERE type='table' AND name='TPPot'";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.getString("sql").equals(getSQL("CREATE_TABLE_TPPOT"))){
+                            showMsg("TPPot is already up-to-date.");
+                        } else {
+                            modTPPot = true;
+                        }
+                    }
+                }
+                
+                if (modTPPot) {
+                    int schema_version;
+                    try (Statement s = conn.createStatement()) {
+                        try (ResultSet rs = s.executeQuery("PRAGMA schema_version")) {
+                            schema_version = rs.getInt("schema_version");
+                        }
+                        s.execute("PRAGMA writable_schema = ON");
+                    }
+                    sql = "UPDATE sqlite_master SET sql = ? WHERE type = 'table' AND name = 'TPPot'";
+                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                        ps.setString(1, getSQL("CREATE_TABLE_TPPOT"));
+                        ps.executeUpdate();
+                    }
+                    sql = "PRAGMA schema_version = ?";
+                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                        ps.setInt(1, schema_version+1);
+                        ps.executeUpdate();
+                    }
+                    try (Statement s = conn.createStatement()) {
+                        s.execute("PRAGMA writable_schema = OFF");
+                        try (ResultSet rs = s.executeQuery("PRAGMA integrity_check")) {
+                            if (!rs.getString("integrity_check").equals("ok")) {
+                                showMsg("Integrity check failed.");
+                            }
+                        }
+                    }
+                }
+                
+                ArrayList<Player> records = loadPlayerFile();
+                showMsg("Migrating from players.txt to stats.sqlite3...");
                 // Iterate over records
                 for (Player record : records) {
-                    playerID = -1;
+                    int playerID = -1;
                     
-                    // Add new record if not found in Player table
-                    sql = "INSERT INTO Player (nick, time_created) VALUES(?, ?)";
+                    // Search if player exists
+                    sql = "SELECT * FROM Player WHERE nick = ?";
                     try (PreparedStatement ps = conn.prepareStatement(sql)) {
                         ps.setString(1, record.getString("nick"));
-                        ps.setLong(2, System.currentTimeMillis() / 1000);
-                        ps.executeUpdate();
-                        playerID = ps.getGeneratedKeys().getInt(1);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.isBeforeFirst()) {
+                                playerID = rs.getInt("id");
+                            }
+                        }
                     }
-
+                    
                     if (playerID != -1) {
-                        // Attempt to add new record in Purse table
-                        sql = "INSERT INTO Purse (player_id, cash, bank, bankrupts) " +
-                              "VALUES(?, ?, ?, ?)";
+                        // Add new record if not found in Player table
+                        sql = "INSERT INTO Player (nick, time_created) VALUES(?, ?)";
+                        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                            ps.setString(1, record.getString("nick"));
+                            ps.setLong(2, System.currentTimeMillis() / 1000);
+                            ps.executeUpdate();
+                            playerID = ps.getGeneratedKeys().getInt(1);
+                        }
+
+                        // Add new record in Purse table
+                        sql = "INSERT INTO Purse (player_id, cash, bank, bankrupts) VALUES(?, ?, ?, ?)";
                         try (PreparedStatement ps = conn.prepareStatement(sql)) {
                             ps.setInt(1, playerID);
                             ps.setInt(2, record.getInteger("cash"));
@@ -1127,9 +1175,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                             ps.executeUpdate();
                         }
 
-                        // Attempt to add new record in TPPlayerStat table
-                        sql = "INSERT INTO TPPlayerStat (player_id, rounds, winnings, idles) " +
-                              "VALUES(?, ?, ?, ?)";
+                        // Add new record in TPPlayerStat table
+                        sql = "INSERT INTO TPPlayerStat (player_id, rounds, winnings, idles) VALUES(?, ?, ?, ?)";
                         try (PreparedStatement ps = conn.prepareStatement(sql)) {
                             ps.setInt(1, playerID);
                             ps.setInt(2, record.getInteger("tprounds"));
@@ -1138,9 +1185,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                             ps.executeUpdate();
                         }
 
-                        // Attempt to add new record in BJPlayerStat table
-                        sql = "INSERT INTO BJPlayerStat (player_id, rounds, winnings, idles) " +
-                              "VALUES(?, ?, ?, ?)";
+                        // Add new record in BJPlayerStat table
+                        sql = "INSERT INTO BJPlayerStat (player_id, rounds, winnings, idles) VALUES(?, ?, ?, ?)";
                         try (PreparedStatement ps = conn.prepareStatement(sql)) {
                             ps.setInt(1, playerID);
                             ps.setInt(2, record.getInteger("bjrounds"));
@@ -1149,9 +1195,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                             ps.executeUpdate();
                         }
 
-                        // Attempt to add new record in TPPlayerStat table
-                        sql = "INSERT INTO TTPlayerStat (player_id, tourneys, points, idles) " +
-                              "VALUES(?, ?, ?, ?)";
+                        // Add new record in TPPlayerStat table
+                        sql = "INSERT INTO TTPlayerStat (player_id, tourneys, points, idles) VALUES(?, ?, ?, ?)";
                         try (PreparedStatement ps = conn.prepareStatement(sql)) {
                             ps.setInt(1, playerID);
                             ps.setInt(2, record.getInteger("ttplayed"));
@@ -1162,6 +1207,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     }
                 }
                 
+                showMsg("Migrating from housestats.txt to stats.sqlite3...");
                 // Migrate house data for Blackjack
                 try (BufferedReader in = new BufferedReader(new FileReader("housestats.txt"))) {
                     String str;
