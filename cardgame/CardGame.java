@@ -1097,6 +1097,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 conn.setAutoCommit(false);
                 String sql;
                 
+                // Check DB version
                 showMsg("Checking DB version...");
                 boolean update = true;
                 sql = "SELECT version FROM DBVersion WHERE version = ?";
@@ -1110,8 +1111,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     }
                 }
                 
+                // Update if not the latest version
                 if (update) {
-                    showMsg("Modifying TPPot table...");
                     boolean modTPPot = true;
                     sql = "SELECT * FROM sqlite_master WHERE type='table' AND name='TPPot'";
                     try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -1124,6 +1125,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     }
 
                     if (modTPPot) {
+                        showMsg("Modifying TPPot table...");
                         int schema_version;
                         try (Statement s = conn.createStatement()) {
                             try (ResultSet rs = s.executeQuery("PRAGMA schema_version")) {
@@ -1136,12 +1138,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                             ps.setString(1, getSQL("CREATE_TABLE_TPPOT"));
                             ps.executeUpdate();
                         }
-                        sql = "PRAGMA schema_version = ?";
-                        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                            ps.setInt(1, schema_version+1);
-                            ps.executeUpdate();
-                        }
                         try (Statement s = conn.createStatement()) {
+                            s.execute("PRAGMA schema_version = " + (schema_version+1));
                             s.execute("PRAGMA writable_schema = OFF");
                             try (ResultSet rs = s.executeQuery("PRAGMA integrity_check")) {
                                 if (!rs.getString("integrity_check").equals("ok")) {
@@ -1168,7 +1166,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                             }
                         }
 
-                        if (playerID != -1) {
+                        if (playerID == -1) {
                             // Add new record if not found in Player table
                             sql = "INSERT INTO Player (nick, time_created) VALUES(?, ?)";
                             try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -1238,12 +1236,24 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                                     decks = Integer.parseInt(st.nextToken());
                                     rounds = Integer.parseInt(st.nextToken());
                                     winnings = Integer.parseInt(st.nextToken());
-                                    sql = "INSERT INTO BJHouse (shoe_size, rounds, winnings) VALUES(?, ?, ?)";
+                                    boolean shoeExists = false;
+                                    
+                                    // Search if shoe size exists
+                                    sql = "SELECT * FROM BJHouse WHERE shoe_size = ?";
                                     try (PreparedStatement ps = conn.prepareStatement(sql)) {
                                         ps.setInt(1, decks);
-                                        ps.setInt(2, rounds);
-                                        ps.setInt(3, winnings);
-                                        ps.executeUpdate();
+                                        try (ResultSet rs = ps.executeQuery()) {
+                                            shoeExists = rs.isBeforeFirst();
+                                        }
+                                    }
+                                    if (!shoeExists) {
+                                        sql = "INSERT INTO BJHouse (shoe_size, rounds, winnings) VALUES(?, ?, ?)";
+                                        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                                            ps.setInt(1, decks);
+                                            ps.setInt(2, rounds);
+                                            ps.setInt(3, winnings);
+                                            ps.executeUpdate();
+                                        }
                                     }
                                 }
                                 break;
@@ -1265,7 +1275,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 showMsg("Migration complete.");
             } catch (SQLException ex) {
                 manager.log("SQL Error: " + ex.getMessage());
-                showMsg("SQL Error: Migration aborted. " + ex.getMessage());
+                showMsg("Migration aborted. " + ex.getMessage());
             }
         }
     }
@@ -1383,7 +1393,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 s.execute(getSQL("CREATE_TABLE_BJPLAYERINSURANCE"));
                 s.execute(getSQL("CREATE_TABLE_BJPLAYERCHANGE"));
                 s.execute(getSQL("CREATE_TABLE_BJPLAYERIDLE"));
-                s.execute(getSQL("CREATE_TABLE_BJHOUSESTAT"));
+                s.execute(getSQL("CREATE_TABLE_BJHOUSE"));
                 s.execute(getSQL("CREATE_TABLE_TPPLAYERSTAT"));
                 s.execute(getSQL("CREATE_TABLE_TPROUND"));
                 s.execute(getSQL("CREATE_TABLE_TPPOT"));
@@ -1397,9 +1407,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 s.execute(getSQL("CREATE_TABLE_TTPLAYERTOURNEY"));
                 s.execute(getSQL("CREATE_TABLE_TTPLAYERIDLE"));
                 // Create views
-                s.execute(getSQL("CREATE_VIEW_BJPLAYERSORTABLE"));
-                s.execute(getSQL("CREATE_VIEW_TPPLAYERSORTABLE"));
-                s.execute(getSQL("CREATE_VIEW_TTPLAYERSORTABLE"));
+                s.execute(getSQL("CREATE_VIEW_BJPLAYER"));
+                s.execute(getSQL("CREATE_VIEW_TPPLAYER"));
+                s.execute(getSQL("CREATE_VIEW_TTPLAYER"));
             }
             
             conn.commit();
@@ -1493,8 +1503,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         try (BufferedReader in = new BufferedReader(new FileReader(sqlFile))) {
             while (in.ready()){
                 String str = in.readLine();
-                if (!str.startsWith("#") && str.contains("=")) {
-                    StringTokenizer st = new StringTokenizer(str, "=");
+                if (!str.startsWith("#") && str.contains("|")) {
+                    StringTokenizer st = new StringTokenizer(str, "|");
                     sqlMap.put(st.nextToken(), st.nextToken());
                 }
             }
