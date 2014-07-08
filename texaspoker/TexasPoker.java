@@ -1721,14 +1721,16 @@ public class TexasPoker extends CardGame{
         cancelIdleOutTask();
         PokerPlayer p = (PokerPlayer) currentPlayer;
         
-        // A bet that's an all-in
+        // A bet that's an all-in (takes precedence)
         if (amount == p.getInteger("cash")){
             if (amount > currentBet || topBettor == null){
-                if (amount - currentBet > minRaise){
-                    minRaise = amount - currentBet;
-                }
-                currentBet = amount;
                 topBettor = p;
+            }
+            if (amount - currentBet > minRaise){
+                minRaise = amount - currentBet;
+            }
+            if (amount > currentBet) {
+                currentBet = amount;
             }
             p.put("bet", amount);
             p.put("allin", true);
