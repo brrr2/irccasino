@@ -1797,15 +1797,11 @@ public class TexasPoker extends CardGame{
         if (topBettor == null){
             topBettor = p;
         }
-        
-        // A call that's an all-in to match the currentBet
         if (total == p.getInteger("cash")){
             p.put("allin", true);
-            p.put("bet", total);
-        // A call or check
-        } else {
-            p.put("bet", total);
         }
+        
+        p.put("bet", total);
         continueRound();
     }
     
