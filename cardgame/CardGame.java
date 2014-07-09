@@ -238,11 +238,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         } else if (!isInProgress()) {
             informPlayer(newNick, getMsg("nick_change"));
             removeJoined(oldNick);
+            manager.deVoice(channel, user);
             showMsg(getMsg("unjoin"), formatBold(oldNick), joined.size());
             join(newNick, host);
         } else {
             informPlayer(newNick, getMsg("nick_change"));
             leave(oldNick);
+            manager.deVoice(channel, user);
             join(newNick, host);
         }
     }
