@@ -768,22 +768,21 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param params 
      */
     protected void fleave(User user, String nick, String[] params) {
-        String fNick = params[0];
         if (!channel.isOp(user)) {
             informPlayer(nick, getMsg("ops_only"));
         } else if (params.length < 1){
             informPlayer(nick, getMsg("no_parameter"));
-        } else if (isWaitlisted(fNick)) {
-            removeWaitlisted(fNick);
+        } else if (isWaitlisted(params[0])) {
+            removeWaitlisted(params[0]);
             informPlayer(nick, getMsg("leave_waitlist"));
-        } else if (!isJoined(fNick)){
-            informPlayer(nick, getMsg("no_join_nick"), fNick);
+        } else if (!isJoined(params[0])){
+            informPlayer(nick, getMsg("no_join_nick"), params[0]);
         } else if (!isInProgress()) {
-            Player p = findJoined(fNick);
-            removeJoined(fNick);
+            Player p = findJoined(params[0]);
+            removeJoined(params[0]);
             showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
         } else {
-            leave(fNick);
+            leave(params[0]);
         }
     }
     
@@ -1025,7 +1024,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     }
                 }
                 savePlayerFile(newRecords);
-                showMsg("Player data has been trimmed.");
+                showMsg("players.txt has been trimmed.");
             }
         }
     }
@@ -1158,7 +1157,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                         int playerID = -1;
 
                         // Search if player exists
-                        sql = "SELECT * FROM Player WHERE nick = ?";
+                        sql = getSQL("SELECT_PLAYER_BY_NICK");
                         try (PreparedStatement ps = conn.prepareStatement(sql)) {
                             ps.setString(1, record.getString("nick"));
                             try (ResultSet rs = ps.executeQuery()) {
@@ -1170,7 +1169,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
 
                         if (playerID == -1) {
                             // Add new record if not found in Player table
-                            sql = "INSERT INTO Player (nick, time_created) VALUES(?, ?)";
+                            sql = getSQL("INSERT_PLAYER");
                             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                                 ps.setString(1, record.getString("nick"));
                                 ps.setLong(2, System.currentTimeMillis() / 1000);
@@ -1179,7 +1178,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                             }
 
                             // Add new record in Purse table
-                            sql = "INSERT INTO Purse (player_id, cash, bank, bankrupts) VALUES(?, ?, ?, ?)";
+                            sql = getSQL("INSERT_PURSE");
                             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                                 ps.setInt(1, playerID);
                                 ps.setInt(2, record.getInteger("cash"));
@@ -1189,7 +1188,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                             }
 
                             // Add new record in TPPlayerStat table
-                            sql = "INSERT INTO TPPlayerStat (player_id, rounds, winnings, idles) VALUES(?, ?, ?, ?)";
+                            sql = getSQL("INSERT_TPPLAYERSTAT");
                             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                                 ps.setInt(1, playerID);
                                 ps.setInt(2, record.getInteger("tprounds"));
@@ -1199,7 +1198,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                             }
 
                             // Add new record in BJPlayerStat table
-                            sql = "INSERT INTO BJPlayerStat (player_id, rounds, winnings, idles) VALUES(?, ?, ?, ?)";
+                            sql = getSQL("INSERT_BJPLAYERSTAT");
                             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                                 ps.setInt(1, playerID);
                                 ps.setInt(2, record.getInteger("bjrounds"));
@@ -1209,7 +1208,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                             }
 
                             // Add new record in TPPlayerStat table
-                            sql = "INSERT INTO TTPlayerStat (player_id, tourneys, points, idles) VALUES(?, ?, ?, ?)";
+                            sql = getSQL("INSERT_TTPLAYERSTAT");
                             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                                 ps.setInt(1, playerID);
                                 ps.setInt(2, record.getInteger("ttplayed"));
@@ -1241,7 +1240,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                                     boolean shoeExists = false;
                                     
                                     // Search if shoe size exists
-                                    sql = "SELECT * FROM BJHouse WHERE shoe_size = ?";
+                                    sql = getSQL("SELECT_BJHOUSE_BY_SHOE_SIZE");
                                     try (PreparedStatement ps = conn.prepareStatement(sql)) {
                                         ps.setInt(1, decks);
                                         try (ResultSet rs = ps.executeQuery()) {
@@ -1249,7 +1248,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                                         }
                                     }
                                     if (!shoeExists) {
-                                        sql = "INSERT INTO BJHouse (shoe_size, rounds, winnings) VALUES(?, ?, ?)";
+                                        sql = getSQL("INSERT_BJHOUSE");
                                         try (PreparedStatement ps = conn.prepareStatement(sql)) {
                                             ps.setInt(1, decks);
                                             ps.setInt(2, rounds);
@@ -1266,7 +1265,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     }
                     
                     // Insert database version
-                    sql = "INSERT INTO DBVersion (time, version) VALUES(?, ?)";
+                    sql = getSQL("INSERT_DBVERSION");
                     try (PreparedStatement ps = conn.prepareStatement(sql)) {
                         ps.setLong(1, System.currentTimeMillis() / 1000);
                         ps.setInt(2, Integer.valueOf(getMsg("version_int")));
@@ -1409,6 +1408,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 s.execute(getSQL("CREATE_TABLE_TTPLAYERTOURNEY"));
                 s.execute(getSQL("CREATE_TABLE_TTPLAYERIDLE"));
                 // Create views
+                s.execute(getSQL("CREATE_VIEW_PLAYERPURSE"));
                 s.execute(getSQL("CREATE_VIEW_BJPLAYER"));
                 s.execute(getSQL("CREATE_VIEW_TPPLAYER"));
                 s.execute(getSQL("CREATE_VIEW_TTPLAYER"));
@@ -2028,8 +2028,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected void saveDBPlayerBanking(Player p) {
         try (Connection conn = DriverManager.getConnection(dbURL)) {
             // Insert banking transaction into Banking table
-            String sql = "INSERT INTO Banking (player_id, transaction_time, " +
-                         "cash_change, cash, bank) VALUES (?, ?, ?, ?, ?)";
+            String sql = getSQL("INSERT_BANKING");
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setInt(1, p.getInteger("id"));
                 ps.setLong(2, System.currentTimeMillis() / 1000);

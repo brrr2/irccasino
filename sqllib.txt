@@ -1,4 +1,4 @@
-# Create table statements
+### Create table statements ###
 CREATE_TABLE_PLAYER|CREATE TABLE IF NOT EXISTS Player (id INTEGER PRIMARY KEY, nick TEXT, time_created INTEGER, UNIQUE(nick))
 CREATE_TABLE_PURSE|CREATE TABLE IF NOT EXISTS Purse (player_id INTEGER, cash INTEGER, bank INTEGER, bankrupts INTEGER, UNIQUE(player_id), FOREIGN KEY(player_id) REFERENCES Player(id))
 CREATE_TABLE_BANKING|CREATE TABLE IF NOT EXISTS Banking (id INTEGER PRIMARY KEY, player_id INTEGER, transaction_time INTEGER, cash_change INTEGER, cash INTEGER, bank INTEGER, FOREIGN KEY(player_id) REFERENCES Player(id))
@@ -23,12 +23,61 @@ CREATE_TABLE_TTPLAYERSTAT|CREATE TABLE IF NOT EXISTS TTPlayerStat (player_id INT
 CREATE_TABLE_TTTOURNEY|CREATE TABLE IF NOT EXISTS TTTourney (id INTEGER PRIMARY KEY, start_time INTEGER, end_time INTEGER, channel TEXT, rounds INTEGER)
 CREATE_TABLE_TTPLAYERTOURNEY|CREATE TABLE IF NOT EXISTS TTPlayerTourney (player_id INTEGER, tourney_id INTEGER, result BOOLEAN, UNIQUE(player_id, tourney_id), FOREIGN KEY(player_id) REFERENCES Player(id), FOREIGN KEY(tourney_id) REFERENCES TTTourney(id))
 CREATE_TABLE_TTPLAYERIDLE|CREATE TABLE IF NOT EXISTS TTPlayerIdle (player_id INTEGER, tourney_id INTEGER, idle_limit INTEGER, idle_warning INTEGER, UNIQUE(player_id, tourney_id), FOREIGN KEY(player_id) REFERENCES Player(id), FOREIGN KEY(tourney_id) REFERENCES TTTourney(id))
-# Create view statements
+### Create view statements ###
+CREATE_VIEW_PLAYERPURSE|CREATE VIEW IF NOT EXISTS PlayerPurseView AS SELECT id, nick, cash, bank, bankrupts, cash+bank AS netcash FROM Player pl INNER JOIN Purse pu ON pl.id = pu.player_id
 CREATE_VIEW_BJPLAYER|CREATE VIEW IF NOT EXISTS BJPlayerView AS SELECT id, nick, cash, bank, bankrupts, rounds, winnings, winnings*1.0/rounds AS winrate, idles FROM Player pl INNER JOIN Purse pu ON pl.id = pu.player_id INNER JOIN BJPlayerStat bjps ON pl.id = bjps.player_id
 CREATE_VIEW_TPPLAYER|CREATE VIEW IF NOT EXISTS TPPlayerView AS SELECT id, nick, cash, bank, bankrupts, rounds, winnings, winnings*1.0/rounds AS winrate, idles FROM Player pl INNER JOIN Purse pu ON pl.id = pu.player_id INNER JOIN TPPlayerStat tpps ON pl.id = tpps.player_id
 CREATE_VIEW_TTPLAYER|CREATE VIEW IF NOT EXISTS TTPlayerView AS SELECT id, nick, tourneys, points, points*100.0/tourneys AS winrate, idles FROM Player pl INNER JOIN TTPlayerStat ttps ON pl.id = ttps.player_id
-# Select statements
-# Insert statements
+### Select statements ###
+SELECT_PLAYER_BY_NICK|SELECT * FROM Player WHERE nick = ? COLLATE NOCASE
+SELECT_PURSE_BY_PLAYER_ID|SELECT * FROM Purse WHERE player_id = ?
+SELECT_BJPLAYERSTAT_BY_PLAYER_ID|SELECT * FROM BJPlayerStat WHERE player_id = ?
+SELECT_BJPLAYERVIEW_BY_NICK|SELECT * FROM BJPlayerView WHERE nick = ? COLLATE NOCASE
+SELECT_BJHOUSE_BY_SHOE_SIZE|SELECT * FROM BJHouse WHERE shoe_size = ?
+SELECT_BJGAMETOTALS|SELECT (SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 0) AS total_players, (SELECT SUM(rounds) FROM BJHouse) AS total_rounds, (SELECT SUM(winnings) FROM BJHouse) AS total_winnings
+SELECT_TPPLAYERSTAT_BY_PLAYER_ID|SELECT * FROM TPPlayerStat WHERE player_id = ?
+SELECT_TPPLAYERVIEW_BY_NICK|SELECT * FROM TPPlayerView WHERE nick = ? COLLATE NOCASE
+SELECT_TPGAMETOTALS|SELECT (SELECT COUNT(*) FROM TPPlayerStat WHERE rounds > 0) AS total_players, (SELECT COUNT(*) FROM TPRound) AS total_rounds
+SELECT_TTPLAYERSTAT_BY_PLAYER_ID|SELECT * FROM TTPlayerStat WHERE player_id = ?
+SELECT_TTPLAYERVIEW_BY_NICK|SELECT * FROM TTPlayerView WHERE nick = ? COLLATE NOCASE
+SELECT_TTGAMETOTALS|SELECT (SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 0) AS total_players, (SELECT COUNT(*) FROM TTTourney) AS total_tourneys
+SELECT_RANK_CASH_BY_NICK|SELECT nick, cash, (SELECT COUNT(*) FROM Purse WHERE cash > t1.cash)+1 AS rank FROM PlayerPurseView t1 WHERE nick = ? COLLATE NOCASE
+SELECT_RANK_BANK_BY_NICK|SELECT nick, bank, (SELECT COUNT(*) FROM Purse WHERE bank > t1.bank)+1 AS rank FROM PlayerPurseView t1 WHERE nick = ? COLLATE NOCASE
+SELECT_RANK_BANKRUPTS_BY_NICK|SELECT nick, bankrupts, (SELECT COUNT(*) FROM Purse WHERE bankrupts > t1.bankrupts)+1 AS rank FROM PlayerPurseView t1 WHERE nick = ? COLLATE NOCASE
+SELECT_RANK_NETCASH_BY_NICK|SELECT nick, netcash, (SELECT COUNT(*) FROM PlayerPurseView WHERE netcash > t1.netcash)+1 AS rank FROM PlayerPurseView t1 WHERE nick = ? COLLATE NOCASE
+SELECT_RANK_BJROUNDS_BY_NICK|SELECT nick, rounds, (SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 0 AND rounds > t1.rounds)+1 AS rank FROM BJPlayerView t1 WHERE nick = ? COLLATE NOCASE
+SELECT_RANK_BJWINNINGS_BY_NICK|SELECT nick, rounds, winnings, (SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 0 AND winnings > t1.winnings)+1 AS rank FROM BJPlayerView t1 WHERE nick = ? COLLATE NOCASE
+SELECT_RANK_BJWINRATE_BY_NICK|SELECT nick, rounds, winrate, (SELECT COUNT(*) FROM BJPlayerView WHERE rounds > 50 AND winrate > t1.winrate)+1 AS rank FROM BJPlayerView t1 WHERE nick = ? COLLATE NOCASE
+SELECT_RANK_TPROUNDS_BY_NICK|SELECT nick, rounds, (SELECT COUNT(*) FROM TPPlayerStat WHERE rounds > 0 AND rounds > t1.rounds)+1 AS rank FROM TPPlayerView t1 WHERE nick = ? COLLATE NOCASE
+SELECT_RANK_TPWINNINGS_BY_NICK|SELECT nick, rounds, winnings, (SELECT COUNT(*) FROM TPPlayerStat WHERE rounds > 0 AND winnings > t1.winnings)+1 AS rank FROM TPPlayerView t1 WHERE nick = ? COLLATE NOCASE
+SELECT_RANK_TPWINRATE_BY_NICK|SELECT nick, rounds, winrate, (SELECT COUNT(*) FROM TPPlayerView WHERE rounds > 50 AND winrate > t1.winrate)+1 AS rank FROM TPPlayerView t1 WHERE nick = ? COLLATE NOCASE
+SELECT_RANK_TTTOURNEYS_BY_NICK|SELECT nick, tourneys, (SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 0 AND tourneys > t1.tourneys)+1 AS rank FROM TTPlayerView t1 WHERE nick = ? COLLATE NOCASE
+SELECT_RANK_TTPOINTS_BY_NICK|SELECT nick, tourneys, points, (SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 0 AND points > t1.points)+1 AS rank FROM TTPlayerView t1 WHERE nick = ? COLLATE NOCASE
+SELECT_RANK_TTWINRATE_BY_NICK|SELECT nick, tourneys, winrate, (SELECT COUNT(*) FROM TPPlayerView WHERE tourneys > 5 AND winrate > t1.winrate)+1 AS rank FROM TTPlayerView t1 WHERE nick = ? COLLATE NOCASE
+SELECT_TOP_CASH|SELECT nick, cash FROM PlayerPurseView ORDER BY cash DESC LIMIT ? OFFSET ?
+SELECT_TOP_BANK|SELECT nick, bank FROM PlayerPurseView ORDER BY bank DESC LIMIT ? OFFSET ?
+SELECT_TOP_BANKRUPTS|SELECT nick, bankrupts FROM PlayerPurseView ORDER BY bankrupts DESC LIMIT ? OFFSET ?
+SELECT_TOP_NETCASH|SELECT nick, netcash FROM PlayerPurseView ORDER BY netcash DESC LIMIT ? OFFSET ?
+SELECT_TOP_BJWINNINGS|SELECT nick, winnings FROM BJPlayerView WHERE rounds > 0 ORDER BY winnings DESC LIMIT ? OFFSET ?
+SELECT_TOP_BJROUNDS|SELECT nick, rounds FROM BJPlayerView WHERE rounds > 0 ORDER BY rounds DESC LIMIT ? OFFSET ?
+SELECT_TOP_BJWINRATE|SELECT nick, winrate FROM BJPlayerView WHERE rounds > 50 ORDER BY winrate DESC LIMIT ? OFFSET ?
+SELECT_TOP_TPWINNINGS|SELECT nick, winnings FROM TPPlayerView WHERE rounds > 0 ORDER BY winnings DESC LIMIT ? OFFSET ?
+SELECT_TOP_TPROUNDS|SELECT nick, rounds FROM TPPlayerView WHERE rounds > 0 ORDER BY rounds DESC LIMIT ? OFFSET ?
+SELECT_TOP_TPWINRATE|SELECT nick, winrate FROM TPPlayerView WHERE rounds > 50 ORDER BY winrate DESC LIMIT ? OFFSET ?
+SELECT_TOP_TTPOINTS|SELECT nick, points FROM TTPlayerView WHERE tourneys > 0 ORDER BY points DESC LIMIT ? OFFSET ?
+SELECT_TOP_TTTOURNEYS|SELECT nick, tourneys FROM TTPlayerView WHERE tourneys > 0 ORDER BY tourneys DESC LIMIT ? OFFSET ?
+SELECT_TOP_TTWINRATE|SELECT nick, winrate FROM TTPlayerView WHERE tourneys > 5 ORDER BY winrate DESC LIMIT ? OFFSET ?
+SELECT_TOP_BOUNDS_PURSE|SELECT MIN(?, (SELECT COUNT(*) FROM Purse), 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM Purse), ?)-10) AS top_offset
+SELECT_TOP_BOUNDS_BJWINNINGS|SELECT MIN(?, (SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 0), 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 0), ?)-10) AS top_offset
+SELECT_TOP_BOUNDS_BJROUNDS|SELECT MIN(?, (SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 0), 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 0), ?)-10) AS top_offset
+SELECT_TOP_BOUNDS_BJWINRATE|SELECT MIN(?, (SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 50), 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 50), ?)-10) AS top_offset
+SELECT_TOP_BOUNDS_TPWINNINGS|SELECT MIN(?, (SELECT COUNT(*) FROM TPPlayerStat WHERE rounds > 0), 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM TPPlayerStat WHERE rounds > 0), ?)-10) AS top_offset
+SELECT_TOP_BOUNDS_TPROUNDS|SELECT MIN(?, (SELECT COUNT(*) FROM TPPlayerStat WHERE rounds > 0), 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM TPPlayerStat WHERE rounds > 0), ?)-10) AS top_offset
+SELECT_TOP_BOUNDS_TPWINRATE|SELECT MIN(?, (SELECT COUNT(*) FROM TPPlayerStat WHERE rounds > 50), 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM TPPlayerStat WHERE rounds > 50), ?)-10) AS top_offset
+SELECT_TOP_BOUNDS_TTPOINTS|SELECT MIN(?, (SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 0), 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 0), ?)-10) AS top_offset
+SELECT_TOP_BOUNDS_TTTOURNEYS|SELECT MIN(?, (SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 0), 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 0), ?)-10) AS top_offset
+SELECT_TOP_BOUNDS_TTWINRATE|SELECT MIN(?, (SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 5), 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 5), ?)-10) AS top_offset
+### Insert statements ###
 INSERT_PLAYER|INSERT INTO Player (nick, time_created) VALUES(?, ?)
 INSERT_PURSE|INSERT INTO Purse (player_id, cash, bank, bankrupts) VALUES(?, ?, ?, ?)
 INSERT_BANKING|INSERT INTO Banking (player_id, transaction_time, cash_change, cash, bank) VALUES (?, ?, ?, ?, ?)
@@ -52,8 +101,10 @@ INSERT_TTPLAYERSTAT|INSERT INTO TTPlayerStat (player_id, tourneys, points, idles
 INSERT_TTTOURNEY|INSERT INTO TTTourney (start_time, end_time, channel, rounds) VALUES (?, ?, ?, ?)
 INSERT_TTPLAYERTOURNEY|INSERT INTO TTPlayerTourney (player_id, tourney_id, result) VALUES (?, ?, ?)
 INSERT_TTPLAYERIDLE|INSERT INTO TTPlayerIdle (player_id, tourney_id, idle_limit, idle_warning) VALUES (?, ?, ?, ?)
-# Update statements
+INSERT_DBVERSION|INSERT INTO DBVersion (time, version) VALUES (?, ?)
+### Update statements ###
 UPDATE_PURSE|UPDATE Purse SET cash = ?, bank = ?, bankrupts = ? WHERE player_id = ?
 UPDATE_BJPLAYERSTAT|UPDATE BJPlayerStat SET rounds = ?, winnings = ?, idles = ? WHERE player_id = ?
 UPDATE_BJHOUSE|UPDATE BJHouse SET rounds = rounds + ?, winnings = winnings + ? WHERE shoe_size = ?
 UPDATE_TPPLAYERSTAT|UPDATE TPPlayerStat SET rounds = ?, winnings = ?, idles = ? WHERE player_id = ?
+UPDATE_TTPLAYERSTAT|UPDATE TTPlayerStat SET tourneys = ?, points = ?, idles = ? WHERE player_id = ?

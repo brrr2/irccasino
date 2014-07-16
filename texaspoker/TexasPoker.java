@@ -683,6 +683,7 @@ public class TexasPoker extends CardGame{
             opCmdMap.clear();
             aliasMap.clear();
             msgMap.clear();
+            sqlMap.clear();
             loadIni();
             loadHostList("away.txt", awayList);
             loadHostList("simple.txt", notSimpleList);
@@ -1340,7 +1341,7 @@ public class TexasPoker extends CardGame{
             try (Connection conn = DriverManager.getConnection(dbURL)) {
                 conn.setAutoCommit(false);
                 // Retrieve data from Player table if possible
-                String sql = "SELECT * FROM TPPlayerView WHERE nick = ? COLLATE NOCASE";
+                String sql = getSQL("SELECT_TPPLAYERVIEW_BY_NICK");
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setString(1, nick);
                     try (ResultSet rs = ps.executeQuery()) {
@@ -1381,7 +1382,7 @@ public class TexasPoker extends CardGame{
             p.put("idles", 0);
             
             // Retrieve data from Player table if possible
-            String sql = "SELECT id FROM Player WHERE nick = ? COLLATE NOCASE";
+            String sql = getSQL("SELECT_PLAYER_BY_NICK");
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, p.getNick());
                 try (ResultSet rs = ps.executeQuery()) {
@@ -1393,7 +1394,7 @@ public class TexasPoker extends CardGame{
             
             // Add new record if not found in Player table
             if (!p.has("id")) {
-                sql = "INSERT INTO Player (nick, time_created) VALUES(?, ?)";
+                sql = getSQL("INSERT_PLAYER");
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setString(1, p.getNick());
                     ps.setLong(2, System.currentTimeMillis() / 1000);
@@ -1404,7 +1405,7 @@ public class TexasPoker extends CardGame{
             
             // Retrieve data from Purse table if possible
             boolean found = false;
-            sql = "SELECT cash, bank, bankrupts FROM Purse WHERE player_id = ?";
+            sql = getSQL("SELECT_PURSE_BY_PLAYER_ID");
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setInt(1, p.getInteger("id"));
                 try (ResultSet rs = ps.executeQuery()) {
@@ -1420,8 +1421,7 @@ public class TexasPoker extends CardGame{
             // Add new record if not found in Purse
             if (!found) {
                 informPlayer(p.getNick(), getMsg("new_player"), getGameNameStr(), get("cash"));
-                sql = "INSERT INTO Purse (player_id, cash, bank, bankrupts) " +
-                      "VALUES(?, ?, ?, ?)";
+                sql = getSQL("INSERT_PURSE");
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setInt(1, p.getInteger("id"));
                     ps.setInt(2, p.getInteger("cash"));
@@ -1433,8 +1433,7 @@ public class TexasPoker extends CardGame{
 
             // Retrieve data from TPPlayerStat table if possible
             found = false;
-            sql = "SELECT rounds, winnings, idles " +
-                  "FROM TPPlayerStat WHERE player_id = ?";
+            sql = getSQL("SELECT_TPPLAYERSTAT_BY_PLAYER_ID");
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setInt(1, p.getInteger("id"));
                 try (ResultSet rs = ps.executeQuery()) {
@@ -1449,8 +1448,7 @@ public class TexasPoker extends CardGame{
             
             // Add new record if not found in TPPlayerStat table
             if (!found) {
-                sql = "INSERT INTO TPPlayerStat (player_id, rounds, winnings, idles) " +
-                      "VALUES(?, ?, ?, ?)";
+                sql = getSQL("INSERT_TPPLAYERSTAT");
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setInt(1, p.getInteger("id"));
                     ps.setInt(2, p.getInteger("rounds"));
@@ -1474,8 +1472,7 @@ public class TexasPoker extends CardGame{
             
             for (Player p : players) {
                 // Update data in Purse table
-                String sql = "UPDATE Purse SET cash = ?, bank = ?, bankrupts = ? " +
-                             "WHERE player_id = ?";
+                String sql = getSQL("UPDATE_PURSE");
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setInt(1, p.getInteger("cash"));
                     ps.setInt(2, p.getInteger("bank"));
@@ -1485,8 +1482,7 @@ public class TexasPoker extends CardGame{
                 }
 
                 // Update data in TPPlayerStat table
-                sql = "UPDATE TPPlayerStat SET rounds = ?, winnings = ?, idles = ? " +
-                      "WHERE player_id = ?";
+                sql = getSQL("UPDATE_TPPLAYERSTAT");
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setInt(1, p.getInteger("rounds"));
                     ps.setInt(2, p.getInteger("winnings"));
@@ -1516,30 +1512,16 @@ public class TexasPoker extends CardGame{
         record.put("total_players", 0);
         record.put("total_rounds", 0);
         
-        try (Connection conn = DriverManager.getConnection(dbURL)) {
-            conn.setAutoCommit(false);
-            
-            // Retrieve total players
-            String sql = "SELECT COUNT(*) as total_players FROM TPPlayerStat WHERE rounds > 0";
+        try (Connection conn = DriverManager.getConnection(dbURL)) {            
+            String sql = getSQL("SELECT_TPGAMETOTALS");
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.isBeforeFirst()) {
                         record.put("total_players", rs.getInt("total_players"));
-                    }
-                }
-            }
-            
-            // Retrieve total rounds
-            sql = "SELECT COUNT(*) as total_rounds FROM TPRound";
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.isBeforeFirst()) {
                         record.put("total_rounds", rs.getInt("total_rounds"));
                     }
                 }
             }
-            
-            conn.commit();
             logDBWarning(conn.getWarnings());
         } catch (SQLException ex) {
             manager.log("SQL Error: " + ex.getMessage());
@@ -1554,8 +1536,7 @@ public class TexasPoker extends CardGame{
             conn.setAutoCommit(false);
             
             // Insert data into TPRound table
-            String sql = "INSERT INTO TPRound (start_time, end_time, channel, " +
-                         "community) VALUES (?, ?, ?, ?)";
+            String sql = getSQL("INSERT_TPROUND");
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setLong(1, startTime);
                 ps.setLong(2, endTime);
@@ -1568,8 +1549,7 @@ public class TexasPoker extends CardGame{
             
             for (Player p : joined) {
                 // Insert data into TPPlayerChange table
-                sql = "INSERT INTO TPPlayerChange (player_id, round_id, " +
-                      "change, cash) VALUES (?, ?, ?, ?)";
+                sql = getSQL("INSERT_TPPLAYERCHANGE");
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setInt(1, p.getInteger("id"));
                     ps.setInt(2, roundID);
@@ -1579,7 +1559,7 @@ public class TexasPoker extends CardGame{
                 }
                 
                 // Insert data into TPHand table
-                sql = "INSERT INTO TPHand (round_id, hand) VALUES (?, ?)";
+                sql = getSQL("INSERT_TPHAND");
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setInt(1, roundID);
                     ps.setString(2, ((PokerPlayer) p).getHand().toStringDB());
@@ -1588,8 +1568,7 @@ public class TexasPoker extends CardGame{
                 }
                 
                 // Insert data into TPPlayerHand table
-                sql = "INSERT INTO TPPlayerHand (player_id, hand_id, " +
-                      "fold, allin) VALUES (?, ?, ?, ?)";
+                sql = getSQL("INSERT_TPPLAYERHAND");
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setInt(1, p.getInteger("id"));
                     ps.setInt(2, handID);
@@ -1600,8 +1579,7 @@ public class TexasPoker extends CardGame{
                 
                 if (p.getBoolean("idled")) {
                     // Insert data into TPPlayerIdle table
-                    sql = "INSERT INTO TPPlayerIdle (player_id, round_id, " +
-                          "idle_limit, idle_warning) VALUES (?, ?, ?, ?)";
+                    sql = getSQL("INSERT_TPPLAYERIDLE");
                     try (PreparedStatement ps = conn.prepareStatement(sql)) {
                         ps.setInt(1, p.getInteger("id"));
                         ps.setInt(2, roundID);
@@ -1614,7 +1592,7 @@ public class TexasPoker extends CardGame{
             
             for (PokerPot pot : pots) {
                 // Insert data into TPPot table
-                sql = "INSERT INTO TPPot (round_id, amount) VALUES (?, ?)";
+                sql = getSQL("INSERT_TPPOT");
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setInt(1, roundID);
                     ps.setInt(2, pot.getTotal());
@@ -1624,8 +1602,7 @@ public class TexasPoker extends CardGame{
                 
                 // Insert data into TPPlayerPot table
                 for (PokerPlayer p : pot.getDonors()) {
-                    sql = "INSERT INTO TPPlayerPot (player_id, pot_id, " +
-                          "contribution, result) VALUES (?, ?, ?, ?)";
+                    sql = getSQL("INSERT_TPPLAYERPOT");
                     try (PreparedStatement ps = conn.prepareStatement(sql)) {
                         ps.setInt(1, p.getInteger("id"));
                         ps.setInt(2, potID);
@@ -2113,52 +2090,31 @@ public class TexasPoker extends CardGame{
         
         // Build SQL query
         if (stat.equals("cash")) {
-            sql = "SELECT nick, cash, " +
-                      "(SELECT COUNT(*) FROM Purse WHERE cash > t1.cash)+1 AS rank " +
-                  "FROM (Player INNER JOIN Purse ON Player.id = Purse.player_id) AS t1 " +
-                  "WHERE nick = ? COLLATE NOCASE";
+            sql = getSQL("SELECT_RANK_CASH_BY_NICK");
             statName = "cash";
             line += "Cash: ";
         } else if (stat.equalsIgnoreCase("bank")) {
-            sql = "SELECT nick, bank, " +
-                      "(SELECT COUNT(*) FROM Purse WHERE bank > t1.bank)+1 AS rank " +
-                  "FROM (Player INNER JOIN Purse ON Player.id = Purse.player_id) AS t1 " +
-                  "WHERE nick = ? COLLATE NOCASE";
+            sql = getSQL("SELECT_RANK_BANK_BY_NICK");
             statName = "bank";
             line += "Bank: ";
         } else if (stat.equalsIgnoreCase("bankrupts")) {
-            sql = "SELECT nick, bankrupts, " +
-                      "(SELECT COUNT(*) FROM Purse WHERE bankrupts > t1.bankrupts)+1 AS rank " +
-                  "FROM (Player INNER JOIN Purse ON Player.id = Purse.player_id) AS t1 " +
-                  "WHERE nick = ? COLLATE NOCASE";
+            sql = getSQL("SELECT_RANK_BANKRUPTS_BY_NICK");
             statName = "bankrupts";
             line += "Bankrupts: ";
         } else if (stat.equalsIgnoreCase("net") || stat.equals("netcash")) {
-            sql = "SELECT nick, cash+bank AS netcash, " +
-                      "(SELECT COUNT(*) FROM Purse WHERE cash+bank > t1.cash+t1.bank)+1 AS rank " +
-                  "FROM (Player INNER JOIN Purse ON Player.id = Purse.player_id) AS t1 " +
-                  "WHERE nick = ? COLLATE NOCASE";
+            sql = getSQL("SELECT_RANK_NETCASH_BY_NICK");
             statName = "netcash";
             line += "Net Cash: ";
         } else if (stat.equalsIgnoreCase("rounds")) {
-            sql = "SELECT nick, rounds, " +
-                      "(SELECT COUNT(*) FROM TPPlayerStat WHERE rounds > 0 AND rounds > t1.rounds)+1 AS rank " +
-                  "FROM (Player INNER JOIN TPPlayerStat ON Player.id = TPPlayerStat.player_id) AS t1 " +
-                  "WHERE nick = ? COLLATE NOCASE";
+            sql = getSQL("SELECT_RANK_TPROUNDS_BY_NICK");
             statName = "rounds";
             line += "Texas Hold'em Rounds (min. 1 round): ";
         } else if (stat.equalsIgnoreCase("winnings")) {
-            sql = "SELECT nick, rounds, winnings, " +
-                      "(SELECT COUNT(*) FROM TPPlayerStat WHERE rounds > 0 AND winnings > t1.winnings)+1 AS rank " +
-                  "FROM (Player INNER JOIN TPPlayerStat ON Player.id = TPPlayerStat.player_id) AS t1 " +
-                  "WHERE nick = ? COLLATE NOCASE";
+            sql = getSQL("SELECT_RANK_TPWINNINGS_BY_NICK");
             statName = "winnings";
             line += "Texas Hold'em Winnings (min. 1 round): ";
         } else if (stat.equalsIgnoreCase("winrate")) {
-            sql = "SELECT nick, rounds, winnings*1.0/rounds AS winrate, " +
-                      "(SELECT COUNT(*) FROM TPPlayerStat WHERE rounds > 50 AND winnings*1.0/rounds > t1.winnings*1.0/t1.rounds)+1 AS rank " +
-                  "FROM (Player INNER JOIN TPPlayerStat ON Player.id = TPPlayerStat.player_id) AS t1 " +
-                  "WHERE nick = ? COLLATE NOCASE";
+            sql = getSQL("SELECT_RANK_TPWINRATE_BY_NICK");
             statName = "winrate";
             line += "Texas Hold'em Win Rate (min. 50 rounds): ";
         } else {
@@ -2222,62 +2178,38 @@ public class TexasPoker extends CardGame{
         String sqlBounds = "";
         
         if (stat.equalsIgnoreCase("cash")) {
-            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM Purse), ?)-10) AS top_offset";
-            sql = "SELECT nick, cash " +
-                  "FROM Player INNER JOIN Purse ON id = player_id " +
-                  "ORDER BY cash DESC " +
-                  "LIMIT ? OFFSET ?";
+            sqlBounds = getSQL("SELECT_TOP_BOUNDS_PURSE");
+            sql = getSQL("SELECT_TOP_CASH");
             statName = "cash";
             title += " Cash ";
         } else if (stat.equalsIgnoreCase("bank")) {
-            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM Purse), ?)-10) AS top_offset";
-            sql = "SELECT nick, bank " +
-                  "FROM Player INNER JOIN Purse ON id = player_id " +
-                  "ORDER BY bank DESC " +
-                  "LIMIT ? OFFSET ?";
+            sqlBounds = getSQL("SELECT_TOP_BOUNDS_PURSE");
+            sql = getSQL("SELECT_TOP_BANK");
             statName = "bank";
             title += " Bank ";
         } else if (stat.equalsIgnoreCase("bankrupts")) {
-            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM Purse), ?)-10) AS top_offset";
-            sql = "SELECT nick, bankrupts " +
-                  "FROM Player INNER JOIN Purse ON id = player_id " +
-                  "ORDER BY bankrupts DESC " +
-                  "LIMIT ? OFFSET ?";
+            sqlBounds = getSQL("SELECT_TOP_BOUNDS_PURSE");
+            sql = getSQL("SELECT_TOP_BANKRUPTS");
             statName = "bankrupts";
             title += " Bankrupts ";
         } else if (stat.equalsIgnoreCase("net") || stat.equalsIgnoreCase("netcash")) {
-            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM Purse), ?)-10) AS top_offset";
-            sql = "SELECT nick, cash+bank AS netcash " +
-                  "FROM Player INNER JOIN Purse ON id = player_id " +
-                  "ORDER BY netcash DESC " +
-                  "LIMIT ? OFFSET ?";
+            sqlBounds = getSQL("SELECT_TOP_BOUNDS_PURSE");
+            sql = getSQL("SELECT_TOP_NETCASH");
             statName = "netcash";
             title += " Net Cash ";
         } else if (stat.equalsIgnoreCase("winnings")){
-            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM TPPlayerStat WHERE rounds > 0), ?)-10) AS top_offset";
-            sql = "SELECT nick, winnings " +
-                  "FROM Player INNER JOIN TPPlayerStat ON id = player_id " +
-                  "WHERE rounds > 0 " +
-                  "ORDER BY winnings DESC " +
-                  "LIMIT ? OFFSET ?";
+            sqlBounds = getSQL("SELECT_TOP_BOUNDS_TPWINNINGS");
+            sql = getSQL("SELECT_TOP_TPWINNINGS");
             statName = "winnings";
             title += " Texas Hold'em Winnings (min. 1 round) ";
         } else if (stat.equalsIgnoreCase("rounds")) {
-            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM TPPlayerStat WHERE rounds > 0), ?)-10) AS top_offset";
-            sql = "SELECT nick, rounds " +
-                  "FROM Player INNER JOIN TPPlayerStat ON id = player_id " +
-                  "WHERE rounds > 0 " +
-                  "ORDER BY rounds DESC " +
-                  "LIMIT ? OFFSET ?";
+            sqlBounds = getSQL("SELECT_TOP_BOUNDS_TPROUNDS");
+            sql = getSQL("SELECT_TOP_TPROUNDS");
             statName = "rounds";
             title += " Texas Hold'em Rounds (min. 1 round) ";
         } else if (stat.equalsIgnoreCase("winrate")) {
-            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM TPPlayerStat WHERE rounds > 50), ?)-10) AS top_offset";
-            sql = "SELECT nick, winnings*1.0/rounds AS winrate " +
-                  "FROM Player INNER JOIN TPPlayerStat ON id = player_id " +
-                  "WHERE rounds > 50 " +
-                  "ORDER BY winrate DESC " +
-                  "LIMIT ? OFFSET ?";
+            sqlBounds = getSQL("SELECT_TOP_BOUNDS_TPWINRATE");
+            sql = getSQL("SELECT_TOP_TPWINRATE");
             statName = "winrate";
             title += " Texas Hold'em Win Rate (min. 50 rounds) ";
         } else {
