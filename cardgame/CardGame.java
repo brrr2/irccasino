@@ -239,14 +239,14 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             // Do nothing
         } else if (!isInProgress()) {
             informPlayer(newNick, getMsg("nick_change"));
-            removeJoined(oldNick);
             manager.deVoice(channel, user);
+            removeJoined(oldNick);
             showMsg(getMsg("unjoin"), formatBold(oldNick), joined.size());
             join(newNick, host);
         } else {
             informPlayer(newNick, getMsg("nick_change"));
-            leave(oldNick);
             manager.deVoice(channel, user);
+            leave(oldNick);
             join(newNick, host);
         }
     }
@@ -1306,7 +1306,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         sqlFile = "sqllib.txt";
         dbURL = "jdbc:sqlite:stats.sqlite3";
         versionInt = 392;
-        version = "0.3.9.1testing";
+        version = "0.3.9.2";
         
         // Load SQLite JDBC driver
         try {
