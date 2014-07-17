@@ -947,11 +947,13 @@ public class Blackjack extends CardGame {
             opCmdMap.clear();
             aliasMap.clear();
             msgMap.clear();
+            sqlMap.clear();
             loadIni();
             loadHostList("away.txt", awayList);
             loadHostList("simple.txt", notSimpleList);
-            loadStrLib(strFile);
-            loadHelp(helpFile);
+            loadStrLib();
+            loadSQLLib();
+            loadHelp();
             showMsg(getMsg("reload"));
         }
     }
@@ -1036,7 +1038,7 @@ public class Blackjack extends CardGame {
         dealer = new BlackjackPlayer("Dealer");
         
         initSettings();
-        loadHelp(helpFile);
+        loadHelp();
         loadIni();
         state = BlackjackState.NONE;
         showMsg(getMsg("game_start"), getGameNameStr());
@@ -1103,11 +1105,9 @@ public class Blackjack extends CardGame {
         } else {
             BlackjackPlayer record = null;
             try (Connection conn = DriverManager.getConnection(dbURL)) {
+                conn.setAutoCommit(false);
                 // Retrieve data from Player table if possible
-                String sql = "SELECT id, nick, cash, bank, bankrupts, winnings, rounds, idles " +
-                             "FROM Player INNER JOIN Purse INNER JOIN BJPlayerStat " +
-                             "ON Player.id = Purse.player_id AND Player.id = BJPlayerStat.player_id " +
-                             "WHERE nick = ? COLLATE NOCASE";
+                String sql = getSQL("SELECT_BJPLAYERVIEW_BY_NICK");
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setString(1, nick);
                     try (ResultSet rs = ps.executeQuery()) {
@@ -1124,6 +1124,7 @@ public class Blackjack extends CardGame {
                         }
                     }
                 }
+                conn.commit();
                 logDBWarning(conn.getWarnings());
             } catch (SQLException ex) {
                 manager.log("SQL Error: " + ex.getMessage());
@@ -1147,7 +1148,7 @@ public class Blackjack extends CardGame {
             p.put("idles", 0);
             
             // Retrieve data from Player table if possible
-            String sql = "SELECT id FROM Player WHERE nick = ? COLLATE NOCASE";
+            String sql = getSQL("SELECT_PLAYER_BY_NICK");
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, p.getNick());
                 try (ResultSet rs = ps.executeQuery()) {
@@ -1159,7 +1160,7 @@ public class Blackjack extends CardGame {
             
             // Add new record if not found in Player table
             if (!p.has("id")) {
-                sql = "INSERT INTO Player (nick, time_created) VALUES(?, ?)";
+                sql = getSQL("INSERT_PLAYER");
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setString(1, p.getNick());
                     ps.setLong(2, System.currentTimeMillis() / 1000);
@@ -1170,7 +1171,7 @@ public class Blackjack extends CardGame {
             
             // Retrieve data from Purse table if possible
             boolean found = false;
-            sql = "SELECT cash, bank, bankrupts FROM Purse WHERE player_id = ?";
+            sql = getSQL("SELECT_PURSE_BY_PLAYER_ID");
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setInt(1, p.getInteger("id"));
                 try (ResultSet rs = ps.executeQuery()) {
@@ -1186,8 +1187,7 @@ public class Blackjack extends CardGame {
             // Add new record if not found in Purse
             if (!found) {
                 informPlayer(p.getNick(), getMsg("new_player"), getGameNameStr(), get("cash"));
-                sql = "INSERT INTO Purse (player_id, cash, bank, bankrupts) " +
-                      "VALUES(?, ?, ?, ?)";
+                sql = getSQL("INSERT_PURSE");
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setInt(1, p.getInteger("id"));
                     ps.setInt(2, p.getInteger("cash"));
@@ -1199,8 +1199,7 @@ public class Blackjack extends CardGame {
             
             // Retrieve data from BJPlayerStat table if possible
             found = false;
-            sql = "SELECT rounds, winnings, idles " +
-                  "FROM BJPlayerStat WHERE player_id = ?";
+            sql = getSQL("SELECT_BJPLAYERSTAT_BY_PLAYER_ID");
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setInt(1, p.getInteger("id"));
                 try (ResultSet rs = ps.executeQuery()) {
@@ -1215,8 +1214,7 @@ public class Blackjack extends CardGame {
             
             // Add new record if not found in BJPlayerStat table
             if (!found) {
-                sql = "INSERT INTO BJPlayerStat (player_id, rounds, winnings, idles) " +
-                      "VALUES(?, ?, ?, ?)";
+                sql = getSQL("INSERT_BJPLAYERSTAT");
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setInt(1, p.getInteger("id"));
                     ps.setInt(2, p.getInteger("rounds"));
@@ -1240,8 +1238,7 @@ public class Blackjack extends CardGame {
             
             for (Player p : players) {
                 // Update data in Purse table
-                String sql = "UPDATE Purse SET cash = ?, bank = ?, bankrupts = ? " +
-                             "WHERE player_id = ?";
+                String sql  = getSQL("UPDATE_PURSE");
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setInt(1, p.getInteger("cash"));
                     ps.setInt(2, p.getInteger("bank"));
@@ -1251,8 +1248,7 @@ public class Blackjack extends CardGame {
                 }
 
                 // Update data in BJPlayerStat table
-                sql = "UPDATE BJPlayerStat SET rounds = ?, winnings = ?, idles = ? " +
-                      "WHERE player_id = ?";
+                sql = getSQL("UPDATE_BJPLAYERSTAT");
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setInt(1, p.getInteger("rounds"));
                     ps.setInt(2, p.getInteger("winnings"));
@@ -1287,7 +1283,7 @@ public class Blackjack extends CardGame {
         try (Connection conn = DriverManager.getConnection(dbURL)) {
             conn.setAutoCommit(false);
             
-            String sql = "SELECT rounds, winnings FROM BJHouse WHERE shoe_size = ?";
+            String sql = getSQL("SELECT_BJHOUSE_BY_SHOE_SIZE");
             boolean found = false;
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setInt(1, numDecks);
@@ -1301,7 +1297,7 @@ public class Blackjack extends CardGame {
             }
             
             if (!found) {
-                sql = "INSERT INTO BJHouse (shoe_size, rounds, winnings) VALUES (?, ?, ?)";
+                sql = getSQL("INSERT_BJHOUSE");
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setInt(1, numDecks);
                     ps.setInt(2, 0);
@@ -1329,9 +1325,7 @@ public class Blackjack extends CardGame {
         record.put("total_winnings", 0);
         
         try (Connection conn = DriverManager.getConnection(dbURL)) {
-            String sql = "SELECT (SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 0) as total_players, " +
-                             "(SELECT SUM(rounds) FROM BJHouse) AS total_rounds, " +
-                             "(SELECT SUM(winnings) FROM BJHouse) AS total_winnings";
+            String sql = getSQL("SELECT_BJGAMETOTALS");
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.isBeforeFirst()) {
@@ -1341,7 +1335,6 @@ public class Blackjack extends CardGame {
                     }
                 }
             }
-            
             logDBWarning(conn.getWarnings());
         } catch (SQLException ex) {
             manager.log("SQL Error: " + ex.getMessage());
@@ -1364,8 +1357,7 @@ public class Blackjack extends CardGame {
             conn.setAutoCommit(false);
             
             // Insert data into BJRound table
-            String sql = "INSERT INTO BJRound (start_time, end_time, channel, " +
-                         "shoe_size, num_cards_left) VALUES (?, ?, ?, ?, ?)";
+            String sql = getSQL("INSERT_BJROUND");
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setLong(1, startTime);
                 ps.setLong(2, endTime);
@@ -1378,8 +1370,7 @@ public class Blackjack extends CardGame {
             
             for (Player p : joined) {
                 // Insert data into BJPlayerChange table
-                sql = "INSERT INTO BJPlayerChange (player_id, round_id, change, cash) " +
-                      "VALUES (?, ?, ?, ?)";
+                sql = getSQL("INSERT_BJPLAYERCHANGE");
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setInt(1, p.getInteger("id"));
                     ps.setInt(2, roundID);
@@ -1390,8 +1381,7 @@ public class Blackjack extends CardGame {
                 
                 if (p.getBoolean("idled")) {
                     // Insert data into BJPlayerIdle table
-                    sql = "INSERT INTO BJPlayerIdle (player_id, round_id, idle_limit, idle_warning) " +
-                          "VALUES (?, ?, ?, ?)";
+                    sql = getSQL("INSERT_BJPLAYERIDLE");
                     try (PreparedStatement ps = conn.prepareStatement(sql)) {
                         ps.setInt(1, p.getInteger("id"));
                         ps.setInt(2, roundID);
@@ -1403,7 +1393,7 @@ public class Blackjack extends CardGame {
                 
                 for (BlackjackHand h : ((BlackjackPlayer) p).getAllHands()) {
                     // Insert data into BJHand table
-                    sql = "INSERT INTO BJHand (round_id, hand) VALUES (?, ?)";
+                    sql = getSQL("INSERT_BJHAND");
                     try (PreparedStatement ps = conn.prepareStatement(sql)) {
                         ps.setInt(1, roundID);
                         ps.setString(2, h.toStringDB());
@@ -1412,8 +1402,7 @@ public class Blackjack extends CardGame {
                     }
                     
                     // Insert data into BJPlayerHand table
-                    sql = "INSERT INTO BJPlayerHand (player_id, hand_id, bet, split, surrender, doubledown, result) " +
-                          "VALUES (?, ?, ?, ?, ?, ?, ?)";
+                    sql = getSQL("INSERT_BJPLAYERHAND");
                     try (PreparedStatement ps = conn.prepareStatement(sql)) {
                         ps.setInt(1, p.getInteger("id"));
                         ps.setInt(2, handID);
@@ -1427,8 +1416,7 @@ public class Blackjack extends CardGame {
                     
                     if (p.has("insurebet")) {
                         // Insert data into BJPlayerInsurance table
-                        sql = "INSERT INTO BJPlayerInsurance (player_id, round_id, bet, result) " +
-                              "VALUES (?, ?, ?, ?)";
+                        sql = getSQL("INSERT_BJPLAYERINSURANCE");
                         try (PreparedStatement ps = conn.prepareStatement(sql)) {
                             ps.setInt(1, p.getInteger("id"));
                             ps.setInt(2, roundID);
@@ -1440,7 +1428,7 @@ public class Blackjack extends CardGame {
                 }
                 
                 // Insert Dealer's hand into BJHand table
-                sql = "INSERT INTO BJHand (round_id, hand) VALUES (?, ?)";
+                sql = getSQL("INSERT_BJHAND");
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setInt(1, roundID);
                     ps.setString(2, dealer.getHand().toStringDB());
@@ -1449,7 +1437,7 @@ public class Blackjack extends CardGame {
             }
             
             // Update BJHouseStat table
-            sql = "UPDATE BJHouse SET rounds=rounds+?, winnings=winnings+? WHERE shoe_size = ?";
+            sql = getSQL("UPDATE_BJHOUSE");
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setInt(1, 1);
                 ps.setInt(2, houseWinnings);
@@ -2426,52 +2414,31 @@ public class Blackjack extends CardGame {
         
         // Build SQL query
         if (stat.equals("cash")) {
-            sql = "SELECT nick, cash, " +
-                      "(SELECT COUNT(*) FROM Purse WHERE cash > t1.cash)+1 AS rank " +
-                  "FROM (Player INNER JOIN Purse ON Player.id = Purse.player_id) AS t1 " +
-                  "WHERE nick = ? COLLATE NOCASE";
+            sql = getSQL("SELECT_RANK_CASH_BY_NICK");
             statName = "cash";
             line += "Cash: ";
         } else if (stat.equalsIgnoreCase("bank")) {
-            sql = "SELECT nick, bank, " +
-                      "(SELECT COUNT(*) FROM Purse WHERE bank > t1.bank)+1 AS rank " +
-                  "FROM (Player INNER JOIN Purse ON Player.id = Purse.player_id) AS t1 " +
-                  "WHERE nick = ? COLLATE NOCASE";
+            sql = getSQL("SELECT_RANK_BANK_BY_NICK");
             statName = "bank";
             line += "Bank: ";
         } else if (stat.equalsIgnoreCase("bankrupts")) {
-            sql = "SELECT nick, bankrupts, " +
-                      "(SELECT COUNT(*) FROM Purse WHERE bankrupts > t1.bankrupts)+1 AS rank " +
-                  "FROM (Player INNER JOIN Purse ON Player.id = Purse.player_id) AS t1 " +
-                  "WHERE nick = ? COLLATE NOCASE";
+            sql = getSQL("SELECT_RANK_BANKRUPTS_BY_NICK");
             statName = "bankrupts";
             line += "Bankrupts: ";
         } else if (stat.equalsIgnoreCase("net") || stat.equals("netcash")) {
-            sql = "SELECT nick, cash+bank AS netcash, " +
-                      "(SELECT COUNT(*) FROM Purse WHERE cash+bank > t1.cash+t1.bank)+1 AS rank " +
-                  "FROM (Player INNER JOIN Purse ON Player.id = Purse.player_id) AS t1 " +
-                  "WHERE nick = ? COLLATE NOCASE";
+            sql = getSQL("SELECT_RANK_NETCASH_BY_NICK");
             statName = "netcash";
             line += "Net Cash: ";
         } else if (stat.equalsIgnoreCase("rounds")) {
-            sql = "SELECT nick, rounds, " +
-                      "(SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 0 AND rounds > t1.rounds)+1 AS rank " +
-                  "FROM (Player INNER JOIN BJPlayerStat ON Player.id = BJPlayerStat.player_id) AS t1 " +
-                  "WHERE nick = ? COLLATE NOCASE";
+            sql = getSQL("SELECT_RANK_BJROUNDS_BY_NICK");
             statName = "rounds";
             line += "Blackjack Rounds (min. 1 round): ";
         } else if (stat.equalsIgnoreCase("winnings")) {
-            sql = "SELECT nick, rounds, winnings, " +
-                      "(SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 0 AND winnings > t1.winnings)+1 AS rank " +
-                  "FROM (Player INNER JOIN BJPlayerStat ON Player.id = BJPlayerStat.player_id) AS t1 " +
-                  "WHERE nick = ? COLLATE NOCASE";
+            sql = getSQL("SELECT_RANK_BJWINNINGS_BY_NICK");
             statName = "winnings";
             line += "Blackjack Winnings (min. 1 round): ";
         } else if (stat.equalsIgnoreCase("winrate")) {
-            sql = "SELECT nick, rounds, winnings*1.0/rounds AS winrate, " +
-                      "(SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 50 AND winnings*1.0/rounds > t1.winnings*1.0/t1.rounds)+1 AS rank " +
-                  "FROM (Player INNER JOIN BJPlayerStat ON Player.id = BJPlayerStat.player_id) AS t1 " +
-                  "WHERE nick = ? COLLATE NOCASE";
+            sql = getSQL("SELECT_RANK_BJWINRATE_BY_NICK");
             statName = "winrate";
             line += "Blackjack Win Rate (min. 50 rounds): ";
         } else {
@@ -2535,62 +2502,38 @@ public class Blackjack extends CardGame {
         String sqlBounds = "";
         
         if (stat.equalsIgnoreCase("cash")) {
-            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM Purse), ?)-10) AS top_offset";
-            sql = "SELECT nick, cash " +
-                  "FROM Player INNER JOIN Purse ON id = player_id " +
-                  "ORDER BY cash DESC " +
-                  "LIMIT ? OFFSET ?";
+            sqlBounds = getSQL("SELECT_TOP_BOUNDS_PURSE");
+            sql = getSQL("SELECT_TOP_CASH");
             statName = "cash";
             title += " Cash ";
         } else if (stat.equalsIgnoreCase("bank")) {
-            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM Purse), ?)-10) AS top_offset";
-            sql = "SELECT nick, bank " +
-                  "FROM Player INNER JOIN Purse ON id = player_id " +
-                  "ORDER BY bank DESC " +
-                  "LIMIT ? OFFSET ?";
+            sqlBounds = getSQL("SELECT_TOP_BOUNDS_PURSE");
+            sql = getSQL("SELECT_TOP_BANK");
             statName = "bank";
             title += " Bank ";
         } else if (stat.equalsIgnoreCase("bankrupts")) {
-            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM Purse), ?)-10) AS top_offset";
-            sql = "SELECT nick, bankrupts " +
-                  "FROM Player INNER JOIN Purse ON id = player_id " +
-                  "ORDER BY bankrupts DESC " +
-                  "LIMIT ? OFFSET ?";
+            sqlBounds = getSQL("SELECT_TOP_BOUNDS_PURSE");
+            sql = getSQL("SELECT_TOP_BANKRUPTS");
             statName = "bankrupts";
             title += " Bankrupts ";
         } else if (stat.equalsIgnoreCase("net") || stat.equalsIgnoreCase("netcash")) {
-            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM Purse), ?)-10) AS top_offset";
-            sql = "SELECT nick, cash+bank AS netcash " +
-                  "FROM Player INNER JOIN Purse ON id = player_id " +
-                  "ORDER BY netcash DESC " +
-                  "LIMIT ? OFFSET ?";
+            sqlBounds = getSQL("SELECT_TOP_BOUNDS_PURSE");
+            sql = getSQL("SELECT_TOP_NETCASH");
             statName = "netcash";
             title += " Net Cash ";
         } else if (stat.equalsIgnoreCase("winnings")){
-            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 0), ?)-10) AS top_offset";
-            sql = "SELECT nick, winnings " +
-                  "FROM Player INNER JOIN BJPlayerStat ON id = player_id " +
-                  "WHERE rounds > 0 " +
-                  "ORDER BY winnings DESC " +
-                  "LIMIT ? OFFSET ?";
+            sqlBounds = getSQL("SELECT_TOP_BOUNDS_BJWINNINGS");
+            sql = getSQL("SELECT_TOP_BJWINNINGS");
             statName = "winnings";
             title += " Blackjack Winnings (min. 1 round) ";
         } else if (stat.equalsIgnoreCase("rounds")) {
-            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 0), ?)-10) AS top_offset";
-            sql = "SELECT nick, rounds " +
-                  "FROM Player INNER JOIN BJPlayerStat ON id = player_id " +
-                  "WHERE rounds > 0 " +
-                  "ORDER BY rounds DESC " +
-                  "LIMIT ? OFFSET ?";
+            sqlBounds = getSQL("SELECT_TOP_BOUNDS_BJROUNDS");
+            sql = getSQL("SELECT_TOP_BJROUNDS");
             statName = "rounds";
             title += " Blackjack Rounds (min. 1 round) ";
         } else if (stat.equalsIgnoreCase("winrate")) {
-            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 50), ?)-10) AS top_offset";
-            sql = "SELECT nick, winnings*1.0/rounds AS winrate " +
-                  "FROM Player INNER JOIN BJPlayerStat ON id = player_id " +
-                  "WHERE rounds > 50 " +
-                  "ORDER BY winrate DESC " +
-                  "LIMIT ? OFFSET ?";
+            sqlBounds = getSQL("SELECT_TOP_BOUNDS_BJWINRATE");
+            sql = getSQL("SELECT_TOP_BJWINRATE");
             statName = "winrate";
             title += " Blackjack Win Rate (min. 50 rounds) ";
         } else {
@@ -2602,7 +2545,7 @@ public class Blackjack extends CardGame {
             int limit = 10;
             int offset = 0;
             
-            // Retrieve offset
+            // Retrieve bounds
             try (PreparedStatement ps = conn.prepareStatement(sqlBounds)) {
                 ps.setInt(1, n);
                 ps.setInt(2, n);

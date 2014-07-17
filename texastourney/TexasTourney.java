@@ -757,11 +757,13 @@ public class TexasTourney extends TexasPoker {
             opCmdMap.clear();
             aliasMap.clear();
             msgMap.clear();
+            sqlMap.clear();
             loadIni();
             loadHostList("away.txt", awayList);
             loadHostList("simple.txt", notSimpleList);
-            loadStrLib(strFile);
-            loadHelp(helpFile);
+            loadStrLib();
+            loadSQLLib();
+            loadHelp();
             showMsg(getMsg("reload"));
         }
     }
@@ -1317,7 +1319,7 @@ public class TexasTourney extends TexasPoker {
         community = new Hand();
         
         initSettings();
-        loadHelp(helpFile);
+        loadHelp();
         loadIni();
         state = PokerState.NONE;
         betState = PokerBet.NONE;
@@ -1370,11 +1372,9 @@ public class TexasTourney extends TexasPoker {
         } else {
             TourneyPokerPlayer record = null;
             try (Connection conn = DriverManager.getConnection(dbURL)) {
+                conn.setAutoCommit(false);
                 // Retrieve data from Player table if possible
-                String sql = "SELECT id, nick, tourneys, points, idles " +
-                             "FROM Player INNER JOIN TTPlayerStat " +
-                             "ON Player.id = TTPlayerStat.player_id " +
-                             "WHERE nick = ? COLLATE NOCASE";
+                String sql = getSQL("SELECT_TTPLAYERVIEW_BY_NICK");
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setString(1, nick);
                     try (ResultSet rs = ps.executeQuery()) {
@@ -1388,6 +1388,7 @@ public class TexasTourney extends TexasPoker {
                         }
                     }
                 }
+                conn.commit();
                 logDBWarning(conn.getWarnings());
             } catch (SQLException ex) {
                 manager.log("SQL Error: " + ex.getMessage());
@@ -1409,7 +1410,7 @@ public class TexasTourney extends TexasPoker {
             p.put("idles", 0);
             
             // Retrieve data from Player table if possible
-            String sql = "SELECT id FROM Player WHERE nick = ? COLLATE NOCASE";
+            String sql = getSQL("SELECT_PLAYER_BY_NICK");
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, p.getNick());
                 try (ResultSet rs = ps.executeQuery()) {
@@ -1421,7 +1422,7 @@ public class TexasTourney extends TexasPoker {
             
             // Add new player if not found in Player table
             if (!p.has("id")) {
-                sql = "INSERT INTO Player (nick, time_created) VALUES(?, ?)";
+                sql = getSQL("INSERT_PLAYER");
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setString(1, p.getNick());
                     ps.setLong(2, System.currentTimeMillis() / 1000);
@@ -1432,8 +1433,7 @@ public class TexasTourney extends TexasPoker {
             
             // Retrieve data from TTPlayerStat table if possible
             boolean found = false;
-            sql = "SELECT tourneys, points, idles " +
-                  "FROM TTPlayerStat WHERE player_id = ?";
+            sql = getSQL("SELECT_TTPLAYERSTAT_BY_PLAYER_ID");
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setInt(1, p.getInteger("id"));
                 try (ResultSet rs = ps.executeQuery()) {
@@ -1448,8 +1448,7 @@ public class TexasTourney extends TexasPoker {
             
             // Add new record if not found in TPPlayerStat table
             if (!found) {
-                sql = "INSERT INTO TTPlayerStat (player_id, tourneys, points, idles) " +
-                      "VALUES(?, ?, ?, ?)";
+                sql = getSQL("INSERT_TTPLAYERSTAT");
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setInt(1, p.getInteger("id"));
                     ps.setInt(2, p.getInteger("tourneys"));
@@ -1473,8 +1472,7 @@ public class TexasTourney extends TexasPoker {
             
             for (Player p : players) {
                 // Update data in TTPlayerStat table
-                String sql = "UPDATE TTPlayerStat SET tourneys = ?, points = ?, idles = ? " +
-                             "WHERE player_id = ?";
+                String sql = getSQL("UPDATE_TTPLAYERSTAT");
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setInt(1, p.getInteger("tourneys"));
                     ps.setInt(2, p.getInteger("points"));
@@ -1505,29 +1503,15 @@ public class TexasTourney extends TexasPoker {
         record.put("total_tourneys", 0);
         
         try (Connection conn = DriverManager.getConnection(dbURL)) {
-            conn.setAutoCommit(false);
-            
-            // Retrieve total players
-            String sql = "SELECT COUNT(*) as total_players FROM TTPlayerStat WHERE tourneys > 0";
+            String sql = getSQL("SELECT_TTGAMETOTALS");
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.isBeforeFirst()) {
                         record.put("total_players", rs.getInt("total_players"));
-                    }
-                }
-            }
-            
-            // Retrieve total tournaments
-            sql = "SELECT COUNT(*) as total_tourneys FROM TTTourney";
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.isBeforeFirst()) {
                         record.put("total_tourneys", rs.getInt("total_tourneys"));
                     }
                 }
             }
-            
-            conn.commit();
             logDBWarning(conn.getWarnings());
         } catch (SQLException ex) {
             manager.log("SQL Error: " + ex.getMessage());
@@ -1541,8 +1525,7 @@ public class TexasTourney extends TexasPoker {
             conn.setAutoCommit(false);
             int tourneyID;
             // Insert data into TTTourney table
-            String sql = "INSERT INTO TTTourney (start_time, end_time, channel, " +
-                         "rounds) VALUES (?, ?, ?, ?)";
+            String sql = getSQL("INSERT_TTTOURNEY");
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setLong(1, startTime);
                 ps.setLong(2, endTime);
@@ -1553,8 +1536,7 @@ public class TexasTourney extends TexasPoker {
             }
             
             // Insert winner into TTPlayerTourney table
-            sql = "INSERT INTO TTPlayerTourney (player_id, tourney_id, " +
-                  "result) VALUES (?, ?, ?)";
+            sql = getSQL("INSERT_TTPLAYERTOURNEY");
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setInt(1, joined.get(0).getInteger("id"));
                 ps.setInt(2, tourneyID);
@@ -1564,8 +1546,7 @@ public class TexasTourney extends TexasPoker {
             
             for (Player p : blacklist) {
                 // Insert other players into TTPlayerTourney table
-                sql = "INSERT INTO TTPlayerTourney (player_id, tourney_id, " +
-                      "result) VALUES (?, ?, ?)";
+                sql = getSQL("INSERT_TTPLAYERTOURNEY");
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setInt(1, p.getInteger("id"));
                     ps.setInt(2, tourneyID);
@@ -1576,8 +1557,7 @@ public class TexasTourney extends TexasPoker {
                 // Only players in the blacklist could have idled out
                 if (p.getBoolean("idled")) {
                     // Insert data into TTPlayerIdle table
-                    sql = "INSERT INTO TTPlayerIdle (player_id, tourney_id, " +
-                          "idle_limit, idle_warning) VALUES (?, ?, ?, ?)";
+                    sql = getSQL("INSERT_TTPLAYERIDLE");
                     try (PreparedStatement ps = conn.prepareStatement(sql)) {
                         ps.setInt(1, p.getInteger("id"));
                         ps.setInt(2, tourneyID);
@@ -1718,23 +1698,14 @@ public class TexasTourney extends TexasPoker {
         // Build SQL query
         if (stat.equalsIgnoreCase("winrate")) {
             statName = "winrate";
-            sql = "SELECT nick, tourneys, points*100.0/tourneys AS winrate, " +
-                      "(SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 5 AND points*100.0/tourneys > t1.points*100.0/t1.tourneys)+1 AS rank " +
-                  "FROM (Player INNER JOIN TTPlayerStat ON Player.id = TTPlayerStat.player_id) AS t1 " +
-                  "WHERE nick = ? COLLATE NOCASE";
+            sql = getSQL("SELECT_RANK_TTWINRATE_BY_NICK");
             line += "Texas Hold'em Tournament Win Rate: ";
         } else if (stat.equalsIgnoreCase("wins")) {
-            sql = "SELECT nick, tourneys, points, " +
-                      "(SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 0 AND points > t1.points)+1 AS rank " +
-                  "FROM (Player INNER JOIN TTPlayerStat ON Player.id = TTPlayerStat.player_id) AS t1 " +
-                  "WHERE nick = ? COLLATE NOCASE";
+            sql = getSQL("SELECT_RANK_TTPOINTS_BY_NICK");
             statName = "points";
             line += "Texas Hold'em Tournament Wins (min. 1 tournament): ";
         } else if (stat.equalsIgnoreCase("tourneys")) {
-            sql = "SELECT nick, tourneys, " +
-                      "(SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 0 AND tourneys > t1.tourneys)+1 AS rank " +
-                  "FROM (Player INNER JOIN TTPlayerStat ON Player.id = TTPlayerStat.player_id) AS t1 " +
-                  "WHERE nick = ? COLLATE NOCASE";
+            sql = getSQL("SELECT_RANK_TTTOURNEYS_BY_NICK");
             statName = "tourneys";
             line += "Texas Hold'em Tournaments Played (min. 1 tournament): ";
         } else {
@@ -1793,30 +1764,18 @@ public class TexasTourney extends TexasPoker {
         String sqlBounds = "";
         
         if (stat.equalsIgnoreCase("wins")){
-            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 0), ?)-10) AS top_offset";
-            sql = "SELECT nick, points " +
-                  "FROM Player INNER JOIN TTPlayerStat ON id = player_id " +
-                  "WHERE tourneys > 0 " +
-                  "ORDER BY points DESC " +
-                  "LIMIT ? OFFSET ?";
+            sqlBounds = getSQL("SELECT_TOP_BOUNDS_TTPOINTS");
+            sql = getSQL("SELECT_TOP_TTPOINTS");
             statName = "points";
             title += " Texas Hold'em Tournament Wins (min. 1 tournament) ";
         } else if (stat.equalsIgnoreCase("tourneys")) {
-            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 0), ?)-10) AS top_offset";
-            sql = "SELECT nick, tourneys " +
-                  "FROM Player INNER JOIN TTPlayerStat ON id = player_id " +
-                  "WHERE tourneys > 0 " +
-                  "ORDER BY tourneys DESC " +
-                  "LIMIT ? OFFSET ?";
+            sqlBounds = getSQL("SELECT_TOP_BOUNDS_TTTOURNEYS");
+            sql = getSQL("SELECT_TOP_TTTOURNEYS");
             statName = "tourneys";
             title += " Texas Hold'em Tournaments Played (min. 1 tournament) ";
         } else if (stat.equalsIgnoreCase("winrate")) {
-            sqlBounds = "SELECT MIN(?, 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 5), ?)-10) AS top_offset";
-            sql = "SELECT nick, points*100.0/tourneys AS winrate " +
-                  "FROM Player INNER JOIN TTPlayerStat ON id = player_id " +
-                  "WHERE tourneys > 5 " +
-                  "ORDER BY winrate DESC " +
-                  "LIMIT ? OFFSET ?";
+            sqlBounds = getSQL("SELECT_TOP_BOUNDS_TTWINRATE");
+            sql = getSQL("SELECT_TOP_TTWINRATE");
             statName = "winrate";
             title += " Texas Hold'em Tournament Win Rate (min. 5 tournaments) ";
         } else {

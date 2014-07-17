@@ -69,18 +69,22 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     /** INI file settings **/
     protected HashMap<String,Integer> settings;
     // Game properties
+    protected int versionInt;
     protected int startCount;
     protected long lastPing;
     protected long startTime;
     protected long endTime;
     protected String name;
+    protected String version;
     protected String iniFile;
     protected String helpFile;
     protected String strFile;
+    protected String sqlFile;
     protected String dbURL;
     protected HashMap<String,String> cmdMap;
     protected HashMap<String,String> opCmdMap;
     protected HashMap<String,String> aliasMap;
+    protected HashMap<String,String> sqlMap;
     protected HashMap<String,String> msgMap;
     protected ArrayList<String> awayList;
     protected ArrayList<String> notSimpleList;
@@ -190,7 +194,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     abstract protected void processCommand(User user, String command, String[] params);
     
     /**
-     * Process a user part event in the game channel.
+     * Processes a user part event in the game channel.
      * @param user 
      */
     protected void processPart(User user) {
@@ -235,11 +239,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             // Do nothing
         } else if (!isInProgress()) {
             informPlayer(newNick, getMsg("nick_change"));
+            manager.deVoice(channel, user);
             removeJoined(oldNick);
             showMsg(getMsg("unjoin"), formatBold(oldNick), joined.size());
             join(newNick, host);
         } else {
             informPlayer(newNick, getMsg("nick_change"));
+            manager.deVoice(channel, user);
             leave(oldNick);
             join(newNick, host);
         }
@@ -683,7 +689,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param params 
      */
     protected void gversion(String nick, String[] params) {
-        showMsg(getMsg("version"));
+        showMsg("irccasino version: " + version);
     }
     
     /**
@@ -764,22 +770,21 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param params 
      */
     protected void fleave(User user, String nick, String[] params) {
-        String fNick = params[0];
         if (!channel.isOp(user)) {
             informPlayer(nick, getMsg("ops_only"));
         } else if (params.length < 1){
             informPlayer(nick, getMsg("no_parameter"));
-        } else if (isWaitlisted(fNick)) {
-            removeWaitlisted(fNick);
+        } else if (isWaitlisted(params[0])) {
+            removeWaitlisted(params[0]);
             informPlayer(nick, getMsg("leave_waitlist"));
-        } else if (!isJoined(fNick)){
-            informPlayer(nick, getMsg("no_join_nick"), fNick);
+        } else if (!isJoined(params[0])){
+            informPlayer(nick, getMsg("no_join_nick"), params[0]);
         } else if (!isInProgress()) {
-            Player p = findJoined(fNick);
-            removeJoined(fNick);
+            Player p = findJoined(params[0]);
+            removeJoined(params[0]);
             showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
         } else {
-            leave(fNick);
+            leave(params[0]);
         }
     }
     
@@ -1021,7 +1026,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                     }
                 }
                 savePlayerFile(newRecords);
-                showMsg("Player data has been trimmed.");
+                showMsg("players.txt has been trimmed.");
             }
         }
     }
@@ -1091,32 +1096,40 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         } else if (manager.gamesInProgress()) {
             informPlayer(nick, getMsg("no_migrate"));
         } else {
-            showMsg("Performing migration from players.txt to stats.sqlite3. Please wait...");
-            
-            ArrayList<Player> records = loadPlayerFile();
-            int playerID;
-            String sql;
-            
             try (Connection conn = DriverManager.getConnection(dbURL)) {
                 conn.setAutoCommit(false);
+                String sql;
                 
-                // Iterate over records
+                // Iterate over records and only migrate players who don't
+                // already exist in stats.sqlite3
+                ArrayList<Player> records = loadPlayerFile();
+                showMsg("Migrating from players.txt to stats.sqlite3...");
                 for (Player record : records) {
-                    playerID = -1;
-                    
-                    // Add new record if not found in Player table
-                    sql = "INSERT INTO Player (nick, time_created) VALUES(?, ?)";
+                    int playerID = -1;
+
+                    // Search if player exists
+                    sql = getSQL("SELECT_PLAYER_BY_NICK");
                     try (PreparedStatement ps = conn.prepareStatement(sql)) {
                         ps.setString(1, record.getString("nick"));
-                        ps.setLong(2, System.currentTimeMillis() / 1000);
-                        ps.executeUpdate();
-                        playerID = ps.getGeneratedKeys().getInt(1);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.isBeforeFirst()) {
+                                playerID = rs.getInt("id");
+                            }
+                        }
                     }
 
-                    if (playerID != -1) {
-                        // Attempt to add new record in Purse table
-                        sql = "INSERT INTO Purse (player_id, cash, bank, bankrupts) " +
-                              "VALUES(?, ?, ?, ?)";
+                    if (playerID == -1) {
+                        // Add new record if not found in Player table
+                        sql = getSQL("INSERT_PLAYER");
+                        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                            ps.setString(1, record.getString("nick"));
+                            ps.setLong(2, System.currentTimeMillis() / 1000);
+                            ps.executeUpdate();
+                            playerID = ps.getGeneratedKeys().getInt(1);
+                        }
+
+                        // Add new record in Purse table
+                        sql = getSQL("INSERT_PURSE");
                         try (PreparedStatement ps = conn.prepareStatement(sql)) {
                             ps.setInt(1, playerID);
                             ps.setInt(2, record.getInteger("cash"));
@@ -1125,9 +1138,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                             ps.executeUpdate();
                         }
 
-                        // Attempt to add new record in TPPlayerStat table
-                        sql = "INSERT INTO TPPlayerStat (player_id, rounds, winnings, idles) " +
-                              "VALUES(?, ?, ?, ?)";
+                        // Add new record in TPPlayerStat table
+                        sql = getSQL("INSERT_TPPLAYERSTAT");
                         try (PreparedStatement ps = conn.prepareStatement(sql)) {
                             ps.setInt(1, playerID);
                             ps.setInt(2, record.getInteger("tprounds"));
@@ -1136,9 +1148,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                             ps.executeUpdate();
                         }
 
-                        // Attempt to add new record in BJPlayerStat table
-                        sql = "INSERT INTO BJPlayerStat (player_id, rounds, winnings, idles) " +
-                              "VALUES(?, ?, ?, ?)";
+                        // Add new record in BJPlayerStat table
+                        sql = getSQL("INSERT_BJPLAYERSTAT");
                         try (PreparedStatement ps = conn.prepareStatement(sql)) {
                             ps.setInt(1, playerID);
                             ps.setInt(2, record.getInteger("bjrounds"));
@@ -1147,9 +1158,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                             ps.executeUpdate();
                         }
 
-                        // Attempt to add new record in TPPlayerStat table
-                        sql = "INSERT INTO TTPlayerStat (player_id, tourneys, points, idles) " +
-                              "VALUES(?, ?, ?, ?)";
+                        // Add new record in TTPlayerStat table
+                        sql = getSQL("INSERT_TTPLAYERSTAT");
                         try (PreparedStatement ps = conn.prepareStatement(sql)) {
                             ps.setInt(1, playerID);
                             ps.setInt(2, record.getInteger("ttplayed"));
@@ -1159,8 +1169,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                         }
                     }
                 }
-                
-                // Migrate house data for Blackjack
+
+                // Migrate house data for Blackjack if they don't already exist
+                // in stats.sqlite3
+                showMsg("Migrating from housestats.txt to stats.sqlite3...");
                 try (BufferedReader in = new BufferedReader(new FileReader("housestats.txt"))) {
                     String str;
                     int decks, rounds, winnings;
@@ -1177,12 +1189,24 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                                 decks = Integer.parseInt(st.nextToken());
                                 rounds = Integer.parseInt(st.nextToken());
                                 winnings = Integer.parseInt(st.nextToken());
-                                sql = "INSERT INTO BJHouse (shoe_size, rounds, winnings) VALUES(?, ?, ?)";
+                                boolean shoeExists = false;
+
+                                // Search if shoe size exists
+                                sql = getSQL("SELECT_BJHOUSE_BY_SHOE_SIZE");
                                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                                     ps.setInt(1, decks);
-                                    ps.setInt(2, rounds);
-                                    ps.setInt(3, winnings);
-                                    ps.executeUpdate();
+                                    try (ResultSet rs = ps.executeQuery()) {
+                                        shoeExists = rs.isBeforeFirst();
+                                    }
+                                }
+                                if (!shoeExists) {
+                                    sql = getSQL("INSERT_BJHOUSE");
+                                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                                        ps.setInt(1, decks);
+                                        ps.setInt(2, rounds);
+                                        ps.setInt(3, winnings);
+                                        ps.executeUpdate();
+                                    }
                                 }
                             }
                             break;
@@ -1191,12 +1215,12 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 } catch (IOException e) {
                     manager.log("housestats.txt not found! No house stats migrated...");
                 }
-                
+
                 conn.commit();
                 showMsg("Migration complete.");
             } catch (SQLException ex) {
                 manager.log("SQL Error: " + ex.getMessage());
-                showMsg("Migration aborted.");
+                showMsg("Migration aborted. " + ex.getMessage());
             }
         }
     }
@@ -1273,19 +1297,24 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         cmdMap = new HashMap<>();
         opCmdMap = new HashMap<>();
         aliasMap = new HashMap<>();
+        sqlMap = new HashMap<>();
         msgMap = new HashMap<>();
         awayList = new ArrayList<>();
         notSimpleList = new ArrayList<>();
         respawnTasks = new ArrayList<>();
         strFile = "strlib.txt";
+        sqlFile = "sqllib.txt";
         dbURL = "jdbc:sqlite:stats.sqlite3";
+        versionInt = 392;
+        version = "0.3.9.2";
         
         // Load SQLite JDBC driver
         try {
             Class.forName("org.sqlite.JDBC");
         } catch (ClassNotFoundException ex) {}
         
-        loadStrLib(strFile);
+        loadStrLib();
+        loadSQLLib();
         loadHostList("away.txt", awayList);
         loadHostList("simple.txt", notSimpleList);
         initDB();
@@ -1298,173 +1327,100 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected final void initDB() {
         try (Connection conn = DriverManager.getConnection(dbURL)) {
             conn.setAutoCommit(false);
-            
-            // Create tables if necessary
             try (Statement s = conn.createStatement()) {
-                // Player table
-                s.execute( "CREATE TABLE IF NOT EXISTS Player (" +
-                           "id INTEGER PRIMARY KEY, nick TEXT, " +
-                           "time_created INTEGER, UNIQUE(nick))");
+                // Create tables
+                s.execute(getSQL("CREATE_TABLE_DBVERSION"));
+                s.execute(getSQL("CREATE_TABLE_PLAYER"));
+                s.execute(getSQL("CREATE_TABLE_PURSE"));
+                s.execute(getSQL("CREATE_TABLE_BANKING"));
+                s.execute(getSQL("CREATE_TABLE_BJPLAYERSTAT"));
+                s.execute(getSQL("CREATE_TABLE_BJROUND"));
+                s.execute(getSQL("CREATE_TABLE_BJHAND"));
+                s.execute(getSQL("CREATE_TABLE_BJPLAYERHAND"));
+                s.execute(getSQL("CREATE_TABLE_BJPLAYERINSURANCE"));
+                s.execute(getSQL("CREATE_TABLE_BJPLAYERCHANGE"));
+                s.execute(getSQL("CREATE_TABLE_BJPLAYERIDLE"));
+                s.execute(getSQL("CREATE_TABLE_BJHOUSE"));
+                s.execute(getSQL("CREATE_TABLE_TPPLAYERSTAT"));
+                s.execute(getSQL("CREATE_TABLE_TPROUND"));
+                s.execute(getSQL("CREATE_TABLE_TPPOT"));
+                s.execute(getSQL("CREATE_TABLE_TPPLAYERPOT"));
+                s.execute(getSQL("CREATE_TABLE_TPPLAYERCHANGE"));
+                s.execute(getSQL("CREATE_TABLE_TPHAND"));
+                s.execute(getSQL("CREATE_TABLE_TPPLAYERHAND"));
+                s.execute(getSQL("CREATE_TABLE_TPPLAYERIDLE"));
+                s.execute(getSQL("CREATE_TABLE_TTPLAYERSTAT"));
+                s.execute(getSQL("CREATE_TABLE_TTTOURNEY"));
+                s.execute(getSQL("CREATE_TABLE_TTPLAYERTOURNEY"));
+                s.execute(getSQL("CREATE_TABLE_TTPLAYERIDLE"));
+                // Create views
+                s.execute(getSQL("CREATE_VIEW_PLAYERPURSE"));
+                s.execute(getSQL("CREATE_VIEW_BJPLAYER"));
+                s.execute(getSQL("CREATE_VIEW_TPPLAYER"));
+                s.execute(getSQL("CREATE_VIEW_TTPLAYER"));
+            }
 
-                // Purse table
-                s.execute( "CREATE TABLE IF NOT EXISTS Purse (" +
-                           "player_id INTEGER, cash INTEGER, " +
-                           "bank INTEGER, bankrupts INTEGER, " +
-                           "UNIQUE(player_id), " +
-                           "FOREIGN KEY(player_id) REFERENCES Player(id))");
-                
-                // Banking table
-                s.execute( "CREATE TABLE IF NOT EXISTS Banking (" +
-                           "id INTEGER PRIMARY KEY, player_id INTEGER, " + 
-                           "transaction_time INTEGER, cash_change INTEGER, " +
-                           "cash INTEGER, bank INTEGER, " +
-                           "FOREIGN KEY(player_id) REFERENCES Player(id))");
-                
-                // BJPlayerStat table
-                s.execute( "CREATE TABLE IF NOT EXISTS BJPlayerStat (" +
-                           "player_id INTEGER, rounds INTEGER, " +
-                           "winnings INTEGER, idles INTEGER, " +
-                           "UNIQUE(player_id), " +
-                           "FOREIGN KEY(player_id) REFERENCES Player(id))");
-                
-                // BJRound table
-                s.execute( "CREATE TABLE IF NOT EXISTS BJRound (" +
-                           "id INTEGER PRIMARY KEY, " +
-                           "start_time INTEGER, end_time INTEGER, " +
-                           "channel TEXT, shoe_size INTEGER, " +
-                           "num_cards_left INTEGER, " +
-                           "FOREIGN KEY(shoe_size) REFERENCES BJHouse(shoe_size))");
-                
-                // BJHand table
-                s.execute( "CREATE TABLE IF NOT EXISTS BJHand (" +
-                           "id INTEGER PRIMARY KEY, " +
-                           "round_id INTEGER, hand TEXT, " +
-                           "FOREIGN KEY(round_id) REFERENCES BJRound(id))");
-                
-                // BJPlayerHand table
-                s.execute( "CREATE TABLE IF NOT EXISTS BJPlayerHand (" +
-                           "player_id INTEGER, hand_id INTEGER, " +
-                           "bet INTEGER, split BOOLEAN, surrender BOOLEAN, " +
-                           "doubledown BOOLEAN, result INTEGER, " +
-                           "UNIQUE(player_id, hand_id), " +
-                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
-                           "FOREIGN KEY(hand_id) REFERENCES BJHand(id))");
-                
-                // BJPlayerInsurance table
-                s.execute( "CREATE TABLE IF NOT EXISTS BJPlayerInsurance (" +
-                           "player_id INTEGER, round_id INTEGER, " +
-                           "bet INTEGER, result BOOLEAN, " +
-                           "UNIQUE(player_id, round_id), " +
-                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
-                           "FOREIGN KEY(round_id) REFERENCES BJRound(id))");
-                
-                // BJPlayerChange table
-                s.execute( "CREATE TABLE IF NOT EXISTS BJPlayerChange (" +
-                           "player_id INTEGER, round_id INTEGER, " +
-                           "change INTEGER, cash INTEGER, " +
-                           "UNIQUE(player_id, round_id), " +
-                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
-                           "FOREIGN KEY(round_id) REFERENCES BJRound(id))");
-                
-                // BJPlayerIdle table
-                s.execute( "CREATE TABLE IF NOT EXISTS BJPlayerIdle (" +
-                           "player_id INTEGER, round_id INTEGER, " +
-                           "idle_limit INTEGER, idle_warning INTEGER, " +
-                           "UNIQUE(player_id, round_id), " +
-                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
-                           "FOREIGN KEY(round_id) REFERENCES BJRound(id))");
-                
-                // BJHouseStat table
-                s.execute( "CREATE TABLE IF NOT EXISTS BJHouse (" +
-                           "shoe_size INTEGER, rounds INTEGER, " +
-                           "winnings INTEGER, UNIQUE(shoe_size))");
-                
-                // TPPlayerStat table
-                s.execute( "CREATE TABLE IF NOT EXISTS TPPlayerStat (" +
-                           "player_id INTEGER, rounds INTEGER, " +
-                           "winnings INTEGER, idles INTEGER, " +
-                           "UNIQUE(player_id), " +
-                           "FOREIGN KEY(player_id) REFERENCES Player(id))");
-                
-                // TPRound table
-                s.execute( "CREATE TABLE IF NOT EXISTS TPRound (" +
-                           "id INTEGER PRIMARY KEY, start_time INTEGER, " +
-                           "end_time INTEGER, channel TEXT, community TEXT)");
-                
-                // TPPot table
-                s.execute( "CREATE TABLE IF NOT EXISTS TPPot (" +
-                           "pot_id INTEGER PRIMARY KEY, " +
-                           "round_id INTEGER, amount INTEGER, " +
-                           "FOREIGN KEY(round_id) REFERENCES TPRound(id))");
-                
-                // TPPlayerPot table
-                s.execute( "CREATE TABLE IF NOT EXISTS TPPlayerPot (" +
-                           "player_id INTEGER, pot_id INTEGER, " +
-                           "contribution INTEGER, result BOOLEAN, " +
-                           "UNIQUE(player_id, pot_ID), " + 
-                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
-                           "FOREIGN KEY(pot_id) REFERENCES TPPot(id))");
-                
-                // TPPlayerChange table
-                s.execute( "CREATE TABLE IF NOT EXISTS TPPlayerChange (" +
-                           "player_id INTEGER, round_id INTEGER, " +
-                           "change INTEGER, cash INTEGER, " + 
-                           "UNIQUE(player_id, round_id), " +
-                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
-                           "FOREIGN KEY(round_id) REFERENCES TPRound(id))");
-                
-                // TPHand table
-                s.execute( "CREATE TABLE IF NOT EXISTS TPHand (" +
-                           "id INTEGER PRIMARY KEY, " + 
-                           "round_id INTEGER, hand TEXT, " +
-                           "FOREIGN KEY(round_id) REFERENCES TPRound(id))");
-                
-                // TPPlayerHand table
-                s.execute( "CREATE TABLE IF NOT EXISTS TPPlayerHand (" +
-                           "player_id INTEGER, hand_id INTEGER, " +
-                           "fold BOOLEAN, allin BOOLEAN, " +
-                           "UNIQUE(player_id, hand_id), " +
-                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
-                           "FOREIGN KEY(hand_id) REFERENCES TPHand(id))");
-                
-                // TPPlayerIdle table
-                s.execute( "CREATE TABLE IF NOT EXISTS TPPlayerIdle (" +
-                           "player_id INTEGER, round_id INTEGER, " +
-                           "idle_limit INTEGER, idle_warning INTEGER, " +
-                           "UNIQUE(player_id, round_id), " +
-                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
-                           "FOREIGN KEY(round_id) REFERENCES TPRound(id))");
-                
-                // TTPlayerStat table
-                s.execute( "CREATE TABLE IF NOT EXISTS TTPlayerStat (" +
-                           "player_id INTEGER, tourneys INTEGER, " +
-                           "points INTEGER, idles INTEGER, " +
-                           "UNIQUE(player_id), " +
-                           "FOREIGN KEY(player_id) REFERENCES Player(id))");
-                
-                // TTTourney table
-                s.execute( "CREATE TABLE IF NOT EXISTS TTTourney (" +
-                           "id INTEGER PRIMARY KEY, start_time INTEGER, " +
-                           "end_time INTEGER, channel TEXT, rounds INTEGER)");
-                
-                // TTPlayerTourney table
-                s.execute( "CREATE TABLE IF NOT EXISTS TTPlayerTourney (" +
-                           "player_id INTEGER, tourney_id INTEGER, " +
-                           "result BOOLEAN, UNIQUE(player_id, tourney_id), " +
-                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
-                           "FOREIGN KEY(tourney_id) REFERENCES TTTourney(id))");
-                
-                // TTPlayerIdle table
-                s.execute( "CREATE TABLE IF NOT EXISTS TTPlayerIdle (" +
-                           "player_id INTEGER, tourney_id INTEGER, " +
-                           "idle_limit INTEGER, idle_warning INTEGER, " +
-                           "UNIQUE(player_id, tourney_id), " +
-                           "FOREIGN KEY(player_id) REFERENCES Player(id), " +
-                           "FOREIGN KEY(tourney_id) REFERENCES TTTourney(id))");
-                
-                conn.commit();
+            // Check DB version
+            boolean update = true;
+            String sql = "SELECT version FROM DBVersion WHERE version = ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, versionInt);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.isBeforeFirst()) {
+                        update = false;
+                    }
+                }
+            }
+            if (update) {
+                showMsg("Updating database...");
+                // Check if TPPot needs to be altered (from v0.3.9)
+                boolean modTPPot = true;
+                sql = "SELECT * FROM sqlite_master WHERE type='table' AND name='TPPot'";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.getString("sql").equals(getSQL("CREATE_TABLE_TPPOT"))){
+                            modTPPot = false;
+                        }
+                    }
+                }
+                if (modTPPot) {
+                    int schema_version;
+                    try (Statement s = conn.createStatement()) {
+                        try (ResultSet rs = s.executeQuery("PRAGMA schema_version")) {
+                            schema_version = rs.getInt("schema_version");
+                        }
+                        s.execute("PRAGMA writable_schema = ON");
+                    }
+                    sql = "UPDATE sqlite_master SET sql = ? WHERE type = 'table' AND name = 'TPPot'";
+                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                        ps.setString(1, getSQL("CREATE_TABLE_TPPOT"));
+                        ps.executeUpdate();
+                    }
+                    try (Statement s = conn.createStatement()) {
+                        s.execute("PRAGMA schema_version = " + (schema_version+1));
+                        s.execute("PRAGMA writable_schema = OFF");
+                    }
+                }
+
+                // Insert database version (current irccasino version)
+                sql = getSQL("INSERT_DBVERSION");
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setLong(1, System.currentTimeMillis() / 1000);
+                    ps.setInt(2, versionInt);
+                    ps.executeUpdate();
+                }
+                showMsg("Update complete.");
             }
             
+            // Check database integrity
+            try (Statement s = conn.createStatement()) {
+                try (ResultSet rs = s.executeQuery("PRAGMA integrity_check")) {
+                    if (!rs.getString("integrity_check").equals("ok")) {
+                        showMsg("Database integrity check failed.");
+                    }
+                }
+            }
+            conn.commit();
             logDBWarning(conn.getWarnings());
         } catch (SQLException ex) {
             manager.log("SQL Error: " + ex.getMessage());
@@ -1515,12 +1471,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     protected void loadIni() {
         try (BufferedReader in = new BufferedReader(new FileReader(iniFile))) {
-            String str;
-            StringTokenizer st;
             while (in.ready()) {
-                str = in.readLine();
+                String str = in.readLine();
                 if (!str.startsWith("#") && str.contains("=")) {
-                    st = new StringTokenizer(str, "=");
+                    StringTokenizer st = new StringTokenizer(str, "=");
                     set(st.nextToken(), Integer.parseInt(st.nextToken()));
                 }
             }
@@ -1533,32 +1487,45 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     
     /**
      * Loads data from strlib file.
-     * @param file file path
      */
-    protected final void loadStrLib(String file) {
-        try (BufferedReader in = new BufferedReader(new FileReader(file))) {
-            StringTokenizer st;
-            String str;
+    protected final void loadStrLib() {
+        try (BufferedReader in = new BufferedReader(new FileReader(strFile))) {
             while (in.ready()){
                 // Replace all unicode
-                str = in.readLine().replaceAll("u0002", Colors.BOLD);
+                String str = in.readLine().replaceAll("u0002", Colors.BOLD);
                 // Skips all lines that begin with #
                 if (!str.startsWith("#") && str.contains("=")) {
-                    st = new StringTokenizer(str, "=");
+                    StringTokenizer st = new StringTokenizer(str, "=");
                     msgMap.put(st.nextToken(), st.nextToken());
                 }
             }
         } catch (IOException e) {
-            manager.log("Error reading from " + file + "!");
+            manager.log("Error reading from " + strFile + "!");
+        }
+    }
+    
+    /**
+     * Loads data from sqllib file.
+     */
+    protected final void loadSQLLib() {
+        try (BufferedReader in = new BufferedReader(new FileReader(sqlFile))) {
+            while (in.ready()){
+                String str = in.readLine();
+                if (!str.startsWith("#") && str.contains("|")) {
+                    StringTokenizer st = new StringTokenizer(str, "|");
+                    sqlMap.put(st.nextToken(), st.nextToken());
+                }
+            }
+        } catch (IOException e) {
+            manager.log("Error reading from " + sqlFile + "!");
         }
     }
     
     /**
      * Loads data from help file.
-     * @param file file path
      */
-    protected final void loadHelp(String file) {
-        try (BufferedReader in = new BufferedReader(new FileReader(file))) {
+    protected final void loadHelp() {
+        try (BufferedReader in = new BufferedReader(new FileReader(helpFile))) {
             String[] st, st2;
             String str, cmd, params, alias, def, line;
             while (in.ready()){
@@ -1608,7 +1575,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 }
             }
         } catch (IOException e) {
-            manager.log("Error reading from " + file + "!");
+            manager.log("Error reading from " + helpFile + "!");
         }
     }
     
@@ -2067,8 +2034,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected void saveDBPlayerBanking(Player p) {
         try (Connection conn = DriverManager.getConnection(dbURL)) {
             // Insert banking transaction into Banking table
-            String sql = "INSERT INTO Banking (player_id, transaction_time, " +
-                         "cash_change, cash, bank) VALUES (?, ?, ?, ?, ?)";
+            String sql = getSQL("INSERT_BANKING");
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setInt(1, p.getInteger("id"));
                 ps.setLong(2, System.currentTimeMillis() / 1000);
@@ -2493,6 +2459,19 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             return msgMap.get(msgKey);
         } else {
             return "Error: Message for \'" + msgKey + "\' not found!";
+        }
+    }
+
+    /**
+     * Returns the SQL statement based on the specified key.
+     * @param sqlKey
+     * @return 
+     */
+    protected String getSQL(String sqlKey) {
+        if (sqlMap.containsKey(sqlKey)){
+            return sqlMap.get(sqlKey);
+        } else {
+            return "Error: SQL statement for \'" + sqlKey + "\' not found!";
         }
     }
     
