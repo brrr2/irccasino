@@ -69,11 +69,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     /** INI file settings **/
     protected HashMap<String,Integer> settings;
     // Game properties
+    protected int versionInt;
     protected int startCount;
     protected long lastPing;
     protected long startTime;
     protected long endTime;
     protected String name;
+    protected String version;
     protected String iniFile;
     protected String helpFile;
     protected String strFile;
@@ -687,7 +689,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param params 
      */
     protected void gversion(String nick, String[] params) {
-        showMsg("irccasino version: " + getMsg("version"));
+        showMsg("irccasino version: " + version);
     }
     
     /**
@@ -1098,180 +1100,122 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 conn.setAutoCommit(false);
                 String sql;
                 
-                // Check DB version
-                showMsg("Checking DB version...");
-                boolean update = true;
-                sql = "SELECT version FROM DBVersion WHERE version = ?";
-                try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                    ps.setInt(1, Integer.valueOf(getMsg("version_int")));
-                    try (ResultSet rs = ps.executeQuery()) {
-                        if (rs.isBeforeFirst()) {
-                            showMsg("stats.sqlite3 is already up-to-date.");
-                            update = false;
-                        }
-                    }
-                }
-                
-                // Update if not the latest version
-                if (update) {
-                    boolean modTPPot = true;
-                    sql = "SELECT * FROM sqlite_master WHERE type='table' AND name='TPPot'";
+                // Iterate over records and only migrate players who don't
+                // already exist in stats.sqlite3
+                ArrayList<Player> records = loadPlayerFile();
+                showMsg("Migrating from players.txt to stats.sqlite3...");
+                for (Player record : records) {
+                    int playerID = -1;
+
+                    // Search if player exists
+                    sql = getSQL("SELECT_PLAYER_BY_NICK");
                     try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                        ps.setString(1, record.getString("nick"));
                         try (ResultSet rs = ps.executeQuery()) {
-                            if (rs.getString("sql").equals(getSQL("CREATE_TABLE_TPPOT"))){
-                                showMsg("TPPot is already up-to-date.");
-                                modTPPot = false;
+                            if (rs.isBeforeFirst()) {
+                                playerID = rs.getInt("id");
                             }
                         }
                     }
 
-                    if (modTPPot) {
-                        showMsg("Modifying TPPot table...");
-                        int schema_version;
-                        try (Statement s = conn.createStatement()) {
-                            try (ResultSet rs = s.executeQuery("PRAGMA schema_version")) {
-                                schema_version = rs.getInt("schema_version");
-                            }
-                            s.execute("PRAGMA writable_schema = ON");
-                        }
-                        sql = "UPDATE sqlite_master SET sql = ? WHERE type = 'table' AND name = 'TPPot'";
-                        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                            ps.setString(1, getSQL("CREATE_TABLE_TPPOT"));
-                            ps.executeUpdate();
-                        }
-                        try (Statement s = conn.createStatement()) {
-                            s.execute("PRAGMA schema_version = " + (schema_version+1));
-                            s.execute("PRAGMA writable_schema = OFF");
-                            try (ResultSet rs = s.executeQuery("PRAGMA integrity_check")) {
-                                if (!rs.getString("integrity_check").equals("ok")) {
-                                    showMsg("Integrity check failed.");
-                                }
-                            }
-                        }
-                    }
-
-                    ArrayList<Player> records = loadPlayerFile();
-                    showMsg("Migrating from players.txt to stats.sqlite3...");
-                    // Iterate over records
-                    for (Player record : records) {
-                        int playerID = -1;
-
-                        // Search if player exists
-                        sql = getSQL("SELECT_PLAYER_BY_NICK");
+                    if (playerID == -1) {
+                        // Add new record if not found in Player table
+                        sql = getSQL("INSERT_PLAYER");
                         try (PreparedStatement ps = conn.prepareStatement(sql)) {
                             ps.setString(1, record.getString("nick"));
-                            try (ResultSet rs = ps.executeQuery()) {
-                                if (rs.isBeforeFirst()) {
-                                    playerID = rs.getInt("id");
-                                }
-                            }
+                            ps.setLong(2, System.currentTimeMillis() / 1000);
+                            ps.executeUpdate();
+                            playerID = ps.getGeneratedKeys().getInt(1);
                         }
 
-                        if (playerID == -1) {
-                            // Add new record if not found in Player table
-                            sql = getSQL("INSERT_PLAYER");
-                            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                                ps.setString(1, record.getString("nick"));
-                                ps.setLong(2, System.currentTimeMillis() / 1000);
-                                ps.executeUpdate();
-                                playerID = ps.getGeneratedKeys().getInt(1);
-                            }
-
-                            // Add new record in Purse table
-                            sql = getSQL("INSERT_PURSE");
-                            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                                ps.setInt(1, playerID);
-                                ps.setInt(2, record.getInteger("cash"));
-                                ps.setInt(3, record.getInteger("bank"));
-                                ps.setInt(4, record.getInteger("bankrupts"));
-                                ps.executeUpdate();
-                            }
-
-                            // Add new record in TPPlayerStat table
-                            sql = getSQL("INSERT_TPPLAYERSTAT");
-                            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                                ps.setInt(1, playerID);
-                                ps.setInt(2, record.getInteger("tprounds"));
-                                ps.setInt(3, record.getInteger("tpwinnings"));
-                                ps.setInt(4, 0);
-                                ps.executeUpdate();
-                            }
-
-                            // Add new record in BJPlayerStat table
-                            sql = getSQL("INSERT_BJPLAYERSTAT");
-                            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                                ps.setInt(1, playerID);
-                                ps.setInt(2, record.getInteger("bjrounds"));
-                                ps.setInt(3, record.getInteger("bjwinnings"));
-                                ps.setInt(4, 0);
-                                ps.executeUpdate();
-                            }
-
-                            // Add new record in TPPlayerStat table
-                            sql = getSQL("INSERT_TTPLAYERSTAT");
-                            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                                ps.setInt(1, playerID);
-                                ps.setInt(2, record.getInteger("ttplayed"));
-                                ps.setInt(3, record.getInteger("ttwins"));
-                                ps.setInt(4, 0);
-                                ps.executeUpdate();
-                            }
+                        // Add new record in Purse table
+                        sql = getSQL("INSERT_PURSE");
+                        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                            ps.setInt(1, playerID);
+                            ps.setInt(2, record.getInteger("cash"));
+                            ps.setInt(3, record.getInteger("bank"));
+                            ps.setInt(4, record.getInteger("bankrupts"));
+                            ps.executeUpdate();
                         }
-                    }
 
-                    showMsg("Migrating from housestats.txt to stats.sqlite3...");
-                    // Migrate house data for Blackjack
-                    try (BufferedReader in = new BufferedReader(new FileReader("housestats.txt"))) {
-                        String str;
-                        int decks, rounds, winnings;
-                        StringTokenizer st;
-                        while (in.ready()) {
-                            str = in.readLine();
-                            if (str.startsWith("#blackjack")) {
-                                while (in.ready()) {
-                                    str = in.readLine();
-                                    if (str.startsWith("#")) {
-                                        break;
-                                    }
-                                    st = new StringTokenizer(str);
-                                    decks = Integer.parseInt(st.nextToken());
-                                    rounds = Integer.parseInt(st.nextToken());
-                                    winnings = Integer.parseInt(st.nextToken());
-                                    boolean shoeExists = false;
-                                    
-                                    // Search if shoe size exists
-                                    sql = getSQL("SELECT_BJHOUSE_BY_SHOE_SIZE");
-                                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                                        ps.setInt(1, decks);
-                                        try (ResultSet rs = ps.executeQuery()) {
-                                            shoeExists = rs.isBeforeFirst();
-                                        }
-                                    }
-                                    if (!shoeExists) {
-                                        sql = getSQL("INSERT_BJHOUSE");
-                                        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                                            ps.setInt(1, decks);
-                                            ps.setInt(2, rounds);
-                                            ps.setInt(3, winnings);
-                                            ps.executeUpdate();
-                                        }
-                                    }
-                                }
-                                break;
-                            }
+                        // Add new record in TPPlayerStat table
+                        sql = getSQL("INSERT_TPPLAYERSTAT");
+                        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                            ps.setInt(1, playerID);
+                            ps.setInt(2, record.getInteger("tprounds"));
+                            ps.setInt(3, record.getInteger("tpwinnings"));
+                            ps.setInt(4, 0);
+                            ps.executeUpdate();
                         }
-                    } catch (IOException e) {
-                        manager.log("housestats.txt not found! No house stats migrated...");
-                    }
-                    
-                    // Insert database version
-                    sql = getSQL("INSERT_DBVERSION");
-                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                        ps.setLong(1, System.currentTimeMillis() / 1000);
-                        ps.setInt(2, Integer.valueOf(getMsg("version_int")));
-                        ps.executeUpdate();
+
+                        // Add new record in BJPlayerStat table
+                        sql = getSQL("INSERT_BJPLAYERSTAT");
+                        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                            ps.setInt(1, playerID);
+                            ps.setInt(2, record.getInteger("bjrounds"));
+                            ps.setInt(3, record.getInteger("bjwinnings"));
+                            ps.setInt(4, 0);
+                            ps.executeUpdate();
+                        }
+
+                        // Add new record in TTPlayerStat table
+                        sql = getSQL("INSERT_TTPLAYERSTAT");
+                        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                            ps.setInt(1, playerID);
+                            ps.setInt(2, record.getInteger("ttplayed"));
+                            ps.setInt(3, record.getInteger("ttwins"));
+                            ps.setInt(4, 0);
+                            ps.executeUpdate();
+                        }
                     }
                 }
+
+                // Migrate house data for Blackjack if they don't already exist
+                // in stats.sqlite3
+                showMsg("Migrating from housestats.txt to stats.sqlite3...");
+                try (BufferedReader in = new BufferedReader(new FileReader("housestats.txt"))) {
+                    String str;
+                    int decks, rounds, winnings;
+                    StringTokenizer st;
+                    while (in.ready()) {
+                        str = in.readLine();
+                        if (str.startsWith("#blackjack")) {
+                            while (in.ready()) {
+                                str = in.readLine();
+                                if (str.startsWith("#")) {
+                                    break;
+                                }
+                                st = new StringTokenizer(str);
+                                decks = Integer.parseInt(st.nextToken());
+                                rounds = Integer.parseInt(st.nextToken());
+                                winnings = Integer.parseInt(st.nextToken());
+                                boolean shoeExists = false;
+
+                                // Search if shoe size exists
+                                sql = getSQL("SELECT_BJHOUSE_BY_SHOE_SIZE");
+                                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                                    ps.setInt(1, decks);
+                                    try (ResultSet rs = ps.executeQuery()) {
+                                        shoeExists = rs.isBeforeFirst();
+                                    }
+                                }
+                                if (!shoeExists) {
+                                    sql = getSQL("INSERT_BJHOUSE");
+                                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                                        ps.setInt(1, decks);
+                                        ps.setInt(2, rounds);
+                                        ps.setInt(3, winnings);
+                                        ps.executeUpdate();
+                                    }
+                                }
+                            }
+                            break;
+                        }
+                    }
+                } catch (IOException e) {
+                    manager.log("housestats.txt not found! No house stats migrated...");
+                }
+
                 conn.commit();
                 showMsg("Migration complete.");
             } catch (SQLException ex) {
@@ -1361,6 +1305,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         strFile = "strlib.txt";
         sqlFile = "sqllib.txt";
         dbURL = "jdbc:sqlite:stats.sqlite3";
+        versionInt = 392;
+        version = "0.3.9.1testing";
         
         // Load SQLite JDBC driver
         try {
@@ -1413,7 +1359,67 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 s.execute(getSQL("CREATE_VIEW_TPPLAYER"));
                 s.execute(getSQL("CREATE_VIEW_TTPLAYER"));
             }
+
+            // Check DB version
+            boolean update = true;
+            String sql = "SELECT version FROM DBVersion WHERE version = ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, versionInt);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.isBeforeFirst()) {
+                        update = false;
+                    }
+                }
+            }
+            if (update) {
+                showMsg("Updating database...");
+                // Check if TPPot needs to be altered (from v0.3.9)
+                boolean modTPPot = true;
+                sql = "SELECT * FROM sqlite_master WHERE type='table' AND name='TPPot'";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.getString("sql").equals(getSQL("CREATE_TABLE_TPPOT"))){
+                            modTPPot = false;
+                        }
+                    }
+                }
+                if (modTPPot) {
+                    int schema_version;
+                    try (Statement s = conn.createStatement()) {
+                        try (ResultSet rs = s.executeQuery("PRAGMA schema_version")) {
+                            schema_version = rs.getInt("schema_version");
+                        }
+                        s.execute("PRAGMA writable_schema = ON");
+                    }
+                    sql = "UPDATE sqlite_master SET sql = ? WHERE type = 'table' AND name = 'TPPot'";
+                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                        ps.setString(1, getSQL("CREATE_TABLE_TPPOT"));
+                        ps.executeUpdate();
+                    }
+                    try (Statement s = conn.createStatement()) {
+                        s.execute("PRAGMA schema_version = " + (schema_version+1));
+                        s.execute("PRAGMA writable_schema = OFF");
+                    }
+                }
+
+                // Insert database version (current irccasino version)
+                sql = getSQL("INSERT_DBVERSION");
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setLong(1, System.currentTimeMillis() / 1000);
+                    ps.setInt(2, versionInt);
+                    ps.executeUpdate();
+                }
+                showMsg("Update complete.");
+            }
             
+            // Check database integrity
+            try (Statement s = conn.createStatement()) {
+                try (ResultSet rs = s.executeQuery("PRAGMA integrity_check")) {
+                    if (!rs.getString("integrity_check").equals("ok")) {
+                        showMsg("Database integrity check failed.");
+                    }
+                }
+            }
             conn.commit();
             logDBWarning(conn.getWarnings());
         } catch (SQLException ex) {
