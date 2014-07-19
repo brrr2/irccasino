@@ -199,11 +199,6 @@ public class TexasTourney extends TexasPoker {
     }
     
     @Override
-    protected void processPart(User user) {
-        processQuit(user);
-    }
-    
-    @Override
     protected void processQuit(User user){
         String nick = user.getNick();
         if (isJoined(nick)){

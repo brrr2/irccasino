@@ -119,6 +119,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     ////////////////////
     //// IRC events ////
     ////////////////////
+    
     /**
      * Occurs when a message is sent to the game channel.
      * @param event message event
@@ -184,6 +185,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     /////////////////////////////////////////
     //// Methods that process IRC events ////
     /////////////////////////////////////////
+    
     /**
      * Processes commands in the channel where the game is running.
      * 
@@ -789,7 +791,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     
     /**
-     * 
+     * Attempts to set the current round as the last round for the specified 
+     * player.
      * @param user
      * @param nick
      * @param params 
@@ -805,7 +808,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             informPlayer(nick, getMsg("no_start"));
         } else {
             Player p = findJoined(params[0]);
-            p.put("quit", true);
+            p.put("last", true);
             informPlayer(nick, getMsg("remove_end_round_nick"), params[0]);
         }
     }
@@ -1228,6 +1231,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     //////////////////////////
     //// Accessor methods ////
     //////////////////////////
+    
     /**
      * Returns the game channel.
      * @return the game channel
@@ -1687,11 +1691,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         }
     }
     
-    /* 
-     * Player management methods 
-     * Controls joining, leaving, waitlisting, and bankruptcies. Also includes
-     * toggling of simple, paying debt.
-     */
+    ///////////////////////////////////
+    //// Player management methods ////
+    ///////////////////////////////////
     
     /**
      * Adds a player to the joined list.
@@ -2266,6 +2268,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     /////////////////////////////////////////////
     //// Private message methods to players. ////
     /////////////////////////////////////////////
+    
     /**
      * Sends a message to a player via PM or notice depending on simple status.
      * @param nick the player's nick
