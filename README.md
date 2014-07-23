@@ -28,7 +28,7 @@ Standalone Setup
 5. Set the project to run *CasinoBot.java*.
 
 ### Configuration ###
-1.  Copy the *.help* files and *strlib.txt* to the project run directory.
+1.  Copy the *.help* and *lib.txt* files to the project run directory.
 2.  Create *irccasino.conf* in the project run directory with the following contents:
 
         nick=bot nick
@@ -39,15 +39,15 @@ Standalone Setup
         tpchannel=IRC channels to auto-start Texas Hold'em (comma delimited)
         ttchannel=IRC channels to auto-start Texas Hold'em Tournament (comma delimited)
                 
-### Run standalone bot ###
+### Running the standalone bot ###
 1. Run the project.
 2. Give the bot Op status in the channels that will run the games.
-3. While as channel Op in those channels, type the command `.texaspoker`, `.texastourney` or `.blackjack` to start that game in the channel.
+3. While as channel Op in those channels, type the command `.texaspoker`, `.texastourney` or `.blackjack` to start that particular game in the channel.
 4. Other useful Op commands are `.botquit`, `.reboot`, `.endgame`, and `.games`.
 
 ### Upgrading ###
-1. For versions 0.3.4 and lower, ensure that you use the latest library files (*.help* and *strlib.txt*).
-2. For versions 0.3.9 and higher, use the `.migrate` command from within any game to properly migrate game data from the previous version. Also ensure that you use the latest library files.
+1. When upgrading to a new version, be sure to use the library files from that new version (*.help* and *lib.txt*).
+2. Version 0.3.9 and newer uses a SQLite database (*stats.sqlite3*) to store game data. Use the `.migrate` command from within any game to migrate game data from *players.txt* and *housestats.txt*. The migration process will not overwrite any existing data in the database.
 
 Contributors
 ============
