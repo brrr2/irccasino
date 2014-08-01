@@ -16,7 +16,7 @@ table|table||Shows the visible cards on the table.
 turn|||Shows whose turn it is at present.
 sum|||Tells you the highest non-busting sum of your current hand.
 hand|||Tells you your current hand and the bet that has been placed on it.
-cash|nick||Shows the current cash amount for the specified player. Shows your own cash amount if no nick is provided.
+cash|nick|stack|Shows the current cash amount for the specified player. Shows your own cash amount if no nick is provided.
 bank|nick||Shows the bankroll information for the specified player. Shows your own bankroll information if no nick is provided.
 netcash|nick|net|Shows the current net cash for the specified player. Shows your own net cash amount if no nick is provided. Net cash is the difference between cash and debt.
 bankrupts|nick||Shows the number of bankrupts for the specified player. Shows your own number of bankrupts if no nick is provided.

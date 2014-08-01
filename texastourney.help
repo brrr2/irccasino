@@ -12,7 +12,7 @@ fold||f|Forfeits your hand and bets.
 community||comm|Shows the current community cards that have been dealt.
 hand|||Tells you your current hand.
 turn|||Shows whose turn it is at present.
-cash|nick||Shows the current cash amount for the specified player. Shows your own cash amount if no nick is provided.
+cash|nick|stack|Shows the current cash amount for the specified player. Shows your own cash amount if no nick is provided.
 tourneys|nick|rounds|Shows the number of tournaments the specified player has played. Shows your own number if no nick is specified.
 wins|nick||Shows the number of tournament wins for the specified player. Shows your own number if no nick is specified.
 winrate|nick||Shows the winning percentage for the specified player. Shows your own percentage if no nick is specified.

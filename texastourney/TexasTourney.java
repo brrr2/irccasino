@@ -98,7 +98,7 @@ public class TexasTourney extends TexasPoker {
             start(nick, params);
         } else if (command.equalsIgnoreCase("stop") || command.equalsIgnoreCase("cancel")) {
             stop(nick, params);
-        } else if (command.equalsIgnoreCase("cash")) {
+        } else if (command.equalsIgnoreCase("cash") || command.equalsIgnoreCase("stack")) {
             cash(nick, params);
         } else if (command.equalsIgnoreCase("tourneys") || command.equalsIgnoreCase("rounds")) {
             rounds(nick, params);
