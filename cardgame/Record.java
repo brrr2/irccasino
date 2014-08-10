@@ -102,6 +102,8 @@ public class Record {
             return (Integer) o > 0;
         } else if (o instanceof Double) {
             return (Double) o > 0;
+        } else if (o instanceof String) {
+            return !((String) o).equals("");
         }
         return false;
     }

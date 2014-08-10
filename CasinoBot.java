@@ -21,6 +21,7 @@ package irccasino;
 import irccasino.blackjack.Blackjack;
 import irccasino.texaspoker.TexasPoker;
 import irccasino.cardgame.CardGame;
+import irccasino.cardgame.Record;
 import irccasino.texastourney.TexasTourney;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -31,9 +32,10 @@ import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
 import java.util.StringTokenizer;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
 import org.pircbotx.Channel;
 import org.pircbotx.Colors;
 import org.pircbotx.PircBotX;
@@ -50,7 +52,7 @@ import org.pircbotx.hooks.events.*;
  */
 public class CasinoBot extends PircBotX implements GameManager {
     
-    protected HashMap<String,String> configMap;
+    protected Record config;
     protected ArrayList<CardGame> gameList;
     protected String logFile;
     protected SimpleDateFormat timeFormat;
@@ -68,39 +70,17 @@ public class CasinoBot extends PircBotX implements GameManager {
         }
         
         /**
-         * Joins the channels in the config file upon successful connection.
+         * Performs actions upon successful connection.
          * @param event Connect event
          */
         @Override
         public void onConnect(ConnectEvent<CasinoBot> event){
-            Channel chan;
-            StringTokenizer st;
-            
-            // Auto-join channels from config
-            st = new StringTokenizer(bot.configMap.get("channel"), ", ");
-            while(st.hasMoreTokens()) {
-                bot.joinChannel(st.nextToken());
-            }
-            
-            // Auto-start Blackjack
-            st = new StringTokenizer(bot.configMap.get("bjchannel"), ", ");
-            while(st.hasMoreTokens()) {
-                chan = bot.getChannel(st.nextToken());
-                blackjack(chan, null, new String[0], null);
-            }
-            
-            // Auto-start TexasPoker
-            st = new StringTokenizer(bot.configMap.get("tpchannel"), ", ");
-            while(st.hasMoreTokens()) {
-                chan = bot.getChannel(st.nextToken());
-                texaspoker(chan, null, new String[0], null);
-            }
-            
-            // Auto-start TexasTourney
-            st = new StringTokenizer(bot.configMap.get("ttchannel"), ", ");
-            while(st.hasMoreTokens()) {
-                chan = bot.getChannel(st.nextToken());
-                texastourney(chan, null, new String[0], null);
+            if (bot.config.has("sasl")) {
+                autoJoin();
+            } else if (bot.config.has("password")) {
+                bot.sendMessage("NickServ", String.format("identify %s %s", bot.config.getString("user"), bot.config.getString("password")));
+            } else {
+                autoJoin();
             }
         }
         
@@ -122,6 +102,26 @@ public class CasinoBot extends PircBotX implements GameManager {
                     params[ctr] = st.nextToken();
                 }
                 processCommand(event.getChannel(), event.getUser(), command, params, msg);
+            }
+        }
+        
+        @Override
+        public void onNotice(NoticeEvent<CasinoBot> event) {
+            User user = event.getUser();
+            String msg = event.getMessage();
+            
+            if (user.getNick().equalsIgnoreCase("NickServ")) {
+                processNSReply(msg);
+            }
+        }
+        
+        @Override
+        public void onJoin(JoinEvent<CasinoBot> event) {
+            User user = event.getUser();
+            Channel channel = event.getChannel();
+            
+            if (user.equals(bot.getUserBot())) {
+                processSelfJoin(channel);
             }
         }
 
@@ -152,6 +152,38 @@ public class CasinoBot extends PircBotX implements GameManager {
                 botQuit(channel, user, params, msg);
             } else if (command.equalsIgnoreCase("reboot") || command.equalsIgnoreCase("reconnect")) {
                 reboot(channel, user, params, msg);
+            }
+        }
+        
+        /**
+         * Processes a NickServ reply.
+         * @param msg the reply message from NickServ
+         */
+        public void processNSReply(String msg){
+            String lmsg = msg.toLowerCase();
+            if (lmsg.contains("you are now identified for") && 
+                    lmsg.contains(bot.config.getString("user").toLowerCase())) {
+                autoJoin();
+            }
+        }
+        
+        /**
+         * Processes a channel-join by the bot.
+         * @param channel 
+         */
+        public void processSelfJoin(Channel channel) {
+            if (bot.config.getString("bjchannel").toLowerCase().contains(channel.getName().toLowerCase())) {
+                // Auto-start Blackjack
+                try { Thread.sleep(2000); } catch (InterruptedException e){}
+                blackjack(channel, null, new String[0], null);
+            } else if (bot.config.getString("tpchannel").toLowerCase().contains(channel.getName().toLowerCase())) {
+                // Auto-start TexasPoker
+                try { Thread.sleep(2000); } catch (InterruptedException e){}
+                texaspoker(channel, null, new String[0], null);
+            } else if (bot.config.getString("ttchannel").toLowerCase().contains(channel.getName().toLowerCase())) {
+                // Auto-start TexasTourney
+                try { Thread.sleep(2000); } catch (InterruptedException e){}
+                texastourney(channel, null, new String[0], null);
             }
         }
         
@@ -278,6 +310,17 @@ public class CasinoBot extends PircBotX implements GameManager {
                 bot.quitServer("Reconnecting...");
             }
         }
+        
+        /**
+         * Performs auto-joining of channels.
+         */
+        public void autoJoin() {
+            StringTokenizer st = new StringTokenizer(bot.config.getString("channel"), ", ");
+            while(st.hasMoreTokens()) {
+                try { Thread.sleep(2000); } catch (InterruptedException e){}
+                bot.joinChannel(st.nextToken());
+            }
+        }
     }
     
     /**
@@ -287,7 +330,7 @@ public class CasinoBot extends PircBotX implements GameManager {
         super();
         logFile = "";
         gameList = new ArrayList<>();
-        configMap = new HashMap<>();
+        config = new Record();
         timeFormat = new SimpleDateFormat("yyyy/MM/dd  HH:mm:ss:SSS");
     }
     
@@ -329,7 +372,9 @@ public class CasinoBot extends PircBotX implements GameManager {
         //Close the socket from here and let the threads die
         if (socket != null && !socket.isClosed())
             try {
-                socket.shutdownInput();
+                if (!(socket instanceof SSLSocket)) {
+                    socket.shutdownInput();
+                }
                 socket.close();
             } catch (IOException e) {
                 logException(e);
@@ -445,19 +490,36 @@ public class CasinoBot extends PircBotX implements GameManager {
                     if (st.hasMoreTokens()){
                         value = st.nextToken();
                     }
-                    configMap.put(key, value);
+                    if (key.equalsIgnoreCase("sasl") || key.equalsIgnoreCase("ssl")) {
+                        config.put(key, Boolean.parseBoolean(value));
+                    } else if (key.equalsIgnoreCase("port")) {
+                        config.put(key, Integer.parseInt(value));
+                    } else {
+                        config.put(key, value);
+                    }
                 }
             }
-        } catch (IOException e) {
-            /* load defaults if config file is not found */
-            log(configFile + " not found! Loading default values...");
-            configMap.put("nick", "CasinoBot");
-            configMap.put("network", "chat.freenode.net");
-            configMap.put("channel", "##CasinoBot");
-            configMap.put("password", "");
-            configMap.put("bjchannel", "");
-            configMap.put("tpchannel", "");
-            configMap.put("ttchannel", "");
+        } catch (Exception e) {
+            /* Load defaults if config file is not found or problems processing
+               values within config file */
+            if (e instanceof IOException) {
+                log(configFile + " not found! Loading default values...");
+            } else if (e instanceof NumberFormatException) {
+                log("Invalid integer in " + configFile + "! Loading default values...");
+            } else {
+                log("Unknown exception while loading " + configFile + "! Loading default values...");
+            }
+            config.put("nick", "CasinoBot");
+            config.put("user", "CasinoBot");
+            config.put("password", "");
+            config.put("sasl", Boolean.FALSE);
+            config.put("ssl", Boolean.FALSE);
+            config.put("network", "chat.freenode.net");
+            config.put("port", 6667);
+            config.put("channel", "##CasinoBot");
+            config.put("bjchannel", "");
+            config.put("tpchannel", "");
+            config.put("ttchannel", "");
             saveConfig(configFile);
         }
     }
@@ -470,19 +532,27 @@ public class CasinoBot extends PircBotX implements GameManager {
         /* Write these values to a new file */
         try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(configFile)))) {
             out.println("#Bot nick");
-            out.println("nick=" + configMap.get("nick"));
-            out.println("#SASL password");
-            out.println("password=" + configMap.get("password"));
+            out.println("nick=" + config.get("nick"));
+            out.println("#Bot user");
+            out.println("user=" + config.get("user"));
+            out.println("#Bot password");
+            out.println("password=" + config.get("password"));
             out.println("#IRC network");
-            out.println("network=" + configMap.get("network"));
+            out.println("network=" + config.get("network"));
+            out.println("#IRC port");
+            out.println("port=" + config.get("port"));
+            out.println("#SASL login");
+            out.println("sasl=" + config.get("sasl"));
+            out.println("#SSL connection");
+            out.println("ssl=" + config.get("ssl"));
             out.println("#IRC channel");
-            out.println("channel=" + configMap.get("channel"));
+            out.println("channel=" + config.get("channel"));
             out.println("#Blackjack channel");
-            out.println("bjchannel=" + configMap.get("bjchannel"));
+            out.println("bjchannel=" + config.get("bjchannel"));
             out.println("#Texas Hold'em channel");
-            out.println("tpchannel=" + configMap.get("tpchannel"));
+            out.println("tpchannel=" + config.get("tpchannel"));
             out.println("#Texas Hold'em Tournament channel");
-            out.println("ttchannel=" + configMap.get("ttchannel"));
+            out.println("ttchannel=" + config.get("ttchannel"));
         } catch (IOException f) {
             log("Error creating " + configFile + "!");
         }
@@ -490,22 +560,21 @@ public class CasinoBot extends PircBotX implements GameManager {
     
     /**
      * Initializes bot with custom parameters.
-     * @param config
+     * @param configFile
      * @param log
      */
-    protected void initBot(String config, String log) {
+    protected void initBot(String configFile, String log) {
         version = "CasinoBot using PircBotX";
         logFile = log;
         setMessageDelay(200);
-        
-        loadConfig(config);
-        
         setVerbose(true);
         setAutoNickChange(true);
         setAutoReconnect(true);
         setCapEnabled(true);
-        setName(configMap.get("nick"));
-        setLogin(configMap.get("nick"));
+        
+        loadConfig(configFile);
+        setName(config.getString("nick"));
+        setLogin(config.getString("user"));
         
         // Add listener for initialization commands
         getListenerManager().addListener(new InitListener(this, '.'));
@@ -524,9 +593,9 @@ public class CasinoBot extends PircBotX implements GameManager {
         while (!isConnected()) {
             try {
                 attempt++;
-                if (!configMap.get("password").equals("")){
+                if (config.has("sasl") && config.has("password")){
                     getCapHandlers().clear();
-                    getCapHandlers().add(new SASLCapHandler(configMap.get("nick"), configMap.get("password")));
+                    getCapHandlers().add(new SASLCapHandler(config.getString("user"), config.getString("password")));
                 }
                 
                 // Reset IRC threads
@@ -535,7 +604,11 @@ public class CasinoBot extends PircBotX implements GameManager {
                 
                 // Attempt to connect
                 log("Connection attempt " + attempt + "...");
-                connect(configMap.get("network"));
+                if (config.has("ssl")) {
+                    connect(config.getString("network"), config.getInteger("port"), SSLSocketFactory.getDefault());
+                } else {
+                    connect(config.getString("network"), config.getInteger("port"));
+                }
             } catch (IOException | IrcException e){
                 // Log the exception that caused connection failure
                 logException(e);
