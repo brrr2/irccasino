@@ -436,6 +436,20 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     
     /**
+     * Displays the number of idle outs a player has accumulated in the current
+     * game.
+     * @param nick
+     * @param params 
+     */
+    protected void idles(String nick, String[] params) {
+        if (params.length > 0) {
+            showPlayerIdles(params[0]);
+        } else {
+            showPlayerIdles(nick);
+        }
+    }
+    
+    /**
      * Displays a player's full stats for the current game.
      * @param nick
      * @param params 
@@ -2250,6 +2264,22 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     
     /**
+     * Outputs the number of idle outs a player has accumulated to the game
+     * channel.
+     * @param nick 
+     */
+    public void showPlayerIdles(String nick) {
+        Player record = loadDBPlayerRecord(nick);
+        if (record == null) {
+            showMsg(getMsg("no_data"), formatNoPing(nick));
+        } else if (record.getInteger("rounds") == 0) {
+            showMsg(getMsg("player_no_rounds"), record.getNick(false), getGameNameStr());
+        } else {
+            showMsg(getMsg("player_idles"), record.getNick(false), record.get("idles"), getGameNameStr());
+        }
+    }
+    
+    /**
      * Outputs all of a player's stats relevant to this game.
      * Sends the list of statistics separated by '|' character to the game
      * channel.
@@ -2261,7 +2291,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         if (record == null) {
             showMsg(getMsg("no_data"), formatNoPing(nick));
         } else {
-            showMsg(getMsg("player_all_stats"), record.getNick(false), record.get("cash"), record.get("bank"), record.get("netcash"), record.get("bankrupts"), record.get("winnings"), record.get("rounds"));
+            showMsg(getMsg("player_all_stats"), record.getNick(false), record.get("cash"), record.get("bank"), record.get("netcash"), record.get("bankrupts"), record.get("winnings"), record.get("rounds"), record.get("idles"));
         }
     }
     

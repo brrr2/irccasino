@@ -157,6 +157,8 @@ public class Blackjack extends CardGame {
             winrate(nick, params);
         } else if (command.equalsIgnoreCase("rounds")) {
             rounds(nick, params);
+        } else if (command.equalsIgnoreCase("idles")) {
+            idles(nick, params);
         } else if (command.equalsIgnoreCase("player") || command.equalsIgnoreCase("p")){
             player(nick, params);
         } else if (command.equalsIgnoreCase("deposit")) {
@@ -2441,6 +2443,10 @@ public class Blackjack extends CardGame {
             sql = getSQL("SELECT_RANK_BJWINRATE_BY_NICK");
             statName = "winrate";
             line += "Blackjack Win Rate (min. 50 rounds): ";
+        } else if (stat.equalsIgnoreCase("idles")) {
+            sql = getSQL("SELECT_RANK_BJIDLES_BY_NICK");
+            statName = "idles";
+            line += "Blackjack Idles (min. 1 round): ";
         } else {
             throw new IllegalArgumentException();
         }
@@ -2458,7 +2464,7 @@ public class Blackjack extends CardGame {
                             } else {
                                 line += " $" + formatDecimal(rs.getDouble(statName));
                             }
-                        } else if (statName.equals("rounds")) {
+                        } else if (statName.equals("rounds") || statName.equals("idles")) {
                             if (rs.getInt("rounds") == 0) {
                                 line = String.format(getMsg("player_no_rounds"), formatNoPing(rs.getString("nick")), getGameNameStr());
                             } else {
@@ -2536,6 +2542,11 @@ public class Blackjack extends CardGame {
             sql = getSQL("SELECT_TOP_BJWINRATE");
             statName = "winrate";
             title += " Blackjack Win Rate (min. 50 rounds) ";
+        } else if (stat.equalsIgnoreCase("idles")) {
+            sqlBounds = getSQL("SELECT_TOP_BOUNDS_BJIDLES");
+            sql = getSQL("SELECT_TOP_BJIDLES");
+            statName = "idles";
+            title += " Blackjack Idles (min. 1 round) ";
         } else {
             throw new IllegalArgumentException();
         }
@@ -2571,7 +2582,7 @@ public class Blackjack extends CardGame {
                             list += " #" + ctr++ + ": " + Colors.WHITE + ",04 ";
                             if (statName.equals("winrate")) {
                                 list += formatNoPing(rs.getString("nick")) + " $" + formatDecimal(rs.getDouble(statName));
-                            } else if (statName.equals("rounds") || statName.equals("bankrupts")) {
+                            } else if (statName.equals("rounds") || statName.equals("bankrupts") || statName.equals("idles")) {
                                 list += formatNoPing(rs.getString("nick")) + " " + formatNumber(rs.getInt(statName));
                             } else {
                                 list += formatNoPing(rs.getString("nick")) + " $" + formatNumber(rs.getInt(statName));

@@ -106,6 +106,8 @@ public class TexasTourney extends TexasPoker {
             wins(nick, params);
         } else if (command.equalsIgnoreCase("winrate")) {
             winrate(nick, params);
+        } else if (command.equalsIgnoreCase("idles")) {
+            idles(nick, params);
         } else if (command.equalsIgnoreCase("player") || command.equalsIgnoreCase("p")){
             player(nick, params);
         } else if (command.equalsIgnoreCase("bet") || command.equalsIgnoreCase("b")) {
@@ -1675,12 +1677,24 @@ public class TexasTourney extends TexasPoker {
     }
     
     @Override
+    public void showPlayerIdles(String nick) {
+        Player record = loadDBPlayerRecord(nick);
+        if (record == null) {
+            showMsg(getMsg("no_data"), formatNoPing(nick));
+        } else if (record.getInteger("tourneys") == 0) {
+            showMsg(getMsg("player_no_rounds"), record.getNick(false), getGameNameStr());
+        } else {
+            showMsg(getMsg("player_idles"), record.getNick(false), record.get("idles"), getGameNameStr());
+        }
+    }
+    
+    @Override
     public void showPlayerAllStats(String nick){
         Player record = loadDBPlayerRecord(nick);
         if (record == null) {
             showMsg(getMsg("no_data"), formatNoPing(nick));
         } else {
-            showMsg(getMsg("tt_player_all_stats"), record.getNick(false), record.get("points"), record.get("tourneys"));
+            showMsg(getMsg("tt_player_all_stats"), record.getNick(false), record.get("points"), record.get("tourneys"), record.get("idles"));
         }
     }
 
@@ -1703,6 +1717,10 @@ public class TexasTourney extends TexasPoker {
             sql = getSQL("SELECT_RANK_TTTOURNEYS_BY_NICK");
             statName = "tourneys";
             line += "Texas Hold'em Tournaments Played (min. 1 tournament): ";
+        } else if (stat.equalsIgnoreCase("idles")) {
+            sql = getSQL("SELECT_RANK_TTIDLES_BY_NICK");
+            statName = "idles";
+            line += "Texas Hold'em Tournament Idles (min. 1 tournament): ";
         } else {
             throw new IllegalArgumentException();
         }
@@ -1720,13 +1738,7 @@ public class TexasTourney extends TexasPoker {
                             } else {
                                 line += " " + formatNoDecimal(rs.getDouble(statName)) + "%%";
                             }
-                        } else if (statName.equals("points")) {
-                            if (rs.getInt("tourneys") == 0) {
-                                line = String.format(getMsg("tt_player_no_tourneys"), formatNoPing(rs.getString("nick")));
-                            } else {
-                                line += " " + formatNumber(rs.getInt(statName));
-                            }
-                        } else if (statName.equals("tourneys")) {
+                        } else {
                             if (rs.getInt("tourneys") == 0) {
                                 line = String.format(getMsg("tt_player_no_tourneys"), formatNoPing(rs.getString("nick")));
                             } else {
@@ -1773,6 +1785,11 @@ public class TexasTourney extends TexasPoker {
             sql = getSQL("SELECT_TOP_TTWINRATE");
             statName = "winrate";
             title += " Texas Hold'em Tournament Win Rate (min. 5 tournaments) ";
+        } else if (stat.equalsIgnoreCase("idles")) {
+            sqlBounds = getSQL("SELECT_TOP_BOUNDS_TTIDLES");
+            sql = getSQL("SELECT_TOP_TTIDLES");
+            statName = "idles";
+            title += " Texas Hold'em Tournament Idles (min. 1 tournaments) ";
         } else {
             throw new IllegalArgumentException();
         }

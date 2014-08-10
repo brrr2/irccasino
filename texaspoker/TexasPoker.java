@@ -144,6 +144,8 @@ public class TexasPoker extends CardGame{
             winrate(nick, params);
         } else if (command.equalsIgnoreCase("rounds")) {
             rounds(nick, params);
+        } else if (command.equalsIgnoreCase("idles")) {
+            idles(nick, params);
         } else if (command.equalsIgnoreCase("player") || command.equalsIgnoreCase("p")){
             player(nick, params);
         } else if (command.equalsIgnoreCase("deposit")) {
@@ -2118,6 +2120,10 @@ public class TexasPoker extends CardGame{
             sql = getSQL("SELECT_RANK_TPWINRATE_BY_NICK");
             statName = "winrate";
             line += "Texas Hold'em Win Rate (min. 50 rounds): ";
+        } else if (stat.equalsIgnoreCase("idles")) {
+            sql = getSQL("SELECT_RANK_TPIDLES_BY_NICK");
+            statName = "idles";
+            line += "Texas Hold'em Idles (min. 1 round): ";
         } else {
             throw new IllegalArgumentException();
         }
@@ -2135,7 +2141,7 @@ public class TexasPoker extends CardGame{
                             } else {
                                 line += " $" + formatDecimal(rs.getDouble(statName));
                             }
-                        } else if (statName.equals("rounds")) {
+                        } else if (statName.equals("rounds") || statName.equals("idles")) {
                             if (rs.getInt("rounds") == 0) {
                                 line = String.format(getMsg("player_no_rounds"), formatNoPing(rs.getString("nick")), getGameNameStr());
                             } else {
@@ -2213,6 +2219,11 @@ public class TexasPoker extends CardGame{
             sql = getSQL("SELECT_TOP_TPWINRATE");
             statName = "winrate";
             title += " Texas Hold'em Win Rate (min. 50 rounds) ";
+        } else if (stat.equalsIgnoreCase("idles")) {
+            sqlBounds = getSQL("SELECT_TOP_BOUNDS_TPIDLES");
+            sql = getSQL("SELECT_TOP_TPIDLES");
+            statName = "idles";
+            title += " Texas Hold'em Idles (min. 1 round) ";
         } else {
             throw new IllegalArgumentException();
         }
@@ -2248,7 +2259,7 @@ public class TexasPoker extends CardGame{
                             list += " #" + ctr++ + ": " + Colors.WHITE + ",04 ";
                             if (statName.equals("winrate")) {
                                 list += formatNoPing(rs.getString("nick")) + " $" + formatDecimal(rs.getDouble(statName));
-                            } else if (statName.equals("rounds") || statName.equals("bankrupts")) {
+                            } else if (statName.equals("rounds") || statName.equals("bankrupts") || statName.equals("idles")) {
                                 list += formatNoPing(rs.getString("nick")) + " " + formatNumber(rs.getInt(statName));
                             } else {
                                 list += formatNoPing(rs.getString("nick")) + " $" + formatNumber(rs.getInt(statName));

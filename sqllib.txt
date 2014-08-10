@@ -48,12 +48,15 @@ SELECT_RANK_NETCASH_BY_NICK|SELECT nick, netcash, (SELECT COUNT(*) FROM PlayerPu
 SELECT_RANK_BJROUNDS_BY_NICK|SELECT nick, rounds, (SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 0 AND rounds > t1.rounds)+1 AS rank FROM BJPlayerView t1 WHERE nick = ? COLLATE NOCASE
 SELECT_RANK_BJWINNINGS_BY_NICK|SELECT nick, rounds, winnings, (SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 0 AND winnings > t1.winnings)+1 AS rank FROM BJPlayerView t1 WHERE nick = ? COLLATE NOCASE
 SELECT_RANK_BJWINRATE_BY_NICK|SELECT nick, rounds, winrate, (SELECT COUNT(*) FROM BJPlayerView WHERE rounds > 50 AND winrate > t1.winrate)+1 AS rank FROM BJPlayerView t1 WHERE nick = ? COLLATE NOCASE
+SELECT_RANK_BJIDLES_BY_NICK|SELECT nick, rounds, idles, (SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 0 AND idles > t1.idles)+1 AS rank FROM BJPlayerView t1 WHERE nick = ? COLLATE NOCASE
 SELECT_RANK_TPROUNDS_BY_NICK|SELECT nick, rounds, (SELECT COUNT(*) FROM TPPlayerStat WHERE rounds > 0 AND rounds > t1.rounds)+1 AS rank FROM TPPlayerView t1 WHERE nick = ? COLLATE NOCASE
 SELECT_RANK_TPWINNINGS_BY_NICK|SELECT nick, rounds, winnings, (SELECT COUNT(*) FROM TPPlayerStat WHERE rounds > 0 AND winnings > t1.winnings)+1 AS rank FROM TPPlayerView t1 WHERE nick = ? COLLATE NOCASE
 SELECT_RANK_TPWINRATE_BY_NICK|SELECT nick, rounds, winrate, (SELECT COUNT(*) FROM TPPlayerView WHERE rounds > 50 AND winrate > t1.winrate)+1 AS rank FROM TPPlayerView t1 WHERE nick = ? COLLATE NOCASE
+SELECT_RANK_TPIDLES_BY_NICK|SELECT nick, rounds, idles, (SELECT COUNT(*) FROM TPPlayerView WHERE rounds > 0 AND idles > t1.idles)+1 AS rank FROM TPPlayerView t1 WHERE nick = ? COLLATE NOCASE
 SELECT_RANK_TTTOURNEYS_BY_NICK|SELECT nick, tourneys, (SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 0 AND tourneys > t1.tourneys)+1 AS rank FROM TTPlayerView t1 WHERE nick = ? COLLATE NOCASE
 SELECT_RANK_TTPOINTS_BY_NICK|SELECT nick, tourneys, points, (SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 0 AND points > t1.points)+1 AS rank FROM TTPlayerView t1 WHERE nick = ? COLLATE NOCASE
 SELECT_RANK_TTWINRATE_BY_NICK|SELECT nick, tourneys, winrate, (SELECT COUNT(*) FROM TPPlayerView WHERE tourneys > 5 AND winrate > t1.winrate)+1 AS rank FROM TTPlayerView t1 WHERE nick = ? COLLATE NOCASE
+SELECT_RANK_TTIDLES_BY_NICK|SELECT nick, tourneys, idles, (SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 0 AND idles > t1.idles)+1 AS rank FROM TTPlayerView t1 WHERE nick = ? COLLATE NOCASE
 SELECT_TOP_CASH|SELECT nick, cash FROM PlayerPurseView ORDER BY cash DESC LIMIT ? OFFSET ?
 SELECT_TOP_BANK|SELECT nick, bank FROM PlayerPurseView ORDER BY bank DESC LIMIT ? OFFSET ?
 SELECT_TOP_BANKRUPTS|SELECT nick, bankrupts FROM PlayerPurseView ORDER BY bankrupts DESC LIMIT ? OFFSET ?
@@ -61,22 +64,28 @@ SELECT_TOP_NETCASH|SELECT nick, netcash FROM PlayerPurseView ORDER BY netcash DE
 SELECT_TOP_BJWINNINGS|SELECT nick, winnings FROM BJPlayerView WHERE rounds > 0 ORDER BY winnings DESC LIMIT ? OFFSET ?
 SELECT_TOP_BJROUNDS|SELECT nick, rounds FROM BJPlayerView WHERE rounds > 0 ORDER BY rounds DESC LIMIT ? OFFSET ?
 SELECT_TOP_BJWINRATE|SELECT nick, winrate FROM BJPlayerView WHERE rounds > 50 ORDER BY winrate DESC LIMIT ? OFFSET ?
+SELECT_TOP_BJIDLES|SELECT nick, idles FROM BJPlayerView WHERE rounds > 0 ORDER BY idles DESC LIMIT ? OFFSET ?
 SELECT_TOP_TPWINNINGS|SELECT nick, winnings FROM TPPlayerView WHERE rounds > 0 ORDER BY winnings DESC LIMIT ? OFFSET ?
 SELECT_TOP_TPROUNDS|SELECT nick, rounds FROM TPPlayerView WHERE rounds > 0 ORDER BY rounds DESC LIMIT ? OFFSET ?
 SELECT_TOP_TPWINRATE|SELECT nick, winrate FROM TPPlayerView WHERE rounds > 50 ORDER BY winrate DESC LIMIT ? OFFSET ?
+SELECT_TOP_TPIDLES|SELECT nick, idles FROM TPPlayerView WHERE rounds > 0 ORDER BY idles DESC LIMIT ? OFFSET ?
 SELECT_TOP_TTPOINTS|SELECT nick, points FROM TTPlayerView WHERE tourneys > 0 ORDER BY points DESC LIMIT ? OFFSET ?
 SELECT_TOP_TTTOURNEYS|SELECT nick, tourneys FROM TTPlayerView WHERE tourneys > 0 ORDER BY tourneys DESC LIMIT ? OFFSET ?
 SELECT_TOP_TTWINRATE|SELECT nick, winrate FROM TTPlayerView WHERE tourneys > 5 ORDER BY winrate DESC LIMIT ? OFFSET ?
+SELECT_TOP_TTIDLES|SELECT nick, idles FROM TTPlayerView WHERE tourneys > 0 ORDER BY idles DESC LIMIT ? OFFSET ?
 SELECT_TOP_BOUNDS_PURSE|SELECT MIN(?, (SELECT COUNT(*) FROM Purse), 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM Purse), ?)-10) AS top_offset
 SELECT_TOP_BOUNDS_BJWINNINGS|SELECT MIN(?, (SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 0), 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 0), ?)-10) AS top_offset
 SELECT_TOP_BOUNDS_BJROUNDS|SELECT MIN(?, (SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 0), 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 0), ?)-10) AS top_offset
 SELECT_TOP_BOUNDS_BJWINRATE|SELECT MIN(?, (SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 50), 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 50), ?)-10) AS top_offset
+SELECT_TOP_BOUNDS_BJIDLES|SELECT MIN(?, (SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 0), 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM BJPlayerStat WHERE rounds > 0), ?)-10) AS top_offset
 SELECT_TOP_BOUNDS_TPWINNINGS|SELECT MIN(?, (SELECT COUNT(*) FROM TPPlayerStat WHERE rounds > 0), 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM TPPlayerStat WHERE rounds > 0), ?)-10) AS top_offset
 SELECT_TOP_BOUNDS_TPROUNDS|SELECT MIN(?, (SELECT COUNT(*) FROM TPPlayerStat WHERE rounds > 0), 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM TPPlayerStat WHERE rounds > 0), ?)-10) AS top_offset
 SELECT_TOP_BOUNDS_TPWINRATE|SELECT MIN(?, (SELECT COUNT(*) FROM TPPlayerStat WHERE rounds > 50), 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM TPPlayerStat WHERE rounds > 50), ?)-10) AS top_offset
+SELECT_TOP_BOUNDS_TPIDLES|SELECT MIN(?, (SELECT COUNT(*) FROM TPPlayerStat WHERE rounds > 0), 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM TPPlayerStat WHERE rounds > 0), ?)-10) AS top_offset
 SELECT_TOP_BOUNDS_TTPOINTS|SELECT MIN(?, (SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 0), 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 0), ?)-10) AS top_offset
 SELECT_TOP_BOUNDS_TTTOURNEYS|SELECT MIN(?, (SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 0), 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 0), ?)-10) AS top_offset
 SELECT_TOP_BOUNDS_TTWINRATE|SELECT MIN(?, (SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 5), 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 5), ?)-10) AS top_offset
+SELECT_TOP_BOUNDS_TTIDLES|SELECT MIN(?, (SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 0), 10) AS top_limit, MAX(0, MIN((SELECT COUNT(*) FROM TTPlayerStat WHERE tourneys > 0), ?)-10) AS top_offset
 ### Insert statements ###
 INSERT_PLAYER|INSERT INTO Player (nick, time_created) VALUES(?, ?)
 INSERT_PURSE|INSERT INTO Purse (player_id, cash, bank, bankrupts) VALUES(?, ?, ?, ?)
