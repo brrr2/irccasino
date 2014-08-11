@@ -1850,7 +1850,7 @@ public class TexasTourney extends TexasPoker {
     public void showStacks() {
         ArrayList<Player> list = new ArrayList<>(joined);
         String msg = Colors.YELLOW + ",01 Stacks: " + Colors.NORMAL + " ";
-        Collections.sort(list, Player.getComparator("cash"));
+        Collections.sort(list, Collections.reverseOrder(Player.getComparator("cash")));
         
         // Add players still in the tournament
         for (Player p : list) {

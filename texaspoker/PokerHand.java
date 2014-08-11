@@ -48,11 +48,10 @@ public class PokerHand extends Hand implements Comparable<PokerHand>{
 
     /**
      * Compares this PokerHand to another based on hand-type and cards.
-     * Comparisons require that both hands be sorted in descending order and
-     * that the cards representing the hand value be at the beginning of the
-     * hand. This means that getValue() must be called before making
-     * any comparisons. If the two PokerHands have the same value, individual
-     * cards must then me examined.
+     * This method invokes the getValue() method which guarantees the cards in 
+     * both hands are in proper comparable format and returns the value of
+     * each hand. If the two PokerHands have the same value, individual
+     * cards must then be examined.
      * 
      * @param h the PokerHand to compare
      * @return -1 if this hand's value is less, zero for a tie, or 1 

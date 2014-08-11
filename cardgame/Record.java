@@ -142,7 +142,9 @@ public class Record {
         } else if (o instanceof Double) {
             put(key, 0.);
         } else if (o instanceof Boolean) {
-            put(key, false);
+            put(key, Boolean.FALSE);
+        } else if (o instanceof String) {
+            put(key, "");
         }
     }
     
@@ -167,24 +169,19 @@ public class Record {
     /**
      * Returns a comparator for Record based on the specified key.
      * @param key the name of the key
-     * @return a comparator that ranks in descending order
+     * @return a comparator that ranks values in ascending order for a given key
      */
     public static Comparator<Record> getComparator(final String key) {
         return new Comparator<Record>() {
             @Override
             public int compare(Record a, Record b) {
-                if (a.get(key) instanceof Integer) {
-                    if ((Integer) a.get(key) < (Integer) b.get(key)) {
-                        return 1;
-                    } else if ((Integer) a.get(key) > (Integer) b.get(key)) {
-                        return -1;
-                    }
-                } else if (a.get(key) instanceof Double) {
-                    if ((Double) a.get(key) < (Double) b.get(key)) {
-                        return 1;
-                    } else if ((Double) a.get(key) > (Double) b.get(key)) {
-                        return -1;
-                    }
+                Object o = a.get(key);
+                if (o instanceof Integer) {
+                    return Integer.compare(a.getInteger(key), b.getInteger(key));
+                } else if (o instanceof Double) {
+                    return Double.compare(a.getDouble(key), b.getDouble(key));
+                } else if (o instanceof String) {
+                    return String.CASE_INSENSITIVE_ORDER.compare(a.getString(key), b.getString(key));
                 }
                 return 0;
             }

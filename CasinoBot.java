@@ -175,15 +175,21 @@ public class CasinoBot extends PircBotX implements GameManager {
             if (bot.config.getString("bjchannel").toLowerCase().contains(channel.getName().toLowerCase())) {
                 // Auto-start Blackjack
                 try { Thread.sleep(2000); } catch (InterruptedException e){}
-                blackjack(channel, null, new String[0], null);
+                if (!bot.hasGame(channel)) {
+                    bot.startGame(new Blackjack(bot, commandChar, channel));
+                }
             } else if (bot.config.getString("tpchannel").toLowerCase().contains(channel.getName().toLowerCase())) {
                 // Auto-start TexasPoker
                 try { Thread.sleep(2000); } catch (InterruptedException e){}
-                texaspoker(channel, null, new String[0], null);
+                if (!bot.hasGame(channel)) {
+                    bot.startGame(new TexasPoker(bot, commandChar, channel));
+                }
             } else if (bot.config.getString("ttchannel").toLowerCase().contains(channel.getName().toLowerCase())) {
                 // Auto-start TexasTourney
                 try { Thread.sleep(2000); } catch (InterruptedException e){}
-                texastourney(channel, null, new String[0], null);
+                if (!bot.hasGame(channel)) {
+                    bot.startGame(new TexasTourney(bot, commandChar, channel));
+                }
             }
         }
         
@@ -656,7 +662,7 @@ public class CasinoBot extends PircBotX implements GameManager {
         if (args.length > 0) {
             bot.initBot(args[0], "log.txt");
         } else {
-            bot.initBot("irccasino.conf", "log.txt");
+            bot.initBot("casinobot.conf", "log.txt");
         }
         
         bot.runBot();
