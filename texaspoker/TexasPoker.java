@@ -265,7 +265,7 @@ public class TexasPoker extends CardGame{
         } else {
             if (params.length > 0){
                 try {
-                    startCount = Math.min(get("autostarts") - 1, Integer.parseInt(params[0]) - 1);
+                    startCount = Math.min(settings.getInteger("autostarts") - 1, Integer.parseInt(params[0]) - 1);
                 } catch (NumberFormatException e) {
                     // Do nothing and proceed
                 }
@@ -483,7 +483,7 @@ public class TexasPoker extends CardGame{
         } else {
             if (params.length > 0){
                 try {
-                    startCount = Math.min(get("autostarts") - 1, Integer.parseInt(params[0]) - 1);
+                    startCount = Math.min(settings.getInteger("autostarts") - 1, Integer.parseInt(params[0]) - 1);
                 } catch (NumberFormatException e) {
                     // Do nothing and proceed
                 }
@@ -950,7 +950,7 @@ public class TexasPoker extends CardGame{
                 betState = betState.next();
                 
                 // Show final community if required
-                if (settings.get("revealcommunity") == 1 && betState.equals(PokerBet.RIVER)){
+                if (settings.has("revealcommunity") && betState.equals(PokerBet.RIVER)){
                     showCommunityCards(true);
                 }
             }
@@ -960,7 +960,7 @@ public class TexasPoker extends CardGame{
                    (betState == PokerBet.PRE_FLOP && getNumberCanBet() == 0)) {
             // If we reach the firstPlayer or topBettor, then we have reached 
             // the end of a round of betting and we should deal community cards.
-            minRaise = get("minbet");
+            minRaise = settings.getInteger("minbet");
             addBetsToPot();
             currentPlayer = null;
             topBettor = null;
@@ -984,7 +984,7 @@ public class TexasPoker extends CardGame{
                     sim.reset();
                     
                     // Add a delay for dramatic effect
-                    try { Thread.sleep(get("showdown") * 1000); } catch (InterruptedException e){}
+                    try { Thread.sleep(settings.getInteger("showdown") * 1000); } catch (InterruptedException e){}
 
                     // Deal some community cards
                     burnCard();
@@ -1047,7 +1047,7 @@ public class TexasPoker extends CardGame{
                     p.add("idles", 1);
                 }
                 if (!p.has("cash") && p.has("bank")) {
-                    int amount = Math.min(p.getInteger("bank"), get("cash"));
+                    int amount = Math.min(p.getInteger("bank"), settings.getInteger("cash"));
                     p.bankTransfer(-amount);
                     saveDBPlayerBanking(p);
                     informPlayer(p.getNick(), getMsg("auto_withdraw"), amount);
@@ -1131,7 +1131,7 @@ public class TexasPoker extends CardGame{
         opCmdMap.clear();
         aliasMap.clear();
         msgMap.clear();
-        settings.clear();
+        settings.empty();
     }
     
     @Override
@@ -1233,25 +1233,27 @@ public class TexasPoker extends CardGame{
      * Sets the bets for the small and big blinds.
      */
     protected void setBlindBets(){
+        int minBet = settings.getInteger("minbet");
+        
         // Set the small blind
-        if (get("minbet")/2 >= smallBlind.getInteger("cash")) {
+        if (minBet/2 >= smallBlind.getInteger("cash")) {
             smallBlind.put("allin", true);
             smallBlind.put("bet", smallBlind.getInteger("cash"));
         } else {
-            smallBlind.put("bet", get("minbet")/2);
+            smallBlind.put("bet", minBet/2);
         }
         
         // Set the big blind
-        if (get("minbet") >= bigBlind.getInteger("cash")) {
+        if (minBet >= bigBlind.getInteger("cash")) {
             bigBlind.put("allin", true);
             bigBlind.put("bet", bigBlind.getInteger("cash"));
         } else {
-            bigBlind.put("bet", get("minbet"));
+            bigBlind.put("bet", minBet);
         }
         
         // Set the current bet to minbet regardless of actual blinds
-        currentBet = get("minbet");
-        minRaise = get("minbet");
+        currentBet = minBet;
+        minRaise = minBet;
     }
     
     @Override
@@ -1276,7 +1278,7 @@ public class TexasPoker extends CardGame{
         settings.put("autostarts", 10);
         settings.put("startwait", 5);
         settings.put("showdown", 10);
-        settings.put("revealcommunity", 0);
+        settings.put("revealcommunity", Boolean.FALSE);
         settings.put("ping", 600);
     }
     
@@ -1302,27 +1304,27 @@ public class TexasPoker extends CardGame{
         try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(iniFile)))) {
             out.println("#Settings");
             out.println("#Number of seconds before a player idles out");
-            out.println("idle=" + get("idle"));
+            out.println("idle=" + settings.get("idle"));
             out.println("#Number of seconds before a player is given a warning for idling");
-            out.println("idlewarning=" + get("idlewarning"));
+            out.println("idlewarning=" + settings.get("idlewarning"));
             out.println("#Initial amount given to new and bankrupt players");
-            out.println("cash=" + get("cash"));
+            out.println("cash=" + settings.get("cash"));
             out.println("#Number of seconds before a bankrupt player is allowed to join again");
-            out.println("respawn=" + get("respawn"));
+            out.println("respawn=" + settings.get("respawn"));
             out.println("#Minimum bet (big blind), preferably an even number");
-            out.println("minbet=" + get("minbet"));
+            out.println("minbet=" + settings.get("minbet"));
             out.println("#The maximum number of players allowed to join a game");
-            out.println("maxplayers=" + get("maxplayers"));
+            out.println("maxplayers=" + settings.get("maxplayers"));
             out.println("#The maximum number of autostarts allowed");
-            out.println("autostarts=" + get("autostarts"));
+            out.println("autostarts=" + settings.get("autostarts"));
             out.println("#The wait time in seconds after the start command is given");
-            out.println("startwait=" + get("startwait"));
+            out.println("startwait=" + settings.get("startwait"));
             out.println("#The wait time in seconds in between reveals during a showdown");
-            out.println("showdown=" + get("showdown"));
+            out.println("showdown=" + settings.get("showdown"));
             out.println("#Whether or not to reveal community when not required");
-            out.println("revealcommunity=" + get("revealcommunity"));
+            out.println("revealcommunity=" + settings.get("revealcommunity"));
             out.println("#The rate-limit of the ping command");
-            out.println("ping=" + get("ping"));
+            out.println("ping=" + settings.get("ping"));
         } catch (IOException e) {
             manager.log("Error creating " + iniFile + "!");
         }
@@ -1376,7 +1378,7 @@ public class TexasPoker extends CardGame{
             
             // Initialize
             p.put("id", 0);
-            p.put("cash", get("cash"));
+            p.put("cash", new Integer(settings.getInteger("cash")));
             p.put("bank", 0);
             p.put("bankrupts", 0);
             p.put("rounds", 0);
@@ -1422,7 +1424,7 @@ public class TexasPoker extends CardGame{
             
             // Add new record if not found in Purse
             if (!found) {
-                informPlayer(p.getNick(), getMsg("new_player"), getGameNameStr(), get("cash"));
+                informPlayer(p.getNick(), getMsg("new_player"), getGameNameStr(), settings.getInteger("cash"));
                 sql = getSQL("INSERT_PURSE");
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setInt(1, p.getInteger("id"));
@@ -1585,8 +1587,8 @@ public class TexasPoker extends CardGame{
                     try (PreparedStatement ps = conn.prepareStatement(sql)) {
                         ps.setInt(1, p.getInteger("id"));
                         ps.setInt(2, roundID);
-                        ps.setInt(3, get("idle"));
-                        ps.setInt(4, get("idlewarning"));
+                        ps.setInt(3, settings.getInteger("idle"));
+                        ps.setInt(4, settings.getInteger("idlewarning"));
                         ps.executeUpdate();
                     }
                 }
@@ -2317,7 +2319,8 @@ public class TexasPoker extends CardGame{
     
     @Override
     public String getGameRulesStr() {
-        return String.format(getMsg("tp_rules"), get("minbet")/2, get("minbet"));
+        int minBet = settings.getInteger("minbet");
+        return String.format(getMsg("tp_rules"), minBet/2, minBet);
     }
     
     @Override

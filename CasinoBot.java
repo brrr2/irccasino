@@ -480,28 +480,42 @@ public class CasinoBot extends PircBotX implements GameManager {
     }
     
     /**
+     * Initializes config values.
+     */
+    protected void initConfig() {
+        config.put("nick", "CasinoBot");
+        config.put("user", "CasinoBot");
+        config.put("password", "");
+        config.put("sasl", Boolean.FALSE);
+        config.put("ssl", Boolean.FALSE);
+        config.put("network", "chat.freenode.net");
+        config.put("port", 6667);
+        config.put("channel", "##CasinoBot");
+        config.put("bjchannel", "");
+        config.put("tpchannel", "");
+        config.put("ttchannel", "");
+    }
+    
+    /**
      * Loads configuration file for this bot.
      * @param configFile the configuration file
      */
     protected void loadConfig(String configFile){
         try (BufferedReader in = new BufferedReader(new FileReader(configFile))) {
-            String str, key, value;
-            StringTokenizer st;
             while (in.ready()) {
-                str = in.readLine();
+                String str = in.readLine();
                 if (!str.startsWith("#") && str.contains("=")) {
-                    st = new StringTokenizer(str, "=");
-                    key = st.nextToken();
-                    value = "";
+                    StringTokenizer st = new StringTokenizer(str, "=");
+                    String key = st.nextToken();
+                    String value = "";
                     if (st.hasMoreTokens()){
                         value = st.nextToken();
                     }
-                    if (key.equalsIgnoreCase("sasl") || key.equalsIgnoreCase("ssl")) {
-                        config.put(key, Boolean.parseBoolean(value));
-                    } else if (key.equalsIgnoreCase("port")) {
-                        config.put(key, Integer.parseInt(value));
-                    } else {
-                        config.put(key, value);
+                    
+                    try {
+                        config.putStrVal(key, value);
+                    } catch (IllegalArgumentException e) {
+                        log("Error loading " + key + " from " + configFile + ".");
                     }
                 }
             }
@@ -510,22 +524,9 @@ public class CasinoBot extends PircBotX implements GameManager {
                values within config file */
             if (e instanceof IOException) {
                 log(configFile + " not found! Loading default values...");
-            } else if (e instanceof NumberFormatException) {
-                log("Invalid integer in " + configFile + "! Loading default values...");
             } else {
                 log("Unknown exception while loading " + configFile + "! Loading default values...");
             }
-            config.put("nick", "CasinoBot");
-            config.put("user", "CasinoBot");
-            config.put("password", "");
-            config.put("sasl", Boolean.FALSE);
-            config.put("ssl", Boolean.FALSE);
-            config.put("network", "chat.freenode.net");
-            config.put("port", 6667);
-            config.put("channel", "##CasinoBot");
-            config.put("bjchannel", "");
-            config.put("tpchannel", "");
-            config.put("ttchannel", "");
             saveConfig(configFile);
         }
     }
@@ -578,6 +579,7 @@ public class CasinoBot extends PircBotX implements GameManager {
         setAutoReconnect(true);
         setCapEnabled(true);
         
+        initConfig();
         loadConfig(configFile);
         setName(config.getString("nick"));
         setLogin(config.getString("user"));

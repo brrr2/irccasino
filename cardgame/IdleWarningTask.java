@@ -37,6 +37,6 @@ public class IdleWarningTask extends TimerTask {
     @Override
     public void run(){
         game.showMsg(game.getMsg("idle_warning"), player.getNickStr(), 
-                game.get("idle") - game.get("idlewarning"));
+                game.settings.getInteger("idle") - game.settings.getInteger("idlewarning"));
     }
 }

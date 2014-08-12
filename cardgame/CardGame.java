@@ -67,7 +67,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     protected Player currentPlayer; //stores the player whose turn it is
     protected Timer gameTimer;
     /** INI file settings **/
-    protected HashMap<String,Integer> settings;
+    protected Record settings;
     // Game properties
     protected int versionInt;
     protected int startCount;
@@ -132,7 +132,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         if (msg.length() > 1 && msg.charAt(0) == commandChar && 
                 msg.charAt(1) != ' ' && event.getChannel().equals(channel)){
             StringTokenizer st = new StringTokenizer(msg.substring(1));
-            String command = st.nextToken();
+            String command = st.nextToken().toLowerCase();
             String[] params = new String[st.countTokens()];
             for (int ctr = 0; ctr < params.length; ctr++){
                 params[ctr] = st.nextToken();
@@ -190,7 +190,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * Processes commands in the channel where the game is running.
      * 
      * @param user IRC user who issued the command.
-     * @param command The command that was issued.
+     * @param command The command that was issued (always lowercase).
      * @param params A list of parameters that were passed along.
      */
     abstract protected void processCommand(User user, String command, String[] params);
@@ -272,7 +272,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     protected void join(String nick, String host) {
         CardGame game = manager.getGame(nick);
-        if (joined.size() == get("maxplayers")){
+        if (joined.size() == settings.getInteger("maxplayers")){
             informPlayer(nick, getMsg("max_players"));
         } else if (isJoined(nick)) {
             informPlayer(nick, getMsg("is_joined"));
@@ -716,7 +716,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     protected void ping(String nick, String[] params) {
         // Check for rate-limit
-        long timeLeft = (get("ping") - (System.currentTimeMillis() / 1000 - lastPing));
+        long timeLeft = (settings.getInteger("ping") - (System.currentTimeMillis() / 1000 - lastPing));
         if (lastPing != 0 && timeLeft > 0) {
             informPlayer(nick, "This command is rate-limited. Please wait %02d:%02d to use it again.", timeLeft / 60, timeLeft % 60);
         } else if (isInProgress()) {
@@ -755,7 +755,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 User u = it.next();
                 if (u.getNick().equalsIgnoreCase(fNick)){
                     CardGame game = manager.getGame(fNick);
-                    if (joined.size() == get("maxplayers")){
+                    if (joined.size() == settings.getInteger("maxplayers")){
                         informPlayer(nick, getMsg("max_players"));
                     } else if (isJoined(fNick)) {
                         informPlayer(nick, getMsg("is_joined_nick"), fNick);
@@ -956,8 +956,8 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         } else {
             try {
                 String setting = params[0].toLowerCase();
-                int value = Integer.parseInt(params[1]);
-                set(setting, value);
+                String value = params[1].toLowerCase();
+                settings.putStrVal(setting, value);
                 saveIniFile();
                 showMsg(getMsg("setting_updated"), setting);
             } catch (IllegalArgumentException e) {
@@ -980,12 +980,11 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         } else if (params.length < 1){
             informPlayer(nick, getMsg("no_parameter"));
         } else {
-            try {
-                String setting = params[0].toLowerCase();
-                int value = get(params[0].toLowerCase());
-                showMsg(getMsg("setting"), setting, value);
-            } catch (IllegalArgumentException e) {
+            String setting = params[0].toLowerCase();
+            if (!settings.exists(setting)) {
                 informPlayer(nick, getMsg("bad_parameter"));
+            } else {
+                showMsg(getMsg("setting"), setting, settings.get(setting));
             }
         }
     }
@@ -1311,7 +1310,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         blacklist = new ArrayList<>();
         waitlist = new ArrayList<>();
         gameTimer = new Timer("Game Timer");
-        settings = new HashMap<>();
+        settings = new Record();
         cmdMap = new HashMap<>();
         opCmdMap = new HashMap<>();
         aliasMap = new HashMap<>();
@@ -1446,45 +1445,6 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     }
     
     /**
-     * Overwrites the value of a setting, if it exists.
-     * @param setting setting name
-     * @param value new value
-     * @throws IllegalArgumentException bad setting
-     */
-    protected void set(String setting, int value) throws IllegalArgumentException {
-        if (!settings.containsKey(setting)) {
-            throw new IllegalArgumentException();
-        }
-        settings.put(setting, value);
-    }
-    
-    /**
-     * Retrieves the value of a setting, if it exists.
-     * @param setting setting name
-     * @return the setting value
-     * @throws IllegalArgumentException bad setting
-     */
-    protected int get(String setting) throws IllegalArgumentException {
-        if (!settings.containsKey(setting)){
-            throw new IllegalArgumentException();
-        }
-        return settings.get(setting);
-    }
-    
-    /**
-     * Returns whether or not a setting has a value greater than 0.
-     * @param setting setting name
-     * @return true if value is greater than 0
-     * @throws IllegalArgumentException bad setting
-     */
-    public boolean has(String setting) throws IllegalArgumentException {
-        if (!settings.containsKey(setting)){
-            throw new IllegalArgumentException();
-        }
-        return get(setting) > 0;
-    }
-    
-    /**
      * Loads the settings from the INI file.
      */
     protected void loadIni() {
@@ -1493,7 +1453,13 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 String str = in.readLine();
                 if (!str.startsWith("#") && str.contains("=")) {
                     StringTokenizer st = new StringTokenizer(str, "=");
-                    set(st.nextToken(), Integer.parseInt(st.nextToken()));
+                    String setting = st.nextToken().toLowerCase();
+                    String value = st.nextToken().toLowerCase();
+                    try {
+                        settings.putStrVal(setting, value);
+                    } catch (IllegalArgumentException e) {
+                        manager.log("Error loading " + setting + " from " + iniFile + ".");
+                    }
                 }
             }
         } catch (IOException e) {
@@ -1627,7 +1593,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     protected void setRespawnTask(Player p) {
         // Calculate extra time penalty for players with debt
-        int penalty = get("respawn") + Math.max(-1 * p.getInteger("bank")/1000 * 60, 0);
+        int penalty = settings.getInteger("respawn") + Math.max(-1 * p.getInteger("bank")/1000 * 60, 0);
         informPlayer(p.getNick(), getMsg("bankrupt_info"), penalty/60, penalty%60);
         p.put("respawn", System.currentTimeMillis()/1000 + penalty);
         
@@ -1648,9 +1614,10 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         gameTimer.purge();
         // Fast-track loans
         for (Player p : blacklist) {
-            p.put("cash", get("cash"));
-            p.add("bank", -get("cash"));
-            p.put("transaction", get("cash"));
+            int cash = settings.getInteger("cash");
+            p.put("cash", cash);
+            p.add("bank", -cash);
+            p.put("transaction", cash);
             saveDBPlayerData(p);
             saveDBPlayerBanking(p);
         }
@@ -1669,7 +1636,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     protected void setStartRoundTask(){
         startRoundTask = new StartRoundTask(this);
-        gameTimer.schedule(startRoundTask, get("startwait") * 1000);
+        gameTimer.schedule(startRoundTask, settings.getInteger("startwait") * 1000);
     }
     
     /**
@@ -1686,12 +1653,12 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * Schedules a new idleOutTask.
      */
     protected void setIdleOutTask() {
-        if (get("idlewarning") < get("idle")) {
+        if (settings.getInteger("idlewarning") < settings.getInteger("idle")) {
             idleWarningTask = new IdleWarningTask(currentPlayer, this);
-            gameTimer.schedule(idleWarningTask, get("idlewarning")*1000);
+            gameTimer.schedule(idleWarningTask, settings.getInteger("idlewarning")*1000);
         }
         idleOutTask = new IdleOutTask(currentPlayer, this);
-        gameTimer.schedule(idleOutTask, get("idle")*1000);
+        gameTimer.schedule(idleOutTask, settings.getInteger("idle")*1000);
     }
     
     /**
@@ -2160,9 +2127,9 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     protected void showStartRound(){
         if (startCount > 0){
-            showMsg(getMsg("start_round_auto"), getGameNameStr(), get("startwait"), startCount);
+            showMsg(getMsg("start_round_auto"), getGameNameStr(), settings.getInteger("startwait"), startCount);
         } else {
-            showMsg(getMsg("start_round"), getGameNameStr(), get("startwait"));
+            showMsg(getMsg("start_round"), getGameNameStr(), settings.getInteger("startwait"));
         }
     }
     

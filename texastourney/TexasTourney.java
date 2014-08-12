@@ -235,7 +235,7 @@ public class TexasTourney extends TexasPoker {
     @Override
     public void join(String nick, String host) {
         CardGame game = manager.getGame(nick);
-        if (joined.size() == get("maxplayers")){
+        if (joined.size() == settings.getInteger("maxplayers")){
             informPlayer(nick, getMsg("max_players"));
         } else if (isJoined(nick)) {
             informPlayer(nick, getMsg("is_joined"));
@@ -270,7 +270,7 @@ public class TexasTourney extends TexasPoker {
             informPlayer(nick, getMsg("no_join"));
         } else if (isInProgress()) {
             informPlayer(nick, getMsg("tt_started"));
-        } else if (joined.size() < get("minplayers")) {
+        } else if (joined.size() < settings.getInteger("minplayers")) {
             showMsg(getMsg("no_players"));
         } else {
             state = PokerState.PRE_START;
@@ -554,7 +554,7 @@ public class TexasTourney extends TexasPoker {
                 User u = it.next();
                 if (u.getNick().equalsIgnoreCase(fNick)){
                     CardGame game = manager.getGame(fNick);
-                    if (joined.size() == get("maxplayers")){
+                    if (joined.size() == settings.getInteger("maxplayers")){
                         informPlayer(nick, getMsg("max_players"));
                     } else if (isJoined(fNick)) {
                         informPlayer(nick, getMsg("is_joined_nick"), fNick);
@@ -598,7 +598,7 @@ public class TexasTourney extends TexasPoker {
             informPlayer(nick, getMsg("ops_only"));
         } else if (isInProgress()) {
             informPlayer(nick, getMsg("tt_started"));
-        } else if (joined.size() < get("minplayers")) {
+        } else if (joined.size() < settings.getInteger("minplayers")) {
             showMsg(getMsg("no_players"));
         } else {
             state = PokerState.PRE_START;
@@ -788,8 +788,8 @@ public class TexasTourney extends TexasPoker {
         } else {
             try {
                 String setting = params[0].toLowerCase();
-                int value = Integer.parseInt(params[1]);
-                set(setting, value);
+                String value = params[1].toLowerCase();
+                settings.putStrVal(setting, value);
                 saveIniFile();
                 showMsg(getMsg("setting_updated"), setting);
             } catch (IllegalArgumentException e) {
@@ -807,12 +807,11 @@ public class TexasTourney extends TexasPoker {
         } else if (params.length < 1){
             informPlayer(nick, getMsg("no_parameter"));
         } else {
-            try {
-                String setting = params[0].toLowerCase();
-                int value = get(params[0].toLowerCase());
-                showMsg(getMsg("setting"), setting, value);
-            } catch (IllegalArgumentException e) {
+            String setting = params[0].toLowerCase();
+            if (!settings.exists(setting)) {
                 informPlayer(nick, getMsg("bad_parameter"));
+            } else {
+                showMsg(getMsg("setting"), setting, settings.get(setting));
             }
         }
     }
@@ -972,7 +971,7 @@ public class TexasTourney extends TexasPoker {
                 betState = betState.next();
                 
                 // Show final community if required
-                if (settings.get("revealcommunity") == 1 && betState.equals(PokerBet.RIVER)){
+                if (settings.has("revealcommunity") && betState.equals(PokerBet.RIVER)){
                     showCommunityCards(true);
                 }
             }
@@ -983,7 +982,7 @@ public class TexasTourney extends TexasPoker {
             // If we reach the firstPlayer or topBettor, then we have reached 
             // the end of a round of betting and we should deal community cards.
             // Reset minimum raise (override)
-            minRaise = (int) (get("minbet")*(Math.pow(2, tourneyRounds/get("doubleblinds") + numOuts)));
+            minRaise = (int) (settings.getInteger("minbet")*(Math.pow(2, tourneyRounds/settings.getInteger("doubleblinds") + numOuts)));
             addBetsToPot();
             currentPlayer = null;
             topBettor = null;
@@ -1010,7 +1009,7 @@ public class TexasTourney extends TexasPoker {
                     sim.reset();
 
                    // Add a delay for dramatic effect
-                   try { Thread.sleep(get("showdown") * 1000); } catch (InterruptedException e){}
+                   try { Thread.sleep(settings.getInteger("showdown") * 1000); } catch (InterruptedException e){}
                    
                    // Deal some community cards
                    burnCard();
@@ -1117,7 +1116,7 @@ public class TexasTourney extends TexasPoker {
         opCmdMap.clear();
         aliasMap.clear();
         msgMap.clear();
-        settings.clear();
+        settings.empty();
     }
     
     @Override
@@ -1184,13 +1183,15 @@ public class TexasTourney extends TexasPoker {
             resetTourney();
         // Automatically start a new round if more than 1 player left
         } else {
-            if (tourneyRounds % get("doubleblinds") == 0) {
-                int newBlind = (int) (get("minbet")*(Math.pow(2, tourneyRounds/get("doubleblinds") + numOuts)));
+            int doubleBlinds = settings.getInteger("doubleblinds");
+            int minBet = settings.getInteger("minbet");
+            if (tourneyRounds % doubleBlinds == 0) {
+                int newBlind = (int) (minBet*(Math.pow(2, tourneyRounds/doubleBlinds + numOuts)));
                 showMsg(getMsg("tt_double_blinds"), tourneyRounds, newBlind/2, newBlind);
             }
             if (newPlayerOut) {
                 numOuts++;
-                int newBlind = (int) (get("minbet")*(Math.pow(2, tourneyRounds/get("doubleblinds") + numOuts)));
+                int newBlind = (int) (minBet*(Math.pow(2, tourneyRounds/doubleBlinds + numOuts)));
                 if (newOutList.size() > 1) {
                     String nicks = "";
                     for (Player o : newOutList) {
@@ -1226,20 +1227,24 @@ public class TexasTourney extends TexasPoker {
     @Override
     protected void setBlindBets(){
         // Calculate the current blind bet
-        int newBlind = (int) (get("minbet")*(Math.pow(2, tourneyRounds/get("doubleblinds") + numOuts)));
+        int minBet = settings.getInteger("minbet");
+        int doubleBlinds = settings.getInteger("doubleblinds");
+        int newBlind = (int) (minBet*(Math.pow(2, tourneyRounds/doubleBlinds + numOuts)));
+        int smallCash = smallBlind.getInteger("cash");
+        int bigCash = bigBlind.getInteger("cash");
         
         // Set the small blind
-        if (newBlind/2 >= smallBlind.getInteger("cash")) {
+        if (newBlind/2 >= smallCash) {
             smallBlind.put("allin", true);
-            smallBlind.put("bet", smallBlind.get("cash"));
+            smallBlind.put("bet", smallCash);
         } else {
             smallBlind.put("bet", newBlind/2);
         }
         
         // Set the big blind
-        if (newBlind >= bigBlind.getInteger("cash")) {
+        if (newBlind >= bigCash) {
             bigBlind.put("allin", true);
-            bigBlind.put("bet", bigBlind.get("cash"));
+            bigBlind.put("bet", bigCash);
         } else {
             bigBlind.put("bet", newBlind);
         }
@@ -1299,9 +1304,9 @@ public class TexasTourney extends TexasPoker {
         settings.put("minbet", 10);
         settings.put("startwait", 5);
         settings.put("showdown", 10);
-        settings.put("revealcommunity", 0);
+        settings.put("revealcommunity", Boolean.FALSE);
         settings.put("doubleblinds", 10);
-        settings.put("doubleonbankrupt", 0);
+        settings.put("doubleonbankrupt", Boolean.FALSE);
         settings.put("ping", 600);
     }
     
@@ -1328,29 +1333,29 @@ public class TexasTourney extends TexasPoker {
         try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(iniFile)))) {
             out.println("#Settings");
             out.println("#Number of seconds before a player idles out");
-            out.println("idle=" + get("idle"));
+            out.println("idle=" + settings.get("idle"));
             out.println("#Number of seconds before a player is given a warning for idling");
-            out.println("idlewarning=" + get("idlewarning"));
+            out.println("idlewarning=" + settings.get("idlewarning"));
             out.println("#Initial amount given to new and bankrupt players");
-            out.println("cash=" + get("cash"));
+            out.println("cash=" + settings.get("cash"));
             out.println("#Minimum bet (big blind), preferably an even number");
-            out.println("minbet=" + get("minbet"));
+            out.println("minbet=" + settings.get("minbet"));
             out.println("#The maximum number of players allowed to join a tournament");
-            out.println("maxplayers=" + get("maxplayers"));
+            out.println("maxplayers=" + settings.get("maxplayers"));
             out.println("#The minimum number of players required to start a tournament");
-            out.println("minplayers=" + get("minplayers"));
+            out.println("minplayers=" + settings.get("minplayers"));
             out.println("#The wait time in seconds after the start command is given");
-            out.println("startwait=" + get("startwait"));
+            out.println("startwait=" + settings.get("startwait"));
             out.println("#The wait time in seconds in between reveals during a showdown");
-            out.println("showdown=" + get("showdown"));
+            out.println("showdown=" + settings.get("showdown"));
             out.println("#Whether or not to reveal community when not required");
-            out.println("revealcommunity=" + get("revealcommunity"));
+            out.println("revealcommunity=" + settings.get("revealcommunity"));
             out.println("#The number of rounds in between doubling of blinds");
-            out.println("doubleblinds=" + get("doubleblinds"));
+            out.println("doubleblinds=" + settings.get("doubleblinds"));
             out.println("#Whether or not to double blinds when a player goes out");
-            out.println("doubleonbankrupt=" + get("doubleonbankrupt"));
+            out.println("doubleonbankrupt=" + settings.get("doubleonbankrupt"));
             out.println("#The rate-limit of the ping command");
-            out.println("ping=" + get("ping"));
+            out.println("ping=" + settings.get("ping"));
         } catch (IOException e) {
             manager.log("Error creating " + iniFile + "!");
         }
@@ -1401,7 +1406,7 @@ public class TexasTourney extends TexasPoker {
             
             // Initialize
             p.put("id", 0);
-            p.put("cash", get("cash"));
+            p.put("cash", new Integer(settings.getInteger("cash")));
             p.put("tourneys", 0);
             p.put("points", 0);
             p.put("idles", 0);
@@ -1558,8 +1563,8 @@ public class TexasTourney extends TexasPoker {
                     try (PreparedStatement ps = conn.prepareStatement(sql)) {
                         ps.setInt(1, p.getInteger("id"));
                         ps.setInt(2, tourneyID);
-                        ps.setInt(3, get("idle"));
-                        ps.setInt(4, get("idlewarning"));
+                        ps.setInt(3, settings.getInteger("idle"));
+                        ps.setInt(4, settings.getInteger("idlewarning"));
                         ps.executeUpdate();
                     }
                 }
@@ -1635,7 +1640,7 @@ public class TexasTourney extends TexasPoker {
     
     @Override
     protected void showStartRound(){
-        showMsg(getMsg("tt_start_round"), tourneyRounds + 1, get("startwait"));
+        showMsg(getMsg("tt_start_round"), tourneyRounds + 1, settings.get("startwait"));
     }
     
     /**
@@ -1889,10 +1894,11 @@ public class TexasTourney extends TexasPoker {
     
     @Override
     public String getGameRulesStr() {
-        if (has("doubleonbankrupt")) {
-            return String.format(getMsg("tt_rules_dob"), get("cash"), get("minbet")/2, get("minbet"), get("doubleblinds"), get("minplayers"));
+        int minBet = settings.getInteger("minbet");
+        if (settings.has("doubleonbankrupt")) {
+            return String.format(getMsg("tt_rules_dob"), settings.get("cash"), minBet/2, minBet, settings.get("doubleblinds"), settings.get("minplayers"));
         }
-        return String.format(getMsg("tt_rules"), get("cash"), get("minbet")/2, get("minbet"), get("doubleblinds"), get("minplayers"));
+        return String.format(getMsg("tt_rules"), settings.get("cash"), minBet/2, minBet, settings.get("doubleblinds"), settings.get("minplayers"));
     }
     
     @Override

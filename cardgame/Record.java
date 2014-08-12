@@ -20,6 +20,7 @@ package irccasino.cardgame;
 
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Set;
 
 /**
  * A HashMap wrapper class to store data.
@@ -110,11 +111,47 @@ public class Record {
     
     /**
      * Wrapper for HashMap.put() method.
-     * @param stat
+     * @param key
      * @param value 
      */
-    public void put(String stat, Object value) {
-        map.put(stat, value);
+    public void put(String key, Object value) {
+        map.put(key, value);
+    }
+    
+    /**
+     * Attempts to convert a new string value to the type stored at the
+     * specified key. Inserts the new converted value if conversion is
+     * successful.
+     * @param key
+     * @param value 
+     */
+    public void putStrVal(String key, String value) throws IllegalArgumentException {
+        Object oldValue = get(key);
+        if (oldValue == null || value == null) {
+            throw new IllegalArgumentException();
+        }
+        
+        Object newValue;
+        if (oldValue instanceof Boolean) {
+            switch (value) {
+                case "1": case "0":
+                    newValue = value.equals("1") ? Boolean.TRUE : Boolean.FALSE;
+                    break;
+                case "yes": case "no":
+                    newValue = value.equals("yes") ? Boolean.TRUE : Boolean.FALSE;
+                    break;
+                default:
+                    newValue = Boolean.parseBoolean(value);
+                    break;
+            }
+        } else if (oldValue instanceof Integer) {
+            newValue = Integer.parseInt(value);
+        } else if (oldValue instanceof Double) {
+            newValue = Double.parseDouble(value);
+        } else {
+            newValue = value;
+        }
+        map.put(key, newValue);
     }
     
     /**
@@ -155,6 +192,21 @@ public class Record {
      */
     public boolean exists(String key){
         return map.containsKey(key);
+    }
+    
+    /**
+     * Wrapper for HashMap.keySet() method.
+     * @return the key set
+     */
+    public Set<String> keySet() {
+        return map.keySet();
+    }
+    
+    /**
+     * Wrapper for HashMap.clear() method.
+     */
+    public void empty() {
+        map.clear();
     }
     
     @Override
