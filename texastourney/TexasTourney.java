@@ -469,10 +469,11 @@ public class TexasTourney extends TexasPoker {
         } else if (currentPlayer == null) {
             informPlayer(nick, getMsg("nobody_turn"));
         } else {
-            showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), 
-                    currentBet - currentPlayer.getInteger("bet"), 
-                    currentPlayer.getInteger("bet"), currentBet, getCashInPlay(), 
-                    currentPlayer.getInteger("cash") - currentPlayer.getInteger("bet"));
+            PokerPlayer p = (PokerPlayer) currentPlayer;
+            int bet = p.getInteger("bet");
+            int cash = p.getInteger("cash");
+            showMsg(getMsg("tp_turn"), p.getNickStr(), currentBet - bet, bet, currentBet, 
+                    getInPlay() + getProcessed(), bet + getPlayerProcessed(p), cash - bet);
         }
     }
     
@@ -808,7 +809,7 @@ public class TexasTourney extends TexasPoker {
             informPlayer(nick, getMsg("no_parameter"));
         } else {
             String setting = params[0].toLowerCase();
-            if (!settings.exists(setting)) {
+            if (!settings.containsKey(setting)) {
                 informPlayer(nick, getMsg("bad_parameter"));
             } else {
                 showMsg(getMsg("setting"), setting, settings.get(setting));
@@ -948,8 +949,7 @@ public class TexasTourney extends TexasPoker {
         }
         
         /*
-         * Find the next player. Look for a player who can bet that is not the 
-         * currentPlayer or the topBettor. If we reach the currentPlayer or 
+         * Find the next available player. If we reach the currentPlayer or 
          * topBettor then stop looking.
          */
         Player nextPlayer = getPlayerAfter(currentPlayer);
@@ -964,7 +964,7 @@ public class TexasTourney extends TexasPoker {
             currentPlayer = null;
             topBettor = null;
             
-            // Deal some community cards
+            // Deal the rest of the community cards
             while (!betState.equals(PokerBet.RIVER)) {
                 burnCard();
                 dealCommunity();
@@ -1029,10 +1029,11 @@ public class TexasTourney extends TexasPoker {
         } else {
             state = PokerState.BETTING;
             currentPlayer = nextPlayer;
-            showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), 
-                    currentBet - currentPlayer.getInteger("bet"), 
-                    currentPlayer.getInteger("bet"), currentBet, getCashInPlay(), 
-                    currentPlayer.getInteger("cash") - currentPlayer.getInteger("bet"));
+            PokerPlayer p = (PokerPlayer) currentPlayer;
+            int bet = p.getInteger("bet");
+            int cash = p.getInteger("cash");
+            showMsg(getMsg("tp_turn"), p.getNickStr(), currentBet - bet, bet, currentBet, 
+                    getInPlay() + getProcessed(), bet + getPlayerProcessed(p), cash - bet);
             setIdleOutTask();
         }
     }
@@ -1116,7 +1117,7 @@ public class TexasTourney extends TexasPoker {
         opCmdMap.clear();
         aliasMap.clear();
         msgMap.clear();
-        settings.empty();
+        settings.clear();
     }
     
     @Override
@@ -1214,11 +1215,11 @@ public class TexasTourney extends TexasPoker {
     @Override
     protected void resetPlayer(Player p) {
         discardPlayerHand((TourneyPokerPlayer) p);
-        p.clear("fold");
-        p.clear("quit");
-        p.clear("allin");
-        p.clear("change");
-        p.clear("cancel");
+        p.reset("fold");
+        p.reset("quit");
+        p.reset("allin");
+        p.reset("change");
+        p.reset("cancel");
     }
     
     /**

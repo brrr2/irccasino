@@ -28,15 +28,16 @@ import java.util.TimerTask;
 public class RespawnTask extends TimerTask {
     private final Player player;
     private final CardGame game;
+    private final int cash;
     
-    public RespawnTask(Player p, CardGame g) {
+    public RespawnTask(Player p, CardGame g, int c) {
         player = p;
         game = g;
+        cash = c;
     }
     
     @Override
     public void run() {
-        int cash = game.settings.getInteger("cash");
         player.put("cash", cash);
         player.add("bank", -cash);
         player.put("transaction", cash);

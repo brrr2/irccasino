@@ -718,18 +718,14 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         // Check for rate-limit
         long timeLeft = (settings.getInteger("ping") - (System.currentTimeMillis() / 1000 - lastPing));
         if (lastPing != 0 && timeLeft > 0) {
-            informPlayer(nick, "This command is rate-limited. Please wait %02d:%02d to use it again.", timeLeft / 60, timeLeft % 60);
-        } else if (isInProgress()) {
-            informPlayer(nick, "This command cannot be used at this time.");
+            informPlayer(nick, getMsg("rate_limited"), timeLeft / 60, timeLeft % 60);
         } else {
             // Grab the users in the channel
-            User tUser;
             String outStr = "Ping: ";
-            Iterator<User> it = channel.getUsers().iterator();
-            while(it.hasNext()){
-                tUser = it.next();
-                if (!awayList.contains(tUser.getHostmask()) && !isJoined(tUser.getNick())){
-                    outStr += tUser.getNick()+", ";
+            for (User u : channel.getUsers()) {
+                if (!awayList.contains(u.getHostmask()) && !isJoined(u.getNick()) && 
+                    !u.equals(manager.getUserBot()) && !u.getNick().equalsIgnoreCase("ChanServ")){
+                    outStr += u.getNick()+", ";
                 }
             }
             showMsg(outStr.substring(0, outStr.length() - 2));
@@ -750,9 +746,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             informPlayer(nick, getMsg("no_parameter"));
         } else {
             String fNick = params[0];
-            Iterator<User> it = channel.getUsers().iterator();
-            while(it.hasNext()){
-                User u = it.next();
+            for (User u : channel.getUsers()) {
                 if (u.getNick().equalsIgnoreCase(fNick)){
                     CardGame game = manager.getGame(fNick);
                     if (joined.size() == settings.getInteger("maxplayers")){
@@ -981,7 +975,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
             informPlayer(nick, getMsg("no_parameter"));
         } else {
             String setting = params[0].toLowerCase();
-            if (!settings.exists(setting)) {
+            if (!settings.containsKey(setting)) {
                 informPlayer(nick, getMsg("bad_parameter"));
             } else {
                 showMsg(getMsg("setting"), setting, settings.get(setting));
@@ -1205,7 +1199,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                                 decks = Integer.parseInt(st.nextToken());
                                 rounds = Integer.parseInt(st.nextToken());
                                 winnings = Integer.parseInt(st.nextToken());
-                                boolean shoeExists = false;
+                                boolean shoeExists;
 
                                 // Search if shoe size exists
                                 sql = getSQL("SELECT_BJHOUSE_BY_SHOE_SIZE");
@@ -1598,7 +1592,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         p.put("respawn", System.currentTimeMillis()/1000 + penalty);
         
         // TimerTasks are scheduled in milliseconds
-        RespawnTask task = new RespawnTask(p, this);
+        RespawnTask task = new RespawnTask(p, this, settings.getInteger("cash"));
         gameTimer.schedule(task, penalty*1000);
         respawnTasks.add(task);
     }
@@ -1654,7 +1648,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      */
     protected void setIdleOutTask() {
         if (settings.getInteger("idlewarning") < settings.getInteger("idle")) {
-            idleWarningTask = new IdleWarningTask(currentPlayer, this);
+            idleWarningTask = new IdleWarningTask(currentPlayer, this, settings.getInteger("idle"), settings.getInteger("idlewarning"));
             gameTimer.schedule(idleWarningTask, settings.getInteger("idlewarning")*1000);
         }
         idleOutTask = new IdleOutTask(currentPlayer, this);

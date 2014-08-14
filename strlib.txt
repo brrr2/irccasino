@@ -95,6 +95,7 @@ player_idles=%s has idled out %,d time(s).
 player_all_stats=%s | Cash: $%,d | Bank: $%,d | Net: $%,d | Bankrupts: %,d | Winnings: $%,d | Rounds: %,d | Idles: %,d
 help_def=%s | Parameters: %s | Alias: %s | %s
 setting_def=%s | %s
+rate_limited=This command is rate-limited. Please wait %02d:%02d to use it again.
 #####################
 # Blackjack strings #
 #####################
@@ -173,7 +174,7 @@ tp_shuffle_deck=The deck has been shuffled.
 tp_bet_too_low=Bet too low. Current bet is $%,d.
 raise_too_low=Minimum raise is $%,d. Try again.
 no_checking=Current bet is $%,d. You must call or raise.
-tp_turn=%s's turn. u0002$%,du0002 to call | u0002$%,du0002 --> u0002$%,du0002 | Pot: u0002$%,du0002 | Stack: u0002$%,du0002
+tp_turn=%s's turn. u0002$%,du0002 to call | u0002$%,du0002 --> u0002$%,du0002 | Pot: u0002$%,du0002 ($%,d) | Stack: u0002$%,du0002
 tp_bet=%s bets u0002$%,du0002. Stack: u0002$%,du0002
 tp_raise=%s has raised to u0002$%,du0002. Stack: u0002$%,du0002
 tp_allin=%s has gone all in! Committed: u0002$%,du0002. Stack: u0002$%,du0002

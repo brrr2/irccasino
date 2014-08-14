@@ -150,6 +150,14 @@ public interface GameManager {
     public Set<User> getUsers(Channel channel);
     
     /**
+     * Retrieves the User object for the bot implementing this interface.
+     * Automatically implemented by any PircBotX 1.9 which implements this 
+     * interface.
+     * @return the bot's User object
+     */
+    public User getUserBot();
+    
+    /**
      * Sends a raw line to the IRC server. Automatically implemented by any
      * PircBotX 1.9 which implements this interface.
      * @param line 

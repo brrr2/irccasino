@@ -1689,7 +1689,7 @@ public class Blackjack extends CardGame {
         opCmdMap.clear();
         aliasMap.clear();
         msgMap.clear();
-        settings.empty();
+        settings.clear();
     }
     
     @Override
@@ -1703,16 +1703,16 @@ public class Blackjack extends CardGame {
     @Override
     protected void resetPlayer(Player p) {
         discardPlayerHand((BlackjackPlayer) p);
-        p.clear("currentindex");
-        p.clear("initialbet");
-        p.clear("change");
-        p.clear("last");
-        p.clear("quit");
-        p.clear("split");
-        p.clear("surrender");
-        p.clear("insurebet");
-        p.clear("doubledown");
-        p.clear("idled");
+        p.reset("currentindex");
+        p.reset("initialbet");
+        p.reset("change");
+        p.reset("last");
+        p.reset("quit");
+        p.reset("split");
+        p.reset("surrender");
+        p.reset("insurebet");
+        p.reset("doubledown");
+        p.reset("idled");
     }
     
     /**

@@ -447,10 +447,11 @@ public class TexasPoker extends CardGame{
         } else if (currentPlayer == null) {
             informPlayer(nick, getMsg("nobody_turn"));
         } else {
-            showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), 
-                    currentBet-currentPlayer.getInteger("bet"), 
-                    currentPlayer.getInteger("bet"), currentBet, getCashInPlay(), 
-                    currentPlayer.getInteger("cash")-currentPlayer.getInteger("bet"));
+            PokerPlayer p = (PokerPlayer) currentPlayer;
+            int bet = p.getInteger("bet");
+            int cash = p.getInteger("cash");
+            showMsg(getMsg("tp_turn"), p.getNickStr(), currentBet - bet, bet, currentBet, 
+                    getInPlay() + getProcessed(), bet + getPlayerProcessed(p), cash - bet);
         }
     }
     
@@ -1004,10 +1005,11 @@ public class TexasPoker extends CardGame{
         } else {
             state = PokerState.BETTING;
             currentPlayer = nextPlayer;
-            showMsg(getMsg("tp_turn"), currentPlayer.getNickStr(), 
-                    currentBet - currentPlayer.getInteger("bet"), 
-                    currentPlayer.getInteger("bet"), currentBet, getCashInPlay(), 
-                    currentPlayer.getInteger("cash") - currentPlayer.getInteger("bet"));
+            PokerPlayer p = (PokerPlayer) currentPlayer;
+            int bet = p.getInteger("bet");
+            int cash = p.getInteger("cash");
+            showMsg(getMsg("tp_turn"), p.getNickStr(), currentBet - bet, bet, currentBet, 
+                    getInPlay() + getProcessed(), bet + getPlayerProcessed(p), cash - bet);
             setIdleOutTask();
         }
     }
@@ -1131,7 +1133,7 @@ public class TexasPoker extends CardGame{
         opCmdMap.clear();
         aliasMap.clear();
         msgMap.clear();
-        settings.empty();
+        settings.clear();
     }
     
     @Override
@@ -1207,12 +1209,12 @@ public class TexasPoker extends CardGame{
     @Override
     protected void resetPlayer(Player p) {
         discardPlayerHand((PokerPlayer) p);
-        p.clear("fold");
-        p.clear("last");
-        p.clear("quit");
-        p.clear("allin");
-        p.clear("change");
-        p.clear("idled");
+        p.reset("fold");
+        p.reset("last");
+        p.reset("quit");
+        p.reset("allin");
+        p.reset("change");
+        p.reset("idled");
     }
     
     /**
@@ -1856,22 +1858,39 @@ public class TexasPoker extends CardGame{
     }
     
     /**
-     * Determines total amount committed by all players.
+     * Determines total amount processed into pots.
      * @return the total running amount 
      */
-    protected int getCashInPlay() {
+    protected int getProcessed() {
         int total = 0;
-        
-        // Add in the processed pots
         for (PokerPot pp : pots) {
             total += pp.getTotal();
         }
-        
-        // Add in the amounts currently being betted
+        return total;
+    }
+    
+    /**
+     * Determines total amount in the current round of betting.
+     * @return 
+     */
+    protected int getInPlay() {
+        int total = 0;
         for (Player p : joined) {
             total += p.getInteger("bet");
         }
-        
+        return total;
+    }
+    
+    /**
+     * Determines the amount processed into pots by the specified player.
+     * @param p
+     * @return 
+     */
+    protected int getPlayerProcessed(PokerPlayer p) {
+        int total = 0;
+        for (PokerPot pp : pots) {
+            total += pp.getContribution(p);
+        }
         return total;
     }
     
@@ -1932,7 +1951,7 @@ public class TexasPoker extends CardGame{
             } else {
                 for (Player p : joined) {
                     if (p.getInteger("bet") != 0){
-                        p.clear("bet");
+                        p.reset("bet");
                         break;
                     }
                 }

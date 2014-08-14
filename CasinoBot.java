@@ -75,9 +75,7 @@ public class CasinoBot extends PircBotX implements GameManager {
          */
         @Override
         public void onConnect(ConnectEvent<CasinoBot> event){
-            if (bot.config.has("sasl")) {
-                autoJoin();
-            } else if (bot.config.has("password")) {
+            if (!bot.config.has("sasl") && bot.config.has("password")) {
                 bot.sendMessage("NickServ", String.format("identify %s %s", bot.config.getString("user"), bot.config.getString("password")));
             } else {
                 autoJoin();
@@ -174,19 +172,16 @@ public class CasinoBot extends PircBotX implements GameManager {
         public void processSelfJoin(Channel channel) {
             if (bot.config.getString("bjchannel").toLowerCase().contains(channel.getName().toLowerCase())) {
                 // Auto-start Blackjack
-                try { Thread.sleep(2000); } catch (InterruptedException e){}
                 if (!bot.hasGame(channel)) {
                     bot.startGame(new Blackjack(bot, commandChar, channel));
                 }
             } else if (bot.config.getString("tpchannel").toLowerCase().contains(channel.getName().toLowerCase())) {
                 // Auto-start TexasPoker
-                try { Thread.sleep(2000); } catch (InterruptedException e){}
                 if (!bot.hasGame(channel)) {
                     bot.startGame(new TexasPoker(bot, commandChar, channel));
                 }
             } else if (bot.config.getString("ttchannel").toLowerCase().contains(channel.getName().toLowerCase())) {
                 // Auto-start TexasTourney
-                try { Thread.sleep(2000); } catch (InterruptedException e){}
                 if (!bot.hasGame(channel)) {
                     bot.startGame(new TexasTourney(bot, commandChar, channel));
                 }
@@ -323,7 +318,7 @@ public class CasinoBot extends PircBotX implements GameManager {
         public void autoJoin() {
             StringTokenizer st = new StringTokenizer(bot.config.getString("channel"), ", ");
             while(st.hasMoreTokens()) {
-                try { Thread.sleep(2000); } catch (InterruptedException e){}
+                try { Thread.sleep(5000); } catch (InterruptedException e){}
                 bot.joinChannel(st.nextToken());
             }
         }
@@ -525,7 +520,7 @@ public class CasinoBot extends PircBotX implements GameManager {
             if (e instanceof IOException) {
                 log(configFile + " not found! Loading default values...");
             } else {
-                log("Unknown exception while loading " + configFile + "! Loading default values...");
+                log("Unknown exception while loading " + configFile + "! Using default values...");
             }
             saveConfig(configFile);
         }

@@ -28,15 +28,18 @@ import java.util.TimerTask;
 public class IdleWarningTask extends TimerTask {
     private final Player player;
     private final CardGame game;
+    private final int idle;
+    private final int idleWarning;
     
-    public IdleWarningTask(Player p, CardGame g) {
+    public IdleWarningTask(Player p, CardGame g, int i, int iw) {
         player = p;
         game = g;
+        idle = i;
+        idleWarning = iw;
     }
 
     @Override
     public void run(){
-        game.showMsg(game.getMsg("idle_warning"), player.getNickStr(), 
-                game.settings.getInteger("idle") - game.settings.getInteger("idlewarning"));
+        game.showMsg(game.getMsg("idle_warning"), player.getNickStr(), idle - idleWarning);
     }
 }

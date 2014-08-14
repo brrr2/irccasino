@@ -172,7 +172,7 @@ public class Record {
      * Resets the value at a key to its default value.
      * @param key
      */
-    public void clear(String key){
+    public void reset(String key){
         Object o = get(key);
         if (o instanceof Integer) {
             put(key, 0);
@@ -186,11 +186,11 @@ public class Record {
     }
     
     /**
-     * Determines whether or not a key exists in the map.
+     * Wrapper for HashMap.containsKey() method.
      * @param key
-     * @return true if statsMap contains the key
+     * @return true if map contains the key
      */
-    public boolean exists(String key){
+    public boolean containsKey(String key){
         return map.containsKey(key);
     }
     
@@ -205,7 +205,7 @@ public class Record {
     /**
      * Wrapper for HashMap.clear() method.
      */
-    public void empty() {
+    public void clear() {
         map.clear();
     }
     

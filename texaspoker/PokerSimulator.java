@@ -82,8 +82,8 @@ public class PokerSimulator {
      */
     public void reset() {
         for (PokerPlayer p : simList) {
-            p.clear("wins");
-            p.clear("ties");
+            p.reset("wins");
+            p.reset("ties");
             rounds = 0;
         }
     }
