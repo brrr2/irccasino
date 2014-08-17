@@ -1,53 +1,86 @@
 irccasino
 =========
-### What is irccasino? ###
+#### What is irccasino?
 irccasino is a Java package that implements casino games for IRC using the 
-[PircBotX IRC library][1] and [Xerial SQLite JDBC Driver][9]. A standalone bot is 
-included, but the package can also be added to any existing PircBotX-based 
+[PircBotX IRC library][1] and [Xerial SQLite JDBC driver][9]. A standalone bot 
+is included, but the package can also be added to any existing PircBotX-based 
 project. For more information, visit the [project wiki][4] on GitHub or join 
 us on [Freenode][5] in `##casino` and `##holdem`.
 
-### Games ###
+#### Games
 * Blackjack
 * No Limit Texas Hold'em Poker
 * No Limit Texas Hold'em Tournament
 
-### Requirements ###
+#### Requirements
 1. [Java][2] 7 or higher
-2. [PircBotX 1.9][3]
-3. [Xerial SQLite JDBC Driver][10]
+2. [PircBotX 1.9 IRC library][3]
+3. [Xerial SQLite JDBC driver][10]
 
-Standalone Setup
-================
-### Create project ###
-1. Create a new project using your preferred IDE.
-2. Download the *irccasino* package into the source directory of the project.
-3. Download the [PircBotX][3] IRC library (JAR package).
-4. Download the [SQLite JDBC][10] driver (JAR package).
+IDE Quick Setup
+===============
+#### Create Project
+1. Create a new project `MyCasinoBot` using your preferred IDE.
+2. Clone the `irccasino` package into the source directory of the project.
+3. Download the [PircBotX IRC library][3] and [Xerial SQLite JDBC driver][10] 
+   (JAR packages).
 4. Add both JAR packages to the build/compile path for the project.
-5. Set the project to run *CasinoBot.java*.
+5. Set the project to run `CasinoBot.java`.
 
-### Configuration ###
-1.  Copy the *.help* and *lib.txt* files to the project run directory.
-2.  Create *irccasino.conf* in the project run directory with the following contents:
-
-        nick=bot nick
-        password=bot password (optional)
-        network=IRC network (e.g. chat.freenode.net)
-        channel=IRC channels to auto-join (comma delimited)
-        bjchannel=IRC channels to auto-start Blackjack (comma delimited)
-        tpchannel=IRC channels to auto-start Texas Hold'em (comma delimited)
-        ttchannel=IRC channels to auto-start Texas Hold'em Tournament (comma delimited)
+#### Configuration
+1. Copy all `.help`, `.txt`, and `.conf` files from the `irccasino` package 
+   into the project root directory.
+2. In the project root directory, edit the values of `casinobot.conf` as 
+   necessary.
                 
-### Running the standalone bot ###
+#### Running CasinoBot
 1. Run the project.
 2. Give the bot Op status in the channels that will run the games.
-3. While as channel Op in those channels, type the command `.texaspoker`, `.texastourney` or `.blackjack` to start that particular game in the channel.
+3. Use the Op commands `.texaspoker`, `.texastourney` or `.blackjack` to start 
+   a game in a channel in which the bot is joined.
 4. Other useful Op commands are `.botquit`, `.reboot`, `.endgame`, and `.games`.
 
-### Upgrading ###
-1. When upgrading to a new version, be sure to use the library files from that new version (*.help* and *lib.txt*).
-2. Version 0.3.9 and newer uses a SQLite database (*stats.sqlite3*) to store game data. Use the `.migrate` command from within any game to migrate game data from *players.txt* and *housestats.txt*. The migration process will not overwrite any existing data in the database.
+Command Line Quick Setup
+================================
+#### Create Project
+1. Create a directory `MyCasinoBot` and the subdirectories `MyCasinoBot/src` and
+   `MyCasinoBot/bin`.
+2. Clone the `irccasino` package into `MyCasinoBot/src/irccasino`. 
+3. Download the [PircBotX IRC library][3] and [Xerial SQLite JDBC driver][10] 
+   into `MyCasinoBot/bin/` (JAR packages).
+4. From `MyCasinoBot`, compile the source using the command: 
+
+        # Linux/OS X
+        javac -d bin/ -cp bin/sqlite-jdbc-3.7.2.jar:bin/pircbotx-1.9.jar src/irccasino/*.java src/irccasino/*/*.java
+        # Windows
+        javac -d bin/ -cp bin/sqlite-jdbc-3.7.2.jar;bin/pircbotx-1.9.jar src/irccasino/*.java src/irccasino/*/*.java
+
+#### Configuration
+1. Copy all `.help`, `.txt`, and `.conf` files from the `irccasino` package 
+   into `MyCasinoBot`.
+2. In `MyCasinoBot`, edit the values of `casinobot.conf` as necessary.
+
+#### Running CasinoBot
+1. From `MyCasinoBot`, run the command: 
+
+        # Linux/OS X
+        java -cp bin/:bin/sqlite-jdbc-3.7.2.jar:bin/pircbotx-1.9.jar irccasino.CasinoBot
+        # Windows
+        java -cp bin/;bin/sqlite-jdbc-3.7.2.jar;bin/pircbotx-1.9.jar irccasino.CasinoBot
+
+2. Give the bot Op status in the channels that will run the games.
+3. Use the Op commands `.texaspoker`, `.texastourney` or `.blackjack` to start 
+   a game in a channel in which the bot is joined.
+4. Other useful Op commands are `.botquit`, `.reboot`, `.endgame`, and `.games`.
+
+Upgrading
+=========
+1. When upgrading to a new version, be sure to use the library and 
+   configuration files from the new version (`.help` and `.txt`).
+2. Version 0.3.9 and newer uses a SQLite database (`stats.sqlite3`) to store 
+   game data. Use the `.migrate` command from within any game to migrate old 
+   game data from `players.txt` and `housestats.txt`. The migration process 
+   will not overwrite any existing data in the database.
 
 Contributors
 ============

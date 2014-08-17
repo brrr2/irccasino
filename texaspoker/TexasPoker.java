@@ -451,7 +451,7 @@ public class TexasPoker extends CardGame{
             int bet = p.getInteger("bet");
             int cash = p.getInteger("cash");
             showMsg(getMsg("tp_turn"), p.getNickStr(), currentBet - bet, bet, currentBet, 
-                    getInPlay() + getProcessed(), bet + getPlayerProcessed(p), cash - bet);
+                    getCurrentBets() + getProcessedBets(), bet + getPlayerProcessedBets(p), cash - bet);
         }
     }
     
@@ -1009,7 +1009,7 @@ public class TexasPoker extends CardGame{
             int bet = p.getInteger("bet");
             int cash = p.getInteger("cash");
             showMsg(getMsg("tp_turn"), p.getNickStr(), currentBet - bet, bet, currentBet, 
-                    getInPlay() + getProcessed(), bet + getPlayerProcessed(p), cash - bet);
+                    getCurrentBets() + getProcessedBets(), bet + getPlayerProcessedBets(p), cash - bet);
             setIdleOutTask();
         }
     }
@@ -1861,7 +1861,7 @@ public class TexasPoker extends CardGame{
      * Determines total amount processed into pots.
      * @return the total running amount 
      */
-    protected int getProcessed() {
+    protected int getProcessedBets() {
         int total = 0;
         for (PokerPot pp : pots) {
             total += pp.getTotal();
@@ -1873,7 +1873,7 @@ public class TexasPoker extends CardGame{
      * Determines total amount in the current round of betting.
      * @return 
      */
-    protected int getInPlay() {
+    protected int getCurrentBets() {
         int total = 0;
         for (Player p : joined) {
             total += p.getInteger("bet");
@@ -1886,7 +1886,7 @@ public class TexasPoker extends CardGame{
      * @param p
      * @return 
      */
-    protected int getPlayerProcessed(PokerPlayer p) {
+    protected int getPlayerProcessedBets(PokerPlayer p) {
         int total = 0;
         for (PokerPot pp : pots) {
             total += pp.getContribution(p);

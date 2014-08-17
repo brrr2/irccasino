@@ -506,7 +506,6 @@ public class CasinoBot extends PircBotX implements GameManager {
                     if (st.hasMoreTokens()){
                         value = st.nextToken();
                     }
-                    
                     try {
                         config.putStrVal(key, value);
                     } catch (IllegalArgumentException e) {
@@ -533,27 +532,27 @@ public class CasinoBot extends PircBotX implements GameManager {
     protected void saveConfig(String configFile) {
         /* Write these values to a new file */
         try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(configFile)))) {
-            out.println("#Bot nick");
+            out.println("# Bot nick");
             out.println("nick=" + config.get("nick"));
-            out.println("#Bot user");
+            out.println("# Bot user");
             out.println("user=" + config.get("user"));
-            out.println("#Bot password");
+            out.println("# Bot password");
             out.println("password=" + config.get("password"));
-            out.println("#IRC network");
+            out.println("# IRC network");
             out.println("network=" + config.get("network"));
-            out.println("#IRC port");
+            out.println("# IRC port");
             out.println("port=" + config.get("port"));
-            out.println("#SASL login");
+            out.println("# Use SASL login");
             out.println("sasl=" + config.get("sasl"));
-            out.println("#SSL connection");
+            out.println("# Use SSL connection");
             out.println("ssl=" + config.get("ssl"));
-            out.println("#IRC channel");
+            out.println("# IRC channels to auto-join upon connection (comma delimited, optional)");
             out.println("channel=" + config.get("channel"));
-            out.println("#Blackjack channel");
+            out.println("# IRC channels to auto-start Blackjack (comma delimited, optional)");
             out.println("bjchannel=" + config.get("bjchannel"));
-            out.println("#Texas Hold'em channel");
+            out.println("# IRC channels to auto-start Texas Hold'em (comma delimited, optional)");
             out.println("tpchannel=" + config.get("tpchannel"));
-            out.println("#Texas Hold'em Tournament channel");
+            out.println("# IRC channels to auto-start Texas Hold'em Tournament (comma delimited, optional)");
             out.println("ttchannel=" + config.get("ttchannel"));
         } catch (IOException f) {
             log("Error creating " + configFile + "!");
@@ -566,7 +565,7 @@ public class CasinoBot extends PircBotX implements GameManager {
      * @param log
      */
     protected void initBot(String configFile, String log) {
-        version = "CasinoBot using PircBotX";
+        version = "CasinoBot using PircBotX: https://github.com/brrr2/irccasino";
         logFile = log;
         setMessageDelay(200);
         setVerbose(true);

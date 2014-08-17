@@ -473,7 +473,7 @@ public class TexasTourney extends TexasPoker {
             int bet = p.getInteger("bet");
             int cash = p.getInteger("cash");
             showMsg(getMsg("tp_turn"), p.getNickStr(), currentBet - bet, bet, currentBet, 
-                    getInPlay() + getProcessed(), bet + getPlayerProcessed(p), cash - bet);
+                    getCurrentBets() + getProcessedBets(), bet + getPlayerProcessedBets(p), cash - bet);
         }
     }
     
@@ -1033,7 +1033,7 @@ public class TexasTourney extends TexasPoker {
             int bet = p.getInteger("bet");
             int cash = p.getInteger("cash");
             showMsg(getMsg("tp_turn"), p.getNickStr(), currentBet - bet, bet, currentBet, 
-                    getInPlay() + getProcessed(), bet + getPlayerProcessed(p), cash - bet);
+                    getCurrentBets() + getProcessedBets(), bet + getPlayerProcessedBets(p), cash - bet);
             setIdleOutTask();
         }
     }
