@@ -791,7 +791,7 @@ public class TexasTourney extends TexasPoker {
                 String setting = params[0].toLowerCase();
                 String value = params[1].toLowerCase();
                 settings.putStrVal(setting, value);
-                saveIniFile();
+                saveIni();
                 showMsg(getMsg("setting_updated"), setting);
             } catch (IllegalArgumentException e) {
                 informPlayer(nick, getMsg("bad_parameter"));
@@ -1321,16 +1321,17 @@ public class TexasTourney extends TexasPoker {
         pots = new ArrayList<>();
         community = new Hand();
         
-        initSettings();
         loadHelp();
+        initSettings();
         loadIni();
+        saveIni();
         state = PokerState.NONE;
         betState = PokerBet.NONE;
         showMsg(getMsg("game_start"), getGameNameStr());
     }
     
     @Override
-    protected void saveIniFile() {
+    protected void saveIni() {
         try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(iniFile)))) {
             out.println("#Settings");
             out.println("#Number of seconds before a player idles out");
@@ -1358,7 +1359,7 @@ public class TexasTourney extends TexasPoker {
             out.println("#The rate-limit of the ping command");
             out.println("ping=" + settings.get("ping"));
         } catch (IOException e) {
-            manager.log("Error creating " + iniFile + "!");
+            manager.log("Error saving to " + iniFile + "!");
         }
     }
     

@@ -54,7 +54,6 @@ public class CasinoBot extends PircBotX implements GameManager {
     
     protected Record config;
     protected ArrayList<CardGame> gameList;
-    protected String logFile;
     protected SimpleDateFormat timeFormat;
     
     /**
@@ -329,7 +328,6 @@ public class CasinoBot extends PircBotX implements GameManager {
      */
     public CasinoBot(){
         super();
-        logFile = "";
         gameList = new ArrayList<>();
         config = new Record();
         timeFormat = new SimpleDateFormat("yyyy/MM/dd  HH:mm:ss:SSS");
@@ -342,15 +340,17 @@ public class CasinoBot extends PircBotX implements GameManager {
      */
     @Override
     public void log(String line){
-        if (verbose) {
-            Date time = new Date(System.currentTimeMillis());
-            String output = Colors.removeFormattingAndColors(line);
-            
-            System.out.println(timeFormat.format(time) + "  " + output);
-            try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(logFile,true)))) {
-                out.println(timeFormat.format(time) + "  " + output);
+        Date time = new Date(System.currentTimeMillis());
+        String output = timeFormat.format(time) + "  " + Colors.removeFormattingAndColors(line);
+        
+        if (config.has("verbose")) {
+            System.out.println(output);
+        }
+        if (config.has("logfile")) {
+            try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(config.getString("logfile"), true)))) {
+                out.println(output);
             } catch(IOException e) {
-                System.err.println("Error: unable to write to " + logFile);
+                System.err.println("Error: unable to write to " + config.getString("logfile"));
             }
         }
     }
@@ -485,6 +485,8 @@ public class CasinoBot extends PircBotX implements GameManager {
         config.put("ssl", Boolean.FALSE);
         config.put("network", "chat.freenode.net");
         config.put("port", 6667);
+        config.put("verbose", Boolean.TRUE);
+        config.put("logfile", "log.txt");
         config.put("channel", "##CasinoBot");
         config.put("bjchannel", "");
         config.put("tpchannel", "");
@@ -513,15 +515,8 @@ public class CasinoBot extends PircBotX implements GameManager {
                     }
                 }
             }
-        } catch (Exception e) {
-            /* Load defaults if config file is not found or problems processing
-               values within config file */
-            if (e instanceof IOException) {
-                log(configFile + " not found! Loading default values...");
-            } else {
-                log("Unknown exception while loading " + configFile + "! Using default values...");
-            }
-            saveConfig(configFile);
+        } catch (IOException e) {
+            log(configFile + " not found! Using default values...");
         }
     }
     
@@ -546,6 +541,10 @@ public class CasinoBot extends PircBotX implements GameManager {
             out.println("sasl=" + config.get("sasl"));
             out.println("# Use SSL connection");
             out.println("ssl=" + config.get("ssl"));
+            out.println("# Console output");
+            out.println("verbose=" + config.get("verbose"));
+            out.println("# Log file name (optional)");
+            out.println("logfile=" + config.get("logfile"));
             out.println("# IRC channels to auto-join upon connection (comma delimited, optional)");
             out.println("channel=" + config.get("channel"));
             out.println("# IRC channels to auto-start Blackjack (comma delimited, optional)");
@@ -562,21 +561,20 @@ public class CasinoBot extends PircBotX implements GameManager {
     /**
      * Initializes bot with custom parameters.
      * @param configFile
-     * @param log
      */
-    protected void initBot(String configFile, String log) {
-        version = "CasinoBot using PircBotX: https://github.com/brrr2/irccasino";
-        logFile = log;
+    protected void initBot(String configFile) {
+        version = "CasinoBot using PircBotX";
         setMessageDelay(200);
-        setVerbose(true);
         setAutoNickChange(true);
         setAutoReconnect(true);
         setCapEnabled(true);
         
         initConfig();
         loadConfig(configFile);
+        saveConfig(configFile);
         setName(config.getString("nick"));
         setLogin(config.getString("user"));
+        setVerbose(config.getBoolean("verbose"));
         
         // Add listener for initialization commands
         getListenerManager().addListener(new InitListener(this, '.'));
@@ -656,9 +654,9 @@ public class CasinoBot extends PircBotX implements GameManager {
         
         // Check for alternate config file
         if (args.length > 0) {
-            bot.initBot(args[0], "log.txt");
+            bot.initBot(args[0]);
         } else {
-            bot.initBot("casinobot.conf", "log.txt");
+            bot.initBot("casinobot.conf");
         }
         
         bot.runBot();

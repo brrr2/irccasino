@@ -707,7 +707,7 @@ public class Blackjack extends CardGame {
                     deck.shuffleCards();
                     loadDBGameStats();
                 }
-                saveIniFile();
+                saveIni();
                 showMsg(getMsg("setting_updated"), setting);
             } catch (IllegalArgumentException e) {
                 informPlayer(nick, getMsg("bad_parameter"));
@@ -1056,9 +1056,10 @@ public class Blackjack extends CardGame {
         helpFile = "blackjack.help";
         dealer = new BlackjackPlayer("Dealer");
         
-        initSettings();
         loadHelp();
+        initSettings();
         loadIni();
+        saveIni();
         state = BlackjackState.NONE;
         showMsg(getMsg("game_start"), getGameNameStr());
     }
@@ -1073,7 +1074,7 @@ public class Blackjack extends CardGame {
     }
     
     @Override
-    protected void saveIniFile() {
+    protected void saveIni() {
         try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(iniFile)))) {
             out.println("#Settings");
             out.println("#Number of decks in the dealer's shoe");
@@ -1107,7 +1108,7 @@ public class Blackjack extends CardGame {
             out.println("#The rate-limit of the ping command");
             out.println("ping=" + settings.get("ping"));
         } catch (IOException e) {
-            manager.log("Error creating " + iniFile + "!");
+            manager.log("Error saving to " + iniFile + "!");
         }
     }
 

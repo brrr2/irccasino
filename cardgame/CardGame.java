@@ -36,7 +36,6 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.StringTokenizer;
 import java.util.Timer;
 import org.pircbotx.Channel;
@@ -705,7 +704,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
      * @param params 
      */
     protected void gversion(String nick, String[] params) {
-        showMsg("irccasino version: " + version);
+        showMsg("irccasino version: " + version + " https://github.com/brrr2/irccasino");
     }
     
     /**
@@ -952,7 +951,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 String setting = params[0].toLowerCase();
                 String value = params[1].toLowerCase();
                 settings.putStrVal(setting, value);
-                saveIniFile();
+                saveIni();
                 showMsg(getMsg("setting_updated"), setting);
             } catch (IllegalArgumentException e) {
                 informPlayer(nick, getMsg("bad_parameter"));
@@ -1284,7 +1283,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
     /**
      * Saves the INI file associated with the game instance.
      */
-    abstract protected void saveIniFile();
+    abstract protected void saveIni();
     
     /**
      * Initializes game settings.
@@ -1457,9 +1456,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
                 }
             }
         } catch (IOException e) {
-            /* load defaults if INI file is not found */
-            manager.log(iniFile + " not found! Creating new " + iniFile + "...");
-            saveIniFile();
+            manager.log(iniFile + " not found! Using default values...");
         }
     }
     
