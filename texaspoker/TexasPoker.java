@@ -108,6 +108,10 @@ public class TexasPoker extends CardGame{
             leave(nick, params);
         } else if (command.equalsIgnoreCase("last")) {
             last(nick, params);
+        } else if (command.equalsIgnoreCase("sitout")) {
+            sitout(nick, params);
+        } else if (command.equalsIgnoreCase("sitin")) {
+            sitin(nick, params);
         } else if (command.equalsIgnoreCase("start") || command.equalsIgnoreCase("go")) {
             start(nick, params);
         } else if (command.equalsIgnoreCase("stop")) {
@@ -191,6 +195,10 @@ public class TexasPoker extends CardGame{
             fleave(user, nick, params);
         } else if (command.equalsIgnoreCase("flast")) {
             flast(user, nick, params);
+        } else if (command.equalsIgnoreCase("fsitout")) {
+            fsitout(user, nick, params);
+        } else if (command.equalsIgnoreCase("fsitin")) {
+            fsitin(user, nick, params);
         } else if (command.equalsIgnoreCase("fstart") || command.equalsIgnoreCase("fgo")){
             fstart(user, nick, params);
         } else if (command.equalsIgnoreCase("fstop")){
@@ -256,12 +264,16 @@ public class TexasPoker extends CardGame{
     protected void start(String nick, String[] params) {
         if (!isJoined(nick)) {
             informPlayer(nick, getMsg("no_join"));
+        } else if (isSittingOut(nick)) {
+            informPlayer(nick, getMsg("tp_sitin_to_play"));
         } else if (isInProgress()) {
             informPlayer(nick, getMsg("round_started"));
         } else if (joined.size() < 2) {
             showMsg(getMsg("no_players"));
         } else if (startCount > 0) {
             informPlayer(nick, getMsg("no_manual_start"));
+        } else if (joined.size() == getNumberSittingOut()) {
+            showMsg(getMsg("tp_all_sitting_out"));
         } else {
             if (params.length > 0){
                 try {
@@ -285,6 +297,8 @@ public class TexasPoker extends CardGame{
     protected void bet(String nick, String[] params) {
         if (!isJoined(nick)){
             informPlayer(nick, getMsg("no_join"));
+        } else if (isSittingOut(nick)) {
+            informPlayer(nick, getMsg("tp_sitin_to_play"));
         } else if (!isInProgress()) {
             informPlayer(nick, getMsg("no_start"));
         } else if (findJoined(nick) != currentPlayer){
@@ -310,6 +324,8 @@ public class TexasPoker extends CardGame{
     protected void call(String nick, String[] params) {
         if (!isJoined(nick)){
             informPlayer(nick, getMsg("no_join"));
+        } else if (isSittingOut(nick)) {
+            informPlayer(nick, getMsg("tp_sitin_to_play"));
         } else if (!isInProgress()) {
             informPlayer(nick, getMsg("no_start"));
         } else if (findJoined(nick) != currentPlayer){
@@ -329,6 +345,8 @@ public class TexasPoker extends CardGame{
     protected void check(String nick, String[] params) {
         if (!isJoined(nick)){
             informPlayer(nick, getMsg("no_join"));
+        } else if (isSittingOut(nick)) {
+            informPlayer(nick, getMsg("tp_sitin_to_play"));
         } else if (!isInProgress()) {
             informPlayer(nick, getMsg("no_start"));
         } else if (findJoined(nick) != currentPlayer){
@@ -348,6 +366,8 @@ public class TexasPoker extends CardGame{
     protected void fold(String nick, String[] params) {
         if (!isJoined(nick)){
             informPlayer(nick, getMsg("no_join"));
+        } else if (isSittingOut(nick)) {
+            informPlayer(nick, getMsg("tp_sitin_to_play"));
         } else if (!isInProgress()) {
             informPlayer(nick, getMsg("no_start"));
         } else if (findJoined(nick) != currentPlayer){
@@ -367,6 +387,8 @@ public class TexasPoker extends CardGame{
     protected void raise(String nick, String[] params) {
         if (!isJoined(nick)){
             informPlayer(nick, getMsg("no_join"));
+        } else if (isSittingOut(nick)) {
+            informPlayer(nick, getMsg("tp_sitin_to_play"));
         } else if (!isInProgress()) {
             informPlayer(nick, getMsg("no_start"));
         } else if (findJoined(nick) != currentPlayer){
@@ -392,6 +414,8 @@ public class TexasPoker extends CardGame{
     protected void allin(String nick, String[] params) {
         if (!isJoined(nick)){
             informPlayer(nick, getMsg("no_join"));
+        } else if (isSittingOut(nick)) {
+            informPlayer(nick, getMsg("tp_sitin_to_play"));
         } else if (!isInProgress()) {
             informPlayer(nick, getMsg("no_start"));
         } else if (findJoined(nick) != currentPlayer){
@@ -400,6 +424,36 @@ public class TexasPoker extends CardGame{
             informPlayer(nick, getMsg("game_lagging"));
         } else {
             bet(currentPlayer.getInteger("cash"));
+        }
+    }
+    
+    /**
+     * Allows a player to temporarily step away from the game.
+     * @param nick
+     * @param params 
+     */
+    protected void sitout(String nick, String[] params) {
+        if (!isJoined(nick)) {
+            informPlayer(nick, getMsg("no_join"));
+        } else if (isSittingOut(nick)) {
+            informPlayer(nick, getMsg("tp_already_sitout"));
+        } else {
+            sitOut(nick);
+        }
+    }
+    
+    /**
+     * Activates a player who is sitting out.
+     * @param nick
+     * @param params 
+     */
+    protected void sitin(String nick, String[] params) {
+        if (!isJoined(nick)) {
+            informPlayer(nick, getMsg("no_join"));
+        } else if (!isSittingOut(nick)) {
+            informPlayer(nick, getMsg("tp_no_sitout"));
+        } else {
+            sitIn(nick);
         }
     }
     
@@ -481,6 +535,8 @@ public class TexasPoker extends CardGame{
             informPlayer(nick, getMsg("round_started"));
         } else if (joined.size() < 2) {
             showMsg(getMsg("no_players"));
+        } else if (joined.size() == getNumberSittingOut()) {
+            showMsg(getMsg("tp_all_sitting_out"));
         } else {
             if (params.length > 0){
                 try {
@@ -517,6 +573,52 @@ public class TexasPoker extends CardGame{
             showMsg(getMsg("end_round"), getGameNameStr(), commandChar);
             state = PokerState.NONE;
             betState = PokerBet.NONE;
+        }
+    }
+    
+    /**
+     * Attempts to force the specified player to sitout.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void fsitout(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (params.length < 1){
+            informPlayer(nick, getMsg("no_parameter"));       
+        } else {
+            String fNick = params[0];
+            if (!isJoined(fNick)) {
+                informPlayer(nick, getMsg("no_join_nick"), fNick);
+            } else if (isSittingOut(fNick)) {
+                informPlayer(nick, getMsg("tp_already_sitout_nick"), fNick);
+            } else {
+                sitOut(fNick);
+            }
+        }
+    }
+    
+    /**
+     * Attempts to force the specified player to sitin.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void fsitin(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (params.length < 1){
+            informPlayer(nick, getMsg("no_parameter"));       
+        } else {
+            String fNick = params[0];
+            if (!isJoined(fNick)) {
+                informPlayer(nick, getMsg("no_join_nick"), fNick);
+            } else if (!isSittingOut(fNick)) {
+                informPlayer(nick, getMsg("tp_no_sitout_nick"), fNick);
+            } else {
+                sitIn(fNick);
+            }
         }
     }
     
@@ -908,6 +1010,7 @@ public class TexasPoker extends CardGame{
             betState = PokerBet.PRE_FLOP;
             setButton();
             setBlindBets();
+            setSittingOut();
             showTablePlayers();
             showButtonInfo();
             dealTable();
@@ -1063,7 +1166,8 @@ public class TexasPoker extends CardGame{
             
             /* Clean-up tasks
              * 1. Remove players who are bankrupt and set respawn timers
-             * 2. Remove players who have quit or used the 'last' command
+             * 2. Remove players who have quit or used the 'last' command or
+                  have reached the maximum number sitouts allowed
              * 3. Reset the players
              */
             for (int ctr = joined.size()-1; ctr >= 0 ; ctr--) {
@@ -1075,6 +1179,9 @@ public class TexasPoker extends CardGame{
                     removeJoined(p);
                     showMsg(getMsg("unjoin_bankrupt"), p.getNickStr(), joined.size());
                     setRespawnTask(p);
+                } else if (p.getInteger("sitoutrounds") >= settings.getInteger("sitouts")) {
+                    removeJoined(p);
+                    showMsg(getMsg("tp_unjoin_max_sitouts"), p.getNickStr(), joined.size());
                 } else if (p.has("quit") || p.has("last")) {
                     removeJoined(p);
                     showMsg(getMsg("unjoin"), p.getNickStr(), joined.size());
@@ -1096,7 +1203,7 @@ public class TexasPoker extends CardGame{
         betState = PokerBet.NONE;
         
         // Check if auto-starts remaining
-        if (startCount > 0 && joined.size() > 1){
+        if (startCount > 0 && joined.size() > 1 && getNumberSittingOut() < joined.size()){
             startCount--;
             state = PokerState.PRE_START;
             startTime = System.currentTimeMillis() / 1000;
@@ -1198,6 +1305,59 @@ public class TexasPoker extends CardGame{
     }
     
     /**
+     * Processes a player's sitting out.
+     * @param nick
+     */
+    public void sitOut(String nick) {
+        PokerPlayer p = (PokerPlayer) findJoined(nick);
+        p.put("sitout", true);
+        informPlayer(p.getNick(), getMsg("tp_sitout"), settings.get("sitouts"));
+        
+        switch (state) {
+            case BETTING:
+                p.add("sitoutrounds", 1);
+                if (p == currentPlayer) {
+                    fold();
+                } else if (!p.has("fold")){
+                    p.put("fold", true);
+                    // Remove this player from any existing pots
+                    if (currentPot != null && currentPot.isEligible(p)){
+                        currentPot.disqualify(p);
+                    }
+                    for (int ctr = 0; ctr < pots.size(); ctr++){
+                        PokerPot cPot = pots.get(ctr);
+                        if (cPot.isEligible(p)){
+                            cPot.disqualify(p);
+                        }
+                    }
+                    // If there is only one player who hasn't folded,
+                    // force call on that remaining player (whose turn it must be)
+                    if (getNumberNotFolded() == 1 && !state.equals(PokerState.CONTINUE_ROUND)){
+                        call();
+                    }
+                }
+                break;
+            case CONTINUE_ROUND:
+                p.add("sitoutrounds", 1);
+                p.put("fold", true);
+                break;
+            default:
+                break;
+        }
+    }
+    
+    /**
+     * Processes a player's sitting in.
+     * @param nick 
+     */
+    public void sitIn(String nick) {
+        PokerPlayer p = (PokerPlayer) findJoined(nick);
+        p.put("sitout", false);
+        p.reset("sitoutrounds");
+        informPlayer(p.getNick(), getMsg("tp_sitin"), settings.get("sitouts"));
+    }
+    
+    /**
      * Returns next player after the specified player.
      * @param p the specified player
      * @return the next player
@@ -1258,6 +1418,18 @@ public class TexasPoker extends CardGame{
         minRaise = minBet;
     }
     
+    /**
+     * Sets properties for players who are sitting out.
+     */
+    protected void setSittingOut() {
+        for (Player p : joined) {
+            if (p.has("sitout")) {
+                p.put("fold", true);
+                p.add("sitoutrounds", 1);
+            }
+        }
+    }
+    
     @Override
     public boolean isInProgress() {
         return !state.equals(PokerState.NONE);
@@ -1282,6 +1454,7 @@ public class TexasPoker extends CardGame{
         settings.put("showdown", 10);
         settings.put("revealcommunity", Boolean.FALSE);
         settings.put("ping", 600);
+        settings.put("sitouts", 5);
     }
     
     @Override
@@ -1328,9 +1501,20 @@ public class TexasPoker extends CardGame{
             out.println("revealcommunity=" + settings.get("revealcommunity"));
             out.println("#The rate-limit of the ping command");
             out.println("ping=" + settings.get("ping"));
+            out.println("#The maximum number of consecutive rounds a player is allowed to sit out before being removed");
+            out.println("sitouts=" + settings.get("sitouts"));
         } catch (IOException e) {
             manager.log("Error saving to " + iniFile + "!");
         }
+    }
+    
+    ///////////////////////////////////
+    //// Player management methods ////
+    ///////////////////////////////////
+    
+    protected boolean isSittingOut(String nick) {
+        PokerPlayer p = (PokerPlayer) findJoined(nick);
+        return p.has("sitout");
     }
     
     /////////////////////////////////////////
@@ -1661,7 +1845,11 @@ public class TexasPoker extends CardGame{
         for (int ctr = 0; ctr < joined.size(); ctr++) {
             p = (PokerPlayer) joined.get(ctr);
             dealHand(p);
-            informPlayer(p.getNick(), getMsg("tp_hand"), p.getHand());
+            if (p.has("sitout")) {
+                informPlayer(p.getNick(), getMsg("tp_rounds_out"), p.get("sitoutrounds"));
+            } else {
+                informPlayer(p.getNick(), getMsg("tp_hand"), p.getHand());
+            }
         }
     }
     
@@ -1814,6 +2002,20 @@ public class TexasPoker extends CardGame{
     ///////////////////////////////////
     //// Behind the scenes methods ////
     ///////////////////////////////////
+    
+    /**
+     * Determines the number of players who are sitting out.
+     * @return 
+     */
+    protected int getNumberSittingOut() {
+        int numberSittingOut = 0;
+        for (Player p : joined) {
+            if (p.has("sitout")) {
+                numberSittingOut++;
+            }
+        }
+        return numberSittingOut;
+    }
     
     /**
      * Determines the number of players who have not folded.
@@ -1982,7 +2184,7 @@ public class TexasPoker extends CardGame{
             msg += nickColor + p.getNick();
 
             // Give special players a label
-            if (p == dealer || p == smallBlind || p == bigBlind){
+            if (p == dealer || p == smallBlind || p == bigBlind || p.has("sitout")){
                 msg += "(";
                 if (p == dealer){
                     msg += "D";
@@ -1991,6 +2193,9 @@ public class TexasPoker extends CardGame{
                     msg += "S";
                 } else if (p == bigBlind){
                     msg += "B";
+                }
+                if (p.has("sitout")) {
+                    msg += "O";
                 }
                 msg += ")";
             }

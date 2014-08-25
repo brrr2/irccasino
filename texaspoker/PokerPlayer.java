@@ -43,6 +43,8 @@ public class PokerPlayer extends Player implements Comparable<PokerPlayer> {
         put("bet", 0);
         put("fold", false);
         put("allin", false);
+        put("sitout", false);
+        put("sitoutrounds", 0);
         hand = new Hand();
         pHand = new PokerHand();
     }

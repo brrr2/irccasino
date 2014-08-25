@@ -94,6 +94,10 @@ public class TexasTourney extends TexasPoker {
             join(nick, host);
         } else if (command.equalsIgnoreCase("leave") || command.equalsIgnoreCase("quit") || command.equalsIgnoreCase("l") || command.equalsIgnoreCase("q")){
             leave(nick, params);
+        } else if (command.equalsIgnoreCase("sitout")) {
+            sitout(nick, params);
+        } else if (command.equalsIgnoreCase("sitin")) {
+            sitin(nick, params);
         } else if (command.equalsIgnoreCase("start") || command.equalsIgnoreCase("go")) {
             start(nick, params);
         } else if (command.equalsIgnoreCase("stop") || command.equalsIgnoreCase("cancel")) {
@@ -161,6 +165,10 @@ public class TexasTourney extends TexasPoker {
             fjoin(user, nick, params);
         } else if (command.equalsIgnoreCase("fl") || command.equalsIgnoreCase("fq") || command.equalsIgnoreCase("fquit") || command.equalsIgnoreCase("fleave")){
             fleave(user, nick, params);
+        } else if (command.equalsIgnoreCase("fsitout")) {
+            fsitout(user, nick, params);
+        } else if (command.equalsIgnoreCase("fsitin")) {
+            fsitin(user, nick, params);
         } else if (command.equalsIgnoreCase("fstart") || command.equalsIgnoreCase("fgo")){
             fstart(user, nick, params);
         } else if (command.equalsIgnoreCase("fstop")){
@@ -268,6 +276,8 @@ public class TexasTourney extends TexasPoker {
     protected void start(String nick, String[] params) {
         if (!isJoined(nick)) {
             informPlayer(nick, getMsg("no_join"));
+        } else if (isSittingOut(nick)) {
+            informPlayer(nick, getMsg("tp_sitin_to_play"));
         } else if (isInProgress()) {
             informPlayer(nick, getMsg("tt_started"));
         } else if (joined.size() < settings.getInteger("minplayers")) {
@@ -341,6 +351,8 @@ public class TexasTourney extends TexasPoker {
     protected void bet(String nick, String[] params) {
         if (!isJoined(nick)){
             informPlayer(nick, getMsg("no_join"));
+        } else if (isSittingOut(nick)) {
+            informPlayer(nick, getMsg("tp_sitin_to_play"));
         } else if (!isInProgress()) {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (findJoined(nick) != currentPlayer){
@@ -362,6 +374,8 @@ public class TexasTourney extends TexasPoker {
     protected void call(String nick, String[] params) {
         if (!isJoined(nick)){
             informPlayer(nick, getMsg("no_join"));
+        } else if (isSittingOut(nick)) {
+            informPlayer(nick, getMsg("tp_sitin_to_play"));
         } else if (!isInProgress()) {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (findJoined(nick) != currentPlayer){
@@ -377,6 +391,8 @@ public class TexasTourney extends TexasPoker {
     protected void check(String nick, String[] params) {
         if (!isJoined(nick)){
             informPlayer(nick, getMsg("no_join"));
+        } else if (isSittingOut(nick)) {
+            informPlayer(nick, getMsg("tp_sitin_to_play"));
         } else if (!isInProgress()) {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (findJoined(nick) != currentPlayer){
@@ -392,6 +408,8 @@ public class TexasTourney extends TexasPoker {
     protected void fold(String nick, String[] params) {
         if (!isJoined(nick)){
             informPlayer(nick, getMsg("no_join"));
+        } else if (isSittingOut(nick)) {
+            informPlayer(nick, getMsg("tp_sitin_to_play"));
         } else if (!isInProgress()) {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (findJoined(nick) != currentPlayer){
@@ -407,6 +425,8 @@ public class TexasTourney extends TexasPoker {
     protected void raise(String nick, String[] params) {
         if (!isJoined(nick)){
             informPlayer(nick, getMsg("no_join"));
+        } else if (isSittingOut(nick)) {
+            informPlayer(nick, getMsg("tp_sitin_to_play"));
         } else if (!isInProgress()) {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (findJoined(nick) != currentPlayer){
@@ -428,6 +448,8 @@ public class TexasTourney extends TexasPoker {
     protected void allin(String nick, String[] params) {
         if (!isJoined(nick)){
             informPlayer(nick, getMsg("no_join"));
+        } else if (isSittingOut(nick)) {
+            informPlayer(nick, getMsg("tp_sitin_to_play"));
         } else if (!isInProgress()) {
             informPlayer(nick, getMsg("tt_no_start"));
         } else if (findJoined(nick) != currentPlayer){
@@ -436,6 +458,40 @@ public class TexasTourney extends TexasPoker {
             informPlayer(nick, getMsg("game_lagging"));
         } else {
             bet(currentPlayer.getInteger("cash"));
+        }
+    }
+    
+    /**
+     * Allows a player to temporarily step away from the game.
+     * @param nick
+     * @param params 
+     */
+    protected void sitout(String nick, String[] params) {
+        if (!isJoined(nick)) {
+            informPlayer(nick, getMsg("no_join"));
+        } else if (isSittingOut(nick)) {
+            informPlayer(nick, getMsg("tp_already_sitout"));
+        } else if (!isInProgress()) {
+            informPlayer(nick, getMsg("tt_no_start"));
+        } else {
+            sitOut(nick);
+        }
+    }
+    
+    /**
+     * Activates a player who is sitting out.
+     * @param nick
+     * @param params 
+     */
+    protected void sitin(String nick, String[] params) {
+        if (!isJoined(nick)) {
+            informPlayer(nick, getMsg("no_join"));
+        } else if (!isSittingOut(nick)) {
+            informPlayer(nick, getMsg("tp_no_sitout"));
+        } else if (!isInProgress()) {
+            informPlayer(nick, getMsg("tt_no_start"));
+        } else {
+            sitIn(nick);
         }
     }
     
@@ -626,6 +682,56 @@ public class TexasTourney extends TexasPoker {
             showMsg(getMsg("tt_end_round"), ++tourneyRounds);
             showMsg(getMsg("tt_no_winner_cancel"));
             resetTourney();
+        }
+    }
+    
+    /**
+     * Attempts to force the specified player to sitout.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void fsitout(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (params.length < 1){
+            informPlayer(nick, getMsg("no_parameter"));       
+        } else {
+            String fNick = params[0];
+            if (!isJoined(fNick)) {
+                informPlayer(nick, getMsg("no_join_nick"), fNick);
+            } else if (isSittingOut(fNick)) {
+                informPlayer(nick, getMsg("tp_already_sitout_nick"), fNick);
+            } else if (!isInProgress()) {
+                informPlayer(nick, getMsg("tt_no_start"));
+            } else {
+                sitOut(fNick);
+            }
+        }
+    }
+    
+    /**
+     * Attempts to force the specified player to sitin.
+     * @param user
+     * @param nick
+     * @param params 
+     */
+    protected void fsitin(User user, String nick, String[] params) {
+        if (!channel.isOp(user)) {
+            informPlayer(nick, getMsg("ops_only"));
+        } else if (params.length < 1){
+            informPlayer(nick, getMsg("no_parameter"));       
+        } else {
+            String fNick = params[0];
+            if (!isJoined(fNick)) {
+                informPlayer(nick, getMsg("no_join_nick"), fNick);
+            } else if (!isSittingOut(fNick)) {
+                informPlayer(nick, getMsg("tp_no_sitout_nick"), fNick);
+            } else if (!isInProgress()) {
+                informPlayer(nick, getMsg("tt_no_start"));
+            } else {
+                sitIn(fNick);
+            }
         }
     }
     
@@ -928,6 +1034,7 @@ public class TexasTourney extends TexasPoker {
             betState = PokerBet.PRE_FLOP;
             setButton();
             setBlindBets();
+            setSittingOut();
             showTablePlayers();
             showButtonInfo();
             dealTable();
@@ -1063,6 +1170,7 @@ public class TexasTourney extends TexasPoker {
             
             /* Clean-up tasks necessarily in this order
              * 1. Remove players who have quit mid-round or have gone bankrupt
+                  or have reached the maximum number of sitouts allowed
              * 2. Reset all players
              */
             for (int ctr = joined.size()-1; ctr >= 0 ; ctr--){
@@ -1077,6 +1185,11 @@ public class TexasTourney extends TexasPoker {
                     showMsg(getMsg("tt_unjoin"), p.getNickStr());
                     newPlayerOut = true;
                     newOutList.add(p);
+                // Max sit outs reached
+                } else if (p.getInteger("sitoutrounds") >= settings.getInteger("sitouts")) {
+                    blacklist.add(0, p);
+                    removeJoined(p);
+                    showMsg(getMsg("tt_unjoin_max_sitouts"), p.getNickStr());
                 // Quitters
                 } else if (p.has("quit")) {
                     blacklist.add(0, p);
@@ -1309,6 +1422,7 @@ public class TexasTourney extends TexasPoker {
         settings.put("doubleblinds", 10);
         settings.put("doubleonbankrupt", Boolean.FALSE);
         settings.put("ping", 600);
+        settings.put("sitouts", 5);
     }
     
     @Override
@@ -1358,6 +1472,8 @@ public class TexasTourney extends TexasPoker {
             out.println("doubleonbankrupt=" + settings.get("doubleonbankrupt"));
             out.println("#The rate-limit of the ping command");
             out.println("ping=" + settings.get("ping"));
+            out.println("#The maximum number of consecutive rounds a player is allowed to sit out before being removed");
+            out.println("sitouts=" + settings.get("sitouts"));
         } catch (IOException e) {
             manager.log("Error saving to " + iniFile + "!");
         }

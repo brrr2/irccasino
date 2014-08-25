@@ -7,7 +7,6 @@
 #################
 max_players=Unable to join. The maximum number of players has been reached.
 is_joined=You have already joined!
-is_joined_other=You're already joined in a game of %s in %s!
 no_join=You are not currently joined!
 join_waitlist=You have joined the waitlist and will be automatically added next round.
 leave_waitlist=You have left the waitlist and will not be automatically added next round.
@@ -29,7 +28,6 @@ no_deposit_bankrupt=You cannot go bankrupt making a deposit. Try again.
 insufficient_funds=Insufficient funds.
 no_parameter=Parameter(s) missing!
 bad_parameter=Bad parameter(s). Try again.
-game_help=For a list of game commands, type %cgcommands. For house rules, type %cgrules. For help on individual commands, type %cghelp <command>.
 deck_empty=The deck is empty. Refilling with discards...
 no_players=Not enough players.
 separator=u0002------------------------------------------------------------------u0002
@@ -45,6 +43,7 @@ no_migrate=Data migration is disabled while any game is in progress.
 ###################
 # With parameters #
 ###################
+is_joined_other=You're already joined in a game of %s in %s!
 is_joined_nick=%s is already joined!
 is_joined_other_nick=%s is already joined in a game of %s in %s!
 no_join_nick=%s is not joined!
@@ -96,6 +95,7 @@ player_all_stats=%s | Cash: $%,d | Bank: $%,d | Net: $%,d | Bankrupts: %,d | Win
 help_def=%s | Parameters: %s | Alias: %s | %s
 setting_def=%s | %s
 rate_limited=This command is rate-limited. Please wait %02d:%02d to use it again.
+game_help=For a list of game commands, type %cgcommands. For house rules, type %cgrules. For help on individual commands, type %cghelp <command>.
 #####################
 # Blackjack strings #
 #####################
@@ -168,6 +168,12 @@ tp_no_community=No community cards have been dealt yet.
 tp_commands=go, join, quit, bet, check, call, raise, fold, community, turn, hand, cash, netcash, bank, transfer, deposit, withdraw, bankrupts, winnings, winrate, rounds, player, players, waitlist, blacklist, rank, top, simple, stats, game, ghelp, grules, gcommands
 tp_game_name=Texas Hold'em Poker
 tp_shuffle_deck=The deck has been shuffled.
+tp_sitin=You are now back in the game.
+tp_sitout=You are now sitting out. You may sit out a maximum of %d round(s).
+tp_already_sitout=You are already sitting out!
+tp_no_sitout=You are not sitting out!
+tp_sitin_to_play=You cannot play while sitting out!
+tp_all_sitting_out=Unable to start because all players are sitting out!
 ###################
 # With parameters #
 ###################
@@ -175,6 +181,10 @@ tp_bet_too_low=Bet too low. Current bet is $%,d.
 raise_too_low=Minimum raise is $%,d. Try again.
 no_checking=Current bet is $%,d. You must call or raise.
 tp_turn=%s's turn. u0002$%,du0002 to call | u0002$%,du0002 --> u0002$%,du0002 | Pot: u0002$%,du0002 ($%,d) | Stack: u0002$%,du0002
+tp_rounds_out=You are sitting out this round. Rounds out: %,d
+tp_unjoin_max_sitouts=%s has sat out the max number of consecutive rounds allowed and has left the game. Players: u0002%,d
+tp_already_sitout_nick=%s is already sitting out!
+tp_no_sitout_nick=%s is not sitting out!
 tp_bet=%s bets u0002$%,du0002. Stack: u0002$%,du0002
 tp_raise=%s has raised to u0002$%,du0002. Stack: u0002$%,du0002
 tp_allin=%s has gone all in! Committed: u0002$%,du0002. Stack: u0002$%,du0002
@@ -221,6 +231,7 @@ tt_start_round=u0002----------u0002 Starting round u0002%,du0002 in %d seconds..
 tt_end_round=u0002----------u0002 End of round u0002%,du0002. u0002----------u0002
 tt_out_of_tourney=Out: %s
 tt_unjoin=%s is out of the tournament!
+tt_unjoin_max_sitouts=%s has sat out the max number of consecutive rounds allowed and is out of the tournament!
 tt_cancel=%s has requested that the tournament be canceled.
 tt_player_no_tourneys=%s has not played in any tournaments.
 tt_player_winrate=%s has won %.0f%% of tournaments entered.
