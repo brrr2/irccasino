@@ -2249,7 +2249,7 @@ public abstract class CardGame extends ListenerAdapter<PircBotX> {
         if (record == null) {
             showMsg(getMsg("no_data"), formatNoPing(nick));
         } else {
-            showMsg(getMsg("player_all_stats"), record.getNick(false), record.get("cash"), record.get("bank"), record.get("netcash"), record.get("bankrupts"), record.get("winnings"), record.get("rounds"), record.get("idles"));
+            showMsg(getMsg("player_all_stats"), record.getNickStr(false), record.get("cash"), record.get("bank"), record.get("netcash"), record.get("bankrupts"), record.get("winnings"), record.get("rounds"), record.get("idles"));
         }
     }
     

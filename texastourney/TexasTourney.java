@@ -528,8 +528,15 @@ public class TexasTourney extends TexasPoker {
             PokerPlayer p = (PokerPlayer) currentPlayer;
             int bet = p.getInteger("bet");
             int cash = p.getInteger("cash");
-            showMsg(getMsg("tp_turn"), p.getNickStr(), currentBet - bet, bet, currentBet, 
-                    getCurrentBets() + getProcessedBets(), bet + getPlayerProcessedBets(p), cash - bet);
+            if (currentBet >= cash) {
+                showMsg(getMsg("tp_turn_allin"), p.getNickStr(), currentBet, 
+                        bet, Math.min(currentBet, cash), getCurrentBets() + getProcessedBets(), 
+                        bet + getPlayerProcessedBets(p), cash - bet);
+            } else {
+                showMsg(getMsg("tp_turn"), p.getNickStr(), currentBet - bet, bet, 
+                        currentBet, getCurrentBets() + getProcessedBets(), 
+                        bet + getPlayerProcessedBets(p), cash - bet);
+            }
         }
     }
     
@@ -1139,8 +1146,15 @@ public class TexasTourney extends TexasPoker {
             PokerPlayer p = (PokerPlayer) currentPlayer;
             int bet = p.getInteger("bet");
             int cash = p.getInteger("cash");
-            showMsg(getMsg("tp_turn"), p.getNickStr(), currentBet - bet, bet, currentBet, 
-                    getCurrentBets() + getProcessedBets(), bet + getPlayerProcessedBets(p), cash - bet);
+            if (currentBet >= cash) {
+                showMsg(getMsg("tp_turn_allin"), p.getNickStr(), currentBet, 
+                        bet, Math.min(currentBet, cash), getCurrentBets() + getProcessedBets(), 
+                        bet + getPlayerProcessedBets(p), cash - bet);
+            } else {
+                showMsg(getMsg("tp_turn"), p.getNickStr(), currentBet - bet, bet, 
+                        currentBet, getCurrentBets() + getProcessedBets(), 
+                        bet + getPlayerProcessedBets(p), cash - bet);
+            }
             setIdleOutTask();
         }
     }
@@ -1817,7 +1831,7 @@ public class TexasTourney extends TexasPoker {
         if (record == null) {
             showMsg(getMsg("no_data"), formatNoPing(nick));
         } else {
-            showMsg(getMsg("tt_player_all_stats"), record.getNick(false), record.get("points"), record.get("tourneys"), record.get("idles"));
+            showMsg(getMsg("tt_player_all_stats"), record.getNickStr(false), record.get("points"), record.get("tourneys"), record.get("idles"));
         }
     }
 

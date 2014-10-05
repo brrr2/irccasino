@@ -504,8 +504,15 @@ public class TexasPoker extends CardGame{
             PokerPlayer p = (PokerPlayer) currentPlayer;
             int bet = p.getInteger("bet");
             int cash = p.getInteger("cash");
-            showMsg(getMsg("tp_turn"), p.getNickStr(), currentBet - bet, bet, currentBet, 
-                    getCurrentBets() + getProcessedBets(), bet + getPlayerProcessedBets(p), cash - bet);
+            if (currentBet >= cash) {
+                showMsg(getMsg("tp_turn_allin"), p.getNickStr(), currentBet, 
+                        bet, Math.min(currentBet, cash), getCurrentBets() + getProcessedBets(), 
+                        bet + getPlayerProcessedBets(p), cash - bet);
+            } else {
+                showMsg(getMsg("tp_turn"), p.getNickStr(), currentBet - bet, bet, 
+                        currentBet, getCurrentBets() + getProcessedBets(), 
+                        bet + getPlayerProcessedBets(p), cash - bet);
+            }
         }
     }
     
@@ -1111,8 +1118,15 @@ public class TexasPoker extends CardGame{
             PokerPlayer p = (PokerPlayer) currentPlayer;
             int bet = p.getInteger("bet");
             int cash = p.getInteger("cash");
-            showMsg(getMsg("tp_turn"), p.getNickStr(), currentBet - bet, bet, currentBet, 
-                    getCurrentBets() + getProcessedBets(), bet + getPlayerProcessedBets(p), cash - bet);
+            if (currentBet >= cash) {
+                showMsg(getMsg("tp_turn_allin"), p.getNickStr(), currentBet, 
+                        bet, Math.min(currentBet, cash), getCurrentBets() + getProcessedBets(), 
+                        bet + getPlayerProcessedBets(p), cash - bet);
+            } else {
+                showMsg(getMsg("tp_turn"), p.getNickStr(), currentBet - bet, bet, 
+                        currentBet, getCurrentBets() + getProcessedBets(), 
+                        bet + getPlayerProcessedBets(p), cash - bet);
+            }
             setIdleOutTask();
         }
     }
